@@ -29,7 +29,11 @@ const ICScanner: React.FC = () => {
   const startCamera = async (side: 'front' | 'back') => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } }
+        video: { 
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        }
       });
       streamRef.current = stream;
       setCameraActiveFor(side);

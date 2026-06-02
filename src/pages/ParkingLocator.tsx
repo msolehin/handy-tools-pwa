@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Navigation, Save, Trash2, Crosshair, Plus, Map as MapIcon, Compass } from 'lucide-react';
+import { Navigation, Save, Trash2, Crosshair, Plus, Map as MapIcon, Compass, Camera, Upload, X } from 'lucide-react';
 import L from 'leaflet';
 import { db, type ParkingLocation } from '../db';
 import { CompassNavigator } from '../components/CompassNavigator';
@@ -28,6 +28,84 @@ const ParkingLocator: React.FC = () => {
   const [imageBlob, setImageBlob] = useState<Blob | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [navigatingTo, setNavigatingTo] = useState<ParkingLocation | null>(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+  const streamRef = React.useRef<MediaStream | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, []);
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { 
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        }
+      });
+      streamRef.current = stream;
+      setIsCameraActive(true);
+      
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(e => console.error("Video play error:", e));
+        }
+      }, 100);
+    } catch (err) {
+      console.error("Error accessing camera:", err);
+      alert("Could not access camera. Falling back to file upload.");
+      fileInputRef.current?.click();
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setIsCameraActive(false);
+  };
+
+  const captureImage = () => {
+    if (videoRef.current && isCameraActive) {
+      const video = videoRef.current;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Convert canvas to blob
+        canvas.toBlob((blob) => {
+          if (blob) {
+            setImageBlob(blob);
+            const reader = new FileReader();
+            reader.onload = (event) => setImagePreview(event.target?.result as string);
+            reader.readAsDataURL(blob);
+            stopCamera();
+          }
+        }, 'image/jpeg', 0.9);
+      }
+    }
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageBlob(file);
+      const reader = new FileReader();
+      reader.onload = (event) => setImagePreview(event.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
 
   const BlobImage = ({ blob }: { blob: Blob }) => {
     const [url, setUrl] = useState<string>('');
@@ -175,23 +253,47 @@ const ParkingLocator: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-muted mb-1">Photo (Optional)</label>
+            
+            <div className="flex gap-2 mb-3">
+              <button
+                type="button"
+                onClick={startCamera}
+                className="flex-1 bg-primary/20 hover:bg-primary/30 text-primary py-2 px-4 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center space-x-2"
+              >
+                 <Camera size={18} />
+                 <span>Take Photo</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex-1 bg-white/5 hover:bg-white/10 text-white/80 py-2 px-4 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center space-x-2 border border-white/10"
+              >
+                 <Upload size={18} />
+                 <span>Upload File</span>
+              </button>
+            </div>
+            
             <input 
               type="file" 
+              ref={fileInputRef}
               accept="image/*"
-              capture="environment"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  setImageBlob(file);
-                  const reader = new FileReader();
-                  reader.onload = (event) => setImagePreview(event.target?.result as string);
-                  reader.readAsDataURL(file);
-                }
-              }}
-              className="input-field text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/20 file:text-primary hover:file:bg-primary/30"
+              className="hidden"
+              onChange={handleImageUpload}
             />
             {imagePreview && (
-              <img src={imagePreview} alt="Preview" className="mt-3 w-full h-32 object-cover rounded-xl" />
+              <div className="relative">
+                <img src={imagePreview} alt="Preview" className="w-full h-32 object-cover rounded-xl" />
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setImageBlob(null);
+                    setImagePreview(null);
+                  }}
+                  className="absolute top-2 right-2 bg-black/60 p-1.5 rounded-full text-white hover:bg-black/80 transition-colors backdrop-blur-sm"
+                >
+                  <X size={16} />
+                </button>
+              </div>
             )}
           </div>
           <div className="flex space-x-2">
@@ -268,6 +370,47 @@ const ParkingLocator: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {isCameraActive && (
+        <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-fade-in">
+          <div className="flex-1 relative flex flex-col justify-center items-center overflow-hidden">
+            <video 
+              ref={videoRef} 
+              autoPlay 
+              playsInline 
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          </div>
+          <div className="p-6 bg-black pb-12 space-y-4">
+            <div className="flex justify-between items-center px-4 max-w-sm mx-auto w-full">
+              <button 
+                onClick={() => {
+                  stopCamera();
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                  fileInputRef.current?.click();
+                }}
+                className="p-4 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors"
+                title="Upload from Gallery"
+              >
+                <Upload size={24} />
+              </button>
+              <button 
+                onClick={captureImage}
+                className="w-20 h-20 bg-white rounded-full border-4 border-white/20 flex items-center justify-center hover:bg-white/90 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)]"
+              >
+                <div className="w-16 h-16 rounded-full border-2 border-black/10 flex items-center justify-center bg-transparent" />
+              </button>
+              <button 
+                onClick={stopCamera}
+                className="p-4 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors"
+                title="Cancel"
+              >
+                <X size={24} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
