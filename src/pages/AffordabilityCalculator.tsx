@@ -1,32 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import { Wallet, Banknote, Clock, Percent, RefreshCw } from 'lucide-react';
+import { Wallet, Banknote, Clock, Percent, RefreshCw, Calendar, Briefcase } from 'lucide-react';
 
 const AffordabilityCalculator: React.FC = () => {
   const [salary, setSalary] = useState(() => localStorage.getItem('aff_salary') || '');
+  const [hoursPerDay, setHoursPerDay] = useState(() => localStorage.getItem('aff_hpd') || '8');
   const [price, setPrice] = useState(() => localStorage.getItem('aff_price') || '');
 
   useEffect(() => { localStorage.setItem('aff_salary', salary); }, [salary]);
+  useEffect(() => { localStorage.setItem('aff_hpd', hoursPerDay); }, [hoursPerDay]);
   useEffect(() => { localStorage.setItem('aff_price', price); }, [price]);
 
   const handleReset = () => {
     if (window.confirm("Reset all inputs?")) {
       setSalary('');
+      setHoursPerDay('8');
       setPrice('');
       localStorage.removeItem('aff_salary');
+      localStorage.removeItem('aff_hpd');
       localStorage.removeItem('aff_price');
     }
   };
 
   const sVal = parseFloat(salary) || 0;
+  const hpdVal = parseFloat(hoursPerDay) || 8;
   const pVal = parseFloat(price) || 0;
 
   let percentage = 0;
   let hoursNeeded = 0;
+  let daysNeeded = 0;
 
   if (sVal > 0 && pVal > 0) {
     percentage = (pVal / sVal) * 100;
-    const hourlyWage = sVal / 160;
+    // Assume 20 working days per month for hourly wage calculation
+    const hourlyWage = sVal / (20 * hpdVal);
     hoursNeeded = pVal / hourlyWage;
+    daysNeeded = hoursNeeded / hpdVal;
   }
 
   return (
@@ -68,8 +76,31 @@ const AffordabilityCalculator: React.FC = () => {
             />
           </div>
           <p className="text-xs text-muted mt-2">
-            *Assuming a standard 160 working hours per month.
+            *Assuming 20 working days per month.
           </p>
+        </div>
+
+        {/* Work Hours Input */}
+        <div className="glass-panel p-5 border-white/10">
+          <div className="flex items-center space-x-2 mb-3">
+            <Briefcase className="text-blue-400" size={18} />
+            <h3 className="font-semibold">Work Hours Per Day</h3>
+          </div>
+          <div className="relative">
+            <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+              <span className="text-muted font-medium">hours</span>
+            </div>
+            <input 
+              type="number" 
+              min="1"
+              max="24"
+              step="0.5"
+              value={hoursPerDay}
+              onChange={(e) => setHoursPerDay(e.target.value)}
+              placeholder="e.g. 8"
+              className="w-full bg-background border border-white/10 rounded-xl pl-4 pr-16 py-4 text-xl font-bold text-white focus:outline-none focus:border-blue-400 transition-colors"
+            />
+          </div>
         </div>
 
         {/* Price Input */}
@@ -124,6 +155,18 @@ const AffordabilityCalculator: React.FC = () => {
                     {hoursNeeded.toLocaleString(undefined, { maximumFractionDigits: 1 })} <span className="text-lg">hours</span>
                   </div>
                   <div className="text-sm text-muted">of actual work needed to buy this</div>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-4 bg-black/20 p-4 rounded-xl">
+                <div className="p-3 bg-blue-500/20 text-blue-400 rounded-full shrink-0">
+                  <Calendar size={24} />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-white">
+                    {daysNeeded.toLocaleString(undefined, { maximumFractionDigits: 1 })} <span className="text-lg">days</span>
+                  </div>
+                  <div className="text-sm text-muted">of full work days required</div>
                 </div>
               </div>
             </div>
