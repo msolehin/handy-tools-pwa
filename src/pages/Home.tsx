@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FileImage, MapPin, ArrowRight, Shield, PieChart, Timer, Wallet, Users, Calendar, Landmark } from 'lucide-react';
+import { FileImage, MapPin, ArrowRight, Shield, PieChart, Timer, Wallet, Users, Calendar, Landmark, ShieldAlert } from 'lucide-react';
 
 const Home: React.FC = () => {
   return (
@@ -128,6 +128,21 @@ const Home: React.FC = () => {
               </div>
             </div>
             <ArrowRight className="text-muted group-hover:text-orange-400 transition-colors" />
+          </div>
+        </Link>
+
+        <Link to="/document-expiry" className="block group">
+          <div className="glass-panel p-6 flex items-center justify-between transition-all duration-300 hover:border-red-500/50 hover:shadow-red-500/20">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-red-500/20 text-red-400 rounded-xl group-hover:scale-110 transition-transform">
+                <ShieldAlert size={28} />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">Document Expiry</h3>
+                <p className="text-sm text-muted">Track Passport, Roadtax, etc.</p>
+              </div>
+            </div>
+            <ArrowRight className="text-muted group-hover:text-red-400 transition-colors" />
           </div>
         </Link>
       </div>

@@ -9,6 +9,7 @@ import AffordabilityCalculator from './pages/AffordabilityCalculator';
 import ExpenseSplitter from './pages/ExpenseSplitter';
 import Countdown from './pages/Countdown';
 import LoanCalculator from './pages/LoanCalculator';
+import DocumentExpiry from './pages/DocumentExpiry';
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
           <Route path="expense-splitter" element={<ExpenseSplitter />} />
           <Route path="countdown" element={<Countdown />} />
           <Route path="loan-calculator" element={<LoanCalculator />} />
+          <Route path="document-expiry" element={<DocumentExpiry />} />
         </Route>
       </Routes>
     </BrowserRouter>

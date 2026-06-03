@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { Home, FileImage, MapPin, PieChart, Timer, Wallet, Users, Calendar, Landmark } from 'lucide-react';
+import { Home, FileImage, MapPin, PieChart, Timer, Wallet, Users, Calendar, Landmark, ShieldAlert } from 'lucide-react';
 
 const Layout: React.FC = () => {
   return (
@@ -121,6 +121,17 @@ const Layout: React.FC = () => {
             >
               <Landmark size={24} />
               <span className="text-[10px] mt-1 font-medium">Loans</span>
+            </NavLink>
+            <NavLink
+              to="/document-expiry"
+              className={({ isActive }) =>
+                `flex flex-col items-center p-2 rounded-xl transition-all duration-200 shrink-0 min-w-[60px] ${
+                  isActive ? 'text-primary bg-primary/10' : 'text-muted hover:text-white'
+                }`
+              }
+            >
+              <ShieldAlert size={24} />
+              <span className="text-[10px] mt-1 font-medium">Docs</span>
             </NavLink>
           </div>
         </div>
