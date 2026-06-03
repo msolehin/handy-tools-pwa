@@ -72,7 +72,7 @@ const AffordabilityCalculator: React.FC = () => {
               value={salary}
               onChange={(e) => setSalary(e.target.value)}
               placeholder="e.g. 3200"
-              className="w-full bg-background border border-white/10 rounded-xl pl-10 pr-4 py-4 text-xl font-bold text-white focus:outline-none focus:border-green-400 transition-colors"
+              className="w-full bg-background border border-white/10 rounded-xl pl-14 pr-4 py-4 text-xl font-bold text-white focus:outline-none focus:border-green-400 transition-colors"
             />
           </div>
           <p className="text-xs text-muted mt-2">
@@ -120,7 +120,7 @@ const AffordabilityCalculator: React.FC = () => {
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               placeholder="e.g. 150"
-              className="w-full bg-background border border-white/10 rounded-xl pl-10 pr-4 py-4 text-xl font-bold text-white focus:outline-none focus:border-accent transition-colors"
+              className="w-full bg-background border border-white/10 rounded-xl pl-14 pr-4 py-4 text-xl font-bold text-white focus:outline-none focus:border-accent transition-colors"
             />
           </div>
         </div>

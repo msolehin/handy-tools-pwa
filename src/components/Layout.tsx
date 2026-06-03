@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { 
   Home, FileImage, MapPin, PieChart, Timer, Wallet, Users, Calendar, 
-  Landmark, ShieldAlert, Wrench, Plane, Activity, MoreHorizontal, X, ShoppingCart, Briefcase
+  Landmark, ShieldAlert, Wrench, Plane, Activity, MoreHorizontal, X, ShoppingCart, Briefcase, Fuel
 } from 'lucide-react';
 
 const Layout: React.FC = () => {
@@ -13,13 +13,14 @@ const Layout: React.FC = () => {
     { to: "/pace-calculator", icon: Timer, label: "Pace" },
     { to: "/affordability", icon: Wallet, label: "Afford" },
     { to: "/countdown", icon: Calendar, label: "Events" },
-    { to: "/loan-calculator", icon: Landmark, label: "Loans" },
+    { to: "/financial-calculators", icon: Landmark, label: "Finance" },
     { to: "/document-expiry", icon: ShieldAlert, label: "Docs" },
     { to: "/vehicle-tracker", icon: Wrench, label: "Vehicle" },
     { to: "/trip-budget", icon: Plane, label: "Trips" },
     { to: "/bmi-calculator", icon: Activity, label: "BMI" },
     { to: "/grocery-budget", icon: ShoppingCart, label: "Grocery" },
     { to: "/packing-checklist", icon: Briefcase, label: "Packing" },
+    { to: "/fuel-calculator", icon: Fuel, label: "Fuel" },
   ];
 
   // Check if current route is in the "more" menu so we can highlight the "Others" tab

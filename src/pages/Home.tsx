@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   FileImage, MapPin, ArrowRight, Shield, PieChart, Timer, Wallet, 
   Users, Calendar, Landmark, ShieldAlert, Wrench, Plane, Activity,
-  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, Briefcase
+  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, Briefcase, Fuel
 } from 'lucide-react';
 import { 
   DndContext, 
@@ -68,7 +68,7 @@ const DEFAULT_TOOLS = [
     arrowClass: 'group-hover:text-pink-400'
   },
   { 
-    id: '/loan-calculator', to: '/loan-calculator', title: 'Loan Calculator', desc: 'Estimate Auto & Home Loans', Icon: Landmark, 
+    id: '/financial-calculators', to: '/financial-calculators', title: 'Financial Hub', desc: 'Loans, savings, and salary tools', Icon: Landmark, 
     borderClass: 'hover:border-orange-500/50 hover:shadow-orange-500/20',
     iconBgClass: 'bg-orange-500/20 text-orange-400',
     arrowClass: 'group-hover:text-orange-400'
@@ -108,6 +108,12 @@ const DEFAULT_TOOLS = [
     borderClass: 'hover:border-purple-400/50 hover:shadow-purple-400/20',
     iconBgClass: 'bg-purple-500/20 text-purple-400',
     arrowClass: 'group-hover:text-purple-400'
+  },
+  { 
+    id: '/fuel-calculator', to: '/fuel-calculator', title: 'Fuel & Tolls', desc: 'Calculate road trip costs', Icon: Fuel, 
+    borderClass: 'hover:border-orange-400/50 hover:shadow-orange-400/20',
+    iconBgClass: 'bg-orange-500/20 text-orange-400',
+    arrowClass: 'group-hover:text-orange-400'
   },
 ];
 

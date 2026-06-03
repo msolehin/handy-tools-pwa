@@ -8,13 +8,14 @@ import PaceCalculator from './pages/PaceCalculator';
 import AffordabilityCalculator from './pages/AffordabilityCalculator';
 import ExpenseSplitter from './pages/ExpenseSplitter';
 import Countdown from './pages/Countdown';
-import LoanCalculator from './pages/LoanCalculator';
+import FinancialCalculators from './pages/FinancialCalculators';
 import DocumentExpiry from './pages/DocumentExpiry';
 import VehicleTracker from './pages/VehicleTracker';
 import TripBudget from './pages/TripBudget';
 import BMICalculator from './pages/BMICalculator';
 import GroceryBudget from './pages/GroceryBudget';
 import PackingChecklist from './pages/PackingChecklist';
+import FuelCalculator from './pages/FuelCalculator';
 
 function App() {
   return (
@@ -29,13 +30,14 @@ function App() {
           <Route path="affordability" element={<AffordabilityCalculator />} />
           <Route path="expense-splitter" element={<ExpenseSplitter />} />
           <Route path="countdown" element={<Countdown />} />
-          <Route path="loan-calculator" element={<LoanCalculator />} />
+          <Route path="financial-calculators" element={<FinancialCalculators />} />
           <Route path="document-expiry" element={<DocumentExpiry />} />
           <Route path="vehicle-tracker" element={<VehicleTracker />} />
           <Route path="trip-budget" element={<TripBudget />} />
           <Route path="bmi-calculator" element={<BMICalculator />} />
           <Route path="grocery-budget" element={<GroceryBudget />} />
           <Route path="packing-checklist" element={<PackingChecklist />} />
+          <Route path="fuel-calculator" element={<FuelCalculator />} />
         </Route>
       </Routes>
     </BrowserRouter>
