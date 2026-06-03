@@ -10,6 +10,9 @@ import ExpenseSplitter from './pages/ExpenseSplitter';
 import Countdown from './pages/Countdown';
 import LoanCalculator from './pages/LoanCalculator';
 import DocumentExpiry from './pages/DocumentExpiry';
+import VehicleTracker from './pages/VehicleTracker';
+import TripBudget from './pages/TripBudget';
+import BMICalculator from './pages/BMICalculator';
 
 function App() {
   return (
@@ -26,6 +29,9 @@ function App() {
           <Route path="countdown" element={<Countdown />} />
           <Route path="loan-calculator" element={<LoanCalculator />} />
           <Route path="document-expiry" element={<DocumentExpiry />} />
+          <Route path="vehicle-tracker" element={<VehicleTracker />} />
+          <Route path="trip-budget" element={<TripBudget />} />
+          <Route path="bmi-calculator" element={<BMICalculator />} />
         </Route>
       </Routes>
     </BrowserRouter>

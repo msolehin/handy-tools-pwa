@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { Home, FileImage, MapPin, PieChart, Timer, Wallet, Users, Calendar, Landmark, ShieldAlert } from 'lucide-react';
+import { Home, FileImage, MapPin, PieChart, Timer, Wallet, Users, Calendar, Landmark, ShieldAlert, Wrench, Plane, Activity } from 'lucide-react';
 
 const Layout: React.FC = () => {
   return (
@@ -132,6 +132,39 @@ const Layout: React.FC = () => {
             >
               <ShieldAlert size={24} />
               <span className="text-[10px] mt-1 font-medium">Docs</span>
+            </NavLink>
+            <NavLink
+              to="/vehicle-tracker"
+              className={({ isActive }) =>
+                `flex flex-col items-center p-2 rounded-xl transition-all duration-200 shrink-0 min-w-[60px] ${
+                  isActive ? 'text-primary bg-primary/10' : 'text-muted hover:text-white'
+                }`
+              }
+            >
+              <Wrench size={24} />
+              <span className="text-[10px] mt-1 font-medium">Vehicle</span>
+            </NavLink>
+            <NavLink
+              to="/trip-budget"
+              className={({ isActive }) =>
+                `flex flex-col items-center p-2 rounded-xl transition-all duration-200 shrink-0 min-w-[60px] ${
+                  isActive ? 'text-primary bg-primary/10' : 'text-muted hover:text-white'
+                }`
+              }
+            >
+              <Plane size={24} />
+              <span className="text-[10px] mt-1 font-medium">Trips</span>
+            </NavLink>
+            <NavLink
+              to="/bmi-calculator"
+              className={({ isActive }) =>
+                `flex flex-col items-center p-2 rounded-xl transition-all duration-200 shrink-0 min-w-[60px] ${
+                  isActive ? 'text-primary bg-primary/10' : 'text-muted hover:text-white'
+                }`
+              }
+            >
+              <Activity size={24} />
+              <span className="text-[10px] mt-1 font-medium">BMI</span>
             </NavLink>
           </div>
         </div>

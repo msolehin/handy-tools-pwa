@@ -117,7 +117,7 @@ const LoanCalculator: React.FC = () => {
             <Calendar className="text-primary" size={18} />
             <h3 className="font-semibold">Loan Term</h3>
           </div>
-          <div className="flex space-x-2">
+          <div className="flex space-x-2 w-full">
             <input 
               type="number" 
               min="0"
@@ -125,12 +125,12 @@ const LoanCalculator: React.FC = () => {
               value={term}
               onChange={(e) => setTerm(e.target.value)}
               placeholder="e.g. 30"
-              className="flex-1 bg-background border border-white/10 rounded-xl px-4 py-4 text-xl font-bold text-white focus:outline-none focus:border-primary transition-colors"
+              className="w-2/3 min-w-0 bg-background border border-white/10 rounded-xl px-4 py-4 text-xl font-bold text-white focus:outline-none focus:border-primary transition-colors"
             />
             <select 
               value={termType}
               onChange={(e) => setTermType(e.target.value as TermType)}
-              className="bg-background border border-white/10 rounded-xl px-4 py-4 text-white focus:outline-none focus:border-primary transition-colors appearance-none"
+              className="w-1/3 min-w-0 bg-background border border-white/10 rounded-xl px-2 py-4 text-sm text-white focus:outline-none focus:border-primary transition-colors appearance-none text-center"
             >
               <option value="years">Years</option>
               <option value="months">Months</option>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FileImage, MapPin, ArrowRight, Shield, PieChart, Timer, Wallet, Users, Calendar, Landmark, ShieldAlert } from 'lucide-react';
+import { FileImage, MapPin, ArrowRight, Shield, PieChart, Timer, Wallet, Users, Calendar, Landmark, ShieldAlert, Wrench, Plane, Activity } from 'lucide-react';
 
 const Home: React.FC = () => {
   return (
@@ -143,6 +143,51 @@ const Home: React.FC = () => {
               </div>
             </div>
             <ArrowRight className="text-muted group-hover:text-red-400 transition-colors" />
+          </div>
+        </Link>
+
+        <Link to="/vehicle-tracker" className="block group">
+          <div className="glass-panel p-6 flex items-center justify-between transition-all duration-300 hover:border-slate-400/50 hover:shadow-slate-400/20">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-slate-500/20 text-slate-400 rounded-xl group-hover:scale-110 transition-transform">
+                <Wrench size={28} />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">Vehicle Tracker</h3>
+                <p className="text-sm text-muted">Log Service & Maintenance</p>
+              </div>
+            </div>
+            <ArrowRight className="text-muted group-hover:text-slate-400 transition-colors" />
+          </div>
+        </Link>
+
+        <Link to="/trip-budget" className="block group">
+          <div className="glass-panel p-6 flex items-center justify-between transition-all duration-300 hover:border-cyan-400/50 hover:shadow-cyan-400/20">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-cyan-500/20 text-cyan-400 rounded-xl group-hover:scale-110 transition-transform">
+                <Plane size={28} />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">Trip Budget</h3>
+                <p className="text-sm text-muted">Plan Vacation Expenses</p>
+              </div>
+            </div>
+            <ArrowRight className="text-muted group-hover:text-cyan-400 transition-colors" />
+          </div>
+        </Link>
+
+        <Link to="/bmi-calculator" className="block group">
+          <div className="glass-panel p-6 flex items-center justify-between transition-all duration-300 hover:border-emerald-400/50 hover:shadow-emerald-400/20">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-emerald-500/20 text-emerald-400 rounded-xl group-hover:scale-110 transition-transform">
+                <Activity size={28} />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">BMI Calculator</h3>
+                <p className="text-sm text-muted">Check Health Metrics</p>
+              </div>
+            </div>
+            <ArrowRight className="text-muted group-hover:text-emerald-400 transition-colors" />
           </div>
         </Link>
       </div>
