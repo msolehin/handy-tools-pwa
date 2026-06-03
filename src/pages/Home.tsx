@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FileImage, MapPin, ArrowRight } from 'lucide-react';
+import { FileImage, MapPin, ArrowRight, Shield } from 'lucide-react';
 
 const Home: React.FC = () => {
   return (
@@ -40,6 +40,22 @@ const Home: React.FC = () => {
             <ArrowRight className="text-muted group-hover:text-secondary transition-colors" />
           </div>
         </Link>
+      </div>
+
+      <div className="mt-8 p-5 bg-primary/5 border border-primary/10 rounded-2xl">
+        <div className="flex items-start space-x-4">
+          <div className="p-2.5 bg-primary/10 rounded-xl shrink-0">
+            <Shield className="text-primary" size={24} />
+          </div>
+          <div>
+            <h4 className="text-sm font-semibold text-white/90 mb-1.5">100% Private & Local</h4>
+            <p className="text-xs text-muted leading-relaxed">
+              Designed as a quick, zero-setup tool to solve your problem in under a minute—no login required. 
+              All processing happens entirely on your device, and no data is ever sent to a server. 
+              Everything is stored locally in your browser, meaning your data will be permanently removed if you clear your browser cache.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
