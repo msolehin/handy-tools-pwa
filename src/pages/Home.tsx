@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   FileImage, MapPin, ArrowRight, Shield, PieChart, Timer, Wallet, 
   Users, Calendar, Landmark, ShieldAlert, Wrench, Plane, Activity,
-  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, Briefcase, Fuel
+  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, Briefcase, Fuel, Gift
 } from 'lucide-react';
 import { 
   DndContext, 
@@ -115,6 +115,12 @@ const DEFAULT_TOOLS = [
     iconBgClass: 'bg-orange-500/20 text-orange-400',
     arrowClass: 'group-hover:text-orange-400'
   },
+  { 
+    id: 'https://befday.com/', to: 'https://befday.com/', title: 'Birthday Claim', desc: 'Know where to claim birthday (credit dzulhelmynazri)', Icon: Gift, 
+    borderClass: 'hover:border-pink-400/50 hover:shadow-pink-400/20',
+    iconBgClass: 'bg-pink-500/20 text-pink-400',
+    arrowClass: 'group-hover:text-pink-400'
+  },
 ];
 
 const SortableToolCard = ({ tool, viewMode, isReordering }: { tool: typeof DEFAULT_TOOLS[0], viewMode: 'list' | 'grid', isReordering: boolean }) => {
@@ -134,6 +140,14 @@ const SortableToolCard = ({ tool, viewMode, isReordering }: { tool: typeof DEFAU
     if (isReordering) setStartPos({ x: e.clientX, y: e.clientY });
   };
 
+  const handleNavigation = () => {
+    if (tool.to.startsWith('http')) {
+      window.open(tool.to, '_blank', 'noopener,noreferrer');
+    } else {
+      navigate(tool.to);
+    }
+  };
+
   const handlePointerUp = (e: React.PointerEvent) => {
     if (isReordering && startPos) {
       const dx = e.clientX - startPos.x;
@@ -142,10 +156,10 @@ const SortableToolCard = ({ tool, viewMode, isReordering }: { tool: typeof DEFAU
       
       // If pointer moved less than 10px, treat it as a click
       if (distance < 10) {
-        navigate(tool.to);
+        handleNavigation();
       }
     } else if (!isReordering) {
-      navigate(tool.to);
+      handleNavigation();
     }
     setStartPos(null);
   };

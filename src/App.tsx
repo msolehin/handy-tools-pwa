@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Analytics } from "@vercel/analytics/react";
 import Layout from './components/Layout';
 import Home from './pages/Home';
 import ICScanner from './pages/ICScanner';
@@ -40,6 +41,7 @@ function App() {
           <Route path="fuel-calculator" element={<FuelCalculator />} />
         </Route>
       </Routes>
+      <Analytics />
     </BrowserRouter>
   );
 }
