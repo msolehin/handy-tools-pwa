@@ -442,7 +442,7 @@ const Home: React.FC = () => {
           <div>
             <h4 className="text-sm font-semibold text-white/90 mb-1.5">100% Private & Local</h4>
             <p className="text-xs text-muted leading-relaxed">
-              Designed as a quick, zero-setup tool to solve your problem in under a minute—no login required. 
+              Designed as a quick, zero-setup tool to solve your problem in under a minute, no login required. 
               All processing happens entirely on your device, and no data is ever sent to a server. 
               Everything is stored locally in your browser, meaning your data will be permanently removed if you clear your browser cache.
             </p>

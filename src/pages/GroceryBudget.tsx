@@ -60,12 +60,12 @@ const GroceryBudget: React.FC = () => {
   // Budget Handlers
   const addItem = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newItemName.trim() || !newItemPrice) return;
+    if (!newItemName.trim()) return;
 
     const newItem: GroceryItem = {
       id: Math.random().toString(36).substring(7),
       name: newItemName.trim(),
-      price: parseFloat(newItemPrice) || 0,
+      price: newItemPrice ? parseFloat(newItemPrice) : 0,
       quantity: parseInt(newItemQuantity) || 1,
       checked: false
     };
@@ -240,7 +240,6 @@ const GroceryBudget: React.FC = () => {
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-xs">RM</span>
                   <input 
                     type="number" 
-                    required
                     min="0" step="0.01"
                     value={newItemPrice}
                     onChange={(e) => setNewItemPrice(e.target.value)}
@@ -260,7 +259,7 @@ const GroceryBudget: React.FC = () => {
                 </div>
               </div>
             </div>
-            <button type="submit" disabled={!newItemName || !newItemPrice} className="btn-primary h-full self-stretch px-4 rounded-xl">
+            <button type="submit" disabled={!newItemName} className="btn-primary h-full self-stretch px-4 rounded-xl">
               <Plus size={24} />
             </button>
           </form>
