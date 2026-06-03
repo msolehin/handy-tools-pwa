@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { Camera, Download, RefreshCw, Check, X, Upload } from 'lucide-react';
 import Cropper from 'react-cropper';
@@ -12,71 +12,11 @@ const ICScanner: React.FC = () => {
   const [croppingImage, setCroppingImage] = useState<string | null>(null);
   const [croppingSide, setCroppingSide] = useState<'front' | 'back' | null>(null);
   const [cropper, setCropper] = useState<any>();
-  const [cameraActiveFor, setCameraActiveFor] = useState<'front' | 'back' | null>(null);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-
-  const frontInputRef = useRef<HTMLInputElement>(null);
-  const backInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    return () => {
-      stopCamera();
-    };
-  }, []);
-
-  const startCamera = async (side: 'front' | 'back') => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        }
-      });
-      streamRef.current = stream;
-      setCameraActiveFor(side);
-      
-      // We need a small delay to ensure the videoRef is mounted in the DOM
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play().catch(e => console.error("Video play error:", e));
-        }
-      }, 100);
-    } catch (err) {
-      console.error("Error accessing camera:", err);
-      alert("Could not access camera. Falling back to file upload.");
-      if (side === 'front') frontInputRef.current?.click();
-      else backInputRef.current?.click();
-    }
-  };
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    setCameraActiveFor(null);
-  };
-
-  const captureImage = () => {
-    if (videoRef.current && cameraActiveFor) {
-      const video = videoRef.current;
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-        setCroppingImage(dataUrl);
-        setCroppingSide(cameraActiveFor);
-        stopCamera();
-      }
-    }
-  };
+  const frontCameraRef = useRef<HTMLInputElement>(null);
+  const frontFileRef = useRef<HTMLInputElement>(null);
+  const backCameraRef = useRef<HTMLInputElement>(null);
+  const backFileRef = useRef<HTMLInputElement>(null);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, side: 'front' | 'back') => {
     const file = e.target.files?.[0];
@@ -175,26 +115,30 @@ const ICScanner: React.FC = () => {
     setCardScale(1.0);
   };
 
-  const UploadBox = ({ title, image, onClick }: { title: string, image: string | null, onClick: () => void }) => (
-    <div 
-      onClick={onClick}
-      className={`glass-panel p-4 flex flex-col items-center justify-center cursor-pointer transition-all border-2 border-dashed ${image ? 'border-primary/50' : 'border-white/20 hover:border-primary/50'} h-48 relative overflow-hidden`}
-    >
+  const UploadBox = ({ title, image, onCamera, onFile }: { title: string, image: string | null, onCamera: () => void, onFile: () => void }) => (
+    <div className={`glass-panel p-4 flex flex-col items-center justify-center transition-all border-2 border-dashed ${image ? 'border-primary/50' : 'border-white/20'} h-48 relative overflow-hidden`}>
       {image ? (
-        <img src={image} alt={title} className="absolute inset-0 w-full h-full object-cover opacity-80" />
+        <>
+          <img src={image} alt={title} className="absolute inset-0 w-full h-full object-cover opacity-80" />
+          <div className="absolute bottom-2 right-2 flex space-x-2 bg-black/60 p-2 rounded-lg backdrop-blur-sm z-10">
+            <button onClick={(e) => { e.stopPropagation(); onCamera(); }} className="p-1.5 hover:text-primary transition-colors text-white" title="Retake Photo"><Camera size={16} /></button>
+            <button onClick={(e) => { e.stopPropagation(); onFile(); }} className="p-1.5 hover:text-primary transition-colors text-white" title="Reupload Image"><Upload size={16} /></button>
+          </div>
+        </>
       ) : (
         <>
-          <div className="bg-white/5 p-4 rounded-full mb-3">
-            <Camera className="text-muted" size={32} />
+          <p className="text-sm font-medium mb-4">{title}</p>
+          <div className="flex space-x-4">
+            <button onClick={(e) => { e.stopPropagation(); onCamera(); }} className="flex flex-col items-center p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors border border-white/10">
+              <Camera className="text-primary mb-2" size={24} />
+              <span className="text-xs font-medium">Camera</span>
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); onFile(); }} className="flex flex-col items-center p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors border border-white/10">
+              <Upload className="text-primary mb-2" size={24} />
+              <span className="text-xs font-medium">Upload</span>
+            </button>
           </div>
-          <p className="text-sm font-medium">{title}</p>
-          <p className="text-xs text-muted mt-1">Tap to capture or upload</p>
         </>
-      )}
-      {image && (
-        <div className="absolute bottom-2 right-2 bg-black/60 p-2 rounded-lg backdrop-blur-sm">
-          <RefreshCw size={16} className="text-white" />
-        </div>
       )}
     </div>
   );
@@ -202,7 +146,7 @@ const ICScanner: React.FC = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">IC Scanner</h2>
+        <h2 className="text-2xl font-bold">IC Combiner</h2>
         {(frontImage || backImage) && (
           <button onClick={reset} className="text-xs text-muted hover:text-white transition-colors">
             Reset All
@@ -211,46 +155,62 @@ const ICScanner: React.FC = () => {
       </div>
 
       <div className="space-y-4">
+        {/* Front Inputs */}
         <input 
           type="file" 
           accept="image/*" 
           capture="environment"
-          ref={frontInputRef} 
+          ref={frontCameraRef} 
+          className="hidden" 
+          onChange={(e) => handleImageUpload(e, 'front')} 
+        />
+        <input 
+          type="file" 
+          accept="image/*" 
+          ref={frontFileRef} 
           className="hidden" 
           onChange={(e) => handleImageUpload(e, 'front')} 
         />
         <UploadBox 
           title="Front Side" 
           image={frontImage} 
-          onClick={() => {
-            if (frontImage) {
-              if (frontInputRef.current) frontInputRef.current.value = '';
-              frontInputRef.current?.click();
-            } else {
-              startCamera('front');
-            }
-          }} 
+          onCamera={() => {
+            if (frontCameraRef.current) frontCameraRef.current.value = '';
+            frontCameraRef.current?.click();
+          }}
+          onFile={() => {
+            if (frontFileRef.current) frontFileRef.current.value = '';
+            frontFileRef.current?.click();
+          }}
         />
 
+        {/* Back Inputs */}
         <input 
           type="file" 
           accept="image/*" 
           capture="environment"
-          ref={backInputRef} 
+          ref={backCameraRef} 
+          className="hidden" 
+          onChange={(e) => handleImageUpload(e, 'back')} 
+        />
+        <input 
+          type="file" 
+          accept="image/*" 
+          ref={backFileRef} 
           className="hidden" 
           onChange={(e) => handleImageUpload(e, 'back')} 
         />
         <UploadBox 
           title="Back Side" 
           image={backImage} 
-          onClick={() => {
-            if (backImage) {
-              if (backInputRef.current) backInputRef.current.value = '';
-              backInputRef.current?.click();
-            } else {
-              startCamera('back');
-            }
-          }} 
+          onCamera={() => {
+            if (backCameraRef.current) backCameraRef.current.value = '';
+            backCameraRef.current?.click();
+          }}
+          onFile={() => {
+            if (backFileRef.current) backFileRef.current.value = '';
+            backFileRef.current?.click();
+          }}
         />
       </div>
 
@@ -372,59 +332,6 @@ const ICScanner: React.FC = () => {
         </div>
       )}
 
-      {cameraActiveFor && (
-        <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-fade-in">
-          <div className="flex-1 relative flex flex-col justify-center items-center overflow-hidden">
-            <video 
-              ref={videoRef} 
-              autoPlay 
-              playsInline 
-              className="absolute inset-0 w-full h-full object-cover"
-            />
-            {/* Guide overlay */}
-            <div className="absolute inset-0 pointer-events-none p-6 md:p-12 flex flex-col items-center justify-center">
-              <div className="w-full max-w-sm aspect-[1.586/1] border-2 border-primary/80 rounded-xl relative bg-black/20 backdrop-blur-[2px]">
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white/80 text-sm font-medium tracking-wider text-center drop-shadow-md">
-                  Align IC within frame
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="p-6 bg-black pb-12 space-y-4">
-            <div className="flex justify-between items-center px-4 max-w-sm mx-auto w-full">
-              <button 
-                onClick={() => {
-                  stopCamera();
-                  if (cameraActiveFor === 'front') {
-                    if (frontInputRef.current) frontInputRef.current.value = '';
-                    frontInputRef.current?.click();
-                  } else {
-                    if (backInputRef.current) backInputRef.current.value = '';
-                    backInputRef.current?.click();
-                  }
-                }}
-                className="p-4 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors"
-                title="Upload from Gallery"
-              >
-                <Upload size={24} />
-              </button>
-              <button 
-                onClick={captureImage}
-                className="w-20 h-20 bg-white rounded-full border-4 border-white/20 flex items-center justify-center hover:bg-white/90 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)]"
-              >
-                <div className="w-16 h-16 rounded-full border-2 border-black/10 flex items-center justify-center bg-transparent" />
-              </button>
-              <button 
-                onClick={stopCamera}
-                className="p-4 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors"
-                title="Cancel"
-              >
-                <X size={24} />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

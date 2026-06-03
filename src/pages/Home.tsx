@@ -18,7 +18,7 @@ const Home: React.FC = () => {
                 <FileImage size={28} />
               </div>
               <div>
-                <h3 className="text-lg font-semibold">IC Scanner</h3>
+                <h3 className="text-lg font-semibold">IC Combiner</h3>
                 <p className="text-sm text-muted">Scan & generate PDF</p>
               </div>
             </div>

@@ -28,74 +28,10 @@ const ParkingLocator: React.FC = () => {
   const [imageBlob, setImageBlob] = useState<Blob | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [navigatingTo, setNavigatingTo] = useState<ParkingLocation | null>(null);
-  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [fullImage, setFullImage] = useState<string | null>(null);
 
-  const videoRef = React.useRef<HTMLVideoElement>(null);
-  const streamRef = React.useRef<MediaStream | null>(null);
+  const cameraInputRef = React.useRef<HTMLInputElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    return () => {
-      stopCamera();
-    };
-  }, []);
-
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        }
-      });
-      streamRef.current = stream;
-      setIsCameraActive(true);
-      
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play().catch(e => console.error("Video play error:", e));
-        }
-      }, 100);
-    } catch (err) {
-      console.error("Error accessing camera:", err);
-      alert("Could not access camera. Falling back to file upload.");
-      fileInputRef.current?.click();
-    }
-  };
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    setIsCameraActive(false);
-  };
-
-  const captureImage = () => {
-    if (videoRef.current && isCameraActive) {
-      const video = videoRef.current;
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        // Convert canvas to blob
-        canvas.toBlob((blob) => {
-          if (blob) {
-            setImageBlob(blob);
-            const reader = new FileReader();
-            reader.onload = (event) => setImagePreview(event.target?.result as string);
-            reader.readAsDataURL(blob);
-            stopCamera();
-          }
-        }, 'image/jpeg', 0.9);
-      }
-    }
-  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -115,7 +51,7 @@ const ParkingLocator: React.FC = () => {
       return () => URL.revokeObjectURL(objectUrl);
     }, [blob]);
     if (!url) return null;
-    return <img src={url} alt="Parking Location" className="mt-3 w-full h-40 object-cover rounded-xl" />;
+    return <img src={url} alt="Parking Location" className="mt-3 w-full h-40 object-cover rounded-xl cursor-pointer hover:opacity-90 transition-opacity" onClick={() => setFullImage(url)} />;
   };
 
   const locations = useLiveQuery(() => db.parkingLocations.orderBy('createdAt').reverse().toArray());
@@ -257,7 +193,7 @@ const ParkingLocator: React.FC = () => {
             <div className="flex gap-2 mb-3">
               <button
                 type="button"
-                onClick={startCamera}
+                onClick={() => cameraInputRef.current?.click()}
                 className="flex-1 bg-primary/20 hover:bg-primary/30 text-primary py-2 px-4 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center space-x-2"
               >
                  <Camera size={18} />
@@ -275,6 +211,14 @@ const ParkingLocator: React.FC = () => {
             
             <input 
               type="file" 
+              ref={cameraInputRef}
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleImageUpload}
+            />
+            <input 
+              type="file" 
               ref={fileInputRef}
               accept="image/*"
               className="hidden"
@@ -282,7 +226,7 @@ const ParkingLocator: React.FC = () => {
             />
             {imagePreview && (
               <div className="relative">
-                <img src={imagePreview} alt="Preview" className="w-full h-32 object-cover rounded-xl" />
+                <img src={imagePreview} alt="Preview" className="w-full h-32 object-cover rounded-xl cursor-pointer hover:opacity-90 transition-opacity" onClick={() => setFullImage(imagePreview)} />
                 <button 
                   type="button"
                   onClick={() => {
@@ -371,43 +315,23 @@ const ParkingLocator: React.FC = () => {
         </div>
       </div>
 
-      {isCameraActive && (
-        <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-fade-in">
-          <div className="flex-1 relative flex flex-col justify-center items-center overflow-hidden">
-            <video 
-              ref={videoRef} 
-              autoPlay 
-              playsInline 
-              className="absolute inset-0 w-full h-full object-cover"
-            />
+      {fullImage && (
+        <div className="fixed inset-0 z-[100] bg-black/90 flex flex-col animate-fade-in p-4 backdrop-blur-sm cursor-pointer" onClick={() => setFullImage(null)}>
+          <div className="absolute top-4 right-4 z-10">
+            <button 
+              onClick={(e) => { e.stopPropagation(); setFullImage(null); }}
+              className="p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors"
+            >
+              <X size={24} />
+            </button>
           </div>
-          <div className="p-6 bg-black pb-12 space-y-4">
-            <div className="flex justify-between items-center px-4 max-w-sm mx-auto w-full">
-              <button 
-                onClick={() => {
-                  stopCamera();
-                  if (fileInputRef.current) fileInputRef.current.value = '';
-                  fileInputRef.current?.click();
-                }}
-                className="p-4 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors"
-                title="Upload from Gallery"
-              >
-                <Upload size={24} />
-              </button>
-              <button 
-                onClick={captureImage}
-                className="w-20 h-20 bg-white rounded-full border-4 border-white/20 flex items-center justify-center hover:bg-white/90 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)]"
-              >
-                <div className="w-16 h-16 rounded-full border-2 border-black/10 flex items-center justify-center bg-transparent" />
-              </button>
-              <button 
-                onClick={stopCamera}
-                className="p-4 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors"
-                title="Cancel"
-              >
-                <X size={24} />
-              </button>
-            </div>
+          <div className="flex-1 w-full h-full flex items-center justify-center overflow-hidden py-8">
+            <img 
+              src={fullImage} 
+              alt="Full preview" 
+              className="max-w-full max-h-full object-contain rounded-xl shadow-2xl" 
+              onClick={(e) => e.stopPropagation()} 
+            />
           </div>
         </div>
       )}

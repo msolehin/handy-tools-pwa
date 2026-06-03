@@ -43,7 +43,7 @@ const Layout: React.FC = () => {
               }
             >
               <FileImage size={24} />
-              <span className="text-[10px] mt-1 font-medium">IC Scanner</span>
+              <span className="text-[10px] mt-1 font-medium">IC Combiner</span>
             </NavLink>
             <NavLink
               to="/parking"
