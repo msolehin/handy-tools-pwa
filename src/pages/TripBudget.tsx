@@ -105,7 +105,7 @@ const TripBudget: React.FC = () => {
           </button>
           <div className="flex-1">
             <h2 className="text-xl font-bold truncate pr-4">{activeTrip.title}</h2>
-            <p className="text-sm text-cyan-400 font-bold">Total: ${totalBudget.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p className="text-sm text-cyan-400 font-bold">Total: RM{totalBudget.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
           </div>
         </div>
 
@@ -125,7 +125,7 @@ const TripBudget: React.FC = () => {
               min="0"
               value={newItemCost}
               onChange={(e) => setNewItemCost(e.target.value)}
-              placeholder="$0.00"
+              placeholder="RM0.00"
               className="input-field w-24 text-center"
             />
             <button type="submit" disabled={!newItemName || !newItemCost} className="p-3 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 rounded-xl transition-colors disabled:opacity-50">
@@ -140,7 +140,7 @@ const TripBudget: React.FC = () => {
             <div key={item.id} className="flex justify-between items-center bg-white/5 border border-white/5 rounded-lg p-4 group hover:bg-white/10 transition-colors">
               <span className="font-medium">{item.name}</span>
               <div className="flex items-center space-x-4">
-                <span className="font-bold text-cyan-400">${item.cost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <span className="font-bold text-cyan-400">RM{item.cost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 <button onClick={() => removeBudgetItem(item.id)} className="text-muted hover:text-red-400 transition-colors">
                   <Trash2 size={18} />
                 </button>
@@ -205,7 +205,7 @@ const TripBudget: React.FC = () => {
               </div>
               <div className="flex items-center space-x-4">
                 <span className="font-bold text-lg text-cyan-400">
-                  ${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  RM{total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
                 <button 
                   onClick={(e) => deleteTrip(trip.id, e)}

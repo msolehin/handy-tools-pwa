@@ -63,7 +63,7 @@ const AffordabilityCalculator: React.FC = () => {
           </div>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <span className="text-muted text-lg font-medium">$</span>
+              <span className="text-muted text-lg font-medium">RM</span>
             </div>
             <input 
               type="number" 
@@ -111,7 +111,7 @@ const AffordabilityCalculator: React.FC = () => {
           </div>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <span className="text-muted text-lg font-medium">$</span>
+              <span className="text-muted text-lg font-medium">RM</span>
             </div>
             <input 
               type="number" 

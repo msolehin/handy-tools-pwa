@@ -102,19 +102,19 @@ const ExpenseSplitter: React.FC = () => {
         <div className="flex justify-between items-end relative z-10">
           <div>
             <p className="text-sm text-muted mb-1">Grand Total</p>
-            <h3 className="text-3xl font-bold text-white">${totalAmount.toFixed(2)}</h3>
+            <h3 className="text-3xl font-bold text-white">RM{totalAmount.toFixed(2)}</h3>
           </div>
           <div className="text-right">
             <p className="text-sm text-muted mb-1">Per Person</p>
-            <h3 className="text-xl font-bold text-purple-400">${splitAmount.toFixed(2)}</h3>
+            <h3 className="text-xl font-bold text-purple-400">RM{splitAmount.toFixed(2)}</h3>
           </div>
         </div>
 
         {totalAmount > 0 && people.length > 0 && (
           <div className="mt-6 relative z-10">
             <div className="flex justify-between text-xs text-muted mb-2">
-              <span>Collected: ${collectedAmount.toFixed(2)}</span>
-              <span>Remaining: ${(totalAmount - collectedAmount).toFixed(2)}</span>
+              <span>Collected: RM{collectedAmount.toFixed(2)}</span>
+              <span>Remaining: RM{(totalAmount - collectedAmount).toFixed(2)}</span>
             </div>
             <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
               <div 
@@ -147,7 +147,7 @@ const ExpenseSplitter: React.FC = () => {
             min="0"
             value={newItemPrice}
             onChange={(e) => setNewItemPrice(e.target.value)}
-            placeholder="$0.00"
+            placeholder="RM0.00"
             className="input-field w-24 text-center"
           />
           <button type="submit" disabled={!newItemName || !newItemPrice} className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors disabled:opacity-50">
@@ -160,7 +160,7 @@ const ExpenseSplitter: React.FC = () => {
             <div key={item.id} className="flex justify-between items-center bg-white/5 border border-white/5 rounded-lg p-3 group hover:bg-white/10 transition-colors">
               <span className="text-sm font-medium">{item.name}</span>
               <div className="flex items-center space-x-3">
-                <span className="text-sm text-muted">${item.price.toFixed(2)}</span>
+                <span className="text-sm text-muted">RM{item.price.toFixed(2)}</span>
                 <button onClick={() => removeItem(item.id)} className="text-muted hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
                   <X size={16} />
                 </button>
@@ -220,7 +220,7 @@ const ExpenseSplitter: React.FC = () => {
               </div>
               <div className="flex items-center space-x-3">
                 <span className={`text-sm ${person.isSettled ? 'text-green-400/70 line-through' : 'text-purple-400 font-bold'}`}>
-                  ${splitAmount.toFixed(2)}
+                  RM{splitAmount.toFixed(2)}
                 </span>
                 <button onClick={() => removePerson(person.id)} className="text-muted hover:text-red-400">
                   <X size={16} />

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   FileImage, MapPin, ArrowRight, Shield, PieChart, Timer, Wallet, 
   Users, Calendar, Landmark, ShieldAlert, Wrench, Plane, Activity,
-  List, LayoutGrid
+  List, LayoutGrid, Bell
 } from 'lucide-react';
 import { 
   DndContext, 
@@ -190,10 +190,21 @@ const SortableToolCard = ({ tool, viewMode }: { tool: typeof DEFAULT_TOOLS[0], v
   }
 };
 
+interface AlertItem {
+  id: string;
+  type: 'document' | 'countdown';
+  title: string;
+  daysLeft: number;
+  to: string;
+}
+
 const Home: React.FC = () => {
   const [viewMode, setViewMode] = useState<'list' | 'grid'>(() => {
     return (localStorage.getItem('home_view_mode') as 'list' | 'grid') || 'list';
   });
+  
+  const navigate = useNavigate();
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
 
   const [tools, setTools] = useState(() => {
     const savedOrder = localStorage.getItem('home_tool_order');
@@ -218,6 +229,63 @@ const Home: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('home_tool_order', JSON.stringify(tools.map(t => t.id)));
   }, [tools]);
+
+  // Load Alerts
+  useEffect(() => {
+    const newAlerts: AlertItem[] = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const getDaysLeft = (targetDate: string) => {
+      const target = new Date(targetDate);
+      target.setHours(0, 0, 0, 0);
+      const diffTime = target.getTime() - today.getTime();
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    };
+
+    // 1. Document Expiry Alerts (<= 30 days or expired)
+    const docsStr = localStorage.getItem('de_documents');
+    if (docsStr) {
+      try {
+        const docs = JSON.parse(docsStr);
+        docs.forEach((doc: any) => {
+          const days = getDaysLeft(doc.expiryDate);
+          if (days <= 30) {
+            newAlerts.push({
+              id: `doc-${doc.id}`,
+              type: 'document',
+              title: doc.customTitle || doc.type,
+              daysLeft: days,
+              to: '/document-expiry'
+            });
+          }
+        });
+      } catch (e) {}
+    }
+
+    // 2. Countdown Events (Upcoming in next 7 days, or today)
+    const eventsStr = localStorage.getItem('cd_events');
+    if (eventsStr) {
+      try {
+        const events = JSON.parse(eventsStr);
+        events.forEach((ev: any) => {
+          const days = getDaysLeft(ev.targetDate);
+          if (days >= 0 && days <= 7) {
+            newAlerts.push({
+              id: `ev-${ev.id}`,
+              type: 'countdown',
+              title: ev.title,
+              daysLeft: days,
+              to: '/countdown'
+            });
+          }
+        });
+      } catch (e) {}
+    }
+
+    newAlerts.sort((a, b) => a.daysLeft - b.daysLeft);
+    setAlerts(newAlerts);
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -245,6 +313,50 @@ const Home: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">
+      {/* Alerts Section */}
+      {alerts.length > 0 && (
+        <div className="mt-4 mb-2 space-y-3">
+          <div className="flex items-center space-x-2 text-white/80 mb-2 px-1">
+            <Bell size={18} className="text-yellow-400 animate-pulse" />
+            <h3 className="font-bold text-sm">Action Needed</h3>
+          </div>
+          <div className="flex overflow-x-auto gap-3 pb-2 custom-scrollbar snap-x">
+            {alerts.map(alert => (
+              <div 
+                key={alert.id}
+                onClick={() => navigate(alert.to)}
+                className={`shrink-0 w-[220px] snap-start cursor-pointer p-4 rounded-2xl border transition-all hover:scale-[1.02] ${
+                  alert.type === 'document' 
+                    ? alert.daysLeft < 0 
+                      ? 'bg-red-500/10 border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.15)]' 
+                      : 'bg-yellow-500/10 border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.1)]'
+                    : 'bg-pink-500/10 border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.15)]'
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center space-x-2 mb-2">
+                    {alert.type === 'document' ? <ShieldAlert size={16} className={alert.daysLeft < 0 ? 'text-red-400' : 'text-yellow-400'} /> : <Calendar size={16} className="text-pink-400" />}
+                    <span className="text-[10px] font-bold text-white/60 uppercase tracking-wider">{alert.type}</span>
+                  </div>
+                </div>
+                <h4 className="font-bold text-base truncate mb-1">{alert.title}</h4>
+                <p className={`text-sm font-bold ${
+                  alert.type === 'document' 
+                    ? alert.daysLeft < 0 ? 'text-red-400' : 'text-yellow-400'
+                    : 'text-pink-400'
+                }`}>
+                  {alert.daysLeft < 0 
+                    ? `Expired ${Math.abs(alert.daysLeft)} days ago` 
+                    : alert.daysLeft === 0 
+                      ? 'Today!' 
+                      : `${alert.daysLeft} Days Left`}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-start justify-between mt-4 mb-6">
         <section>
           <h2 className="text-3xl font-bold mb-1">Welcome</h2>

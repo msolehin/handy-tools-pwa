@@ -75,7 +75,7 @@ const LoanCalculator: React.FC = () => {
           </div>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <span className="text-muted text-lg font-medium">$</span>
+              <span className="text-muted text-lg font-medium">RM</span>
             </div>
             <input 
               type="number" 
@@ -149,7 +149,7 @@ const LoanCalculator: React.FC = () => {
               <div className="flex flex-col items-center justify-center bg-black/30 p-6 rounded-2xl border border-orange-500/30 shadow-[0_0_20px_rgba(249,115,22,0.15)]">
                 <div className="text-sm text-orange-400 font-medium mb-1">Monthly Payment</div>
                 <div className="text-4xl font-black text-white">
-                  ${monthlyPayment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  RM{monthlyPayment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
               </div>
 
@@ -157,14 +157,14 @@ const LoanCalculator: React.FC = () => {
                 <div className="bg-black/20 p-4 rounded-xl text-center">
                   <div className="text-xs text-muted mb-1">Total Interest</div>
                   <div className="text-lg font-bold text-accent">
-                    ${totalInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    RM{totalInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
                 
                 <div className="bg-black/20 p-4 rounded-xl text-center">
                   <div className="text-xs text-muted mb-1">Total Cost</div>
                   <div className="text-lg font-bold text-white">
-                    ${totalPayment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    RM{totalPayment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
               </div>
