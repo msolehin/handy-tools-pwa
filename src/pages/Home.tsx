@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FileImage, MapPin, ArrowRight, Shield, PieChart, Timer, Wallet, Users } from 'lucide-react';
+import { FileImage, MapPin, ArrowRight, Shield, PieChart, Timer, Wallet, Users, Calendar } from 'lucide-react';
 
 const Home: React.FC = () => {
   return (
@@ -98,6 +98,21 @@ const Home: React.FC = () => {
               </div>
             </div>
             <ArrowRight className="text-muted group-hover:text-purple-400 transition-colors" />
+          </div>
+        </Link>
+
+        <Link to="/countdown" className="block group">
+          <div className="glass-panel p-6 flex items-center justify-between transition-all duration-300 hover:border-pink-500/50 hover:shadow-pink-500/20">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-pink-500/20 text-pink-400 rounded-xl group-hover:scale-110 transition-transform">
+                <Calendar size={28} />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">Countdown Day</h3>
+                <p className="text-sm text-muted">Track Events & Holidays</p>
+              </div>
+            </div>
+            <ArrowRight className="text-muted group-hover:text-pink-400 transition-colors" />
           </div>
         </Link>
       </div>
