@@ -29,6 +29,7 @@ const ParkingLocator: React.FC = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [navigatingTo, setNavigatingTo] = useState<ParkingLocation | null>(null);
   const [fullImage, setFullImage] = useState<string | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
 
   const cameraInputRef = React.useRef<HTMLInputElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -57,19 +58,23 @@ const ParkingLocator: React.FC = () => {
   const locations = useLiveQuery(() => db.parkingLocations.orderBy('createdAt').reverse().toArray());
 
   const getLocation = () => {
+    setIsLocating(true);
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setCurrentLocation([position.coords.latitude, position.coords.longitude]);
+          setIsLocating(false);
         },
         (error) => {
           console.error("Error getting location", error);
           alert("Could not get your precise location. Please ensure location services are enabled.");
+          setIsLocating(false);
         },
-        { enableHighAccuracy: true }
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
       );
     } else {
       alert("Geolocation is not supported by this browser.");
+      setIsLocating(false);
     }
   };
 
@@ -131,8 +136,12 @@ const ParkingLocator: React.FC = () => {
       )}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Parking Locator</h2>
-        <button onClick={getLocation} className="p-2 bg-surface rounded-full hover:bg-surface/80 text-primary transition-colors">
-          <Crosshair size={20} />
+        <button 
+          onClick={getLocation} 
+          disabled={isLocating}
+          className={`p-2 rounded-full transition-colors ${isLocating ? 'bg-primary/20 text-primary' : 'bg-surface hover:bg-surface/80 text-primary'}`}
+        >
+          <Crosshair size={20} className={isLocating ? "animate-spin" : ""} />
         </button>
       </div>
 

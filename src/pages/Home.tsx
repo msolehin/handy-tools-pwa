@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { 
   FileImage, MapPin, ArrowRight, Shield, PieChart, Timer, Wallet, 
   Users, Calendar, Landmark, ShieldAlert, Wrench, Plane, Activity,
-  List, LayoutGrid, Bell
+  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart
 } from 'lucide-react';
 import { 
   DndContext, 
   closestCenter,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors
 } from '@dnd-kit/core';
@@ -96,9 +97,15 @@ const DEFAULT_TOOLS = [
     iconBgClass: 'bg-emerald-500/20 text-emerald-400',
     arrowClass: 'group-hover:text-emerald-400'
   },
+  { 
+    id: '/grocery-budget', to: '/grocery-budget', title: 'Grocery Budget', desc: 'Track cart total while shopping', Icon: ShoppingCart, 
+    borderClass: 'hover:border-green-400/50 hover:shadow-green-400/20',
+    iconBgClass: 'bg-green-500/20 text-green-400',
+    arrowClass: 'group-hover:text-green-400'
+  },
 ];
 
-const SortableToolCard = ({ tool, viewMode }: { tool: typeof DEFAULT_TOOLS[0], viewMode: 'list' | 'grid' }) => {
+const SortableToolCard = ({ tool, viewMode, isReordering }: { tool: typeof DEFAULT_TOOLS[0], viewMode: 'list' | 'grid', isReordering: boolean }) => {
   const {
     attributes,
     listeners,
@@ -106,17 +113,17 @@ const SortableToolCard = ({ tool, viewMode }: { tool: typeof DEFAULT_TOOLS[0], v
     transform,
     transition,
     isDragging
-  } = useSortable({ id: tool.id });
+  } = useSortable({ id: tool.id, disabled: !isReordering });
 
   const navigate = useNavigate();
   const [startPos, setStartPos] = useState<{x: number, y: number} | null>(null);
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    setStartPos({ x: e.clientX, y: e.clientY });
+    if (isReordering) setStartPos({ x: e.clientX, y: e.clientY });
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
-    if (startPos) {
+    if (isReordering && startPos) {
       const dx = e.clientX - startPos.x;
       const dy = e.clientY - startPos.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
@@ -125,6 +132,8 @@ const SortableToolCard = ({ tool, viewMode }: { tool: typeof DEFAULT_TOOLS[0], v
       if (distance < 10) {
         navigate(tool.to);
       }
+    } else if (!isReordering) {
+      navigate(tool.to);
     }
     setStartPos(null);
   };
@@ -134,29 +143,31 @@ const SortableToolCard = ({ tool, viewMode }: { tool: typeof DEFAULT_TOOLS[0], v
     transition,
     zIndex: isDragging ? 10 : 1,
     opacity: isDragging ? 0.8 : 1,
-    touchAction: 'none' // Prevent scrolling when dragging
+    ...(isReordering && isDragging ? { touchAction: 'none' } : {})
   };
 
   const Icon = tool.Icon;
   
+  // Choose which props to pass for drag
+  const dragProps = isReordering ? { ...attributes, ...listeners } : {};
+
   if (viewMode === 'list') {
     return (
       <div 
         ref={setNodeRef} 
         style={style} 
-        {...attributes} 
-        {...listeners}
+        {...dragProps}
         onPointerDownCapture={handlePointerDown}
         onPointerUpCapture={handlePointerUp}
       >
-        <div className="block group cursor-pointer">
+        <div className={`block group ${isReordering ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}>
           <div className={`glass-panel p-6 flex items-center justify-between transition-all duration-300 ${tool.borderClass}`}>
             <div className="flex items-center space-x-4">
               <div className={`p-3 rounded-xl group-hover:scale-110 transition-transform ${tool.iconBgClass}`}>
                 <Icon size={28} />
               </div>
               <div>
-                <h3 className="text-lg font-semibold">{tool.title}</h3>
+                <h3 className="font-bold text-lg mb-1">{tool.title}</h3>
                 <p className="text-sm text-muted">{tool.desc}</p>
               </div>
             </div>
@@ -165,29 +176,26 @@ const SortableToolCard = ({ tool, viewMode }: { tool: typeof DEFAULT_TOOLS[0], v
         </div>
       </div>
     );
-  } else {
-    return (
-      <div 
-        ref={setNodeRef} 
-        style={style} 
-        {...attributes} 
-        {...listeners} 
-        className="h-full"
-        onPointerDownCapture={handlePointerDown}
-        onPointerUpCapture={handlePointerUp}
-      >
-        <div className="block group cursor-pointer h-full">
-          <div className={`glass-panel p-5 flex flex-col items-center justify-center text-center h-full transition-all duration-300 ${tool.borderClass}`}>
-            <div className={`p-4 rounded-2xl mb-4 group-hover:scale-110 transition-transform ${tool.iconBgClass}`}>
-              <Icon size={32} />
-            </div>
-            <h3 className="text-sm font-bold mb-1 leading-tight">{tool.title}</h3>
-            <p className="text-[10px] text-muted leading-tight">{tool.desc}</p>
+  }
+
+  return (
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      {...dragProps}
+      onPointerDownCapture={handlePointerDown}
+      onPointerUpCapture={handlePointerUp}
+    >
+      <div className={`block h-full group ${isReordering ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}>
+        <div className={`glass-panel p-5 flex flex-col items-center justify-center text-center h-full transition-all duration-300 ${tool.borderClass}`}>
+          <div className={`p-4 rounded-2xl mb-4 group-hover:scale-110 transition-transform ${tool.iconBgClass}`}>
+            <Icon size={32} />
           </div>
+          <h3 className="font-bold text-sm leading-tight">{tool.title}</h3>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
 };
 
 interface AlertItem {
@@ -202,6 +210,7 @@ const Home: React.FC = () => {
   const [viewMode, setViewMode] = useState<'list' | 'grid'>(() => {
     return (localStorage.getItem('home_view_mode') as 'list' | 'grid') || 'list';
   });
+  const [isReordering, setIsReordering] = useState(false);
   
   const navigate = useNavigate();
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
@@ -288,7 +297,12 @@ const Home: React.FC = () => {
   }, []);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 10,
+      },
+    }),
+    useSensor(TouchSensor, {
       activationConstraint: {
         delay: 250,
         tolerance: 5,
@@ -357,24 +371,37 @@ const Home: React.FC = () => {
         </div>
       )}
 
-      <div className="flex items-start justify-between mt-4 mb-6">
+      <div className="flex items-end justify-between mt-4 mb-6">
         <section>
           <h2 className="text-3xl font-bold mb-1">Welcome</h2>
           <p className="text-muted text-sm pr-4">Select a tool below to get started. Works fully offline.</p>
         </section>
-        <div className="flex space-x-1 shrink-0 bg-black/20 p-1 rounded-xl">
-          <button 
-            onClick={() => setViewMode('list')}
-            className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-primary/20 text-primary' : 'text-muted hover:text-white'}`}
+        <div className="flex flex-col items-end space-y-2">
+          <button
+            onClick={() => setIsReordering(!isReordering)}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold tracking-wider uppercase transition-all ${
+              isReordering 
+                ? 'bg-primary text-white shadow-[0_0_15px_rgba(var(--color-primary),0.3)]' 
+                : 'bg-white/5 text-muted hover:bg-white/10 hover:text-white'
+            }`}
           >
-            <List size={20} />
+            <ArrowUpDown size={12} />
+            <span>Reorder</span>
           </button>
-          <button 
-            onClick={() => setViewMode('grid')}
-            className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-primary/20 text-primary' : 'text-muted hover:text-white'}`}
-          >
-            <LayoutGrid size={20} />
-          </button>
+          <div className="flex space-x-1 shrink-0 bg-black/20 p-1 rounded-xl">
+            <button 
+              onClick={() => setViewMode('list')}
+              className={`p-1.5 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-primary/20 text-primary' : 'text-muted hover:text-white'}`}
+            >
+              <List size={18} />
+            </button>
+            <button 
+              onClick={() => setViewMode('grid')}
+              className={`p-1.5 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-primary/20 text-primary' : 'text-muted hover:text-white'}`}
+            >
+              <LayoutGrid size={18} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -389,7 +416,7 @@ const Home: React.FC = () => {
             strategy={rectSortingStrategy}
           >
             {tools.map(tool => (
-              <SortableToolCard key={tool.id} tool={tool} viewMode={viewMode} />
+              <SortableToolCard key={tool.id} tool={tool} viewMode={viewMode} isReordering={isReordering} />
             ))}
           </SortableContext>
         </div>

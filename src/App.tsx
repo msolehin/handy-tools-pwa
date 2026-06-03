@@ -13,6 +13,7 @@ import DocumentExpiry from './pages/DocumentExpiry';
 import VehicleTracker from './pages/VehicleTracker';
 import TripBudget from './pages/TripBudget';
 import BMICalculator from './pages/BMICalculator';
+import GroceryBudget from './pages/GroceryBudget';
 
 function App() {
   return (
@@ -32,6 +33,7 @@ function App() {
           <Route path="vehicle-tracker" element={<VehicleTracker />} />
           <Route path="trip-budget" element={<TripBudget />} />
           <Route path="bmi-calculator" element={<BMICalculator />} />
+          <Route path="grocery-budget" element={<GroceryBudget />} />
         </Route>
       </Routes>
     </BrowserRouter>
