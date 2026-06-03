@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FileImage, MapPin, ArrowRight, Shield } from 'lucide-react';
+import { FileImage, MapPin, ArrowRight, Shield, PieChart } from 'lucide-react';
 
 const Home: React.FC = () => {
   return (
@@ -38,6 +38,21 @@ const Home: React.FC = () => {
               </div>
             </div>
             <ArrowRight className="text-muted group-hover:text-secondary transition-colors" />
+          </div>
+        </Link>
+
+        <Link to="/decision-maker" className="block group">
+          <div className="glass-panel p-6 flex items-center justify-between transition-all duration-300 hover:border-accent/50 hover:shadow-accent/20">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-accent/20 text-accent rounded-xl group-hover:scale-110 transition-transform">
+                <PieChart size={28} />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">Random Decision Maker</h3>
+                <p className="text-sm text-muted">Spin the wheel to decide</p>
+              </div>
+            </div>
+            <ArrowRight className="text-muted group-hover:text-accent transition-colors" />
           </div>
         </Link>
       </div>

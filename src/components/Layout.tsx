@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { Home, FileImage, MapPin } from 'lucide-react';
+import { Home, FileImage, MapPin, PieChart } from 'lucide-react';
 
 const Layout: React.FC = () => {
   return (
@@ -55,6 +55,17 @@ const Layout: React.FC = () => {
             >
               <MapPin size={24} />
               <span className="text-[10px] mt-1 font-medium">Parking</span>
+            </NavLink>
+            <NavLink
+              to="/decision-maker"
+              className={({ isActive }) =>
+                `flex flex-col items-center p-2 rounded-xl transition-all duration-200 ${
+                  isActive ? 'text-primary bg-primary/10' : 'text-muted hover:text-white'
+                }`
+              }
+            >
+              <PieChart size={24} />
+              <span className="text-[10px] mt-1 font-medium">Decide</span>
             </NavLink>
           </div>
         </div>
