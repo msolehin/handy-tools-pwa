@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { PDFDocument } from 'pdf-lib';
 import { Camera, Download, RefreshCw, Check, X, Upload } from 'lucide-react';
 import Cropper from 'react-cropper';
@@ -11,7 +12,7 @@ const ICScanner: React.FC = () => {
   const [cardScale, setCardScale] = useState<number>(1.0);
   const [croppingImage, setCroppingImage] = useState<string | null>(null);
   const [croppingSide, setCroppingSide] = useState<'front' | 'back' | null>(null);
-  const [cropper, setCropper] = useState<any>();
+  const cropperRef = useRef<any>(null);
 
   const frontCameraRef = useRef<HTMLInputElement>(null);
   const frontFileRef = useRef<HTMLInputElement>(null);
@@ -287,11 +288,11 @@ const ICScanner: React.FC = () => {
         All processing is done locally on your device. No images are uploaded to any server.
       </p>
 
-      {croppingImage && (
+      {croppingImage && createPortal(
         <div className="fixed inset-0 z-[100] bg-background flex flex-col animate-fade-in">
-          <div className="flex-1 relative bg-black/80 flex flex-col">
-            <h3 className="text-center py-4 font-semibold">Adjust Crop Area</h3>
-            <div className="flex-1 overflow-hidden">
+          <div className="flex-1 min-h-0 relative bg-black/80 flex flex-col">
+            <h3 className="text-center py-4 font-semibold text-white">Adjust Crop Area</h3>
+            <div className="flex-1 min-h-0 overflow-hidden">
               <Cropper
                 src={croppingImage}
                 style={{ height: '100%', width: '100%' }}
@@ -301,11 +302,11 @@ const ICScanner: React.FC = () => {
                 autoCropArea={0.9}
                 background={false}
                 responsive={true}
-                onInitialized={(instance) => setCropper(instance)}
+                ref={cropperRef}
               />
             </div>
           </div>
-          <div className="p-6 bg-surface flex space-x-4 pb-12">
+          <div className="p-6 bg-surface flex space-x-4 pb-12 shrink-0">
             <button 
               onClick={() => {
                 setCroppingImage(null);
@@ -318,6 +319,7 @@ const ICScanner: React.FC = () => {
             </button>
             <button 
               onClick={() => {
+                const cropper = cropperRef.current?.cropper;
                 if (cropper) {
                   const cropped = cropper.getCroppedCanvas().toDataURL('image/jpeg', 0.9);
                   if (croppingSide === 'front') setFrontImage(cropped);
@@ -333,7 +335,7 @@ const ICScanner: React.FC = () => {
             </button>
           </div>
         </div>
-      )}
+      , document.body)}
 
     </div>
   );
