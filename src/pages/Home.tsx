@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FileImage, MapPin, ArrowRight, Shield, PieChart, Timer } from 'lucide-react';
+import { FileImage, MapPin, ArrowRight, Shield, PieChart, Timer, Wallet } from 'lucide-react';
 
 const Home: React.FC = () => {
   return (
@@ -68,6 +68,21 @@ const Home: React.FC = () => {
               </div>
             </div>
             <ArrowRight className="text-muted group-hover:text-blue-400 transition-colors" />
+          </div>
+        </Link>
+
+        <Link to="/affordability" className="block group">
+          <div className="glass-panel p-6 flex items-center justify-between transition-all duration-300 hover:border-green-400/50 hover:shadow-green-400/20">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-green-500/20 text-green-400 rounded-xl group-hover:scale-110 transition-transform">
+                <Wallet size={28} />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">Can I Afford It?</h3>
+                <p className="text-sm text-muted">Cost vs Income Calculator</p>
+              </div>
+            </div>
+            <ArrowRight className="text-muted group-hover:text-green-400 transition-colors" />
           </div>
         </Link>
       </div>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { Home, FileImage, MapPin, PieChart, Timer } from 'lucide-react';
+import { Home, FileImage, MapPin, PieChart, Timer, Wallet } from 'lucide-react';
 
 const Layout: React.FC = () => {
   return (
@@ -22,11 +22,11 @@ const Layout: React.FC = () => {
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50">
         <div className="max-w-md mx-auto mb-4 px-4">
-          <div className="glass-panel flex justify-around items-center p-2">
+          <div className="glass-panel flex justify-start sm:justify-around items-center p-2 overflow-x-auto gap-2 custom-scrollbar">
             <NavLink
               to="/"
               className={({ isActive }) =>
-                `flex flex-col items-center p-2 rounded-xl transition-all duration-200 ${
+                `flex flex-col items-center p-2 rounded-xl transition-all duration-200 shrink-0 min-w-[60px] ${
                   isActive ? 'text-primary bg-primary/10' : 'text-muted hover:text-white'
                 }`
               }
@@ -37,7 +37,7 @@ const Layout: React.FC = () => {
             <NavLink
               to="/ic-scanner"
               className={({ isActive }) =>
-                `flex flex-col items-center p-2 rounded-xl transition-all duration-200 ${
+                `flex flex-col items-center p-2 rounded-xl transition-all duration-200 shrink-0 min-w-[60px] ${
                   isActive ? 'text-primary bg-primary/10' : 'text-muted hover:text-white'
                 }`
               }
@@ -48,7 +48,7 @@ const Layout: React.FC = () => {
             <NavLink
               to="/parking"
               className={({ isActive }) =>
-                `flex flex-col items-center p-2 rounded-xl transition-all duration-200 ${
+                `flex flex-col items-center p-2 rounded-xl transition-all duration-200 shrink-0 min-w-[60px] ${
                   isActive ? 'text-primary bg-primary/10' : 'text-muted hover:text-white'
                 }`
               }
@@ -59,7 +59,7 @@ const Layout: React.FC = () => {
             <NavLink
               to="/decision-maker"
               className={({ isActive }) =>
-                `flex flex-col items-center p-2 rounded-xl transition-all duration-200 ${
+                `flex flex-col items-center p-2 rounded-xl transition-all duration-200 shrink-0 min-w-[60px] ${
                   isActive ? 'text-primary bg-primary/10' : 'text-muted hover:text-white'
                 }`
               }
@@ -70,13 +70,24 @@ const Layout: React.FC = () => {
             <NavLink
               to="/pace-calculator"
               className={({ isActive }) =>
-                `flex flex-col items-center p-2 rounded-xl transition-all duration-200 ${
+                `flex flex-col items-center p-2 rounded-xl transition-all duration-200 shrink-0 min-w-[60px] ${
                   isActive ? 'text-primary bg-primary/10' : 'text-muted hover:text-white'
                 }`
               }
             >
               <Timer size={24} />
               <span className="text-[10px] mt-1 font-medium">Pace</span>
+            </NavLink>
+            <NavLink
+              to="/affordability"
+              className={({ isActive }) =>
+                `flex flex-col items-center p-2 rounded-xl transition-all duration-200 shrink-0 min-w-[60px] ${
+                  isActive ? 'text-primary bg-primary/10' : 'text-muted hover:text-white'
+                }`
+              }
+            >
+              <Wallet size={24} />
+              <span className="text-[10px] mt-1 font-medium">Afford</span>
             </NavLink>
           </div>
         </div>
