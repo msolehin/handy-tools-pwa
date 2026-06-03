@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   FileImage, MapPin, ArrowRight, Shield, PieChart, Timer, Wallet, 
   Users, Calendar, Landmark, ShieldAlert, Wrench, Plane, Activity,
-  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart
+  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, Briefcase
 } from 'lucide-react';
 import { 
   DndContext, 
@@ -102,6 +102,12 @@ const DEFAULT_TOOLS = [
     borderClass: 'hover:border-green-400/50 hover:shadow-green-400/20',
     iconBgClass: 'bg-green-500/20 text-green-400',
     arrowClass: 'group-hover:text-green-400'
+  },
+  { 
+    id: '/packing-checklist', to: '/packing-checklist', title: 'Packing Checklist', desc: 'Never forget an item again', Icon: Briefcase, 
+    borderClass: 'hover:border-purple-400/50 hover:shadow-purple-400/20',
+    iconBgClass: 'bg-purple-500/20 text-purple-400',
+    arrowClass: 'group-hover:text-purple-400'
   },
 ];
 
