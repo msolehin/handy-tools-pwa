@@ -6,6 +6,7 @@ import ParkingLocator from './pages/ParkingLocator';
 import DecisionMaker from './pages/DecisionMaker';
 import PaceCalculator from './pages/PaceCalculator';
 import AffordabilityCalculator from './pages/AffordabilityCalculator';
+import ExpenseSplitter from './pages/ExpenseSplitter';
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
           <Route path="decision-maker" element={<DecisionMaker />} />
           <Route path="pace-calculator" element={<PaceCalculator />} />
           <Route path="affordability" element={<AffordabilityCalculator />} />
+          <Route path="expense-splitter" element={<ExpenseSplitter />} />
         </Route>
       </Routes>
     </BrowserRouter>
