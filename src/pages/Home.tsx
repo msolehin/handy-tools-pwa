@@ -386,7 +386,7 @@ const Home: React.FC = () => {
       <div className="flex items-end justify-between mt-4 mb-6">
         <section>
           <h2 className="text-3xl font-bold mb-1">Welcome</h2>
-          <p className="text-muted text-sm pr-4">Select a tool below to get started. Works fully offline.</p>
+          <p className="text-muted text-sm pr-4">Select a tool below to get started. Works fully online.</p>
         </section>
         <div className="flex flex-col items-end space-y-2">
           <button
