@@ -4,6 +4,7 @@ import Home from './pages/Home';
 import ICScanner from './pages/ICScanner';
 import ParkingLocator from './pages/ParkingLocator';
 import DecisionMaker from './pages/DecisionMaker';
+import PaceCalculator from './pages/PaceCalculator';
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
           <Route path="ic-scanner" element={<ICScanner />} />
           <Route path="parking" element={<ParkingLocator />} />
           <Route path="decision-maker" element={<DecisionMaker />} />
+          <Route path="pace-calculator" element={<PaceCalculator />} />
         </Route>
       </Routes>
     </BrowserRouter>

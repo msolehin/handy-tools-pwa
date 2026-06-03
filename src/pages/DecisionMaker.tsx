@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Plus, X, Target, Play } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, X, Target, Play, RefreshCw } from 'lucide-react';
 
 interface Option {
   id: string;
@@ -14,14 +14,42 @@ const colors = [
 ];
 
 const DecisionMaker: React.FC = () => {
-  const [question, setQuestion] = useState('Where should I eat?');
-  const [options, setOptions] = useState<Option[]>([
+  const defaultQuestion = 'Where should I eat?';
+  const defaultOptions = [
     { id: '1', text: 'Pizza' },
     { id: '2', text: 'Burgers' },
     { id: '3', text: 'Sushi' },
     { id: '4', text: 'Salad' },
-  ]);
+  ];
+
+  const [question, setQuestion] = useState(() => {
+    const saved = localStorage.getItem('dm_question');
+    return saved !== null ? saved : defaultQuestion;
+  });
+  
+  const [options, setOptions] = useState<Option[]>(() => {
+    const saved = localStorage.getItem('dm_options');
+    return saved ? JSON.parse(saved) : defaultOptions;
+  });
+  
   const [newOption, setNewOption] = useState('');
+  
+  useEffect(() => {
+    localStorage.setItem('dm_question', question);
+  }, [question]);
+
+  useEffect(() => {
+    localStorage.setItem('dm_options', JSON.stringify(options));
+  }, [options]);
+
+  const handleReset = () => {
+    if (window.confirm("Reset to default question and options?")) {
+      setQuestion(defaultQuestion);
+      setOptions(defaultOptions);
+      localStorage.removeItem('dm_question');
+      localStorage.removeItem('dm_options');
+    }
+  };
   
   const [isSpinning, setIsSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
@@ -119,17 +147,10 @@ const DecisionMaker: React.FC = () => {
               return (
                 <div 
                   key={opt.id} 
-                  className="absolute top-0 left-1/2 -translate-x-1/2 h-full flex flex-col items-center pt-4"
-                  style={{ transform: `rotate(${angle}deg)` }}
+                  className="absolute top-1/2 left-1/2 w-[50%] h-[30px] -mt-[15px] origin-left flex items-center justify-end pr-6"
+                  style={{ transform: `rotate(${angle - 90}deg)` }}
                 >
-                  <span 
-                    className="text-white font-bold text-sm drop-shadow-md truncate w-24 text-center block"
-                    style={{ 
-                      writingMode: 'vertical-rl',
-                      textOrientation: 'mixed',
-                      transform: 'rotate(180deg)'
-                    }}
-                  >
+                  <span className="text-white font-bold text-sm drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] truncate max-w-full">
                     {opt.text}
                   </span>
                 </div>
@@ -158,7 +179,16 @@ const DecisionMaker: React.FC = () => {
       </div>
 
       <div className="glass-panel p-4 space-y-4">
-        <h3 className="font-semibold mb-2">Options ({options.length}/24)</h3>
+        <div className="flex justify-between items-center mb-2">
+          <h3 className="font-semibold">Options ({options.length}/24)</h3>
+          <button 
+            onClick={handleReset}
+            disabled={isSpinning}
+            className="text-xs flex items-center text-muted hover:text-white transition-colors disabled:opacity-50"
+          >
+            <RefreshCw size={12} className="mr-1" /> Reset
+          </button>
+        </div>
         <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
           {options.map((opt, index) => (
             <div key={opt.id} className="bg-white/5 border border-white/10 rounded-lg p-2 flex justify-between items-center group transition-colors hover:bg-white/10">

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FileImage, MapPin, ArrowRight, Shield, PieChart } from 'lucide-react';
+import { FileImage, MapPin, ArrowRight, Shield, PieChart, Timer } from 'lucide-react';
 
 const Home: React.FC = () => {
   return (
@@ -53,6 +53,21 @@ const Home: React.FC = () => {
               </div>
             </div>
             <ArrowRight className="text-muted group-hover:text-accent transition-colors" />
+          </div>
+        </Link>
+
+        <Link to="/pace-calculator" className="block group">
+          <div className="glass-panel p-6 flex items-center justify-between transition-all duration-300 hover:border-blue-400/50 hover:shadow-blue-400/20">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-blue-500/20 text-blue-400 rounded-xl group-hover:scale-110 transition-transform">
+                <Timer size={28} />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">Pace Calculator</h3>
+                <p className="text-sm text-muted">Time, Distance & Pace</p>
+              </div>
+            </div>
+            <ArrowRight className="text-muted group-hover:text-blue-400 transition-colors" />
           </div>
         </Link>
       </div>
