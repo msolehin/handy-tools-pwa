@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FileImage, MapPin, ArrowRight, Shield, PieChart, Timer, Wallet, Users, Calendar } from 'lucide-react';
+import { FileImage, MapPin, ArrowRight, Shield, PieChart, Timer, Wallet, Users, Calendar, Landmark } from 'lucide-react';
 
 const Home: React.FC = () => {
   return (
@@ -113,6 +113,21 @@ const Home: React.FC = () => {
               </div>
             </div>
             <ArrowRight className="text-muted group-hover:text-pink-400 transition-colors" />
+          </div>
+        </Link>
+
+        <Link to="/loan-calculator" className="block group">
+          <div className="glass-panel p-6 flex items-center justify-between transition-all duration-300 hover:border-orange-500/50 hover:shadow-orange-500/20">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-orange-500/20 text-orange-400 rounded-xl group-hover:scale-110 transition-transform">
+                <Landmark size={28} />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">Loan Calculator</h3>
+                <p className="text-sm text-muted">Estimate Auto & Home Loans</p>
+              </div>
+            </div>
+            <ArrowRight className="text-muted group-hover:text-orange-400 transition-colors" />
           </div>
         </Link>
       </div>

@@ -8,6 +8,7 @@ import PaceCalculator from './pages/PaceCalculator';
 import AffordabilityCalculator from './pages/AffordabilityCalculator';
 import ExpenseSplitter from './pages/ExpenseSplitter';
 import Countdown from './pages/Countdown';
+import LoanCalculator from './pages/LoanCalculator';
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
           <Route path="affordability" element={<AffordabilityCalculator />} />
           <Route path="expense-splitter" element={<ExpenseSplitter />} />
           <Route path="countdown" element={<Countdown />} />
+          <Route path="loan-calculator" element={<LoanCalculator />} />
         </Route>
       </Routes>
     </BrowserRouter>
