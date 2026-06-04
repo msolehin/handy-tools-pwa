@@ -93,6 +93,7 @@ const Layout: React.FC = () => {
             <div className="glass-panel flex justify-between items-center p-2">
               <NavLink
                 to="/"
+                onClick={() => setShowMoreMenu(false)}
                 className={({ isActive }) =>
                   `flex flex-col items-center p-2 rounded-xl transition-all duration-200 shrink-0 w-[16%] ${isActive ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'
                   }`
@@ -125,6 +126,7 @@ const Layout: React.FC = () => {
                   <NavLink
                     key={path}
                     to={tool.to}
+                    onClick={() => setShowMoreMenu(false)}
                     className={({ isActive }) =>
                       `flex flex-col items-center p-2 rounded-xl transition-all duration-200 shrink-0 w-[16%] ${isActive ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'
                       }`
