@@ -267,3 +267,18 @@
   100% { transform: translateX(100px) scaleX(-1); opacity: 0; }
 }
 .car-drive-anim { animation: car-drive 3.5s ease-in-out infinite; display: inline-block; }
+
+@keyframes heart-pop {
+  0% { transform: scale(1); }
+  25% { transform: scale(0.8); }
+  50% { transform: scale(1.35); }
+  70% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+.heart-pop-anim { animation: heart-pop 0.45s ease-in-out; }
+
+@keyframes heart-burst {
+  0% { transform: scale(0.3); opacity: 0.9; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+.heart-burst-anim { animation: heart-burst 0.5s ease-out forwards; }

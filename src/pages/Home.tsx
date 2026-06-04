@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   FileImage, MapPin, ArrowRight, Shield, PieChart, Timer, Wallet, 
   Users, Calendar, Landmark, ShieldAlert, Wrench, Plane, Activity,
-  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, Briefcase, Fuel, Gift, ArrowRightLeft, Banknote, Dices, Repeat, Droplets, Layers, Search, HeartPulse, Car, ListChecks, HandCoins, Utensils, Gauge, ChevronDown, ChevronUp, Sparkles
+  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, Briefcase, Fuel, Gift, ArrowRightLeft, Banknote, Dices, Repeat, Droplets, Layers, Search, HeartPulse, Car, ListChecks, HandCoins, Utensils, Gauge, ChevronDown, ChevronUp, Sparkles, Heart
 } from 'lucide-react';
 import { 
   DndContext, 
@@ -148,7 +148,7 @@ export const DEFAULT_TOOLS = [
   }
 ];
 
-const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag, animationsEnabled = true }: { tool: typeof DEFAULT_TOOLS[0], viewMode: 'list' | 'grid', isReordering: boolean, forceDisableDrag?: boolean, animationsEnabled?: boolean }) => {
+const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisableDrag, animationsEnabled = true, isFavorite, onToggleFavorite, onToolClick }: { tool: typeof DEFAULT_TOOLS[0], sortableId?: string, viewMode: 'list' | 'grid', isReordering: boolean, forceDisableDrag?: boolean, animationsEnabled?: boolean, isFavorite?: boolean, onToggleFavorite?: (id: string) => void, onToolClick?: (id: string) => void }) => {
   const {
     attributes,
     listeners,
@@ -156,16 +156,20 @@ const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag, anim
     transform,
     transition,
     isDragging
-  } = useSortable({ id: tool.id, disabled: forceDisableDrag || !isReordering });
+  } = useSortable({ id: sortableId || tool.id, disabled: forceDisableDrag || !isReordering });
 
   const navigate = useNavigate();
-  const [startPos, setStartPos] = useState<{x: number, y: number} | null>(null);
+  const [favAnim, setFavAnim] = useState(false);
 
-  const handlePointerDown = (e: React.PointerEvent) => {
-    if (isReordering) setStartPos({ x: e.clientX, y: e.clientY });
+  const handleToggleFavorite = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setFavAnim(true);
+    if (onToggleFavorite) onToggleFavorite(tool.id);
   };
 
   const handleNavigation = () => {
+    if (onToolClick) onToolClick(tool.id);
     if (tool.to.startsWith('http')) {
       window.open(tool.to, '_blank', 'noopener,noreferrer');
     } else {
@@ -174,19 +178,14 @@ const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag, anim
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
-    if (isReordering && startPos) {
-      const dx = e.clientX - startPos.x;
-      const dy = e.clientY - startPos.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      
-      // If pointer moved less than 10px, treat it as a click
-      if (distance < 10) {
-        handleNavigation();
-      }
-    } else if (!isReordering) {
+    if ((e.target as HTMLElement).closest('.fav-btn')) {
+      return;
+    }
+
+    // While reordering, taps must not navigate to the tool/app
+    if (!isReordering) {
       handleNavigation();
     }
-    setStartPos(null);
   };
 
   const style = {
@@ -274,7 +273,6 @@ const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag, anim
         ref={setNodeRef} 
         style={style} 
         {...dragProps}
-        onPointerDownCapture={handlePointerDown}
         onPointerUpCapture={handlePointerUp}
       >
         <div className={`block group ${isReordering ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}>
@@ -396,7 +394,22 @@ const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag, anim
                 <p className="text-sm text-muted">{tool.desc}</p>
               </div>
             </div>
-            <ArrowRight className={`text-muted transition-colors ${tool.arrowClass} relative z-10`} />
+            <div className="flex items-center space-x-1 relative z-20">
+              <button
+                onClick={handleToggleFavorite}
+                className="fav-btn relative p-2 text-muted hover:text-rose-500 transition-colors"
+              >
+                {favAnim && isFavorite && (
+                  <Heart size={20} className="absolute inset-0 m-auto fill-rose-500 text-rose-500 heart-burst-anim pointer-events-none" />
+                )}
+                <Heart
+                  size={20}
+                  onAnimationEnd={() => setFavAnim(false)}
+                  className={`${isFavorite ? 'fill-rose-500 text-rose-500' : ''} ${favAnim ? 'heart-pop-anim' : ''}`}
+                />
+              </button>
+              <ArrowRight className={`text-muted transition-colors ${tool.arrowClass}`} />
+            </div>
           </div>
         </div>
       </div>
@@ -405,10 +418,9 @@ const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag, anim
 
   return (
     <div 
-      ref={setNodeRef} 
-      style={style} 
+      ref={setNodeRef}
+      style={style}
       {...dragProps}
-      onPointerDownCapture={handlePointerDown}
       onPointerUpCapture={handlePointerUp}
     >
       <div className={`block h-full group ${isReordering ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}>
@@ -521,6 +533,19 @@ const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag, anim
               <div className="absolute top-[10%] left-[40%] text-2xl item-drop-2 drop-shadow-md">🎉</div>
             </div>
           )}
+          <button
+            onClick={handleToggleFavorite}
+            className="fav-btn absolute top-2 right-2 p-2 text-muted hover:text-rose-500 transition-colors z-20"
+          >
+            {favAnim && isFavorite && (
+              <Heart size={18} className="absolute inset-0 m-auto fill-rose-500 text-rose-500 heart-burst-anim pointer-events-none" />
+            )}
+            <Heart
+              size={18}
+              onAnimationEnd={() => setFavAnim(false)}
+              className={`${isFavorite ? 'fill-rose-500 text-rose-500' : ''} ${favAnim ? 'heart-pop-anim' : ''}`}
+            />
+          </button>
           <div className={`p-4 rounded-2xl mb-4 group-hover:scale-110 transition-transform ${tool.iconBgClass} relative z-10`}>
             <Icon size={32} />
           </div>
@@ -544,6 +569,7 @@ const waveSvg1 = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' v
 const waveSvg2 = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 88.7'%3E%3Cpath d='M800 56.9c-155.5 0-204.9-50-405.5-49.9-200 0-250 49.9-394.5 49.9v31.8h800v-.2-31.6z' fill='%233b82f6' opacity='0.6'/%3E%3C/svg%3E`;
 
 const Home: React.FC = () => {
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<'list' | 'grid' | 'category'>(() => {
     return (localStorage.getItem('home_view_mode') as 'list' | 'grid' | 'category') || 'list';
   });
@@ -555,8 +581,49 @@ const Home: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAlertsExpanded, setIsAlertsExpanded] = useState(false);
   
-  const navigate = useNavigate();
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
+
+  // Favorites state
+  const [favorites, setFavorites] = useState<string[]>(() => {
+    const saved = localStorage.getItem('handy-tools-favorites');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('handy-tools-favorites', JSON.stringify(favorites));
+  }, [favorites]);
+
+  const toggleFavorite = (id: string) => {
+    setFavorites(prev => 
+      prev.includes(id) ? prev.filter(fId => fId !== id) : [...prev, id]
+    );
+  };
+
+  // Recent tools state
+  const [recentTools, setRecentTools] = useState<string[]>(() => {
+    const saved = localStorage.getItem('handy-tools-recents');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('handy-tools-recents', JSON.stringify(recentTools));
+  }, [recentTools]);
+
+  const [recentMinimized, setRecentMinimized] = useState(() => {
+    const saved = localStorage.getItem('handy-tools-recents-minimized');
+    return saved ? JSON.parse(saved) : false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('handy-tools-recents-minimized', JSON.stringify(recentMinimized));
+  }, [recentMinimized]);
+
+  const handleToolClick = (id: string) => {
+    setRecentTools(prev => {
+      const newRecents = [id, ...prev.filter(tId => tId !== id)].slice(0, 5);
+      return newRecents;
+    });
+  };
 
   useEffect(() => {
     localStorage.setItem('handy-animations', JSON.stringify(animationsEnabled));
@@ -771,14 +838,30 @@ const Home: React.FC = () => {
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+    if (!over || active.id === over.id) return;
 
-    if (over && active.id !== over.id) {
-      setTools((items) => {
-        const oldIndex = items.findIndex(t => t.id === active.id);
-        const newIndex = items.findIndex(t => t.id === over.id);
+    const activeId = String(active.id);
+    const overId = String(over.id);
+
+    // Reordering within the Favorites section (ids are prefixed with "fav-")
+    if (activeId.startsWith('fav-') && overId.startsWith('fav-')) {
+      const aId = activeId.slice(4);
+      const oId = overId.slice(4);
+      setFavorites((items) => {
+        const oldIndex = items.indexOf(aId);
+        const newIndex = items.indexOf(oId);
+        if (oldIndex === -1 || newIndex === -1) return items;
         return arrayMove(items, oldIndex, newIndex);
       });
+      return;
     }
+
+    setTools((items) => {
+      const oldIndex = items.findIndex(t => t.id === activeId);
+      const newIndex = items.findIndex(t => t.id === overId);
+      if (oldIndex === -1 || newIndex === -1) return items;
+      return arrayMove(items, oldIndex, newIndex);
+    });
   };
 
   return (
@@ -1012,7 +1095,11 @@ const Home: React.FC = () => {
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {catTools.map(tool => (
                         <SortableToolCard key={tool.id} tool={tool} viewMode="grid" isReordering={false} forceDisableDrag={true}
-                  animationsEnabled={animationsEnabled} />
+                          animationsEnabled={animationsEnabled} 
+                          isFavorite={favorites.includes(tool.id)}
+                          onToggleFavorite={toggleFavorite}
+                          onToolClick={handleToolClick}
+                        />
                       ))}
                     </div>
                   </div>
@@ -1020,7 +1107,97 @@ const Home: React.FC = () => {
               })}
             </div>
           ) : (
-            <div className={viewMode === 'list' ? "grid gap-4" : "grid grid-cols-2 md:grid-cols-3 gap-4"}>
+            <div className="space-y-8">
+              {!searchQuery && favorites.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-3 px-1">
+                    <div className="h-px bg-text/10 flex-1"></div>
+                    <h3 className="text-sm font-bold text-muted uppercase tracking-widest">❤️ Favorites</h3>
+                    <div className="h-px bg-text/10 flex-1"></div>
+                  </div>
+                  <div className={viewMode === 'list' ? "grid gap-4" : "grid grid-cols-2 md:grid-cols-3 gap-4"}>
+                    <SortableContext
+                      items={favorites.map(id => `fav-${id}`)}
+                      strategy={rectSortingStrategy}
+                    >
+                    {favorites.map(id => {
+                      const tool = tools.find(t => t.id === id) || DEFAULT_TOOLS.find(t => t.id === id);
+                      if (!tool) return null;
+                      return (
+                        <SortableToolCard
+                          key={`fav-${tool.id}`}
+                          sortableId={`fav-${tool.id}`}
+                          tool={tool}
+                          viewMode={viewMode}
+                          isReordering={isReordering}
+                          animationsEnabled={animationsEnabled}
+                          isFavorite={true}
+                          onToggleFavorite={toggleFavorite}
+                          onToolClick={handleToolClick}
+                        />
+                      );
+                    })}
+                    </SortableContext>
+                  </div>
+                </div>
+              )}
+
+              {!searchQuery && !isReordering && recentTools.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-3 px-1">
+                    <div className="h-px bg-text/10 flex-1"></div>
+                    <button
+                      type="button"
+                      onClick={() => setRecentMinimized((prev: boolean) => !prev)}
+                      className="text-sm font-bold text-muted uppercase tracking-widest flex items-center gap-1.5 hover:text-text transition-colors"
+                      aria-expanded={!recentMinimized}
+                    >
+                      🕒 Recent Tools
+                      <span className={`transition-transform duration-200 ${recentMinimized ? '' : 'rotate-180'}`}>▾</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRecentTools([])}
+                      className="text-[10px] font-bold text-muted uppercase tracking-widest hover:text-red-500 transition-colors"
+                      title="Clear recent tools"
+                    >
+                      Clear
+                    </button>
+                    <div className="h-px bg-text/10 flex-1"></div>
+                  </div>
+                  {!recentMinimized && (
+                  <div className={viewMode === 'list' ? "grid gap-4" : "grid grid-cols-2 md:grid-cols-3 gap-4"}>
+                    {recentTools.map(id => {
+                      const tool = tools.find(t => t.id === id) || DEFAULT_TOOLS.find(t => t.id === id);
+                      if (!tool) return null;
+                      return (
+                        <SortableToolCard 
+                          key={`rec-${tool.id}`} 
+                          tool={tool} 
+                          viewMode={viewMode} 
+                          isReordering={false} 
+                          forceDisableDrag={true}
+                          animationsEnabled={animationsEnabled}
+                          isFavorite={favorites.includes(tool.id)}
+                          onToggleFavorite={toggleFavorite}
+                          onToolClick={handleToolClick}
+                        />
+                      );
+                    })}
+                  </div>
+                  )}
+                </div>
+              )}
+
+              <div className="space-y-4">
+                {!searchQuery && (favorites.length > 0 || recentTools.length > 0) && (
+                  <div className="flex items-center space-x-3 px-1">
+                    <div className="h-px bg-text/10 flex-1"></div>
+                    <h3 className="text-sm font-bold text-muted uppercase tracking-widest">All Tools</h3>
+                    <div className="h-px bg-text/10 flex-1"></div>
+                  </div>
+                )}
+                <div className={viewMode === 'list' ? "grid gap-4" : "grid grid-cols-2 md:grid-cols-3 gap-4"}>
               <SortableContext 
                 items={tools
                   .filter(t => t.id !== 'https://befday.com/' && (t.title.toLowerCase().includes(searchQuery.toLowerCase()) || t.desc.toLowerCase().includes(searchQuery.toLowerCase())))
@@ -1030,7 +1207,16 @@ const Home: React.FC = () => {
                 {tools
                   .filter(t => t.id !== 'https://befday.com/' && (t.title.toLowerCase().includes(searchQuery.toLowerCase()) || t.desc.toLowerCase().includes(searchQuery.toLowerCase())))
                   .map(tool => (
-                    <SortableToolCard key={tool.id} tool={tool} viewMode={viewMode} isReordering={isReordering} animationsEnabled={animationsEnabled} />
+                    <SortableToolCard 
+                      key={tool.id} 
+                      tool={tool} 
+                      viewMode={viewMode} 
+                      isReordering={isReordering} 
+                      animationsEnabled={animationsEnabled} 
+                      isFavorite={favorites.includes(tool.id)}
+                      onToggleFavorite={toggleFavorite}
+                      onToolClick={handleToolClick}
+                    />
                   ))}
               </SortableContext>
               
@@ -1044,8 +1230,13 @@ const Home: React.FC = () => {
                   isReordering={false} 
                   forceDisableDrag={true}
                   animationsEnabled={animationsEnabled} 
+                  isFavorite={favorites.includes('https://befday.com/')}
+                  onToggleFavorite={toggleFavorite}
+                  onToolClick={handleToolClick}
                 />
               )}
+                </div>
+              </div>
             </div>
           )}
         </DndContext>
