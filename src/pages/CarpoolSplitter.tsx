@@ -22,7 +22,7 @@ const CarpoolSplitter: React.FC = () => {
           <Car size={24} />
         </div>
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-white/90">Carpool Splitter</h1>
+          <h1 className="text-xl font-bold tracking-tight text-text/90">Carpool Splitter</h1>
           <p className="text-[10px] text-muted uppercase tracking-wider">Road Trip Math</p>
         </div>
       </div>
@@ -34,7 +34,7 @@ const CarpoolSplitter: React.FC = () => {
             <span className="text-2xl text-cyan-500/70 mr-1">RM</span>
             {costPerPerson.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </h2>
-          <div className="mt-3 inline-flex items-center px-3 py-1 bg-white/5 rounded-full text-xs text-muted font-medium">
+          <div className="mt-3 inline-flex items-center px-3 py-1 bg-text/5 rounded-full text-xs text-muted font-medium">
             <Receipt size={14} className="mr-2 opacity-50" />
             Total Trip Cost: RM {totalCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
@@ -49,7 +49,7 @@ const CarpoolSplitter: React.FC = () => {
                 inputMode="decimal"
                 value={fuel} 
                 onChange={e => setFuel(e.target.value.replace(/[^0-9.]/g, ''))}
-                className="input-field w-full text-lg font-mono placeholder:text-white/20"
+                className="input-field w-full text-lg font-mono placeholder:text-text/20"
                 placeholder="0.00"
               />
             </div>
@@ -60,7 +60,7 @@ const CarpoolSplitter: React.FC = () => {
                 inputMode="decimal"
                 value={toll} 
                 onChange={e => setToll(e.target.value.replace(/[^0-9.]/g, ''))}
-                className="input-field w-full text-lg font-mono placeholder:text-white/20"
+                className="input-field w-full text-lg font-mono placeholder:text-text/20"
                 placeholder="0.00"
               />
             </div>
@@ -74,7 +74,7 @@ const CarpoolSplitter: React.FC = () => {
                 inputMode="decimal"
                 value={parking} 
                 onChange={e => setParking(e.target.value.replace(/[^0-9.]/g, ''))}
-                className="input-field w-full text-lg font-mono placeholder:text-white/20"
+                className="input-field w-full text-lg font-mono placeholder:text-text/20"
                 placeholder="0.00"
               />
             </div>
@@ -86,7 +86,7 @@ const CarpoolSplitter: React.FC = () => {
               <div className="flex items-center">
                 <button 
                   onClick={() => setPassengers(p => Math.max(1, parseInt(p) - 1).toString())}
-                  className="w-12 h-[46px] bg-white/5 border border-white/10 rounded-l-xl hover:bg-white/10 flex items-center justify-center text-xl font-bold"
+                  className="w-12 h-[46px] bg-text/5 border border-text/10 rounded-l-xl hover:bg-text/10 flex items-center justify-center text-xl font-bold"
                 >
                   -
                 </button>
@@ -95,11 +95,11 @@ const CarpoolSplitter: React.FC = () => {
                   inputMode="numeric"
                   value={passengers} 
                   onChange={e => setPassengers(e.target.value.replace(/[^0-9]/g, ''))}
-                  className="w-full h-[46px] bg-white/5 border-y border-white/10 text-center text-lg font-bold text-cyan-400 focus:outline-none focus:bg-white/10 transition-colors"
+                  className="w-full h-[46px] bg-text/5 border-y border-text/10 text-center text-lg font-bold text-cyan-400 focus:outline-none focus:bg-text/10 transition-colors"
                 />
                 <button 
                   onClick={() => setPassengers(p => (parseInt(p) + 1).toString())}
-                  className="w-12 h-[46px] bg-white/5 border border-white/10 rounded-r-xl hover:bg-white/10 flex items-center justify-center text-xl font-bold"
+                  className="w-12 h-[46px] bg-text/5 border border-text/10 rounded-r-xl hover:bg-text/10 flex items-center justify-center text-xl font-bold"
                 >
                   +
                 </button>
@@ -108,7 +108,7 @@ const CarpoolSplitter: React.FC = () => {
           </div>
         </div>
 
-        <div className="mt-6 p-4 bg-cyan-500/10 rounded-xl border border-cyan-500/20 flex items-start text-xs text-cyan-100/70">
+        <div className="mt-6 p-4 bg-cyan-500/10 rounded-xl border border-cyan-500/20 flex items-start text-xs text-muted">
           <Info size={16} className="text-cyan-400 mr-2 shrink-0 mt-0.5" />
           <p>
             Unlike normal expense splitting where different people pay for different items, carpool cost splitting simply sums up all the driver's vehicle expenses and divides it equally among everyone in the car.

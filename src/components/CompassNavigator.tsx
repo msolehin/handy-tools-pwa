@@ -111,7 +111,7 @@ export const CompassNavigator: React.FC<Props> = ({ targetLat, targetLng, onClos
     <div className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 animate-fade-in">
       <button 
         onClick={onClose}
-        className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+        className="absolute top-6 right-6 p-3 bg-text/10 hover:bg-text/20 rounded-full transition-colors"
       >
         <X size={24} />
       </button>
@@ -140,12 +140,12 @@ export const CompassNavigator: React.FC<Props> = ({ targetLat, targetLng, onClos
           ) : (
             <>
               <div className="relative">
-                <div className="w-64 h-64 border-4 border-white/10 rounded-full flex items-center justify-center relative shadow-[0_0_50px_rgba(59,130,246,0.2)]">
+                <div className="w-64 h-64 border-4 border-text/10 rounded-full flex items-center justify-center relative shadow-[0_0_50px_rgba(59,130,246,0.2)]">
                   {/* Cardinal points */}
-                  <span className="absolute top-2 text-white/30 text-xs font-bold">N</span>
-                  <span className="absolute bottom-2 text-white/30 text-xs font-bold">S</span>
-                  <span className="absolute right-2 text-white/30 text-xs font-bold">E</span>
-                  <span className="absolute left-2 text-white/30 text-xs font-bold">W</span>
+                  <span className="absolute top-2 text-text/30 text-xs font-bold">N</span>
+                  <span className="absolute bottom-2 text-text/30 text-xs font-bold">S</span>
+                  <span className="absolute right-2 text-text/30 text-xs font-bold">E</span>
+                  <span className="absolute left-2 text-text/30 text-xs font-bold">W</span>
                   
                   {/* The Arrow */}
                   <div 
@@ -164,7 +164,7 @@ export const CompassNavigator: React.FC<Props> = ({ targetLat, targetLng, onClos
                     {distance < 10 ? 'Arrived!' : `${Math.round(distance)}m`}
                   </div>
                 ) : (
-                  <div className="text-2xl font-bold text-white animate-pulse">Calculating...</div>
+                  <div className="text-2xl font-bold text-text animate-pulse">Calculating...</div>
                 )}
                 <p className="text-xs text-muted pt-2">
                   Follow the arrow. It rotates dynamically based on your device compass.

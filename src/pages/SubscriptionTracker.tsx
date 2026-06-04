@@ -147,7 +147,7 @@ const SubscriptionTracker: React.FC = () => {
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-indigo-500/20 text-indigo-400 mb-2">
           <RefreshCw size={32} />
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-white/90">Subscriptions</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-text/90">Subscriptions</h1>
         <p className="text-sm text-muted">Track your recurring payments</p>
       </div>
 
@@ -158,7 +158,7 @@ const SubscriptionTracker: React.FC = () => {
             <CreditCard size={48} />
           </div>
           <p className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-1">Monthly</p>
-          <p className="text-2xl font-black text-white">RM {monthlyTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          <p className="text-2xl font-black text-text">RM {monthlyTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
         
         <div className="glass-panel p-5 border-l-4 border-l-purple-500 relative overflow-hidden group">
@@ -166,7 +166,7 @@ const SubscriptionTracker: React.FC = () => {
             <Calendar size={48} />
           </div>
           <p className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-1">Yearly</p>
-          <p className="text-2xl font-black text-white">RM {yearlyTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          <p className="text-2xl font-black text-text">RM {yearlyTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
       </div>
 
@@ -181,7 +181,7 @@ const SubscriptionTracker: React.FC = () => {
       {/* Subscription List */}
       <div className="space-y-3">
         {sortedSubs.length === 0 ? (
-          <div className="text-center p-8 bg-white/5 rounded-2xl border border-white/10 border-dashed">
+          <div className="text-center p-8 bg-text/5 rounded-2xl border border-text/10 border-dashed">
             <p className="text-muted">No subscriptions tracked yet.</p>
           </div>
         ) : (
@@ -194,7 +194,7 @@ const SubscriptionTracker: React.FC = () => {
               <div key={sub.id} className="glass-panel p-4 flex items-center justify-between group">
                 <div className="flex-1">
                   <div className="flex items-center space-x-2">
-                    <h3 className="font-bold text-lg text-white/90">{sub.name}</h3>
+                    <h3 className="font-bold text-lg text-text/90">{sub.name}</h3>
                     {isUrgent && <AlertCircle size={14} className="text-rose-400 animate-pulse" />}
                   </div>
                   <div className="flex items-center text-xs text-muted mt-1 space-x-3">
@@ -211,10 +211,10 @@ const SubscriptionTracker: React.FC = () => {
                 </div>
                 
                 <div className="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => openForm(sub)} className="p-2 bg-white/5 rounded-lg hover:bg-white/10 text-blue-400 transition-colors">
+                  <button onClick={() => openForm(sub)} className="p-2 bg-text/5 rounded-lg hover:bg-text/10 text-blue-400 transition-colors">
                     <Edit2 size={16} />
                   </button>
-                  <button onClick={() => handleDelete(sub.id)} className="p-2 bg-white/5 rounded-lg hover:bg-white/10 text-rose-400 transition-colors">
+                  <button onClick={() => handleDelete(sub.id)} className="p-2 bg-text/5 rounded-lg hover:bg-text/10 text-rose-400 transition-colors">
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -227,10 +227,10 @@ const SubscriptionTracker: React.FC = () => {
       {/* Form Modal */}
       {isFormOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-surface border border-white/10 p-6 rounded-3xl w-full max-w-sm shadow-2xl relative animate-slide-up">
+          <div className="bg-surface border border-text/10 p-6 rounded-3xl w-full max-w-sm shadow-2xl relative animate-slide-up">
             <button 
               onClick={closeForm}
-              className="absolute top-4 right-4 p-2 text-muted hover:text-white bg-white/5 rounded-full transition-colors"
+              className="absolute top-4 right-4 p-2 text-muted hover:text-text bg-text/5 rounded-full transition-colors"
             >
               <X size={18} />
             </button>

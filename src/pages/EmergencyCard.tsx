@@ -50,14 +50,14 @@ const EmergencyCard: React.FC = () => {
             <HeartPulse size={24} />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-white/90">Medical ID</h1>
+            <h1 className="text-xl font-bold tracking-tight text-text/90">Medical ID</h1>
             <p className="text-[10px] text-muted uppercase tracking-wider">Emergency Info Card</p>
           </div>
         </div>
         <button 
           onClick={() => isEditMode ? handleSave() : setIsEditMode(true)}
           className={`p-3 rounded-xl transition-colors ${
-            isEditMode ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30' : 'bg-white/5 text-muted hover:bg-white/10 hover:text-white'
+            isEditMode ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30' : 'bg-text/5 text-muted hover:bg-text/10 hover:text-text'
           }`}
         >
           {isEditMode ? <Check size={20} /> : <Edit2 size={20} />}
@@ -140,9 +140,9 @@ const EmergencyCard: React.FC = () => {
       ) : (
         <div className="space-y-6 animate-fade-in">
           {/* Card View */}
-          <div className="bg-gradient-to-br from-rose-500 to-red-700 rounded-3xl p-6 shadow-[0_10px_40px_rgba(225,29,72,0.3)] text-white relative overflow-hidden">
+          <div className="bg-gradient-to-br from-rose-500 to-red-700 rounded-3xl p-6 shadow-[0_10px_40px_rgba(225,29,72,0.3)] text-text relative overflow-hidden">
             {/* Background pattern */}
-            <div className="absolute top-0 right-0 -mt-8 -mr-8 text-white/10">
+            <div className="absolute top-0 right-0 -mt-8 -mr-8 text-text/10">
               <HeartPulse size={200} />
             </div>
 
@@ -150,10 +150,10 @@ const EmergencyCard: React.FC = () => {
               <div className="flex justify-between items-start mb-8">
                 <div>
                   <h2 className="text-2xl font-black uppercase tracking-tight">{data.name || 'UNNAMED'}</h2>
-                  <p className="text-white/80 text-sm font-medium">MEDICAL ID CARD</p>
+                  <p className="text-text/80 text-sm font-medium">MEDICAL ID CARD</p>
                 </div>
-                <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-xl text-center border border-white/20 shadow-inner">
-                  <p className="text-[10px] font-bold text-white/80 uppercase tracking-widest mb-0.5">BLOOD</p>
+                <div className="bg-text/20 backdrop-blur-sm px-4 py-2 rounded-xl text-center border border-text/20 shadow-inner">
+                  <p className="text-[10px] font-bold text-text/80 uppercase tracking-widest mb-0.5">BLOOD</p>
                   <p className="text-2xl font-black">{data.bloodType}</p>
                 </div>
               </div>
@@ -161,19 +161,19 @@ const EmergencyCard: React.FC = () => {
               <div className="space-y-4">
                 <div className="bg-black/20 p-4 rounded-xl border border-black/10 backdrop-blur-sm flex items-center justify-between">
                   <div>
-                    <p className="text-[10px] font-bold text-white/60 uppercase tracking-wider mb-1">EMERGENCY CONTACT</p>
+                    <p className="text-[10px] font-bold text-text/60 uppercase tracking-wider mb-1">EMERGENCY CONTACT</p>
                     <p className="font-bold text-lg">{data.contactName || 'Not Set'}</p>
-                    <p className="text-white/80 font-mono text-sm">{data.contactPhone || 'No number'}</p>
+                    <p className="text-text/80 font-mono text-sm">{data.contactPhone || 'No number'}</p>
                   </div>
                   {data.contactPhone && (
-                    <a href={`tel:${data.contactPhone}`} className="p-3 bg-white/20 rounded-full hover:bg-white/30 transition-colors">
-                      <PhoneCall size={20} className="text-white" />
+                    <a href={`tel:${data.contactPhone}`} className="p-3 bg-text/20 rounded-full hover:bg-text/30 transition-colors">
+                      <PhoneCall size={20} className="text-text" />
                     </a>
                   )}
                 </div>
 
-                <div className="bg-white/10 p-4 rounded-xl border border-white/10 backdrop-blur-sm">
-                  <p className="text-[10px] font-bold text-white/60 uppercase tracking-wider mb-1">MEDICAL NOTES</p>
+                <div className="bg-text/10 p-4 rounded-xl border border-text/10 backdrop-blur-sm">
+                  <p className="text-[10px] font-bold text-text/60 uppercase tracking-wider mb-1">MEDICAL NOTES</p>
                   <p className="text-sm leading-relaxed">{data.medicalNotes || 'None recorded.'}</p>
                 </div>
               </div>
@@ -183,10 +183,10 @@ const EmergencyCard: React.FC = () => {
           {/* QR Code Section */}
           <div className="glass-panel p-6 flex flex-col items-center text-center">
             <div className="mb-4">
-              <h3 className="font-bold text-lg text-white">Scan for Details</h3>
+              <h3 className="font-bold text-lg text-text">Scan for Details</h3>
               <p className="text-xs text-muted">Paramedics can scan this code to read your raw medical text offline.</p>
             </div>
-            <div className="bg-white p-4 rounded-2xl shadow-xl inline-block">
+            <div className="bg-text p-4 rounded-2xl shadow-xl inline-block">
               <QRCodeSVG 
                 value={qrPayload} 
                 size={220} 

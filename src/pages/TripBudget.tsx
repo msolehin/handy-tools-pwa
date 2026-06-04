@@ -99,7 +99,7 @@ const TripBudget: React.FC = () => {
         <div className="flex items-center space-x-3">
           <button 
             onClick={() => setActiveTripId(null)}
-            className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-colors"
+            className="p-2 bg-text/5 hover:bg-text/10 rounded-xl transition-colors"
           >
             <ChevronLeft size={24} />
           </button>
@@ -110,7 +110,7 @@ const TripBudget: React.FC = () => {
         </div>
 
         {/* Add Item Form */}
-        <div className="glass-panel p-5 border-white/10">
+        <div className="glass-panel p-5 border-text/10">
           <form onSubmit={addBudgetItem} className="flex space-x-2">
             <input 
               type="text" 
@@ -137,7 +137,7 @@ const TripBudget: React.FC = () => {
         {/* Items List */}
         <div className="space-y-2">
           {activeTrip.items.map(item => (
-            <div key={item.id} className="flex justify-between items-center bg-white/5 border border-white/5 rounded-lg p-4 group hover:bg-white/10 transition-colors">
+            <div key={item.id} className="flex justify-between items-center bg-text/5 border border-text/5 rounded-lg p-4 group hover:bg-text/10 transition-colors">
               <span className="font-medium">{item.name}</span>
               <div className="flex items-center space-x-4">
                 <span className="font-bold text-cyan-400">RM{item.cost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
@@ -148,7 +148,7 @@ const TripBudget: React.FC = () => {
             </div>
           ))}
           {activeTrip.items.length === 0 && (
-            <p className="text-center text-sm text-muted py-8 border border-dashed border-white/10 rounded-lg">No expenses added yet.</p>
+            <p className="text-center text-sm text-muted py-8 border border-dashed border-text/10 rounded-lg">No expenses added yet.</p>
           )}
         </div>
       </div>
@@ -165,7 +165,7 @@ const TripBudget: React.FC = () => {
         <h2 className="text-2xl font-bold">Trip Budgets</h2>
       </div>
 
-      <div className="glass-panel p-5 border-white/10">
+      <div className="glass-panel p-5 border-text/10">
         <h3 className="font-semibold mb-4 text-sm text-muted">Plan New Trip</h3>
         <form onSubmit={addTrip} className="flex space-x-2">
           <input 
@@ -178,7 +178,7 @@ const TripBudget: React.FC = () => {
           <button 
             type="submit" 
             disabled={!newTripTitle}
-            className="px-4 py-3 bg-cyan-500 hover:bg-cyan-600 text-white font-bold rounded-xl transition-colors disabled:opacity-50"
+            className="px-4 py-3 bg-cyan-500 hover:bg-cyan-600 text-text font-bold rounded-xl transition-colors disabled:opacity-50"
           >
             Create
           </button>
@@ -192,10 +192,10 @@ const TripBudget: React.FC = () => {
             <div 
               key={trip.id} 
               onClick={() => setActiveTripId(trip.id)}
-              className="glass-panel p-5 border-white/10 hover:border-cyan-500/50 hover:shadow-[0_0_15px_rgba(34,211,238,0.1)] cursor-pointer transition-all flex items-center justify-between group"
+              className="glass-panel p-5 border-text/10 hover:border-cyan-500/50 hover:shadow-[0_0_15px_rgba(34,211,238,0.1)] cursor-pointer transition-all flex items-center justify-between group"
             >
               <div className="flex items-center space-x-4">
-                <div className="p-3 bg-white/5 rounded-xl group-hover:bg-cyan-500/20 group-hover:text-cyan-400 transition-colors">
+                <div className="p-3 bg-text/5 rounded-xl group-hover:bg-cyan-500/20 group-hover:text-cyan-400 transition-colors">
                   <Map size={24} />
                 </div>
                 <div>
@@ -209,7 +209,7 @@ const TripBudget: React.FC = () => {
                 </span>
                 <button 
                   onClick={(e) => deleteTrip(trip.id, e)}
-                  className="p-2 text-white/30 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                  className="p-2 text-text/30 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
                 >
                   <Trash2 size={18} />
                 </button>

@@ -119,7 +119,7 @@ const Countdown: React.FC = () => {
       </div>
 
       {/* Add Event Form */}
-      <div className="glass-panel p-5 border-white/10">
+      <div className="glass-panel p-5 border-text/10">
         <h3 className="font-semibold mb-4 text-sm text-muted">Add New Event</h3>
         <form onSubmit={addEvent} className="space-y-4">
           <div>
@@ -155,7 +155,7 @@ const Countdown: React.FC = () => {
                 className={`flex items-center justify-center h-full px-4 rounded-xl border cursor-pointer transition-colors ${
                   newImage 
                     ? 'bg-pink-500/20 border-pink-500/50 text-pink-400' 
-                    : 'bg-white/5 border-white/10 text-muted hover:bg-white/10 hover:text-white'
+                    : 'bg-text/5 border-text/10 text-muted hover:bg-text/10 hover:text-text'
                 }`}
               >
                 {newImage ? <Check size={20} /> : <ImageIcon size={20} />}
@@ -167,7 +167,7 @@ const Countdown: React.FC = () => {
                     setNewImage(undefined);
                     if (fileInputRef.current) fileInputRef.current.value = '';
                   }}
-                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 shadow-lg"
+                  className="absolute -top-2 -right-2 bg-red-500 text-text rounded-full p-0.5 shadow-lg"
                 >
                   <X size={12} />
                 </button>
@@ -178,7 +178,7 @@ const Countdown: React.FC = () => {
           <button 
             type="submit" 
             disabled={!newTitle || !newDate}
-            className="w-full py-3 bg-pink-500 hover:bg-pink-600 text-white font-bold rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
+            className="w-full py-3 bg-pink-500 hover:bg-pink-600 text-text font-bold rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
           >
             <Plus size={18} />
             <span>Add to Countdown</span>
@@ -197,7 +197,7 @@ const Countdown: React.FC = () => {
             <div 
               key={event.id}
               className={`relative overflow-hidden rounded-2xl border transition-all ${
-                isPast ? 'border-white/5 opacity-70' : 'border-white/10 shadow-lg'
+                isPast ? 'border-text/5 opacity-70' : 'border-text/10 shadow-lg'
               }`}
             >
               {event.imageUrl ? (
@@ -216,30 +216,30 @@ const Countdown: React.FC = () => {
               
               <div className="relative z-10 p-5 flex justify-between items-center">
                 <div className="flex-1 pr-4">
-                  <h3 className={`font-bold text-xl mb-1 ${isPast ? 'text-white/70' : 'text-white'}`}>
+                  <h3 className={`font-bold text-xl mb-1 ${isPast ? 'text-text/70' : 'text-text'}`}>
                     {event.title}
                   </h3>
-                  <p className="text-sm text-white/60">
+                  <p className="text-sm text-text/60">
                     {new Date(event.targetDate).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                   </p>
                 </div>
                 
                 <div className={`flex flex-col items-center justify-center px-4 py-3 rounded-xl backdrop-blur-md border ${
                   isPast 
-                    ? 'bg-black/30 border-white/10' 
+                    ? 'bg-black/30 border-text/10' 
                     : 'bg-pink-500/30 border-pink-500/50 shadow-[0_0_15px_rgba(236,72,153,0.3)]'
                 }`}>
-                  <span className={`text-3xl font-black ${isPast ? 'text-white/70' : 'text-pink-400'}`}>
+                  <span className={`text-3xl font-black ${isPast ? 'text-text/70' : 'text-pink-400'}`}>
                     {displayDays}
                   </span>
-                  <span className={`text-[10px] uppercase tracking-wider font-bold ${isPast ? 'text-white/50' : 'text-pink-300/80'}`}>
+                  <span className={`text-[10px] uppercase tracking-wider font-bold ${isPast ? 'text-text/50' : 'text-pink-300/80'}`}>
                     {daysLeft === 0 ? 'Today!' : (isPast ? 'Days Ago' : 'Days Left')}
                   </span>
                 </div>
 
                 <button 
                   onClick={() => removeEvent(event.id)}
-                  className="absolute top-2 right-2 p-1.5 bg-black/40 text-white/50 hover:text-red-400 hover:bg-black/60 rounded-lg transition-colors backdrop-blur-md"
+                  className="absolute top-2 right-2 p-1.5 bg-black/40 text-text/50 hover:text-red-400 hover:bg-black/60 rounded-lg transition-colors backdrop-blur-md"
                 >
                   <Trash2 size={16} />
                 </button>

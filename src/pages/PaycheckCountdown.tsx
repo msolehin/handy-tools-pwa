@@ -144,13 +144,13 @@ const PaycheckCountdown: React.FC = () => {
             <Wallet size={24} />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-white/90">Payday Countdown</h1>
+            <h1 className="text-xl font-bold tracking-tight text-text/90">Payday Countdown</h1>
             <p className="text-[10px] text-muted">{nextDateStr}</p>
           </div>
         </div>
         <button 
           onClick={() => setIsSettingsOpen(true)}
-          className="p-3 bg-white/5 rounded-xl hover:bg-white/10 text-muted transition-colors"
+          className="p-3 bg-text/5 rounded-xl hover:bg-text/10 text-muted transition-colors"
         >
           <Settings size={20} />
         </button>
@@ -188,22 +188,22 @@ const PaycheckCountdown: React.FC = () => {
           <div className="absolute inset-0 flex flex-col items-center justify-center z-10 pt-4">
             {timeLeft ? (
               <>
-                <div className="text-6xl font-black text-white drop-shadow-lg font-mono tracking-tighter">
+                <div className="text-6xl font-black text-text drop-shadow-lg font-mono tracking-tighter">
                   {timeLeft.d}
                 </div>
                 <div className="text-sm font-bold text-emerald-400 uppercase tracking-widest mb-4">Days</div>
                 
                 <div className="flex space-x-4 text-center">
                   <div>
-                    <div className="text-2xl font-bold text-white/90 font-mono">{timeLeft.h.toString().padStart(2, '0')}</div>
+                    <div className="text-2xl font-bold text-text/90 font-mono">{timeLeft.h.toString().padStart(2, '0')}</div>
                     <div className="text-[10px] text-muted uppercase">Hrs</div>
                   </div>
-                  <div className="text-xl text-white/20 mt-1">:</div>
+                  <div className="text-xl text-text/20 mt-1">:</div>
                   <div>
-                    <div className="text-2xl font-bold text-white/90 font-mono">{timeLeft.m.toString().padStart(2, '0')}</div>
+                    <div className="text-2xl font-bold text-text/90 font-mono">{timeLeft.m.toString().padStart(2, '0')}</div>
                     <div className="text-[10px] text-muted uppercase">Min</div>
                   </div>
-                  <div className="text-xl text-white/20 mt-1">:</div>
+                  <div className="text-xl text-text/20 mt-1">:</div>
                   <div>
                     <div className="text-2xl font-bold text-emerald-400 font-mono">{timeLeft.s.toString().padStart(2, '0')}</div>
                     <div className="text-[10px] text-emerald-400/50 uppercase">Sec</div>
@@ -217,18 +217,18 @@ const PaycheckCountdown: React.FC = () => {
         </div>
       </div>
 
-      <div className="glass-panel p-5 border border-white/5 bg-gradient-to-br from-emerald-500/5 to-transparent text-center">
+      <div className="glass-panel p-5 border border-text/5 bg-gradient-to-br from-emerald-500/5 to-transparent text-center">
         <p className="text-sm text-muted">You are <span className="font-bold text-emerald-400">{percentage.toFixed(1)}%</span> of the way to your next paycheck!</p>
       </div>
 
       {/* Settings Modal */}
       {isSettingsOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-surface border border-white/10 p-6 rounded-3xl w-full max-w-sm shadow-2xl relative animate-slide-up">
+          <div className="bg-surface border border-text/10 p-6 rounded-3xl w-full max-w-sm shadow-2xl relative animate-slide-up">
             {localStorage.getItem(STORAGE_KEY) && (
               <button 
                 onClick={() => setIsSettingsOpen(false)}
-                className="absolute top-4 right-4 p-2 text-muted hover:text-white bg-white/5 rounded-full transition-colors"
+                className="absolute top-4 right-4 p-2 text-muted hover:text-text bg-text/5 rounded-full transition-colors"
               >
                 <X size={18} />
               </button>

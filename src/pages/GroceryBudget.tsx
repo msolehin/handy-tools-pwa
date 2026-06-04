@@ -163,13 +163,13 @@ const GroceryBudget: React.FC = () => {
       <div className="flex p-1 bg-black/20 rounded-xl mb-6">
         <button
           onClick={() => setActiveTab('budget')}
-          className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${activeTab === 'budget' ? 'bg-green-500 text-white' : 'text-muted hover:text-white'}`}
+          className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${activeTab === 'budget' ? 'bg-green-500 text-text' : 'text-muted hover:text-text'}`}
         >
           Shopping List
         </button>
         <button
           onClick={() => setActiveTab('unit')}
-          className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${activeTab === 'unit' ? 'bg-green-500 text-white' : 'text-muted hover:text-white'}`}
+          className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${activeTab === 'unit' ? 'bg-green-500 text-text' : 'text-muted hover:text-text'}`}
         >
           Compare Prices
         </button>
@@ -191,13 +191,13 @@ const GroceryBudget: React.FC = () => {
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-muted mb-1">In Cart</p>
-                  <h3 className="text-xl font-bold text-white">
+                  <h3 className="text-xl font-bold text-text">
                     RM{cartTotal.toFixed(2)}
                   </h3>
                 </div>
               </div>
 
-              <div className="flex items-center space-x-3 bg-black/20 p-3 rounded-xl border border-white/5">
+              <div className="flex items-center space-x-3 bg-black/20 p-3 rounded-xl border border-text/5">
                 <div className="flex-1">
                   <p className="text-xs text-muted mb-1">Budget Limit (Optional)</p>
                   <div className="flex items-center text-sm">
@@ -208,12 +208,12 @@ const GroceryBudget: React.FC = () => {
                       value={budget || ''}
                       onChange={(e) => setBudget(parseFloat(e.target.value) || 0)}
                       placeholder="0.00"
-                      className="bg-transparent border-none outline-none text-white w-full font-bold"
+                      className="bg-transparent border-none outline-none text-text w-full font-bold"
                     />
                   </div>
                 </div>
                 {budget > 0 && (
-                  <div className="text-right flex-1 border-l border-white/10 pl-3">
+                  <div className="text-right flex-1 border-l border-text/10 pl-3">
                     <p className="text-xs text-muted mb-1">Remaining</p>
                     <p className={`text-sm font-bold ${budgetRemaining < 0 ? 'text-red-400' : 'text-green-400'}`}>
                       RM{budgetRemaining.toFixed(2)}
@@ -270,7 +270,7 @@ const GroceryBudget: React.FC = () => {
               <h3 className="text-sm font-bold text-muted uppercase tracking-wider">Shopping List</h3>
               {items.length > 0 && (
                 <div className="flex space-x-3">
-                  <button onClick={clearChecked} className="text-xs text-muted hover:text-white transition-colors">
+                  <button onClick={clearChecked} className="text-xs text-muted hover:text-text transition-colors">
                     Clear Checked
                   </button>
                   <button onClick={clearAll} className="text-xs text-red-400 hover:text-red-300 transition-colors">
@@ -295,13 +295,13 @@ const GroceryBudget: React.FC = () => {
                   >
                     <button 
                       onClick={() => toggleCheck(item.id)}
-                      className={`mr-3 flex-shrink-0 transition-colors ${item.checked ? 'text-green-400' : 'text-muted hover:text-white'}`}
+                      className={`mr-3 flex-shrink-0 transition-colors ${item.checked ? 'text-green-400' : 'text-muted hover:text-text'}`}
                     >
                       {item.checked ? <CheckCircle2 size={24} /> : <Circle size={24} />}
                     </button>
                     
                     <div className="flex-1 min-w-0 pr-2">
-                      <h4 className={`font-medium truncate ${item.checked ? 'line-through text-white/50' : 'text-white'}`}>
+                      <h4 className={`font-medium truncate ${item.checked ? 'line-through text-text/50' : 'text-text'}`}>
                         {item.name}
                       </h4>
                       <p className="text-sm text-green-400 font-bold">
@@ -310,17 +310,17 @@ const GroceryBudget: React.FC = () => {
                     </div>
 
                     <div className="flex items-center space-x-3">
-                      <div className="flex items-center bg-black/20 rounded-lg border border-white/5">
+                      <div className="flex items-center bg-black/20 rounded-lg border border-text/5">
                         <button 
                           onClick={() => updateQuantity(item.id, -1)}
-                          className="px-2 py-1 text-muted hover:text-white"
+                          className="px-2 py-1 text-muted hover:text-text"
                         >
                           -
                         </button>
                         <span className="w-6 text-center text-sm font-bold">{item.quantity}</span>
                         <button 
                           onClick={() => updateQuantity(item.id, 1)}
-                          className="px-2 py-1 text-muted hover:text-white"
+                          className="px-2 py-1 text-muted hover:text-text"
                         >
                           +
                         </button>
@@ -345,9 +345,9 @@ const GroceryBudget: React.FC = () => {
         <div className="space-y-6 animate-fade-in">
           {/* Winner Card */}
           {canCompare && (
-            <div className={`glass-panel p-5 border ${winner === 'TIE' ? 'border-white/10 bg-white/5' : 'border-green-500/30 bg-green-500/10'}`}>
+            <div className={`glass-panel p-5 border ${winner === 'TIE' ? 'border-text/10 bg-text/5' : 'border-green-500/30 bg-green-500/10'}`}>
               <div className="flex items-center space-x-3">
-                <div className={`p-3 rounded-full ${winner === 'TIE' ? 'bg-white/10 text-white' : 'bg-green-500/20 text-green-400'}`}>
+                <div className={`p-3 rounded-full ${winner === 'TIE' ? 'bg-text/10 text-text' : 'bg-green-500/20 text-green-400'}`}>
                   {winner === 'TIE' ? <Scale size={24} /> : <TrendingDown size={24} />}
                 </div>
                 <div>
@@ -417,7 +417,7 @@ const GroceryBudget: React.FC = () => {
               </div>
             </div>
             {priceA > 0 && sizeA > 0 && (
-              <div className="bg-black/20 p-3 rounded-lg text-center text-sm text-muted border border-white/5">
+              <div className="bg-black/20 p-3 rounded-lg text-center text-sm text-muted border border-text/5">
                 RM {unitPriceA.toFixed(2)} per {diffStr}
               </div>
             )}
@@ -466,7 +466,7 @@ const GroceryBudget: React.FC = () => {
               </div>
             </div>
             {priceB > 0 && sizeB > 0 && (
-              <div className="bg-black/20 p-3 rounded-lg text-center text-sm text-muted border border-white/5">
+              <div className="bg-black/20 p-3 rounded-lg text-center text-sm text-muted border border-text/5">
                 RM {unitPriceB.toFixed(2)} per {diffStr}
               </div>
             )}

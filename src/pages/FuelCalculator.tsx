@@ -99,15 +99,15 @@ const FuelCalculator: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-sm text-muted mb-1">Fuel Cost</p>
-              <h3 className="text-xl font-bold text-white">RM {fuelCost.toFixed(2)}</h3>
+              <h3 className="text-xl font-bold text-text">RM {fuelCost.toFixed(2)}</h3>
             </div>
             <div className="text-right">
               <p className="text-sm text-muted mb-1">Tolls</p>
-              <h3 className="text-xl font-bold text-white">RM {tolls.toFixed(2)}</h3>
+              <h3 className="text-xl font-bold text-text">RM {tolls.toFixed(2)}</h3>
             </div>
           </div>
           
-          <div className="h-px w-full bg-white/10" />
+          <div className="h-px w-full bg-text/10" />
 
           <div className="flex justify-between items-end">
             <div>
@@ -119,7 +119,7 @@ const FuelCalculator: React.FC = () => {
             {passengers > 1 && (
               <div className="text-right">
                 <p className="text-sm text-muted mb-1">Per Person</p>
-                <h3 className="text-xl font-bold text-white">
+                <h3 className="text-xl font-bold text-text">
                   RM {perPerson.toFixed(2)}
                 </h3>
               </div>
@@ -168,7 +168,7 @@ const FuelCalculator: React.FC = () => {
         </div>
 
         {/* Fuel & Vehicle */}
-        <div className="space-y-4 pt-4 border-t border-white/5">
+        <div className="space-y-4 pt-4 border-t border-text/5">
           <div>
             <label className="block text-sm font-medium text-muted mb-2">Vehicle Efficiency</label>
             <div className="flex space-x-2">
@@ -255,7 +255,7 @@ const FuelCalculator: React.FC = () => {
         </div>
 
         {/* Passengers */}
-        <div className="pt-4 border-t border-white/5">
+        <div className="pt-4 border-t border-text/5">
           <label className="block text-sm font-medium text-muted mb-2">Split Bill (Passengers)</label>
           <div className="flex items-center space-x-3">
             <button 
@@ -264,7 +264,7 @@ const FuelCalculator: React.FC = () => {
             >
               -
             </button>
-            <div className="flex-1 flex items-center justify-center space-x-2 bg-black/10 rounded-xl py-2 border border-white/5">
+            <div className="flex-1 flex items-center justify-center space-x-2 bg-black/10 rounded-xl py-2 border border-text/5">
               <Users size={18} className="text-muted" />
               <span className="font-bold text-lg">{passengers}</span>
             </div>

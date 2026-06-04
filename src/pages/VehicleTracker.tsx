@@ -74,14 +74,14 @@ const VehicleTracker: React.FC = () => {
         <h2 className="text-2xl font-bold">Vehicle Service Tracker</h2>
       </div>
 
-      <div className="glass-panel p-5 border-white/10">
+      <div className="glass-panel p-5 border-text/10">
         <h3 className="font-semibold mb-4 text-sm text-muted">Log New Service</h3>
         <form onSubmit={addRecord} className="space-y-4">
           <div className="space-y-3">
             <select 
               value={newType}
               onChange={(e) => setNewType(e.target.value)}
-              className="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-slate-400 transition-colors appearance-none"
+              className="w-full bg-background border border-text/10 rounded-xl px-4 py-3 text-text focus:outline-none focus:border-slate-400 transition-colors appearance-none"
             >
               {SERVICE_TYPES.map(type => (
                 <option key={type} value={type}>{type}</option>
@@ -108,7 +108,7 @@ const VehicleTracker: React.FC = () => {
                   type="date" 
                   value={newDate}
                   onChange={(e) => setNewDate(e.target.value)}
-                  className="w-full bg-background border border-white/10 rounded-xl pl-10 pr-3 py-3 text-white focus:outline-none focus:border-slate-400 transition-colors"
+                  className="w-full bg-background border border-text/10 rounded-xl pl-10 pr-3 py-3 text-text focus:outline-none focus:border-slate-400 transition-colors"
                   required
                 />
               </div>
@@ -122,7 +122,7 @@ const VehicleTracker: React.FC = () => {
                   value={newMileage}
                   onChange={(e) => setNewMileage(e.target.value)}
                   placeholder="Mileage (Optional)"
-                  className="w-full bg-background border border-white/10 rounded-xl pl-10 pr-3 py-3 text-white focus:outline-none focus:border-slate-400 transition-colors"
+                  className="w-full bg-background border border-text/10 rounded-xl pl-10 pr-3 py-3 text-text focus:outline-none focus:border-slate-400 transition-colors"
                 />
               </div>
             </div>
@@ -131,7 +131,7 @@ const VehicleTracker: React.FC = () => {
           <button 
             type="submit" 
             disabled={!newDate || (newType === 'Other' && !newCustom)}
-            className="w-full py-3 bg-slate-500 hover:bg-slate-600 text-white font-bold rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
+            className="w-full py-3 bg-slate-500 hover:bg-slate-600 text-text font-bold rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
           >
             <Plus size={18} />
             <span>Save Log</span>
@@ -141,12 +141,12 @@ const VehicleTracker: React.FC = () => {
 
       <div className="space-y-4">
         {sortedRecords.map(record => (
-          <div key={record.id} className="glass-panel p-4 border-white/10 flex justify-between items-start group">
+          <div key={record.id} className="glass-panel p-4 border-text/10 flex justify-between items-start group">
             <div>
-              <h4 className="font-bold text-lg text-white mb-1">
+              <h4 className="font-bold text-lg text-text mb-1">
                 {record.serviceType === 'Other' ? record.customService : record.serviceType}
               </h4>
-              <div className="flex flex-col space-y-1 text-sm text-white/60">
+              <div className="flex flex-col space-y-1 text-sm text-text/60">
                 <div className="flex items-center space-x-2">
                   <Calendar size={14} />
                   <span>{new Date(record.date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</span>
@@ -162,7 +162,7 @@ const VehicleTracker: React.FC = () => {
             
             <button 
               onClick={() => removeRecord(record.id)}
-              className="p-2 text-white/30 hover:text-red-400 hover:bg-black/20 rounded-lg transition-colors"
+              className="p-2 text-text/30 hover:text-red-400 hover:bg-black/20 rounded-lg transition-colors"
             >
               <Trash2 size={18} />
             </button>

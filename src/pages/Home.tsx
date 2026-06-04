@@ -392,7 +392,7 @@ const Home: React.FC = () => {
       {/* Alerts Section */}
       {alerts.length > 0 && (
         <div className="mt-4 mb-2 space-y-3">
-          <div className="flex items-center space-x-2 text-white/80 mb-2 px-1">
+          <div className="flex items-center space-x-2 text-text/80 mb-2 px-1">
             <Bell size={18} className="text-yellow-400 animate-pulse" />
             <h3 className="font-bold text-sm">Action Needed</h3>
           </div>
@@ -420,11 +420,11 @@ const Home: React.FC = () => {
                     ) : (
                       <Calendar size={20} className="text-pink-400" />
                     )}
-                    <span className="text-[10px] font-bold text-white/60 uppercase tracking-wider">{alert.type}</span>
+                    <span className="text-[10px] font-bold text-text/60 uppercase tracking-wider">{alert.type}</span>
                   </div>
                 </div>
                 <div className="flex-1 min-w-0 pr-4">
-                  <p className="font-bold text-[13px] text-white truncate leading-tight mb-1">
+                  <p className="font-bold text-[13px] text-text truncate leading-tight mb-1">
                     {alert.type === 'document' ? 'Renew: ' : alert.type === 'subscription' ? 'Due: ' : ''}{alert.title}
                   </p>
                   <p className={`text-[11px] font-medium leading-none ${
@@ -458,7 +458,7 @@ const Home: React.FC = () => {
                 className={`p-2 rounded-xl transition-all border flex items-center justify-center ${
                   isReordering 
                     ? 'bg-rose-500/20 border-rose-500/50 text-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.3)]' 
-                    : 'bg-surface border-white/10 text-muted hover:bg-white/5 hover:text-white'
+                    : 'bg-surface border-text/10 text-muted hover:bg-text/5 hover:text-text'
                 }`}
                 title="Reorder Tools"
               >
@@ -467,17 +467,17 @@ const Home: React.FC = () => {
             )}
 
             {/* View Mode Toggle */}
-            <div className="flex bg-white/5 p-1 rounded-xl">
+            <div className="flex bg-text/5 p-1 rounded-xl">
               <button 
                 onClick={() => setViewMode('list')}
-                className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-primary text-white shadow-lg' : 'text-muted hover:text-white'}`}
+                className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-primary text-text shadow-lg' : 'text-muted hover:text-text'}`}
                 title="List View"
               >
                 <List size={18} />
               </button>
               <button 
                 onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-primary text-white shadow-lg' : 'text-muted hover:text-white'}`}
+                className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-primary text-text shadow-lg' : 'text-muted hover:text-text'}`}
                 title="Grid View"
               >
                 <LayoutGrid size={18} />
@@ -487,7 +487,7 @@ const Home: React.FC = () => {
                   setViewMode('category');
                   setIsReordering(false); // disable reordering in category mode
                 }}
-                className={`p-2 rounded-lg transition-all ${viewMode === 'category' ? 'bg-primary text-white shadow-lg' : 'text-muted hover:text-white'}`}
+                className={`p-2 rounded-lg transition-all ${viewMode === 'category' ? 'bg-primary text-text shadow-lg' : 'text-muted hover:text-text'}`}
                 title="Category View"
               >
                 <Layers size={18} />
@@ -509,7 +509,7 @@ const Home: React.FC = () => {
               setSearchQuery(e.target.value);
               if (e.target.value) setIsReordering(false);
             }}
-            className="input-field w-full pl-10 bg-white/5 border-white/10 text-sm py-3"
+            className="input-field w-full pl-10 bg-text/5 border-text/10 text-sm py-3"
           />
         </div>
 
@@ -532,9 +532,9 @@ const Home: React.FC = () => {
                 return (
                   <div key={cat!} className="space-y-4">
                     <div className="flex items-center space-x-3 px-1">
-                      <div className="h-px bg-white/10 flex-1"></div>
+                      <div className="h-px bg-text/10 flex-1"></div>
                       <h3 className="text-sm font-bold text-muted uppercase tracking-widest">{cat}</h3>
-                      <div className="h-px bg-white/10 flex-1"></div>
+                      <div className="h-px bg-text/10 flex-1"></div>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {catTools.map(tool => (
@@ -581,7 +581,7 @@ const Home: React.FC = () => {
             <Shield className="text-primary" size={24} />
           </div>
           <div>
-            <h4 className="text-sm font-semibold text-white/90 mb-1.5">100% Private & Local</h4>
+            <h4 className="text-sm font-semibold text-text/90 mb-1.5">100% Private & Local</h4>
             <p className="text-xs text-muted leading-relaxed">
               Designed as a quick, zero-setup tool to solve your problem in under a minute, no login required. 
               All processing happens entirely on your device, and no data is ever sent to a server. 

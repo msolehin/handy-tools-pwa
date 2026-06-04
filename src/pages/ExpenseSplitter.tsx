@@ -89,20 +89,20 @@ const ExpenseSplitter: React.FC = () => {
         </div>
         <button 
           onClick={handleReset}
-          className="text-xs flex items-center text-muted hover:text-white transition-colors"
+          className="text-xs flex items-center text-muted hover:text-text transition-colors"
         >
           <RefreshCw size={12} className="mr-1" /> Reset
         </button>
       </div>
 
       {/* Overview Card */}
-      <div className="glass-panel p-6 border-white/10 bg-gradient-to-br from-surface to-surface/50 relative overflow-hidden">
+      <div className="glass-panel p-6 border-text/10 bg-gradient-to-br from-surface to-surface/50 relative overflow-hidden">
         <div className="absolute top-0 right-0 p-12 bg-purple-500/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
         
         <div className="flex justify-between items-end relative z-10">
           <div>
             <p className="text-sm text-muted mb-1">Grand Total</p>
-            <h3 className="text-3xl font-bold text-white">RM{totalAmount.toFixed(2)}</h3>
+            <h3 className="text-3xl font-bold text-text">RM{totalAmount.toFixed(2)}</h3>
           </div>
           <div className="text-right">
             <p className="text-sm text-muted mb-1">Per Person</p>
@@ -116,7 +116,7 @@ const ExpenseSplitter: React.FC = () => {
               <span>Collected: RM{collectedAmount.toFixed(2)}</span>
               <span>Remaining: RM{(totalAmount - collectedAmount).toFixed(2)}</span>
             </div>
-            <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
+            <div className="h-2 w-full bg-text/10 rounded-full overflow-hidden">
               <div 
                 className="h-full bg-purple-500 transition-all duration-500 ease-out"
                 style={{ width: `${progressPercent}%` }}
@@ -127,7 +127,7 @@ const ExpenseSplitter: React.FC = () => {
       </div>
 
       {/* Bill Items Section */}
-      <div className="glass-panel p-5 border-white/10">
+      <div className="glass-panel p-5 border-text/10">
         <div className="flex items-center space-x-2 mb-4">
           <Receipt className="text-muted" size={18} />
           <h3 className="font-semibold">The Bill</h3>
@@ -150,14 +150,14 @@ const ExpenseSplitter: React.FC = () => {
             placeholder="RM0.00"
             className="input-field w-24 text-center"
           />
-          <button type="submit" disabled={!newItemName || !newItemPrice} className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors disabled:opacity-50">
+          <button type="submit" disabled={!newItemName || !newItemPrice} className="p-3 bg-text/10 hover:bg-text/20 text-text rounded-xl transition-colors disabled:opacity-50">
             <Plus size={20} />
           </button>
         </form>
 
         <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
           {items.map(item => (
-            <div key={item.id} className="flex justify-between items-center bg-white/5 border border-white/5 rounded-lg p-3 group hover:bg-white/10 transition-colors">
+            <div key={item.id} className="flex justify-between items-center bg-text/5 border border-text/5 rounded-lg p-3 group hover:bg-text/10 transition-colors">
               <span className="text-sm font-medium">{item.name}</span>
               <div className="flex items-center space-x-3">
                 <span className="text-sm text-muted">RM{item.price.toFixed(2)}</span>
@@ -168,13 +168,13 @@ const ExpenseSplitter: React.FC = () => {
             </div>
           ))}
           {items.length === 0 && (
-            <p className="text-center text-sm text-muted py-4 border border-dashed border-white/10 rounded-lg">No items added yet</p>
+            <p className="text-center text-sm text-muted py-4 border border-dashed border-text/10 rounded-lg">No items added yet</p>
           )}
         </div>
       </div>
 
       {/* The Squad Section */}
-      <div className="glass-panel p-5 border-white/10">
+      <div className="glass-panel p-5 border-text/10">
         <div className="flex items-center space-x-2 mb-4">
           <Users className="text-purple-400" size={18} />
           <h3 className="font-semibold">The Squad</h3>
@@ -200,7 +200,7 @@ const ExpenseSplitter: React.FC = () => {
               className={`flex justify-between items-center border rounded-lg p-3 transition-colors ${
                 person.isSettled 
                   ? 'bg-green-500/10 border-green-500/30' 
-                  : 'bg-white/5 border-white/5 hover:bg-white/10'
+                  : 'bg-text/5 border-text/5 hover:bg-text/10'
               }`}
             >
               <div className="flex items-center space-x-3">
@@ -208,13 +208,13 @@ const ExpenseSplitter: React.FC = () => {
                   onClick={() => toggleSettled(person.id)}
                   className={`w-6 h-6 rounded-full flex items-center justify-center border transition-colors ${
                     person.isSettled 
-                      ? 'bg-green-500 border-green-500 text-white' 
-                      : 'border-white/30 text-transparent hover:border-purple-400'
+                      ? 'bg-green-500 border-green-500 text-text' 
+                      : 'border-text/30 text-transparent hover:border-purple-400'
                   }`}
                 >
                   <Check size={14} />
                 </button>
-                <span className={`text-sm font-medium ${person.isSettled ? 'text-green-400' : 'text-white'}`}>
+                <span className={`text-sm font-medium ${person.isSettled ? 'text-green-400' : 'text-text'}`}>
                   {person.name}
                 </span>
               </div>
@@ -229,7 +229,7 @@ const ExpenseSplitter: React.FC = () => {
             </div>
           ))}
           {people.length === 0 && (
-            <p className="text-center text-sm text-muted py-4 border border-dashed border-white/10 rounded-lg">Add people sharing the bill</p>
+            <p className="text-center text-sm text-muted py-4 border border-dashed border-text/10 rounded-lg">Add people sharing the bill</p>
           )}
         </div>
       </div>

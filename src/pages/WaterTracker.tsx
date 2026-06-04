@@ -97,21 +97,21 @@ const WaterTracker: React.FC = () => {
             <Droplets size={24} />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-white/90">Hydration</h1>
+            <h1 className="text-xl font-bold tracking-tight text-text/90">Hydration</h1>
             <p className="text-xs text-muted">Daily Goal: {data.goal}ml</p>
           </div>
         </div>
         <button 
           onClick={() => setIsSettingsOpen(true)}
-          className="p-3 bg-white/5 rounded-xl hover:bg-white/10 text-muted transition-colors"
+          className="p-3 bg-text/5 rounded-xl hover:bg-text/10 text-muted transition-colors"
         >
           <Settings size={20} />
         </button>
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center relative z-10 pointer-events-none mt-10">
-        <h2 className="text-6xl font-black text-white drop-shadow-2xl font-mono tracking-tighter">
-          {data.intake}<span className="text-2xl text-white/70">ml</span>
+        <h2 className="text-6xl font-black text-text drop-shadow-2xl font-mono tracking-tighter">
+          {data.intake}<span className="text-2xl text-text/70">ml</span>
         </h2>
         <p className="text-xl font-bold mt-2 text-blue-200 drop-shadow-md bg-black/20 px-4 py-1 rounded-full backdrop-blur-sm">
           {percentage}% Complete
@@ -128,21 +128,21 @@ const WaterTracker: React.FC = () => {
       <div className="grid grid-cols-3 gap-3 z-10 relative mt-auto pt-20">
         <button 
           onClick={() => addWater(250)}
-          className="glass-panel p-4 flex flex-col items-center justify-center hover:bg-white/10 active:scale-95 transition-all border-blue-500/20 hover:border-blue-400/50"
+          className="glass-panel p-4 flex flex-col items-center justify-center hover:bg-text/10 active:scale-95 transition-all border-blue-500/20 hover:border-blue-400/50"
         >
           <Droplets size={20} className="text-blue-300 mb-2" />
           <span className="font-bold text-sm">+250ml</span>
         </button>
         <button 
           onClick={() => addWater(500)}
-          className="glass-panel p-4 flex flex-col items-center justify-center hover:bg-white/10 active:scale-95 transition-all border-blue-500/30 hover:border-blue-400/50 bg-blue-500/5"
+          className="glass-panel p-4 flex flex-col items-center justify-center hover:bg-text/10 active:scale-95 transition-all border-blue-500/30 hover:border-blue-400/50 bg-blue-500/5"
         >
           <Droplets size={24} className="text-blue-400 mb-2" />
           <span className="font-bold text-sm">+500ml</span>
         </button>
         <button 
           onClick={() => addWater(1000)}
-          className="glass-panel p-4 flex flex-col items-center justify-center hover:bg-white/10 active:scale-95 transition-all border-blue-500/40 hover:border-blue-400/50 bg-blue-500/10"
+          className="glass-panel p-4 flex flex-col items-center justify-center hover:bg-text/10 active:scale-95 transition-all border-blue-500/40 hover:border-blue-400/50 bg-blue-500/10"
         >
           <Droplets size={28} className="text-blue-500 mb-2" />
           <span className="font-bold text-sm">+1L</span>
@@ -153,7 +153,7 @@ const WaterTracker: React.FC = () => {
         <div className="flex justify-center z-10 relative mt-4">
           <button 
             onClick={undo}
-            className="flex items-center space-x-2 px-4 py-2 bg-white/5 rounded-full text-sm font-medium text-muted hover:text-white hover:bg-white/10 transition-colors"
+            className="flex items-center space-x-2 px-4 py-2 bg-text/5 rounded-full text-sm font-medium text-muted hover:text-text hover:bg-text/10 transition-colors"
           >
             <Undo2 size={16} />
             <span>Undo Last</span>
@@ -185,10 +185,10 @@ const WaterTracker: React.FC = () => {
       {/* Settings Modal */}
       {isSettingsOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-surface border border-white/10 p-6 rounded-3xl w-full max-w-sm shadow-2xl relative animate-slide-up">
+          <div className="bg-surface border border-text/10 p-6 rounded-3xl w-full max-w-sm shadow-2xl relative animate-slide-up">
             <button 
               onClick={() => setIsSettingsOpen(false)}
-              className="absolute top-4 right-4 p-2 text-muted hover:text-white bg-white/5 rounded-full transition-colors"
+              className="absolute top-4 right-4 p-2 text-muted hover:text-text bg-text/5 rounded-full transition-colors"
             >
               <X size={18} />
             </button>

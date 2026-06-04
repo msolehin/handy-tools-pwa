@@ -5,8 +5,29 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --color-background: 15 23 42;
+    --color-surface: 30 41 59;
+    --color-primary: 59 130 246;
+    --color-secondary: 16 185 129;
+    --color-accent: 139 92 246;
+    --color-text: 248 250 252;
+    --color-muted: 148 163 184;
+    --color-white: 255 255 255;
+    --color-black: 0 0 0;
+  }
+  
+  html.light {
+    --color-background: 241 245 249;
+    --color-surface: 255 255 255;
+    --color-text: 15 23 42;
+    --color-muted: 100 116 139;
+    --color-white: 15 23 42;
+    --color-black: 255 255 255;
+  }
+
   body {
-    @apply bg-background text-text font-sans antialiased;
+    @apply bg-background text-text font-sans antialiased transition-colors duration-300;
   }
 }
 
@@ -16,7 +37,7 @@
   }
   
   .btn-primary {
-    @apply bg-primary hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-xl transition-all duration-200 active:scale-95 shadow-lg shadow-primary/30 disabled:opacity-50 disabled:pointer-events-none;
+    @apply bg-primary hover:bg-blue-600 text-[#ffffff] font-medium py-2 px-4 rounded-xl transition-all duration-200 active:scale-95 shadow-lg shadow-primary/30 disabled:opacity-50 disabled:pointer-events-none;
   }
   
   .btn-secondary {
@@ -24,7 +45,7 @@
   }
   
   .input-field {
-    @apply bg-background/50 border border-white/10 rounded-xl px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-primary/50 text-white placeholder-muted transition-all;
+    @apply bg-background/50 border border-text/20 rounded-xl px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-primary/50 text-text placeholder-muted transition-all;
   }
 }
 

@@ -113,13 +113,13 @@ const PackingChecklist: React.FC = () => {
             </div>
             <div className="text-right">
               <p className="text-sm text-muted mb-1">Items Packed</p>
-              <h3 className="text-xl font-bold text-white">
+              <h3 className="text-xl font-bold text-text">
                 {packedItems} / {totalItems}
               </h3>
             </div>
           </div>
 
-          <div className="h-3 w-full bg-black/30 rounded-full overflow-hidden border border-white/5">
+          <div className="h-3 w-full bg-black/30 rounded-full overflow-hidden border border-text/5">
             <div 
               className="h-full bg-purple-500 transition-all duration-500 ease-out rounded-full"
               style={{ width: `${progress}%` }}
@@ -151,8 +151,8 @@ const PackingChecklist: React.FC = () => {
               onClick={() => setSelectedCategory(cat)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
                 selectedCategory === cat 
-                  ? 'bg-purple-500 text-white' 
-                  : 'bg-white/5 text-muted hover:bg-white/10 hover:text-white'
+                  ? 'bg-purple-500 text-text' 
+                  : 'bg-text/5 text-muted hover:bg-text/10 hover:text-text'
               }`}
             >
               {cat}
@@ -167,7 +167,7 @@ const PackingChecklist: React.FC = () => {
           <h3 className="text-sm font-bold text-muted uppercase tracking-wider">Your Bags</h3>
           {items.length > 0 && (
             <div className="flex space-x-3">
-              <button onClick={clearChecked} className="text-xs text-muted hover:text-white transition-colors">
+              <button onClick={clearChecked} className="text-xs text-muted hover:text-text transition-colors">
                 Clear Packed
               </button>
               <button onClick={clearAll} className="text-xs text-red-400 hover:text-red-300 transition-colors">
@@ -196,7 +196,7 @@ const PackingChecklist: React.FC = () => {
                 <div key={category} className="glass-panel overflow-hidden">
                   <button 
                     onClick={() => toggleCategory(category)}
-                    className="w-full flex items-center justify-between p-3 bg-white/5 hover:bg-white/10 transition-colors"
+                    className="w-full flex items-center justify-between p-3 bg-text/5 hover:bg-text/10 transition-colors"
                   >
                     <div className="flex items-center space-x-2">
                       {isExpanded ? <ChevronDown size={18} className="text-muted" /> : <ChevronRight size={18} className="text-muted" />}
@@ -218,7 +218,7 @@ const PackingChecklist: React.FC = () => {
                         <div 
                           key={item.id} 
                           className={`flex items-center justify-between p-2 rounded-xl transition-all ${
-                            item.checked ? 'opacity-60 bg-white/5' : 'hover:bg-white/5'
+                            item.checked ? 'opacity-60 bg-text/5' : 'hover:bg-text/5'
                           }`}
                         >
                           <button 
@@ -228,7 +228,7 @@ const PackingChecklist: React.FC = () => {
                             <div className={`transition-colors ${item.checked ? 'text-purple-400' : 'text-muted'}`}>
                               {item.checked ? <CheckCircle2 size={20} /> : <Circle size={20} />}
                             </div>
-                            <span className={`text-sm ${item.checked ? 'line-through text-white/50' : 'text-white'}`}>
+                            <span className={`text-sm ${item.checked ? 'line-through text-text/50' : 'text-text'}`}>
                               {item.name}
                             </span>
                           </button>

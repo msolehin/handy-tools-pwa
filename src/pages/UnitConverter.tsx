@@ -153,7 +153,7 @@ const UnitConverter: React.FC = () => {
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-indigo-500/20 text-indigo-400 mb-2">
           <ArrowRightLeft size={32} />
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-white/90">Unit Converter</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-text/90">Unit Converter</h1>
         <p className="text-sm text-muted">Instantly convert measurements</p>
       </div>
 
@@ -167,8 +167,8 @@ const UnitConverter: React.FC = () => {
               onClick={() => setCategory(key)}
               className={`flex items-center space-x-2 px-4 py-2 rounded-xl whitespace-nowrap transition-colors ${
                 category === key 
-                  ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' 
-                  : 'text-muted hover:text-white hover:bg-white/5'
+                  ? 'bg-indigo-500 text-text shadow-lg shadow-indigo-500/20' 
+                  : 'text-muted hover:text-text hover:bg-text/5'
               }`}
             >
               <Icon size={16} />
@@ -189,7 +189,7 @@ const UnitConverter: React.FC = () => {
               type="number"
               value={valFrom}
               onChange={handleValFromChange}
-              className="input-field flex-1 text-lg font-mono placeholder:text-white/20"
+              className="input-field flex-1 text-lg font-mono placeholder:text-text/20"
               placeholder="0"
             />
             <select
@@ -208,7 +208,7 @@ const UnitConverter: React.FC = () => {
         <div className="flex justify-center -my-2 relative z-10">
           <button 
             onClick={handleSwap}
-            className="w-10 h-10 rounded-full bg-surface border border-white/10 flex items-center justify-center text-muted hover:text-white hover:bg-white/5 hover:border-indigo-500/50 hover:shadow-[0_0_15px_rgba(99,102,241,0.3)] transition-all active:scale-95"
+            className="w-10 h-10 rounded-full bg-surface border border-text/10 flex items-center justify-center text-muted hover:text-text hover:bg-text/5 hover:border-indigo-500/50 hover:shadow-[0_0_15px_rgba(99,102,241,0.3)] transition-all active:scale-95"
           >
             <ArrowRightLeft size={18} className="rotate-90" />
           </button>
@@ -222,7 +222,7 @@ const UnitConverter: React.FC = () => {
               type="number"
               value={valTo}
               onChange={handleValToChange}
-              className="input-field flex-1 text-lg font-mono placeholder:text-white/20"
+              className="input-field flex-1 text-lg font-mono placeholder:text-text/20"
               placeholder="0"
             />
             <select

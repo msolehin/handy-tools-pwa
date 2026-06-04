@@ -62,7 +62,7 @@ const BMICalculator: React.FC = () => {
         </div>
         <button 
           onClick={handleReset}
-          className="text-xs flex items-center text-muted hover:text-white transition-colors"
+          className="text-xs flex items-center text-muted hover:text-text transition-colors"
         >
           <RefreshCw size={12} className="mr-1" /> Reset
         </button>
@@ -70,7 +70,7 @@ const BMICalculator: React.FC = () => {
 
       <div className="space-y-4">
         {/* Height Input */}
-        <div className="glass-panel p-5 border-white/10">
+        <div className="glass-panel p-5 border-text/10">
           <h3 className="font-semibold mb-3">Height</h3>
           <div className="relative">
             <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
@@ -83,13 +83,13 @@ const BMICalculator: React.FC = () => {
               value={height}
               onChange={(e) => setHeight(e.target.value)}
               placeholder="e.g. 175"
-              className="w-full bg-background border border-white/10 rounded-xl pl-4 pr-12 py-4 text-xl font-bold text-white focus:outline-none focus:border-emerald-400 transition-colors"
+              className="w-full bg-background border border-text/10 rounded-xl pl-4 pr-12 py-4 text-xl font-bold text-text focus:outline-none focus:border-emerald-400 transition-colors"
             />
           </div>
         </div>
 
         {/* Weight Input */}
-        <div className="glass-panel p-5 border-white/10">
+        <div className="glass-panel p-5 border-text/10">
           <h3 className="font-semibold mb-3">Weight</h3>
           <div className="relative">
             <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
@@ -102,14 +102,14 @@ const BMICalculator: React.FC = () => {
               value={weight}
               onChange={(e) => setWeight(e.target.value)}
               placeholder="e.g. 70"
-              className="w-full bg-background border border-white/10 rounded-xl pl-4 pr-12 py-4 text-xl font-bold text-white focus:outline-none focus:border-emerald-400 transition-colors"
+              className="w-full bg-background border border-text/10 rounded-xl pl-4 pr-12 py-4 text-xl font-bold text-text focus:outline-none focus:border-emerald-400 transition-colors"
             />
           </div>
         </div>
 
         {/* Output */}
         {bmi > 0 ? (
-          <div className="glass-panel p-6 border-white/10 bg-gradient-to-br from-surface to-surface/50 mt-8 space-y-6 animate-slide-up relative overflow-hidden">
+          <div className="glass-panel p-6 border-text/10 bg-gradient-to-br from-surface to-surface/50 mt-8 space-y-6 animate-slide-up relative overflow-hidden">
             <div className="absolute top-0 right-0 p-12 bg-emerald-500/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
             
             <div className="text-center relative z-10">
@@ -131,7 +131,7 @@ const BMICalculator: React.FC = () => {
                 <div className="bg-red-400/80 w-1/4 h-full" />
               </div>
               <div 
-                className="absolute top-2 w-4 h-8 bg-white shadow-md rounded border-2 border-black -ml-2 transition-all duration-500 ease-out"
+                className="absolute top-2 w-4 h-8 bg-text shadow-md rounded border-2 border-black -ml-2 transition-all duration-500 ease-out"
                 style={{ left: `${needlePercent}%` }}
               >
                 <div className="w-0.5 h-full bg-black mx-auto opacity-20" />

@@ -177,7 +177,7 @@ const CurrencyConverter: React.FC = () => {
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 mb-2">
           <Banknote size={32} />
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-white/90">Currency Converter</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-text/90">Currency Converter</h1>
         <p className="text-sm text-muted">Live exchange rates & offline support</p>
       </div>
 
@@ -213,7 +213,7 @@ const CurrencyConverter: React.FC = () => {
                   inputMode="decimal"
                   value={fromVal}
                   onChange={handleFromChange}
-                  className="input-field flex-1 text-lg font-mono placeholder:text-white/20"
+                  className="input-field flex-1 text-lg font-mono placeholder:text-text/20"
                   placeholder="0.00"
                 />
                 <select
@@ -234,7 +234,7 @@ const CurrencyConverter: React.FC = () => {
             <div className="flex justify-center -my-2 relative z-10">
               <button 
                 onClick={handleSwap}
-                className="w-10 h-10 rounded-full bg-surface border border-white/10 flex items-center justify-center text-muted hover:text-white hover:bg-white/5 hover:border-emerald-500/50 hover:shadow-[0_0_15px_rgba(52,211,153,0.3)] transition-all active:scale-95"
+                className="w-10 h-10 rounded-full bg-surface border border-text/10 flex items-center justify-center text-muted hover:text-text hover:bg-text/5 hover:border-emerald-500/50 hover:shadow-[0_0_15px_rgba(52,211,153,0.3)] transition-all active:scale-95"
               >
                 <ArrowRightLeft size={18} className="rotate-90" />
               </button>
@@ -249,7 +249,7 @@ const CurrencyConverter: React.FC = () => {
                   inputMode="decimal"
                   value={toVal}
                   onChange={handleToChange}
-                  className="input-field flex-1 text-lg font-mono placeholder:text-white/20"
+                  className="input-field flex-1 text-lg font-mono placeholder:text-text/20"
                   placeholder="0.00"
                 />
                 <select
@@ -267,7 +267,7 @@ const CurrencyConverter: React.FC = () => {
             </div>
             
             {lastUpdated && (
-              <p className="text-[10px] text-muted text-center italic mt-4 border-t border-white/5 pt-4">
+              <p className="text-[10px] text-muted text-center italic mt-4 border-t border-text/5 pt-4">
                 Rates last updated: {lastUpdated}
               </p>
             )}

@@ -122,7 +122,7 @@ const PaceCalculator: React.FC = () => {
         </div>
         <button 
           onClick={handleReset}
-          className="text-xs flex items-center text-muted hover:text-white transition-colors"
+          className="text-xs flex items-center text-muted hover:text-text transition-colors"
         >
           <RefreshCw size={12} className="mr-1" /> Reset
         </button>
@@ -133,7 +133,7 @@ const PaceCalculator: React.FC = () => {
         <select 
           value={mode} 
           onChange={(e) => setMode(e.target.value as Mode)}
-          className="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary transition-colors appearance-none"
+          className="w-full bg-background border border-text/10 rounded-xl px-4 py-3 text-text focus:outline-none focus:border-primary transition-colors appearance-none"
         >
           <option value="pace">Pace (min/km)</option>
           <option value="time">Time (hh:mm:ss)</option>
@@ -143,7 +143,7 @@ const PaceCalculator: React.FC = () => {
 
       <div className="space-y-4">
         {/* TIME INPUT */}
-        <div className={`glass-panel p-4 transition-opacity duration-300 ${mode === 'time' ? 'opacity-60 border-primary/30' : 'border-white/10'}`}>
+        <div className={`glass-panel p-4 transition-opacity duration-300 ${mode === 'time' ? 'opacity-60 border-primary/30' : 'border-text/10'}`}>
           <div className="flex items-center space-x-2 mb-3">
             <Timer className="text-primary" size={18} />
             <h3 className="font-semibold">Time</h3>
@@ -192,7 +192,7 @@ const PaceCalculator: React.FC = () => {
         </div>
 
         {/* DISTANCE INPUT */}
-        <div className={`glass-panel p-4 transition-opacity duration-300 ${mode === 'distance' ? 'opacity-60 border-primary/30' : 'border-white/10'}`}>
+        <div className={`glass-panel p-4 transition-opacity duration-300 ${mode === 'distance' ? 'opacity-60 border-primary/30' : 'border-text/10'}`}>
           <div className="flex items-center space-x-2 mb-3">
             <Footprints className="text-secondary" size={18} />
             <h3 className="font-semibold">Distance (km)</h3>
@@ -218,7 +218,7 @@ const PaceCalculator: React.FC = () => {
                 className={`text-xs py-2 px-1 rounded-lg border font-medium transition-colors ${
                   distanceKm === d.km 
                     ? 'bg-secondary/20 border-secondary/50 text-secondary' 
-                    : 'bg-white/5 border-white/10 text-muted hover:bg-white/10'
+                    : 'bg-text/5 border-text/10 text-muted hover:bg-text/10'
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 {d.label}
@@ -228,7 +228,7 @@ const PaceCalculator: React.FC = () => {
         </div>
 
         {/* PACE INPUT */}
-        <div className={`glass-panel p-4 transition-opacity duration-300 ${mode === 'pace' ? 'opacity-60 border-accent/30' : 'border-white/10'}`}>
+        <div className={`glass-panel p-4 transition-opacity duration-300 ${mode === 'pace' ? 'opacity-60 border-accent/30' : 'border-text/10'}`}>
           <div className="flex items-center space-x-2 mb-3">
             <Activity className="text-accent" size={18} />
             <h3 className="font-semibold">Pace (min/km)</h3>

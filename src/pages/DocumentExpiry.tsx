@@ -80,14 +80,14 @@ const DocumentExpiry: React.FC = () => {
       </div>
 
       {/* Add Document Form */}
-      <div className="glass-panel p-5 border-white/10">
+      <div className="glass-panel p-5 border-text/10">
         <h3 className="font-semibold mb-4 text-sm text-muted">Add Document Tracker</h3>
         <form onSubmit={addDocument} className="space-y-4">
           <div className="flex space-x-2">
             <select 
               value={newType}
               onChange={(e) => setNewType(e.target.value)}
-              className="bg-background border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-400 transition-colors appearance-none flex-1"
+              className="bg-background border border-text/10 rounded-xl px-4 py-3 text-text focus:outline-none focus:border-red-400 transition-colors appearance-none flex-1"
             >
               {DOCUMENT_TYPES.map(type => (
                 <option key={type} value={type}>{type}</option>
@@ -138,7 +138,7 @@ const DocumentExpiry: React.FC = () => {
           const displayDays = Math.abs(daysLeft);
           
           // Determine styles based on urgency
-          let cardStyle = "border-white/10 bg-white/5";
+          let cardStyle = "border-text/10 bg-text/5";
           let iconStyle = "text-green-400 bg-green-500/20";
           let textStyle = "text-green-400";
           let statusText = `${displayDays} Days Left`;
@@ -167,8 +167,8 @@ const DocumentExpiry: React.FC = () => {
                   <IconComponent size={24} />
                 </div>
                 <div>
-                  <h3 className="font-bold text-lg text-white mb-0.5">{title}</h3>
-                  <p className="text-xs text-white/60 mb-1">
+                  <h3 className="font-bold text-lg text-text mb-0.5">{title}</h3>
+                  <p className="text-xs text-text/60 mb-1">
                     Expires: {new Date(doc.expiryDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                   </p>
                   <p className={`text-sm ${textStyle}`}>
@@ -179,7 +179,7 @@ const DocumentExpiry: React.FC = () => {
 
               <button 
                 onClick={() => removeDocument(doc.id)}
-                className="p-2 text-white/40 hover:text-red-400 hover:bg-black/20 rounded-lg transition-colors"
+                className="p-2 text-text/40 hover:text-red-400 hover:bg-black/20 rounded-lg transition-colors"
               >
                 <Trash2 size={20} />
               </button>

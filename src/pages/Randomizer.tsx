@@ -65,7 +65,7 @@ const CoinFlip = () => {
             style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
           >
             <div className="w-32 h-32 rounded-full border-2 border-gray-400/50 flex items-center justify-center">
-              <span className="text-4xl font-bold text-white drop-shadow-md">T</span>
+              <span className="text-4xl font-bold text-text drop-shadow-md">T</span>
             </div>
           </div>
         </div>
@@ -159,7 +159,7 @@ const RandomNumber = () => {
       <div className="glass-panel h-40 flex items-center justify-center relative overflow-hidden">
         <div className="absolute inset-0 bg-blue-500/5 mix-blend-overlay"></div>
         {displayNum !== null ? (
-          <div className={`text-6xl font-black font-mono tracking-tighter ${result !== null ? 'text-blue-400 scale-110 drop-shadow-[0_0_15px_rgba(96,165,250,0.5)]' : 'text-white/50 blur-[1px]'} transition-all duration-200`}>
+          <div className={`text-6xl font-black font-mono tracking-tighter ${result !== null ? 'text-blue-400 scale-110 drop-shadow-[0_0_15px_rgba(96,165,250,0.5)]' : 'text-text/50 blur-[1px]'} transition-all duration-200`}>
             {displayNum}
           </div>
         ) : (
@@ -209,9 +209,9 @@ const DiceFace = ({ value, isRolling }: { value: number, isRolling: boolean }) =
   };
 
   return (
-    <div className={`w-20 h-20 bg-white rounded-xl shadow-[inset_0_-4px_0_rgba(0,0,0,0.2),_0_8px_15px_rgba(0,0,0,0.2)] relative ${isRolling ? 'animate-shake' : ''}`}>
+    <div className={`w-20 h-20 bg-purple-500 rounded-xl shadow-[inset_0_-4px_0_rgba(0,0,0,0.2),_0_8px_15px_rgba(0,0,0,0.2)] relative ${isRolling ? 'animate-shake' : ''}`}>
       {dots.map((pos, i) => (
-        <div key={i} className={`absolute w-4 h-4 bg-gray-800 rounded-full shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] ${getPosition(pos)}`} />
+        <div key={i} className={`absolute w-4 h-4 bg-[#ffffff] rounded-full shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] ${getPosition(pos)}`} />
       ))}
     </div>
   );
@@ -249,15 +249,15 @@ const DiceRoller = () => {
 
   return (
     <div className="space-y-8 py-4 flex flex-col items-center">
-      <div className="flex space-x-2 bg-surface p-1 rounded-xl border border-white/10 w-full justify-center">
+      <div className="flex space-x-2 bg-surface p-1 rounded-xl border border-text/10 w-full justify-center">
         {[1, 2, 3, 4, 5, 6].map(num => (
           <button
             key={num}
             onClick={() => setDiceCount(num)}
             className={`w-10 h-10 rounded-lg font-bold text-sm transition-all ${
               diceCount === num 
-                ? 'bg-purple-500 text-white shadow-[0_0_10px_rgba(168,85,247,0.4)]' 
-                : 'text-muted hover:bg-white/5'
+                ? 'bg-purple-500 text-text shadow-[0_0_10px_rgba(168,85,247,0.4)]' 
+                : 'text-muted hover:bg-text/5'
             }`}
           >
             {num}
@@ -320,13 +320,13 @@ const Randomizer: React.FC = () => {
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-rose-500/20 text-rose-400 mb-2">
           <Dices size={32} />
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-white/90">Randomizer</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-text/90">Randomizer</h1>
         <p className="text-sm text-muted">Coin, Dice, and Numbers</p>
       </div>
 
       <div className="glass-panel p-1 flex relative">
         <div 
-          className="absolute inset-y-1 bg-white/10 rounded-xl transition-all duration-300 shadow-[inset_0_0_10px_rgba(255,255,255,0.05)] border border-white/10"
+          className="absolute inset-y-1 bg-text/10 rounded-xl transition-all duration-300 shadow-[inset_0_0_10px_rgba(255,255,255,0.05)] border border-text/10"
           style={{
             width: 'calc(33.333% - 4px)',
             left: activeTab === 'coin' ? '4px' : activeTab === 'number' ? 'calc(33.333% + 2px)' : 'calc(66.666%)',
@@ -335,19 +335,19 @@ const Randomizer: React.FC = () => {
         
         <button 
           onClick={() => setActiveTab('coin')}
-          className={`flex-1 flex items-center justify-center py-2.5 z-10 font-medium text-sm transition-colors ${activeTab === 'coin' ? 'text-white' : 'text-muted hover:text-white/80'}`}
+          className={`flex-1 flex items-center justify-center py-2.5 z-10 font-medium text-sm transition-colors ${activeTab === 'coin' ? 'text-text' : 'text-muted hover:text-text/80'}`}
         >
           <Coins size={16} className="mr-2" /> Coin
         </button>
         <button 
           onClick={() => setActiveTab('number')}
-          className={`flex-1 flex items-center justify-center py-2.5 z-10 font-medium text-sm transition-colors ${activeTab === 'number' ? 'text-white' : 'text-muted hover:text-white/80'}`}
+          className={`flex-1 flex items-center justify-center py-2.5 z-10 font-medium text-sm transition-colors ${activeTab === 'number' ? 'text-text' : 'text-muted hover:text-text/80'}`}
         >
           <Hash size={16} className="mr-2" /> Number
         </button>
         <button 
           onClick={() => setActiveTab('dice')}
-          className={`flex-1 flex items-center justify-center py-2.5 z-10 font-medium text-sm transition-colors ${activeTab === 'dice' ? 'text-white' : 'text-muted hover:text-white/80'}`}
+          className={`flex-1 flex items-center justify-center py-2.5 z-10 font-medium text-sm transition-colors ${activeTab === 'dice' ? 'text-text' : 'text-muted hover:text-text/80'}`}
         >
           <Dices size={16} className="mr-2" /> Dice
         </button>

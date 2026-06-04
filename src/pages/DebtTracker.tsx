@@ -206,21 +206,21 @@ const DebtTracker: React.FC = () => {
           <HandCoins size={24} />
         </div>
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-white/90">Split & Track</h1>
+          <h1 className="text-xl font-bold tracking-tight text-text/90">Split & Track</h1>
           <p className="text-[10px] text-muted uppercase tracking-wider">Group Bills & IOUs</p>
         </div>
       </div>
 
-      <div className="flex bg-white/5 p-1 rounded-xl mb-6 mx-2">
+      <div className="flex bg-text/5 p-1 rounded-xl mb-6 mx-2">
         <button 
           onClick={() => setActiveTab('split')}
-          className={`flex-1 p-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'split' ? 'bg-indigo-500 text-white shadow-lg' : 'text-muted hover:text-white'}`}
+          className={`flex-1 p-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'split' ? 'bg-indigo-500 text-text shadow-lg' : 'text-muted hover:text-text'}`}
         >
           Group Split Bill
         </button>
         <button 
           onClick={() => setActiveTab('iou')}
-          className={`flex-1 p-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'iou' ? 'bg-indigo-500 text-white shadow-lg' : 'text-muted hover:text-white'}`}
+          className={`flex-1 p-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'iou' ? 'bg-indigo-500 text-text shadow-lg' : 'text-muted hover:text-text'}`}
         >
           Simple IOUs
         </button>
@@ -232,7 +232,7 @@ const DebtTracker: React.FC = () => {
           {/* Net Summary Card */}
           <div className="glass-panel p-6 border-indigo-500/20 shadow-[0_0_30px_rgba(99,102,241,0.1)] relative overflow-hidden">
             <h3 className="font-bold text-lg mb-2">Your Net Balance</h3>
-            <div className={`text-3xl font-black ${myBalance > 0 ? 'text-emerald-400' : myBalance < 0 ? 'text-rose-400' : 'text-white'}`}>
+            <div className={`text-3xl font-black ${myBalance > 0 ? 'text-emerald-400' : myBalance < 0 ? 'text-rose-400' : 'text-text'}`}>
               {myBalance > 0 ? '+' : myBalance < 0 ? '-' : ''}RM{Math.abs(myBalance).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}
             </div>
             <p className="text-sm text-muted mt-1">
@@ -247,7 +247,7 @@ const DebtTracker: React.FC = () => {
             </h3>
             <div className="flex flex-wrap gap-2 mb-3">
               {members.map(m => (
-                <div key={m.id} className="bg-white/10 px-3 py-1.5 rounded-full text-sm font-medium flex items-center">
+                <div key={m.id} className="bg-text/10 px-3 py-1.5 rounded-full text-sm font-medium flex items-center">
                   {m.name}
                   {m.id !== 'you' && (
                     <button onClick={() => setMembers(members.filter(x => x.id !== m.id))} className="ml-2 text-muted hover:text-rose-400">
@@ -278,11 +278,11 @@ const DebtTracker: React.FC = () => {
               <p className="text-xs text-emerald-400/70 mb-4">Simplified minimum transactions required to settle all group debts.</p>
               <div className="space-y-3">
                 {settlements.map((s, i) => (
-                  <div key={i} className="flex items-center justify-between bg-black/20 p-3 rounded-xl border border-white/5">
+                  <div key={i} className="flex items-center justify-between bg-black/20 p-3 rounded-xl border border-text/5">
                     <div className="flex items-center space-x-3">
-                      <span className="font-bold text-white/90">{s.fromName}</span>
+                      <span className="font-bold text-text/90">{s.fromName}</span>
                       <ArrowRight size={14} className="text-muted" />
-                      <span className="font-bold text-white/90">{s.toName}</span>
+                      <span className="font-bold text-text/90">{s.toName}</span>
                     </div>
                     <span className="font-black text-emerald-400">RM{s.amount.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
                   </div>
@@ -322,7 +322,7 @@ const DebtTracker: React.FC = () => {
                       type="button"
                       onClick={() => toggleSplitMember(m.id)}
                       className={`px-3 py-1.5 rounded-lg text-sm font-bold border transition-colors ${
-                        txSplitIds.includes(m.id) ? 'bg-indigo-500 border-indigo-400 text-white' : 'bg-white/5 border-white/10 text-muted'
+                        txSplitIds.includes(m.id) ? 'bg-indigo-500 border-indigo-400 text-text' : 'bg-text/5 border-text/10 text-muted'
                       }`}
                     >
                       {m.name}
@@ -332,14 +332,14 @@ const DebtTracker: React.FC = () => {
               </div>
 
               <div className="flex space-x-2 pt-2">
-                <button onClick={() => setIsAddingTx(false)} className="flex-1 py-3 rounded-xl bg-white/5 text-white font-bold hover:bg-white/10">Cancel</button>
-                <button onClick={addTransaction} className="flex-1 py-3 rounded-xl bg-indigo-500 text-white font-bold shadow-lg hover:bg-indigo-600">Save Expense</button>
+                <button onClick={() => setIsAddingTx(false)} className="flex-1 py-3 rounded-xl bg-text/5 text-text font-bold hover:bg-text/10">Cancel</button>
+                <button onClick={addTransaction} className="flex-1 py-3 rounded-xl bg-indigo-500 text-text font-bold shadow-lg hover:bg-indigo-600">Save Expense</button>
               </div>
             </div>
           ) : (
             <button 
               onClick={() => setIsAddingTx(true)}
-              className="w-full py-4 border-2 border-dashed border-white/20 rounded-2xl text-muted font-bold hover:border-indigo-500/50 hover:text-indigo-400 transition-all flex items-center justify-center"
+              className="w-full py-4 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-indigo-500/50 hover:text-indigo-400 transition-all flex items-center justify-center"
             >
               <Plus size={20} className="mr-2" /> Add Group Expense
             </button>
@@ -356,7 +356,7 @@ const DebtTracker: React.FC = () => {
                 return (
                   <div key={tx.id} className="glass-panel p-4 flex items-center justify-between group">
                     <div>
-                      <h4 className="font-bold text-white/90">{tx.description}</h4>
+                      <h4 className="font-bold text-text/90">{tx.description}</h4>
                       <p className="text-xs text-muted mt-1">{paidByName} paid for {splitNames}</p>
                     </div>
                     <div className="flex flex-col items-end">
@@ -422,14 +422,14 @@ const DebtTracker: React.FC = () => {
               </div>
 
               <div className="flex space-x-2 pt-2">
-                <button onClick={() => setIsAddingIou(false)} className="flex-1 py-3 rounded-xl bg-white/5 text-white font-bold hover:bg-white/10">Cancel</button>
-                <button onClick={addIou} className="flex-1 py-3 rounded-xl bg-indigo-500 text-white font-bold shadow-lg hover:bg-indigo-600">Save Note</button>
+                <button onClick={() => setIsAddingIou(false)} className="flex-1 py-3 rounded-xl bg-text/5 text-text font-bold hover:bg-text/10">Cancel</button>
+                <button onClick={addIou} className="flex-1 py-3 rounded-xl bg-indigo-500 text-text font-bold shadow-lg hover:bg-indigo-600">Save Note</button>
               </div>
             </div>
           ) : (
             <button 
               onClick={() => setIsAddingIou(true)}
-              className="w-full py-4 border-2 border-dashed border-white/20 rounded-2xl text-muted font-bold hover:border-indigo-500/50 hover:text-indigo-400 transition-all flex items-center justify-center"
+              className="w-full py-4 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-indigo-500/50 hover:text-indigo-400 transition-all flex items-center justify-center"
             >
               <Plus size={20} className="mr-2" /> Add Debt Note
             </button>
@@ -442,20 +442,20 @@ const DebtTracker: React.FC = () => {
                   <div className="flex items-start space-x-3">
                     <button 
                       onClick={() => toggleIouSettle(iou.id)}
-                      className={`mt-1 rounded-md p-0.5 transition-colors ${iou.isSettled ? 'text-indigo-400 bg-indigo-500/20' : 'text-muted border border-white/20 hover:border-indigo-400'}`}
+                      className={`mt-1 rounded-md p-0.5 transition-colors ${iou.isSettled ? 'text-indigo-400 bg-indigo-500/20' : 'text-muted border border-text/20 hover:border-indigo-400'}`}
                     >
                       {iou.isSettled ? <CheckSquare size={20} /> : <Square size={20} className="opacity-0" />}
                       {!iou.isSettled && <div className="w-5 h-5 absolute -mt-5" />} {/* Click target */}
                     </button>
                     <div>
-                      <h4 className={`font-bold ${iou.isSettled ? 'line-through text-white/50' : 'text-white/90'}`}>
+                      <h4 className={`font-bold ${iou.isSettled ? 'line-through text-text/50' : 'text-text/90'}`}>
                         {iou.personName}
                       </h4>
                       {iou.description && <p className="text-xs text-muted mt-0.5">{iou.description}</p>}
                     </div>
                   </div>
                   <div className="flex flex-col items-end">
-                    <span className={`font-black ${iou.isSettled ? 'text-white/50' : iou.type === 'owe_me' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    <span className={`font-black ${iou.isSettled ? 'text-text/50' : iou.type === 'owe_me' ? 'text-emerald-400' : 'text-rose-400'}`}>
                       {iou.type === 'owe_me' ? '+' : '-'}RM{iou.amount.toLocaleString(undefined, {minimumFractionDigits:2})}
                     </span>
                     <button onClick={() => deleteIou(iou.id)} className="text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity p-1 mt-1 hover:bg-rose-500/20 rounded">
@@ -466,7 +466,7 @@ const DebtTracker: React.FC = () => {
               </div>
             ))}
             {ious.length === 0 && !isAddingIou && (
-              <div className="text-center p-8 text-muted text-sm border border-dashed border-white/10 rounded-2xl">
+              <div className="text-center p-8 text-muted text-sm border border-dashed border-text/10 rounded-2xl">
                 No active IOUs. You're all settled!
               </div>
             )}

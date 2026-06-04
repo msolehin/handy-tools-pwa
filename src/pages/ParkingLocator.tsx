@@ -211,7 +211,7 @@ const ParkingLocator: React.FC = () => {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="flex-1 bg-white/5 hover:bg-white/10 text-white/80 py-2 px-4 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center space-x-2 border border-white/10"
+                className="flex-1 bg-text/5 hover:bg-text/10 text-text/80 py-2 px-4 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center space-x-2 border border-text/10"
               >
                  <Upload size={18} />
                  <span>Upload File</span>
@@ -242,7 +242,7 @@ const ParkingLocator: React.FC = () => {
                     setImageBlob(null);
                     setImagePreview(null);
                   }}
-                  className="absolute top-2 right-2 bg-black/60 p-1.5 rounded-full text-white hover:bg-black/80 transition-colors backdrop-blur-sm"
+                  className="absolute top-2 right-2 bg-black/60 p-1.5 rounded-full text-text hover:bg-black/80 transition-colors backdrop-blur-sm"
                 >
                   <X size={16} />
                 </button>
@@ -271,7 +271,7 @@ const ParkingLocator: React.FC = () => {
 
       {/* Saved Locations List */}
       <div className="mt-8">
-        <h3 className="text-lg font-semibold mb-4 text-white/90">Saved Locations</h3>
+        <h3 className="text-lg font-semibold mb-4 text-text/90">Saved Locations</h3>
         <div className="space-y-4">
           {locations?.length === 0 && (
             <p className="text-muted text-sm text-center py-8">No saved parking locations yet.</p>
@@ -284,7 +284,7 @@ const ParkingLocator: React.FC = () => {
                   <p className="text-xs text-muted mt-1">
                     {new Date(loc.createdAt).toLocaleString()}
                   </p>
-                  {loc.note && <p className="text-sm mt-2 text-white/80">{loc.note}</p>}
+                  {loc.note && <p className="text-sm mt-2 text-text/80">{loc.note}</p>}
                 </div>
                 <button 
                   onClick={() => loc.id && handleDelete(loc.id)}
@@ -305,14 +305,14 @@ const ParkingLocator: React.FC = () => {
                 <div className="flex space-x-2">
                   <button 
                     onClick={() => openInGoogleMaps(loc.latitude, loc.longitude)}
-                    className="flex-1 bg-white/5 hover:bg-white/10 py-2 rounded-xl text-xs font-medium transition-colors flex items-center justify-center space-x-2 text-white/80"
+                    className="flex-1 bg-text/5 hover:bg-text/10 py-2 rounded-xl text-xs font-medium transition-colors flex items-center justify-center space-x-2 text-text/80"
                   >
                     <MapIcon size={14} />
                     <span>Google Maps</span>
                   </button>
                   <button 
                     onClick={() => openInWaze(loc.latitude, loc.longitude)}
-                    className="flex-1 bg-white/5 hover:bg-white/10 py-2 rounded-xl text-xs font-medium transition-colors flex items-center justify-center space-x-2 text-white/80"
+                    className="flex-1 bg-text/5 hover:bg-text/10 py-2 rounded-xl text-xs font-medium transition-colors flex items-center justify-center space-x-2 text-text/80"
                   >
                     <Navigation size={14} />
                     <span>Waze</span>
@@ -329,7 +329,7 @@ const ParkingLocator: React.FC = () => {
           <div className="absolute top-4 right-4 z-10">
             <button 
               onClick={(e) => { e.stopPropagation(); setFullImage(null); }}
-              className="p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors"
+              className="p-2 bg-text/10 rounded-full text-text hover:bg-text/20 transition-colors"
             >
               <X size={24} />
             </button>

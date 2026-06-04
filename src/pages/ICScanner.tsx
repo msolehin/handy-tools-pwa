@@ -257,24 +257,24 @@ const ICScanner: React.FC = () => {
   };
 
   const UploadBox = ({ title, image, onCamera, onFile }: { title: string, image: string | null, onCamera: () => void, onFile: () => void }) => (
-    <div className={`glass-panel p-4 flex flex-col items-center justify-center transition-all border-2 border-dashed ${image ? 'border-primary/50' : 'border-white/20'} h-48 relative overflow-hidden`}>
+    <div className={`glass-panel p-4 flex flex-col items-center justify-center transition-all border-2 border-dashed ${image ? 'border-primary/50' : 'border-text/20'} h-48 relative overflow-hidden`}>
       {image ? (
         <>
           <img src={image} alt={title} className="absolute inset-0 w-full h-full object-cover opacity-80" />
           <div className="absolute bottom-2 right-2 flex space-x-2 bg-black/60 p-2 rounded-lg backdrop-blur-sm z-10">
-            <button onClick={(e) => { e.stopPropagation(); onCamera(); }} className="p-1.5 hover:text-primary transition-colors text-white" title="Retake Photo"><Camera size={16} /></button>
-            <button onClick={(e) => { e.stopPropagation(); onFile(); }} className="p-1.5 hover:text-primary transition-colors text-white" title="Reupload Image"><Upload size={16} /></button>
+            <button onClick={(e) => { e.stopPropagation(); onCamera(); }} className="p-1.5 hover:text-primary transition-colors text-text" title="Retake Photo"><Camera size={16} /></button>
+            <button onClick={(e) => { e.stopPropagation(); onFile(); }} className="p-1.5 hover:text-primary transition-colors text-text" title="Reupload Image"><Upload size={16} /></button>
           </div>
         </>
       ) : (
         <>
           <p className="text-sm font-medium mb-4">{title}</p>
           <div className="flex space-x-4">
-            <button onClick={(e) => { e.stopPropagation(); onCamera(); }} className="flex flex-col items-center p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors border border-white/10">
+            <button onClick={(e) => { e.stopPropagation(); onCamera(); }} className="flex flex-col items-center p-3 bg-text/5 rounded-xl hover:bg-text/10 transition-colors border border-text/10">
               <Camera className="text-primary mb-2" size={24} />
               <span className="text-xs font-medium">Camera</span>
             </button>
-            <button onClick={(e) => { e.stopPropagation(); onFile(); }} className="flex flex-col items-center p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors border border-white/10">
+            <button onClick={(e) => { e.stopPropagation(); onFile(); }} className="flex flex-col items-center p-3 bg-text/5 rounded-xl hover:bg-text/10 transition-colors border border-text/10">
               <Upload className="text-primary mb-2" size={24} />
               <span className="text-xs font-medium">Upload</span>
             </button>
@@ -289,7 +289,7 @@ const ICScanner: React.FC = () => {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">IC Combiner</h2>
         {(frontImage || backImage) && (
-          <button onClick={reset} className="text-xs text-muted hover:text-white transition-colors">
+          <button onClick={reset} className="text-xs text-muted hover:text-text transition-colors">
             Reset All
           </button>
         )}
@@ -359,7 +359,7 @@ const ICScanner: React.FC = () => {
         <div className="glass-panel p-4 space-y-4">
           <div>
             <div className="flex justify-between items-center mb-2">
-              <label className="text-sm font-medium text-white/90">Card Print Size</label>
+              <label className="text-sm font-medium text-text/90">Card Print Size</label>
               <span className="text-xs text-primary font-bold bg-primary/10 px-2 py-1 rounded-md">
                 {Math.round(cardScale * 100)}%
               </span>
@@ -378,7 +378,7 @@ const ICScanner: React.FC = () => {
           <div className="mt-6">
             <p className="text-xs text-muted mb-2 text-center">Live A4 Print Preview</p>
             <div 
-              className="w-full max-w-[240px] mx-auto bg-[#f8fafc] rounded shadow-2xl relative overflow-hidden ring-1 ring-white/10 touch-none" 
+              className="w-full max-w-[240px] mx-auto bg-[#f8fafc] rounded shadow-2xl relative overflow-hidden ring-1 ring-text/10 touch-none" 
               style={{ aspectRatio: '1 / 1.414' }}
             >
               {frontImage && (
@@ -419,18 +419,18 @@ const ICScanner: React.FC = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Type className="text-primary" size={18} />
-            <h3 className="font-semibold text-white/90">Add Watermark (Palang)</h3>
+            <h3 className="font-semibold text-text/90">Add Watermark (Palang)</h3>
           </div>
           <button 
             onClick={() => setWmEnabled(!wmEnabled)}
-            className={`w-12 h-6 rounded-full transition-colors relative ${wmEnabled ? 'bg-primary' : 'bg-white/10'}`}
+            className={`w-12 h-6 rounded-full transition-colors relative ${wmEnabled ? 'bg-primary' : 'bg-text/10'}`}
           >
-            <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${wmEnabled ? 'left-6 translate-x-0.5' : 'left-0.5'}`} />
+            <div className={`w-5 h-5 bg-text rounded-full absolute top-0.5 transition-transform ${wmEnabled ? 'left-6 translate-x-0.5' : 'left-0.5'}`} />
           </button>
         </div>
 
         {wmEnabled && (
-          <div className="space-y-4 animate-slide-up mt-4 pt-4 border-t border-white/10">
+          <div className="space-y-4 animate-slide-up mt-4 pt-4 border-t border-text/10">
             <div>
               <label className="block text-sm text-muted mb-2">Watermark Text</label>
               <input 
@@ -442,7 +442,7 @@ const ICScanner: React.FC = () => {
               />
               <div className="flex flex-wrap gap-2 mt-2">
                 {['FOR PRIVATE USE ONLY', 'FOR BANK USE ONLY', 'FOR LOAN APPLICATION'].map(t => (
-                  <button key={t} onClick={() => setWmText(t)} className="text-[10px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded">
+                  <button key={t} onClick={() => setWmText(t)} className="text-[10px] bg-text/5 hover:bg-text/10 px-2 py-1 rounded">
                     {t}
                   </button>
                 ))}
@@ -456,7 +456,7 @@ const ICScanner: React.FC = () => {
                   <button 
                     key={c} 
                     onClick={() => setWmColor(c)}
-                    className={`w-6 h-6 rounded-full border-2 ${wmColor === c ? 'border-primary scale-110' : 'border-white/20'}`}
+                    className={`w-6 h-6 rounded-full border-2 ${wmColor === c ? 'border-primary scale-110' : 'border-text/20'}`}
                     style={{ backgroundColor: c }}
                   />
                 ))}
@@ -473,13 +473,13 @@ const ICScanner: React.FC = () => {
                 <ChevronDown size={14} className={`ml-1 transition-transform ${showWmAdvanced ? 'rotate-180' : ''}`} />
               </button>
               
-              <button onClick={resetWmSettings} className="text-[10px] text-muted hover:text-white transition-colors underline">
+              <button onClick={resetWmSettings} className="text-[10px] text-muted hover:text-text transition-colors underline">
                 Reset Position & Settings
               </button>
             </div>
               
               {showWmAdvanced && (
-                <div className="grid grid-cols-2 gap-4 mt-4 bg-black/20 p-3 rounded-xl border border-white/5">
+                <div className="grid grid-cols-2 gap-4 mt-4 bg-black/20 p-3 rounded-xl border border-text/5">
                   <div>
                     <label className="block text-[10px] text-muted mb-1">Size ({wmSize}px)</label>
                     <input type="range" min="5" max="14" value={wmSize} onChange={(e) => setWmSize(parseInt(e.target.value))} className="w-full accent-primary" />
@@ -523,7 +523,7 @@ const ICScanner: React.FC = () => {
       {croppingImage && createPortal(
         <div className="fixed inset-0 z-[100] bg-background flex flex-col animate-fade-in">
           <div className="flex-1 min-h-0 relative bg-black/80 flex flex-col">
-            <h3 className="text-center py-4 font-semibold text-white">Adjust Crop Area</h3>
+            <h3 className="text-center py-4 font-semibold text-text">Adjust Crop Area</h3>
             <div className="flex-1 min-h-0 overflow-hidden">
               <Cropper
                 src={croppingImage}

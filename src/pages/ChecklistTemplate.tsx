@@ -223,22 +223,22 @@ const ChecklistTemplate: React.FC = () => {
           <ListChecks size={24} />
         </div>
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-white/90">Checklists</h1>
+          <h1 className="text-xl font-bold tracking-tight text-text/90">Checklists</h1>
           <p className="text-[10px] text-muted uppercase tracking-wider">Templates & To-Dos</p>
         </div>
       </div>
 
       {view !== 'editor' && (
-        <div className="flex bg-white/5 p-1 rounded-xl mb-6 mx-2">
+        <div className="flex bg-text/5 p-1 rounded-xl mb-6 mx-2">
           <button 
             onClick={() => setView('mine')}
-            className={`flex-1 p-2 rounded-lg text-sm font-bold transition-all ${view === 'mine' ? 'bg-violet-500 text-white shadow-lg' : 'text-muted hover:text-white'}`}
+            className={`flex-1 p-2 rounded-lg text-sm font-bold transition-all ${view === 'mine' ? 'bg-violet-500 text-text shadow-lg' : 'text-muted hover:text-text'}`}
           >
             My Checklists
           </button>
           <button 
             onClick={() => setView('gallery')}
-            className={`flex-1 p-2 rounded-lg text-sm font-bold transition-all ${view === 'gallery' ? 'bg-violet-500 text-white shadow-lg' : 'text-muted hover:text-white'}`}
+            className={`flex-1 p-2 rounded-lg text-sm font-bold transition-all ${view === 'gallery' ? 'bg-violet-500 text-text shadow-lg' : 'text-muted hover:text-text'}`}
           >
             Template Gallery
           </button>
@@ -249,14 +249,14 @@ const ChecklistTemplate: React.FC = () => {
       {view === 'editor' && activeChecklist && (
         <div className="animate-slide-up space-y-4">
           <div className="flex items-center justify-between px-2">
-            <button onClick={() => setView('mine')} className="p-2 text-muted hover:text-white hover:bg-white/10 rounded-xl flex items-center">
+            <button onClick={() => setView('mine')} className="p-2 text-muted hover:text-text hover:bg-text/10 rounded-xl flex items-center">
               <ArrowLeft size={20} className="mr-2" /> Back
             </button>
             <div className="flex space-x-2">
-              <button onClick={resetActiveChecklist} className="p-2 text-muted hover:text-white hover:bg-white/10 rounded-xl" title="Reset All">
+              <button onClick={resetActiveChecklist} className="p-2 text-muted hover:text-text hover:bg-text/10 rounded-xl" title="Reset All">
                 <RefreshCw size={20} />
               </button>
-              <button onClick={saveActiveChecklist} className="p-2 bg-violet-500 text-white rounded-xl shadow-lg hover:bg-violet-600 font-bold flex items-center px-4">
+              <button onClick={saveActiveChecklist} className="p-2 bg-violet-500 text-text rounded-xl shadow-lg hover:bg-violet-600 font-bold flex items-center px-4">
                 <Save size={18} className="mr-2" /> Save
               </button>
             </div>
@@ -270,7 +270,7 @@ const ChecklistTemplate: React.FC = () => {
                   type="text" 
                   value={activeChecklist.title}
                   onChange={e => setActiveChecklist({...activeChecklist, title: e.target.value})}
-                  className="bg-transparent text-xl font-bold text-white w-full border-b border-transparent focus:border-white/20 focus:outline-none pb-1"
+                  className="bg-transparent text-xl font-bold text-text w-full border-b border-transparent focus:border-text/20 focus:outline-none pb-1"
                 />
               </div>
 
@@ -280,7 +280,7 @@ const ChecklistTemplate: React.FC = () => {
                   type="date"
                   value={activeChecklist.dueDate || ''}
                   onChange={e => setActiveChecklist({...activeChecklist, dueDate: e.target.value})}
-                  className="bg-transparent text-sm text-white/80 w-full focus:outline-none"
+                  className="bg-transparent text-sm text-text/80 w-full focus:outline-none"
                 />
               </div>
             </div>
@@ -305,8 +305,8 @@ const ChecklistTemplate: React.FC = () => {
                   onClick={() => toggleItem(item.id)}
                   className={`flex items-center space-x-3 p-3 rounded-xl cursor-pointer transition-all border ${
                     item.checked 
-                      ? 'bg-violet-500/10 border-violet-500/30 text-white/60' 
-                      : 'bg-white/5 border-white/5 hover:border-white/20 text-white/90'
+                      ? 'bg-violet-500/10 border-violet-500/30 text-text/60' 
+                      : 'bg-text/5 border-text/5 hover:border-text/20 text-text/90'
                   }`}
                 >
                   <div className={`shrink-0 ${item.checked ? 'text-violet-400' : 'text-muted'}`}>
@@ -341,9 +341,9 @@ const ChecklistTemplate: React.FC = () => {
           {TEMPLATES.map(template => (
             <div key={template.id} className="glass-panel p-4 flex items-center justify-between group hover:border-violet-500/30 transition-all">
               <div className="flex items-center space-x-4">
-                <div className="text-3xl bg-white/5 p-3 rounded-xl">{template.icon}</div>
+                <div className="text-3xl bg-text/5 p-3 rounded-xl">{template.icon}</div>
                 <div>
-                  <h3 className="font-bold text-white/90">{template.title}</h3>
+                  <h3 className="font-bold text-text/90">{template.title}</h3>
                   <p className="text-xs text-muted">{template.items.length} items</p>
                 </div>
               </div>
@@ -362,7 +362,7 @@ const ChecklistTemplate: React.FC = () => {
       {view === 'mine' && (
         <div className="animate-fade-in space-y-4">
           {myChecklists.length === 0 ? (
-            <div className="glass-panel p-8 text-center flex flex-col items-center border-dashed border-white/20">
+            <div className="glass-panel p-8 text-center flex flex-col items-center border-dashed border-text/20">
               <ListChecks size={48} className="text-muted mb-4 opacity-50" />
               <h3 className="font-bold text-lg mb-2">No Checklists Yet</h3>
               <p className="text-sm text-muted mb-6">Create your first checklist by duplicating a template from the gallery.</p>
@@ -382,7 +382,7 @@ const ChecklistTemplate: React.FC = () => {
                   <div className="flex items-center space-x-3 cursor-pointer" onClick={() => { setActiveChecklist(checklist); setView('editor'); }}>
                     <div className="text-2xl">{checklist.icon}</div>
                     <div>
-                      <h3 className="font-bold text-white/90">{checklist.title}</h3>
+                      <h3 className="font-bold text-text/90">{checklist.title}</h3>
                       <div className="flex flex-wrap items-center gap-2 mt-1">
                         <span className="text-xs text-violet-400 font-bold bg-violet-500/10 px-2 py-0.5 rounded-full">
                           {getProgress(checklist)}% Complete
@@ -397,7 +397,7 @@ const ChecklistTemplate: React.FC = () => {
                   </div>
                   
                   <div className="flex space-x-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => duplicateChecklist(checklist)} className="p-2 text-muted hover:text-white hover:bg-white/10 rounded-lg" title="Duplicate">
+                    <button onClick={() => duplicateChecklist(checklist)} className="p-2 text-muted hover:text-text hover:bg-text/10 rounded-lg" title="Duplicate">
                       <Copy size={16} />
                     </button>
                     <button onClick={(e) => deleteChecklist(checklist.id, e)} className="p-2 text-muted hover:text-rose-400 hover:bg-rose-500/10 rounded-lg" title="Delete">

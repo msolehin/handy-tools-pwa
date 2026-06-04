@@ -55,7 +55,7 @@ const AffordabilityCalculator: React.FC = () => {
         </div>
         <button 
           onClick={handleReset}
-          className="text-xs flex items-center text-muted hover:text-white transition-colors"
+          className="text-xs flex items-center text-muted hover:text-text transition-colors"
         >
           <RefreshCw size={12} className="mr-1" /> Reset
         </button>
@@ -63,7 +63,7 @@ const AffordabilityCalculator: React.FC = () => {
 
       <div className="space-y-4">
         {/* Salary Input */}
-        <div className="glass-panel p-5 border-white/10">
+        <div className="glass-panel p-5 border-text/10">
           <div className="flex items-center space-x-2 mb-3">
             <Banknote className="text-green-400" size={18} />
             <h3 className="font-semibold">Monthly Salary</h3>
@@ -79,7 +79,7 @@ const AffordabilityCalculator: React.FC = () => {
               value={salary}
               onChange={(e) => setSalary(e.target.value)}
               placeholder="e.g. 3200"
-              className="w-full bg-background border border-white/10 rounded-xl pl-14 pr-4 py-4 text-xl font-bold text-white focus:outline-none focus:border-green-400 transition-colors"
+              className="w-full bg-background border border-text/10 rounded-xl pl-14 pr-4 py-4 text-xl font-bold text-text focus:outline-none focus:border-green-400 transition-colors"
             />
           </div>
           <p className="text-xs text-muted mt-2">
@@ -88,7 +88,7 @@ const AffordabilityCalculator: React.FC = () => {
         </div>
 
         {/* Work Hours Input */}
-        <div className="glass-panel p-5 border-white/10">
+        <div className="glass-panel p-5 border-text/10">
           <div className="flex items-center space-x-2 mb-3">
             <Briefcase className="text-blue-400" size={18} />
             <h3 className="font-semibold">Work Hours Per Day</h3>
@@ -105,13 +105,13 @@ const AffordabilityCalculator: React.FC = () => {
               value={hoursPerDay}
               onChange={(e) => setHoursPerDay(e.target.value)}
               placeholder="e.g. 8"
-              className="w-full bg-background border border-white/10 rounded-xl pl-4 pr-16 py-4 text-xl font-bold text-white focus:outline-none focus:border-blue-400 transition-colors"
+              className="w-full bg-background border border-text/10 rounded-xl pl-4 pr-16 py-4 text-xl font-bold text-text focus:outline-none focus:border-blue-400 transition-colors"
             />
           </div>
         </div>
 
         {/* Price Input */}
-        <div className="glass-panel p-5 border-white/10">
+        <div className="glass-panel p-5 border-text/10">
           <div className="flex items-center space-x-2 mb-3">
             <Wallet className="text-accent" size={18} />
             <h3 className="font-semibold">Item Price</h3>
@@ -127,14 +127,14 @@ const AffordabilityCalculator: React.FC = () => {
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               placeholder="e.g. 150"
-              className="w-full bg-background border border-white/10 rounded-xl pl-14 pr-4 py-4 text-xl font-bold text-white focus:outline-none focus:border-accent transition-colors"
+              className="w-full bg-background border border-text/10 rounded-xl pl-14 pr-4 py-4 text-xl font-bold text-text focus:outline-none focus:border-accent transition-colors"
             />
           </div>
         </div>
 
         {/* Output */}
         {sVal > 0 && pVal > 0 ? (
-          <div className="glass-panel p-6 border-white/10 bg-gradient-to-br from-surface to-surface/50 mt-8 space-y-6 animate-slide-up relative overflow-hidden">
+          <div className="glass-panel p-6 border-text/10 bg-gradient-to-br from-surface to-surface/50 mt-8 space-y-6 animate-slide-up relative overflow-hidden">
             <div className="absolute top-0 right-0 p-12 bg-green-500/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
             <div className="absolute bottom-0 left-0 p-12 bg-accent/5 rounded-full blur-3xl -ml-10 -mb-10 pointer-events-none" />
             
@@ -151,7 +151,7 @@ const AffordabilityCalculator: React.FC = () => {
                   <Percent size={24} />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-white">
+                  <div className="text-2xl font-bold text-text">
                     {percentage.toLocaleString(undefined, { maximumFractionDigits: 1 })}%
                   </div>
                   <div className="text-sm text-muted">of your monthly income</div>
@@ -163,7 +163,7 @@ const AffordabilityCalculator: React.FC = () => {
                   <Clock size={24} />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-white">
+                  <div className="text-2xl font-bold text-text">
                     {hoursNeeded.toLocaleString(undefined, { maximumFractionDigits: 1 })} <span className="text-lg">hours</span>
                   </div>
                   <div className="text-sm text-muted">of actual work needed to buy this</div>
@@ -175,7 +175,7 @@ const AffordabilityCalculator: React.FC = () => {
                   <Calendar size={24} />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-white">
+                  <div className="text-2xl font-bold text-text">
                     {daysNeeded.toLocaleString(undefined, { maximumFractionDigits: 1 })} <span className="text-lg">days</span>
                   </div>
                   <div className="text-sm text-muted">of full work days required</div>

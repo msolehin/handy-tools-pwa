@@ -198,16 +198,16 @@ const DecisionMaker: React.FC = () => {
             resetGame();
           }}
           placeholder="What do you want to decide?"
-          className="text-2xl font-bold bg-transparent text-center border-b border-transparent hover:border-white/20 focus:border-primary focus:outline-none transition-colors w-full px-2 py-1"
+          className="text-2xl font-bold bg-transparent text-center border-b border-transparent hover:border-text/20 focus:border-primary focus:outline-none transition-colors w-full px-2 py-1"
         />
       </div>
 
       <div className="relative flex justify-center py-8">
-        <div className="absolute top-4 z-10 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-          <Target className="text-white fill-primary" size={36} />
+        <div className="absolute top-4 z-10 text-text drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+          <Target className="text-text fill-primary" size={36} />
         </div>
         
-        <div className={`relative w-72 h-72 rounded-full border-4 shadow-[0_0_30px_rgba(0,0,0,0.5)] overflow-hidden transition-colors duration-500 ${tiedOptions ? 'border-red-500 shadow-[0_0_40px_rgba(239,68,68,0.4)]' : 'border-white/20'}`}>
+        <div className={`relative w-72 h-72 rounded-full border-4 shadow-[0_0_30px_rgba(0,0,0,0.5)] overflow-hidden transition-colors duration-500 ${tiedOptions ? 'border-red-500 shadow-[0_0_40px_rgba(239,68,68,0.4)]' : 'border-text/20'}`}>
           <div 
             className="absolute inset-0 w-full h-full transition-transform ease-[cubic-bezier(0.15,0.85,0.15,1)]"
             style={{ 
@@ -225,7 +225,7 @@ const DecisionMaker: React.FC = () => {
                   className="absolute top-1/2 left-1/2 w-[50%] h-[30px] -mt-[15px] origin-left flex items-center justify-end pr-6"
                   style={{ transform: `rotate(${angle - 90}deg)` }}
                 >
-                  <span className="text-white font-bold text-sm drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] truncate max-w-full">
+                  <span className="text-text font-bold text-sm drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] truncate max-w-full">
                     {opt.text}
                   </span>
                 </div>
@@ -234,7 +234,7 @@ const DecisionMaker: React.FC = () => {
           </div>
           
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className={`w-12 h-12 bg-surface rounded-full border-4 shadow-inner flex items-center justify-center transition-colors ${tiedOptions ? 'border-red-500/50' : 'border-white/10'}`}>
+            <div className={`w-12 h-12 bg-surface rounded-full border-4 shadow-inner flex items-center justify-center transition-colors ${tiedOptions ? 'border-red-500/50' : 'border-text/10'}`}>
               <div className={`w-3 h-3 rounded-full animate-pulse ${tiedOptions ? 'bg-red-500' : 'bg-primary'}`} />
             </div>
           </div>
@@ -247,7 +247,7 @@ const DecisionMaker: React.FC = () => {
           disabled={isSpinning || activeOptions.length < 2}
           className={`w-48 h-14 text-xl flex items-center justify-center space-x-2 transition-all ${
             tiedOptions 
-              ? 'bg-red-500 hover:bg-red-600 text-white rounded-2xl font-bold shadow-lg shadow-red-500/20' 
+              ? 'bg-red-500 hover:bg-red-600 text-text rounded-2xl font-bold shadow-lg shadow-red-500/20' 
               : 'btn-primary'
           } ${isSpinning ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 active:scale-95'}`}
         >
@@ -276,7 +276,7 @@ const DecisionMaker: React.FC = () => {
                 resetGame();
               }}
               disabled={isSpinning}
-              className="w-4 h-4 rounded border-white/20 bg-white/5 text-primary focus:ring-primary focus:ring-offset-background"
+              className="w-4 h-4 rounded border-text/20 bg-text/5 text-primary focus:ring-primary focus:ring-offset-background"
             />
             <label htmlFor="multiSpinToggle" className="text-sm font-medium">Best of Mode</label>
           </div>
@@ -299,7 +299,7 @@ const DecisionMaker: React.FC = () => {
         </div>
 
         {isMultiSpin && (
-          <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+          <div className="bg-text/5 rounded-xl p-3 border border-text/5">
             <div className="flex justify-between items-center mb-2">
               <span className="text-[10px] font-bold text-muted uppercase tracking-wider">Scoreboard</span>
               <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${tiedOptions ? 'bg-red-500/20 text-red-400' : 'bg-primary/20 text-primary'}`}>
@@ -315,9 +315,9 @@ const DecisionMaker: React.FC = () => {
                   <div key={opt.id} className={`flex items-center justify-between bg-black/20 px-3 py-2 rounded-lg text-sm border transition-colors ${isTied ? 'border-red-500/30 bg-red-500/10' : 'border-transparent'}`}>
                     <div className="flex items-center space-x-2 overflow-hidden pr-2">
                       <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: colors[i % colors.length] }} />
-                      <span className={`truncate ${isTied ? 'font-bold text-white' : 'text-white/80'}`}>{opt.text}</span>
+                      <span className={`truncate ${isTied ? 'font-bold text-text' : 'text-text/80'}`}>{opt.text}</span>
                     </div>
-                    <span className={`font-black ${isTied ? 'text-red-400' : 'text-white'}`}>{wins}</span>
+                    <span className={`font-black ${isTied ? 'text-red-400' : 'text-text'}`}>{wins}</span>
                   </div>
                 );
               })}
@@ -325,7 +325,7 @@ const DecisionMaker: React.FC = () => {
             
             {spinResults.length > 0 && !tiedOptions && (
               <div className="mt-3 text-center">
-                <button onClick={resetGame} disabled={isSpinning} className="text-xs text-muted hover:text-white transition-colors">
+                <button onClick={resetGame} disabled={isSpinning} className="text-xs text-muted hover:text-text transition-colors">
                   Restart Series
                 </button>
               </div>
@@ -340,14 +340,14 @@ const DecisionMaker: React.FC = () => {
           <button 
             onClick={handleResetOptions}
             disabled={isSpinning || spinResults.length > 0}
-            className="text-xs flex items-center text-muted hover:text-white transition-colors disabled:opacity-50"
+            className="text-xs flex items-center text-muted hover:text-text transition-colors disabled:opacity-50"
           >
             <RefreshCw size={12} className="mr-1" /> Reset
           </button>
         </div>
         <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
           {options.map((opt, index) => (
-            <div key={opt.id} className={`bg-white/5 border border-white/10 rounded-lg p-2 flex justify-between items-center group transition-colors hover:bg-white/10 ${tiedOptions && !tiedOptions.includes(opt.id) ? 'opacity-30' : ''}`}>
+            <div key={opt.id} className={`bg-text/5 border border-text/10 rounded-lg p-2 flex justify-between items-center group transition-colors hover:bg-text/10 ${tiedOptions && !tiedOptions.includes(opt.id) ? 'opacity-30' : ''}`}>
               <span className="text-sm truncate mr-2 flex-1 flex items-center">
                 <span className="w-3 h-3 rounded-full mr-2 shrink-0" style={{ backgroundColor: colors[index % colors.length] }} />
                 {opt.text}
@@ -363,7 +363,7 @@ const DecisionMaker: React.FC = () => {
           ))}
         </div>
         
-        <form onSubmit={addOption} className="flex space-x-2 pt-2 border-t border-white/10">
+        <form onSubmit={addOption} className="flex space-x-2 pt-2 border-t border-text/10">
           <input 
             type="text" 
             value={newOption}
@@ -385,14 +385,14 @@ const DecisionMaker: React.FC = () => {
       {/* Intermediate Spin Winner Modal */}
       {intermediateWinner && !winner && !isTieAnnounced && (
         <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4 animate-fade-in backdrop-blur-sm" onClick={() => setIntermediateWinner(null)}>
-          <div className="bg-surface border border-white/20 p-8 rounded-2xl w-full max-w-sm text-center shadow-2xl transform transition-all scale-100 animate-bounce-short" onClick={e => e.stopPropagation()}>
+          <div className="bg-surface border border-text/20 p-8 rounded-2xl w-full max-w-sm text-center shadow-2xl transform transition-all scale-100 animate-bounce-short" onClick={e => e.stopPropagation()}>
             <p className="text-muted text-sm uppercase tracking-wider mb-2">Round {spinResults.length} Winner</p>
-            <h2 className="text-3xl font-bold text-white mb-6">
+            <h2 className="text-3xl font-bold text-text mb-6">
               {intermediateWinner.text}
             </h2>
             <button 
               onClick={() => setIntermediateWinner(null)}
-              className="btn-secondary w-full py-3 text-white bg-white/10 border-white/20 hover:bg-white/20"
+              className="btn-secondary w-full py-3 text-text bg-text/10 border-text/20 hover:bg-text/20"
             >
               Continue to Next Spin
             </button>
@@ -410,12 +410,12 @@ const DecisionMaker: React.FC = () => {
               </div>
             </div>
             <h2 className="text-3xl font-black text-red-400 uppercase tracking-widest mb-2">It's a TIE!</h2>
-            <p className="text-white/80 mb-6 leading-relaxed">
+            <p className="text-text/80 mb-6 leading-relaxed">
               The leaders are tied with equal wins. Entering <strong className="text-red-400">Sudden Death Mode</strong>. First to win the next spin takes it all!
             </p>
             <button 
               onClick={() => setIsTieAnnounced(false)}
-              className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-red-500/20"
+              className="w-full py-3 bg-red-500 hover:bg-red-600 text-text font-bold rounded-xl transition-colors shadow-lg shadow-red-500/20"
             >
               Begin Tiebreaker!
             </button>
@@ -435,7 +435,7 @@ const DecisionMaker: React.FC = () => {
             <p className="text-primary font-bold text-sm uppercase tracking-wider mb-2">
               {isMultiSpin ? 'Grand Winner!' : 'The Wheel has spoken!'}
             </p>
-            <h2 className="text-4xl font-black text-white mb-6 break-words leading-tight">
+            <h2 className="text-4xl font-black text-text mb-6 break-words leading-tight">
               {winner.text}
             </h2>
             <button 

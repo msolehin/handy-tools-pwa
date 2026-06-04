@@ -1,13 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { 
   Home, FileImage, MapPin, PieChart, Timer, Wallet, Users, Calendar, 
-  Landmark, ShieldAlert, Wrench, Plane, Activity, MoreHorizontal, X, ShoppingCart, Briefcase, Fuel, ArrowRightLeft, Banknote, Gift, Dices, Repeat, Droplets, HeartPulse, Car, ListChecks, HandCoins, Utensils
+  Landmark, ShieldAlert, Wrench, Plane, Activity, MoreHorizontal, X, ShoppingCart, Briefcase, Fuel, ArrowRightLeft, Banknote, Gift, Dices, Repeat, Droplets, HeartPulse, Car, ListChecks, HandCoins, Utensils, Sun, Moon
 } from 'lucide-react';
 
 const Layout: React.FC = () => {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const location = useLocation();
+  
+  const [isLightMode, setIsLightMode] = useState(() => {
+    return localStorage.getItem('theme') === 'light';
+  });
+
+  useEffect(() => {
+    if (isLightMode) {
+      document.documentElement.classList.add('light');
+      localStorage.setItem('theme', 'light');
+    } else {
+      document.documentElement.classList.remove('light');
+      localStorage.setItem('theme', 'dark');
+    }
+  }, [isLightMode]);
 
   const moreTools = [
     { to: "/pace-calculator", icon: Timer, label: "Pace" },
@@ -51,6 +65,13 @@ const Layout: React.FC = () => {
               MY
             </span>
           </div>
+          <button 
+            onClick={() => setIsLightMode(!isLightMode)}
+            className="p-2 rounded-xl bg-surface/50 text-muted hover:text-primary transition-colors border border-text/10"
+            aria-label="Toggle Theme"
+          >
+            {isLightMode ? <Moon size={18} /> : <Sun size={18} />}
+          </button>
         </div>
       </header>
 
@@ -67,7 +88,7 @@ const Layout: React.FC = () => {
               to="/"
               className={({ isActive }) =>
                 `flex flex-col items-center p-2 rounded-xl transition-all duration-200 shrink-0 w-[16%] ${
-                  isActive ? 'text-primary bg-primary/10' : 'text-muted hover:text-white'
+                  isActive ? 'text-primary bg-primary/10' : 'text-muted hover:text-text'
                 }`
               }
             >
@@ -78,7 +99,7 @@ const Layout: React.FC = () => {
               to="/ic-scanner"
               className={({ isActive }) =>
                 `flex flex-col items-center p-2 rounded-xl transition-all duration-200 shrink-0 w-[16%] ${
-                  isActive ? 'text-primary bg-primary/10' : 'text-muted hover:text-white'
+                  isActive ? 'text-primary bg-primary/10' : 'text-muted hover:text-text'
                 }`
               }
             >
@@ -89,7 +110,7 @@ const Layout: React.FC = () => {
               to="/parking"
               className={({ isActive }) =>
                 `flex flex-col items-center p-2 rounded-xl transition-all duration-200 shrink-0 w-[16%] ${
-                  isActive ? 'text-primary bg-primary/10' : 'text-muted hover:text-white'
+                  isActive ? 'text-primary bg-primary/10' : 'text-muted hover:text-text'
                 }`
               }
             >
@@ -100,7 +121,7 @@ const Layout: React.FC = () => {
               to="/decision-maker"
               className={({ isActive }) =>
                 `flex flex-col items-center p-2 rounded-xl transition-all duration-200 shrink-0 w-[16%] ${
-                  isActive ? 'text-primary bg-primary/10' : 'text-muted hover:text-white'
+                  isActive ? 'text-primary bg-primary/10' : 'text-muted hover:text-text'
                 }`
               }
             >
@@ -111,7 +132,7 @@ const Layout: React.FC = () => {
               to="/expense-splitter"
               className={({ isActive }) =>
                 `flex flex-col items-center p-2 rounded-xl transition-all duration-200 shrink-0 w-[16%] ${
-                  isActive ? 'text-primary bg-primary/10' : 'text-muted hover:text-white'
+                  isActive ? 'text-primary bg-primary/10' : 'text-muted hover:text-text'
                 }`
               }
             >
@@ -123,7 +144,7 @@ const Layout: React.FC = () => {
             <button
               onClick={() => setShowMoreMenu(true)}
               className={`flex flex-col items-center p-2 rounded-xl transition-all duration-200 shrink-0 w-[16%] ${
-                isMoreActive && !showMoreMenu ? 'text-primary bg-primary/10' : 'text-muted hover:text-white'
+                isMoreActive && !showMoreMenu ? 'text-primary bg-primary/10' : 'text-muted hover:text-text'
               }`}
             >
               <MoreHorizontal size={22} />
@@ -149,7 +170,7 @@ const Layout: React.FC = () => {
                 <h3 className="text-xl font-bold">More Tools</h3>
                 <button 
                   onClick={() => setShowMoreMenu(false)}
-                  className="p-2 bg-white/5 rounded-full text-muted hover:text-white transition-colors"
+                  className="p-2 bg-text/5 rounded-full text-muted hover:text-text transition-colors"
                 >
                   <X size={20} />
                 </button>
@@ -166,7 +187,7 @@ const Layout: React.FC = () => {
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={() => setShowMoreMenu(false)}
-                        className="flex flex-col items-center p-3 rounded-2xl transition-all duration-200 bg-white/5 text-muted hover:bg-white/10 hover:text-white"
+                        className="flex flex-col items-center p-3 rounded-2xl transition-all duration-200 bg-text/5 text-muted hover:bg-text/10 hover:text-text"
                       >
                         <Icon size={26} className="mb-2" />
                         <span className="text-[10px] font-medium text-center">{tool.label}</span>
@@ -182,7 +203,7 @@ const Layout: React.FC = () => {
                       className={`flex flex-col items-center p-3 rounded-2xl transition-all duration-200 ${
                         isActive 
                           ? 'bg-primary/20 text-primary shadow-[0_0_15px_rgba(var(--color-primary),0.2)]' 
-                          : 'bg-white/5 text-muted hover:bg-white/10 hover:text-white'
+                          : 'bg-text/5 text-muted hover:bg-text/10 hover:text-text'
                       }`}
                     >
                       <Icon size={26} className="mb-2" />

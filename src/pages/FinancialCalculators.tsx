@@ -54,7 +54,7 @@ const LoanTab = () => {
     <div className="space-y-4 animate-fade-in">
       <div className="flex justify-between items-center px-1">
         <h3 className="font-bold text-lg">Loan Calculator</h3>
-        <button onClick={handleReset} className="text-xs flex items-center text-muted hover:text-white transition-colors">
+        <button onClick={handleReset} className="text-xs flex items-center text-muted hover:text-text transition-colors">
           <RefreshCw size={12} className="mr-1" /> Reset
         </button>
       </div>
@@ -90,16 +90,16 @@ const LoanTab = () => {
         <div className="glass-panel p-6 bg-gradient-to-br from-blue-500/10 to-purple-500/10 mt-6 text-center space-y-4">
           <div>
             <p className="text-sm text-muted mb-1">Monthly Payment</p>
-            <h3 className="text-4xl font-black text-white">RM {monthlyPayment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
+            <h3 className="text-4xl font-black text-text">RM {monthlyPayment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+            <div className="bg-black/20 p-3 rounded-xl border border-text/5">
               <p className="text-xs text-muted mb-1">Total Interest</p>
               <p className="font-bold text-accent">RM {totalInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             </div>
-            <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+            <div className="bg-black/20 p-3 rounded-xl border border-text/5">
               <p className="text-xs text-muted mb-1">Total Cost</p>
-              <p className="font-bold text-white">RM {totalPayment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <p className="font-bold text-text">RM {totalPayment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             </div>
           </div>
         </div>
@@ -243,13 +243,13 @@ const SavingsTab = () => {
             <h3 className="text-4xl font-black text-green-400">RM {perMonth.toFixed(2)}</h3>
             <p className="text-xs text-muted mt-1">per month</p>
           </div>
-          <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-white/5">
+          <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-text/5">
             <div>
-              <p className="font-bold text-white">RM {perWeek.toFixed(2)}</p>
+              <p className="font-bold text-text">RM {perWeek.toFixed(2)}</p>
               <p className="text-xs text-muted">per week</p>
             </div>
             <div>
-              <p className="font-bold text-white">RM {perDay.toFixed(2)}</p>
+              <p className="font-bold text-text">RM {perDay.toFixed(2)}</p>
               <p className="text-xs text-muted">per day</p>
             </div>
           </div>
@@ -301,9 +301,9 @@ const SalaryTab = () => {
       {sal > 0 && hpw > 0 && (
         <div className="glass-panel p-6 bg-gradient-to-br from-indigo-500/10 to-blue-500/10 text-center space-y-4">
           <p className="text-sm text-muted">Your exact hourly rate is:</p>
-          <h3 className="text-4xl font-black text-indigo-400">RM {hourlyRate.toFixed(2)} <span className="text-lg font-bold text-white/50">/ hr</span></h3>
+          <h3 className="text-4xl font-black text-indigo-400">RM {hourlyRate.toFixed(2)} <span className="text-lg font-bold text-text/50">/ hr</span></h3>
           <div className="text-sm text-muted mt-2">
-            Approx <span className="font-bold text-white">RM {dailyRate.toFixed(2)}</span> per day (based on a 5-day week).
+            Approx <span className="font-bold text-text">RM {dailyRate.toFixed(2)}</span> per day (based on a 5-day week).
           </div>
         </div>
       )}
@@ -347,7 +347,7 @@ const DiscountTab = () => {
         {/* Quick discount buttons */}
         <div className="flex space-x-2 pt-2">
           {['10', '20', '30', '50', '70'].map(pct => (
-            <button key={pct} onClick={() => setDiscount(pct)} className={`flex-1 py-1 text-xs rounded-lg transition-colors ${discount === pct ? 'bg-white text-black font-bold' : 'bg-white/10 hover:bg-white/20'}`}>
+            <button key={pct} onClick={() => setDiscount(pct)} className={`flex-1 py-1 text-xs rounded-lg transition-colors ${discount === pct ? 'bg-text text-black font-bold' : 'bg-text/10 hover:bg-text/20'}`}>
               {pct}%
             </button>
           ))}
@@ -359,7 +359,7 @@ const DiscountTab = () => {
           <p className="text-sm text-muted mb-1">Final Price</p>
           <h3 className="text-5xl font-black text-pink-400 mb-4">RM {finalPrice.toFixed(2)}</h3>
           <div className="bg-black/20 rounded-xl p-3 inline-block">
-            <p className="text-sm">You save <span className="font-bold text-white">RM {saved.toFixed(2)}</span></p>
+            <p className="text-sm">You save <span className="font-bold text-text">RM {saved.toFixed(2)}</span></p>
           </div>
         </div>
       )}
@@ -409,7 +409,7 @@ const FinancialCalculators: React.FC = () => {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
-                isActive ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-white/5 text-muted hover:bg-white/10 hover:text-white'
+                isActive ? 'bg-blue-500 text-text shadow-lg shadow-blue-500/20' : 'bg-text/5 text-muted hover:bg-text/10 hover:text-text'
               }`}
             >
               <Icon size={16} />
