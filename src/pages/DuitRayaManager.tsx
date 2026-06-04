@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Users, Coins, Check, ChevronDown, ChevronRight, Wallet, Trophy, Wallet2, Search, X } from 'lucide-react';
+import { Plus, Trash2, Users, Coins, Check, ChevronDown, ChevronRight, Wallet, Trophy, Wallet2, Search, X, RotateCcw } from 'lucide-react';
 
 interface Recipient {
   id: string;
@@ -20,6 +20,7 @@ interface SavedState {
   theme: ThemeKey;
   budget: number;
   families: Family[];
+  disabledDenoms?: number[];
 }
 
 const STORAGE_KEY = 'duit_raya_manager_data';
@@ -103,6 +104,7 @@ const DuitRayaManager: React.FC = () => {
   const [tab, setTab] = useState<'plan' | 'board'>('plan');
   const [boardTab, setBoardTab] = useState<'names' | 'families'>('names');
   const [planSearch, setPlanSearch] = useState('');
+  const [disabledDenoms, setDisabledDenoms] = useState<number[]>([]); // denominations the user excluded (RM1 can't be excluded)
   const [newFamilyName, setNewFamilyName] = useState('');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   // Per-family draft for adding a recipient
@@ -118,6 +120,7 @@ const DuitRayaManager: React.FC = () => {
         if (parsed.theme) setTheme(parsed.theme);
         if (typeof parsed.budget === 'number') setBudget(parsed.budget);
         if (Array.isArray(parsed.families)) setFamilies(parsed.families);
+        if (Array.isArray(parsed.disabledDenoms)) setDisabledDenoms(parsed.disabledDenoms.filter(s => s !== 100));
       } catch (e) {}
     }
     setIsLoaded(true);
@@ -125,10 +128,15 @@ const DuitRayaManager: React.FC = () => {
 
   useEffect(() => {
     if (isLoaded) {
-      const data: SavedState = { theme, budget, families };
+      const data: SavedState = { theme, budget, families, disabledDenoms };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     }
-  }, [theme, budget, families, isLoaded]);
+  }, [theme, budget, families, disabledDenoms, isLoaded]);
+
+  // Notify the rest of the app (nav / menus) when the theme changes so labels update live
+  useEffect(() => {
+    if (isLoaded) window.dispatchEvent(new Event('duitraya-theme'));
+  }, [theme, isLoaded]);
 
   const t = THEMES[theme];
 
@@ -142,13 +150,22 @@ const DuitRayaManager: React.FC = () => {
   const overBudget = allocated > budget && budget > 0;
 
   // --- Cash preparation: denominations needed for envelopes not yet given ---
+  // RM1 (100 sen) is mandatory and can never be excluded.
+  const denomEnabled = (sen: number) => sen === 100 || !disabledDenoms.includes(sen);
+  const activeDenoms = DENOMS.filter(d => denomEnabled(d.sen));
+  const toggleDenom = (sen: number) => {
+    if (sen === 100) return; // RM1 stays on
+    setDisabledDenoms(prev => prev.includes(sen) ? prev.filter(s => s !== sen) : [...prev, sen]);
+  };
+
   const pending = allRecipients.filter(r => !r.given && r.amount > 0);
   const cashNeed: Record<number, number> = {};
   let cashTotalSen = 0;
+  let cashLeftoverSen = 0; // amount that couldn't be made with the enabled denominations
   pending.forEach(r => {
     let sen = Math.round(r.amount * 100);
     cashTotalSen += sen;
-    for (const d of DENOMS) {
+    for (const d of activeDenoms) {
       if (sen <= 0) break;
       const count = Math.floor(sen / d.sen);
       if (count > 0) {
@@ -156,6 +173,7 @@ const DuitRayaManager: React.FC = () => {
         sen -= count * d.sen;
       }
     }
+    cashLeftoverSen += sen;
   });
   const cashRows = DENOMS.filter(d => cashNeed[d.sen] > 0);
 
@@ -164,7 +182,13 @@ const DuitRayaManager: React.FC = () => {
     .flatMap(f => f.recipients.map(r => ({ ...r, familyName: f.name })))
     .sort((a, b) => b.amount - a.amount || a.name.localeCompare(b.name));
   const familyBoard = families
-    .map(f => ({ id: f.id, name: f.name, total: f.recipients.reduce((s, r) => s + r.amount, 0), count: f.recipients.length }))
+    .map(f => ({
+      id: f.id,
+      name: f.name,
+      total: f.recipients.reduce((s, r) => s + r.amount, 0),
+      count: f.recipients.length,
+      allGiven: f.recipients.length > 0 && f.recipients.every(r => r.given),
+    }))
     .filter(f => f.count > 0)
     .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
   const maxName = nameBoard[0]?.amount || 0;
@@ -231,6 +255,15 @@ const DuitRayaManager: React.FC = () => {
   };
 
   const toggleCollapse = (id: string) => setCollapsed(prev => ({ ...prev, [id]: !prev[id] }));
+
+  const resetAll = () => {
+    if (!window.confirm('Reset everything? This will clear your budget and all families/recipients. This cannot be undone.')) return;
+    setBudget(0);
+    setFamilies([]);
+    setPlanSearch('');
+    setActiveFamily(null);
+    setCollapsed({});
+  };
 
   return (
     <div className={`max-w-md mx-auto p-4 pb-24 space-y-6 animate-fade-in`}>
@@ -342,6 +375,33 @@ const DuitRayaManager: React.FC = () => {
         <h3 className="font-bold text-base flex items-center gap-2">
           <Coins size={18} className={t.accentText} /> Cash Preparation
         </h3>
+
+        {/* Denomination toggles — tap to exclude notes you don't want (RM1 is locked) */}
+        <div>
+          <p className="text-[11px] text-muted uppercase tracking-wider mb-2">Use these notes</p>
+          <div className="flex flex-wrap gap-1.5">
+            {DENOMS.map(d => {
+              const on = denomEnabled(d.sen);
+              const locked = d.sen === 100;
+              return (
+                <button
+                  key={d.sen}
+                  onClick={() => toggleDenom(d.sen)}
+                  disabled={locked}
+                  title={locked ? 'RM1 is required and cannot be turned off' : on ? 'Tap to exclude' : 'Tap to include'}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all ${
+                    on
+                      ? `${t.accentBg} ${t.accentBorder} ${t.accentText}`
+                      : 'border-text/10 text-muted/60 line-through'
+                  } ${locked ? 'cursor-default opacity-100' : 'hover:opacity-80'}`}
+                >
+                  {d.label}{locked ? ' 🔒' : ''}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {cashRows.length === 0 ? (
           <p className="text-sm text-muted text-center py-4">
             {allRecipients.length === 0
@@ -367,6 +427,11 @@ const DuitRayaManager: React.FC = () => {
               <span>Total</span>
               <span className={t.accentText}>RM{fmt(cashTotalSen / 100)}</span>
             </div>
+            {cashLeftoverSen > 0 && (
+              <p className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2">
+                ⚠️ RM{fmt(cashLeftoverSen / 100)} can't be made with the selected notes. Enable a smaller denomination to cover it.
+              </p>
+            )}
           </>
         )}
       </div>
@@ -509,6 +574,15 @@ const DuitRayaManager: React.FC = () => {
             Set your budget, then add a family to start planning your {t.label.toLowerCase()}.
           </div>
         )}
+
+        {(budget > 0 || families.length > 0) && (
+          <button
+            onClick={resetAll}
+            className="w-full mt-2 py-2.5 rounded-xl border border-red-500/30 text-red-400 text-sm font-bold hover:bg-red-500/10 transition-all flex items-center justify-center gap-1.5"
+          >
+            <RotateCcw size={16} /> Reset All
+          </button>
+        )}
       </div>
       </>)}
 
@@ -581,7 +655,14 @@ const DuitRayaManager: React.FC = () => {
                   <div className="flex items-center gap-3">
                     <span className="w-7 text-center text-sm font-bold text-muted shrink-0">{rankLabel(i)}</span>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate text-text/90">{f.name}</p>
+                      <p className={`font-medium truncate flex items-center gap-1.5 ${f.allGiven ? 'text-text/60' : 'text-text/90'}`}>
+                        <span className="truncate">{f.name}</span>
+                        {f.allGiven && (
+                          <span className={`shrink-0 inline-flex items-center justify-center w-4 h-4 rounded-full ${t.solidBtn} text-white`} title="All recipients given">
+                            <Check size={11} strokeWidth={3} />
+                          </span>
+                        )}
+                      </p>
                       <p className="text-[11px] text-muted">{f.count} recipient(s)</p>
                     </div>
                     <span className={`font-mono font-bold shrink-0 ${t.accentText}`}>RM{fmt(f.total)}</span>

@@ -29,6 +29,25 @@ const Layout: React.FC = () => {
     return localStorage.getItem('theme') === 'light';
   });
 
+  // Duit Raya / Angpao manager swaps its name + colour based on the saved theme
+  const readDuitRayaTheme = (): 'raya' | 'angpao' => {
+    try {
+      const s = localStorage.getItem('duit_raya_manager_data');
+      if (s && JSON.parse(s).theme === 'angpao') return 'angpao';
+    } catch (e) { }
+    return 'raya';
+  };
+  const [drTheme, setDrTheme] = useState<'raya' | 'angpao'>(readDuitRayaTheme());
+  useEffect(() => {
+    const update = () => setDrTheme(readDuitRayaTheme());
+    window.addEventListener('duitraya-theme', update);
+    window.addEventListener('storage', update);
+    return () => {
+      window.removeEventListener('duitraya-theme', update);
+      window.removeEventListener('storage', update);
+    };
+  }, []);
+
   useEffect(() => {
     if (isLightMode) {
       document.documentElement.classList.add('light');
@@ -40,14 +59,29 @@ const Layout: React.FC = () => {
   }, [isLightMode]);
 
   const moreTools = [
-    ...DEFAULT_TOOLS.map(tool => ({
-      to: tool.to,
-      icon: tool.Icon,
-      label: tool.title,
-      iconBgClass: tool.iconBgClass,
-      title: tool.title
-    })),
-    { to: "#settings", icon: Settings, label: "Customize", title: "Customize", iconBgClass: "bg-slate-500/20 text-slate-400" }
+    ...DEFAULT_TOOLS.map(tool => {
+      if (tool.id === '/duit-raya') {
+        const angpao = drTheme === 'angpao';
+        const label = angpao ? 'Angpao Manager' : 'Duit Raya Manager';
+        return {
+          to: tool.to,
+          icon: tool.Icon,
+          emoji: angpao ? '🧧' : '🌙',
+          label,
+          iconBgClass: angpao ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400',
+          title: label
+        };
+      }
+      return {
+        to: tool.to,
+        icon: tool.Icon,
+        emoji: '',
+        label: tool.title,
+        iconBgClass: tool.iconBgClass,
+        title: tool.title
+      };
+    }),
+    { to: "#settings", icon: Settings, emoji: '', label: "Customize", title: "Customize", iconBgClass: "bg-slate-500/20 text-slate-400" }
   ];
 
   // Check if current route is in the "more" menu so we can highlight the "Others" tab
@@ -115,7 +149,7 @@ const Layout: React.FC = () => {
                       rel="noopener noreferrer"
                       className="flex flex-col items-center p-2 rounded-xl transition-all duration-200 shrink-0 w-[16%] text-muted hover:text-text"
                     >
-                      <Icon size={22} />
+                      {tool.emoji ? <span className="text-[22px] leading-none">{tool.emoji}</span> : <Icon size={22} />}
                       <span className="text-[9px] mt-1 font-medium truncate w-full text-center">{tool.label}</span>
                     </a>
                   );
@@ -131,7 +165,7 @@ const Layout: React.FC = () => {
                       }`
                     }
                   >
-                    <Icon size={22} />
+                    {tool.emoji ? <span className="text-[22px] leading-none">{tool.emoji}</span> : <Icon size={22} />}
                     <span className="text-[9px] mt-1 font-medium truncate w-full text-center">{tool.label}</span>
                   </NavLink>
                 );
@@ -171,8 +205,7 @@ const Layout: React.FC = () => {
                 <div className="grid grid-cols-4 gap-y-6 gap-x-2 p-6 pt-0 pb-28 overflow-y-auto overscroll-contain">
                   {moreTools.filter(t => t.to === '#settings' || !pinnedToolPaths.includes(t.to)).map((tool, idx) => {
                     const Icon = tool.icon;
-                    const homeTool = DEFAULT_TOOLS.find(h => h.id === tool.to);
-                    const displayName = homeTool ? homeTool.title : tool.label;
+                    const displayName = tool.title || tool.label;
 
                     if (tool.to === '#settings') {
                       return (
@@ -182,7 +215,7 @@ const Layout: React.FC = () => {
                           className="flex flex-col items-center transition-all duration-200 group"
                         >
                           <div className={`p-4 rounded-2xl mb-2 transition-all shadow-sm ${tool.iconBgClass} group-hover:scale-110 group-hover:shadow-md`}>
-                            <Icon size={24} />
+                            {tool.emoji ? <span className="text-2xl leading-none">{tool.emoji}</span> : <Icon size={24} />}
                           </div>
                           <span className="text-[10px] font-medium text-center text-muted group-hover:text-text">{displayName}</span>
                         </button>
@@ -199,7 +232,7 @@ const Layout: React.FC = () => {
                           className="flex flex-col items-center transition-all duration-200 group"
                         >
                           <div className={`p-4 rounded-2xl mb-2 transition-all shadow-sm ${tool.iconBgClass} group-hover:scale-110 group-hover:shadow-md`}>
-                            <Icon size={24} />
+                            {tool.emoji ? <span className="text-2xl leading-none">{tool.emoji}</span> : <Icon size={24} />}
                           </div>
                           <span className="text-[10px] font-medium text-center text-muted group-hover:text-text line-clamp-2 leading-tight">{displayName}</span>
                         </a>
@@ -214,7 +247,7 @@ const Layout: React.FC = () => {
                         className="flex flex-col items-center transition-all duration-200 group"
                       >
                         <div className={`p-4 rounded-2xl mb-2 transition-all shadow-sm ${tool.iconBgClass} ${isActive ? 'scale-110 shadow-md ring-2 ring-primary/20' : 'group-hover:scale-110 group-hover:shadow-md'}`}>
-                          <Icon size={24} />
+                          {tool.emoji ? <span className="text-2xl leading-none">{tool.emoji}</span> : <Icon size={24} />}
                         </div>
                         <span className={`text-[10px] font-medium text-center line-clamp-2 leading-tight ${isActive ? 'text-text font-bold' : 'text-muted group-hover:text-text'}`}>
                           {displayName}
@@ -254,8 +287,7 @@ const Layout: React.FC = () => {
                   {moreTools.filter(t => t.to !== '#settings').map(tool => {
                     const isSelected = pinnedToolPaths.includes(tool.to);
                     const Icon = tool.icon;
-                    const homeTool = DEFAULT_TOOLS.find(h => h.id === tool.to);
-                    const displayName = homeTool ? homeTool.title : tool.label;
+                    const displayName = tool.title || tool.label;
 
                     return (
                       <button
