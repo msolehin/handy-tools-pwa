@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Users, Coins, Check, ChevronDown, ChevronRight, Wallet } from 'lucide-react';
+import { Plus, Trash2, Users, Coins, Check, ChevronDown, ChevronRight, Wallet, Trophy, Wallet2, Search, X } from 'lucide-react';
 
 interface Recipient {
   id: string;
@@ -100,6 +100,9 @@ const DuitRayaManager: React.FC = () => {
   const [families, setFamilies] = useState<Family[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
+  const [tab, setTab] = useState<'plan' | 'board'>('plan');
+  const [boardTab, setBoardTab] = useState<'names' | 'families'>('names');
+  const [planSearch, setPlanSearch] = useState('');
   const [newFamilyName, setNewFamilyName] = useState('');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   // Per-family draft for adding a recipient
@@ -134,6 +137,7 @@ const DuitRayaManager: React.FC = () => {
   const allocated = allRecipients.reduce((acc, r) => acc + (r.amount || 0), 0);
   const given = allRecipients.filter(r => r.given).reduce((acc, r) => acc + (r.amount || 0), 0);
   const remaining = budget - given;
+  const unallocated = budget - allocated; // budget still free to assign to more people
   const percentUsed = budget > 0 ? (given / budget) * 100 : 0;
   const overBudget = allocated > budget && budget > 0;
 
@@ -154,6 +158,30 @@ const DuitRayaManager: React.FC = () => {
     }
   });
   const cashRows = DENOMS.filter(d => cashNeed[d.sen] > 0);
+
+  // --- Leaderboards (ties broken alphabetically) ---
+  const nameBoard = families
+    .flatMap(f => f.recipients.map(r => ({ ...r, familyName: f.name })))
+    .sort((a, b) => b.amount - a.amount || a.name.localeCompare(b.name));
+  const familyBoard = families
+    .map(f => ({ id: f.id, name: f.name, total: f.recipients.reduce((s, r) => s + r.amount, 0), count: f.recipients.length }))
+    .filter(f => f.count > 0)
+    .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
+  const maxName = nameBoard[0]?.amount || 0;
+  const maxFam = familyBoard[0]?.total || 0;
+  const rankLabel = (i: number) => (i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`);
+
+  // --- Plan search: filter families + recipients by name ---
+  const planQuery = planSearch.trim().toLowerCase();
+  const visibleFamilies: Family[] = !planQuery
+    ? families
+    : families
+        .map(f => {
+          const famMatch = f.name.toLowerCase().includes(planQuery);
+          const recs = famMatch ? f.recipients : f.recipients.filter(r => r.name.toLowerCase().includes(planQuery));
+          return famMatch || recs.length > 0 ? { ...f, recipients: recs } : null;
+        })
+        .filter((f): f is Family => f !== null);
 
   // --- Mutations ---
   const addFamily = (e: React.FormEvent) => {
@@ -233,6 +261,23 @@ const DuitRayaManager: React.FC = () => {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex p-1 bg-text/5 rounded-xl">
+        <button
+          onClick={() => setTab('plan')}
+          className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${tab === 'plan' ? `bg-surface ${t.accentText} shadow-sm` : 'text-muted hover:text-text'}`}
+        >
+          <Wallet2 size={16} /> Plan
+        </button>
+        <button
+          onClick={() => setTab('board')}
+          className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${tab === 'board' ? `bg-surface ${t.accentText} shadow-sm` : 'text-muted hover:text-text'}`}
+        >
+          <Trophy size={16} /> Leaderboard
+        </button>
+      </div>
+
+      {tab === 'plan' && (<>
       {/* Budget & progress */}
       <div className="glass-panel p-5 space-y-4">
         <div className="space-y-1">
@@ -255,6 +300,15 @@ const DuitRayaManager: React.FC = () => {
             <span className="text-muted">Budget</span>
             <span className="text-text/90 font-bold">RM{fmt(budget)}</span>
           </div>
+          <div className="flex justify-between">
+            <span className="text-muted">Assigned to names</span>
+            <span className="text-text/90 font-bold">RM{fmt(allocated)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted">Left to assign</span>
+            <span className={`font-bold ${unallocated < 0 ? 'text-red-400' : t.accentText}`}>RM{fmt(unallocated)}</span>
+          </div>
+          <div className="h-px bg-white/10 my-1" />
           <div className="flex justify-between">
             <span className="text-muted">Given</span>
             <span className={`font-bold ${t.accentText}`}>RM{fmt(given)}</span>
@@ -326,10 +380,33 @@ const DuitRayaManager: React.FC = () => {
           <span className="text-xs text-muted">{allRecipients.length} recipient(s)</span>
         </div>
 
-        {families.map(family => {
+        {/* Search */}
+        {families.length > 0 && (
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+            <input
+              type="text"
+              value={planSearch}
+              onChange={e => setPlanSearch(e.target.value)}
+              placeholder="Search name or family…"
+              className="input-field w-full pl-9 pr-9 text-sm"
+            />
+            {planSearch && (
+              <button
+                onClick={() => setPlanSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted hover:text-text rounded-md hover:bg-text/10"
+                title="Clear search"
+              >
+                <X size={15} />
+              </button>
+            )}
+          </div>
+        )}
+
+        {visibleFamilies.map(family => {
           const famTotal = family.recipients.reduce((acc, r) => acc + r.amount, 0);
           const famGiven = family.recipients.filter(r => r.given).length;
-          const isCollapsed = collapsed[family.id];
+          const isCollapsed = collapsed[family.id] && !planQuery;
           return (
             <div key={family.id} className={`glass-panel border ${t.packetBorder} overflow-hidden`}>
               {/* Family header */}
@@ -407,6 +484,12 @@ const DuitRayaManager: React.FC = () => {
           );
         })}
 
+        {planQuery && visibleFamilies.length === 0 && families.length > 0 && (
+          <div className="text-center p-6 text-muted text-sm border border-dashed border-text/10 rounded-2xl">
+            No name or family matches “{planSearch}”.
+          </div>
+        )}
+
         {/* Add family */}
         <form onSubmit={addFamily} className="flex gap-2">
           <input
@@ -427,6 +510,92 @@ const DuitRayaManager: React.FC = () => {
           </div>
         )}
       </div>
+      </>)}
+
+      {tab === 'board' && (<>
+        {/* Leaderboard sub-tabs */}
+        <div className="flex p-1 bg-text/5 rounded-xl">
+          <button
+            onClick={() => setBoardTab('names')}
+            className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${boardTab === 'names' ? `bg-surface ${t.accentText} shadow-sm` : 'text-muted hover:text-text'}`}
+          >
+            <Trophy size={15} /> Recipients
+          </button>
+          <button
+            onClick={() => setBoardTab('families')}
+            className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${boardTab === 'families' ? `bg-surface ${t.accentText} shadow-sm` : 'text-muted hover:text-text'}`}
+          >
+            <Users size={15} /> Families
+          </button>
+        </div>
+
+        {boardTab === 'names' && (
+        /* Leaderboard: by name */
+        <div className="glass-panel p-5 space-y-3">
+          <h3 className="font-bold text-base flex items-center gap-2">
+            <Trophy size={18} className={t.accentText} /> Top Recipients
+          </h3>
+          {nameBoard.length === 0 ? (
+            <p className="text-sm text-muted text-center py-4">Add recipients to see the ranking.</p>
+          ) : (
+            <div className="space-y-2">
+              {nameBoard.map((r, i) => (
+                <div key={r.id} className="space-y-1">
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 text-center text-sm font-bold text-muted shrink-0">{rankLabel(i)}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className={`font-medium truncate flex items-center gap-1.5 ${r.given ? 'text-text/60' : 'text-text/90'}`}>
+                        <span className="truncate">{r.name}</span>
+                        {r.given && (
+                          <span className={`shrink-0 inline-flex items-center justify-center w-4 h-4 rounded-full ${t.solidBtn} text-white`} title="Already given">
+                            <Check size={11} strokeWidth={3} />
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-[11px] text-muted truncate">{r.familyName}</p>
+                    </div>
+                    <span className={`font-mono font-bold shrink-0 ${t.accentText}`}>RM{fmt(r.amount)}</span>
+                  </div>
+                  <div className="h-1.5 ml-10 bg-black/20 rounded-full overflow-hidden">
+                    <div className={`h-full bg-gradient-to-r ${t.bar} rounded-full`} style={{ width: `${maxName > 0 ? (r.amount / maxName) * 100 : 0}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        )}
+
+        {boardTab === 'families' && (
+        /* Leaderboard: by family */
+        <div className="glass-panel p-5 space-y-3">
+          <h3 className="font-bold text-base flex items-center gap-2">
+            <Users size={18} className={t.accentText} /> Top Families
+          </h3>
+          {familyBoard.length === 0 ? (
+            <p className="text-sm text-muted text-center py-4">Add families with recipients to see the ranking.</p>
+          ) : (
+            <div className="space-y-2">
+              {familyBoard.map((f, i) => (
+                <div key={f.id} className="space-y-1">
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 text-center text-sm font-bold text-muted shrink-0">{rankLabel(i)}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate text-text/90">{f.name}</p>
+                      <p className="text-[11px] text-muted">{f.count} recipient(s)</p>
+                    </div>
+                    <span className={`font-mono font-bold shrink-0 ${t.accentText}`}>RM{fmt(f.total)}</span>
+                  </div>
+                  <div className="h-1.5 ml-10 bg-black/20 rounded-full overflow-hidden">
+                    <div className={`h-full bg-gradient-to-r ${t.bar} rounded-full`} style={{ width: `${maxFam > 0 ? (f.total / maxFam) * 100 : 0}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        )}
+      </>)}
     </div>
   );
 };
