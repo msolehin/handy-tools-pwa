@@ -145,8 +145,15 @@ export const DEFAULT_TOOLS = [
   {
     id: '/speedometer', to: '/speedometer', title: 'Speedometer', desc: 'GPS Live Speed Tracker', Icon: Gauge, category: 'Utilities',
     borderClass: 'hover:border-cyan-400/50 hover:shadow-cyan-400/20', iconBgClass: 'bg-cyan-500/20 text-cyan-400', arrowClass: 'group-hover:text-cyan-400'
+  },
+  {
+    id: '/duit-raya', to: '/duit-raya', title: 'Duit Raya Manager', desc: 'Plan & track Raya / Angpao money', Icon: Gift, category: 'Finance',
+    borderClass: 'hover:border-emerald-400/50 hover:shadow-emerald-400/20', iconBgClass: 'bg-emerald-500/20 text-emerald-400', arrowClass: 'group-hover:text-emerald-400'
   }
 ];
+
+// Tools flagged as "HOT" — shown with a badge and promoted to the top of the list
+export const HOT_IDS = ['/ic-scanner', '/decision-maker', '/duit-raya', '/restaurant-splitter'];
 
 const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisableDrag, animationsEnabled = true, isFavorite, onToggleFavorite, onToolClick }: { tool: typeof DEFAULT_TOOLS[0], sortableId?: string, viewMode: 'list' | 'grid', isReordering: boolean, forceDisableDrag?: boolean, animationsEnabled?: boolean, isFavorite?: boolean, onToggleFavorite?: (id: string) => void, onToolClick?: (id: string) => void }) => {
   const {
@@ -197,7 +204,32 @@ const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisab
   };
 
   const Icon = tool.Icon;
-  
+  const isHot = HOT_IDS.includes(tool.id);
+
+  // Duit Raya / Angpao card swaps its look based on the saved theme
+  let displayTitle = tool.title;
+  let displayDesc = tool.desc;
+  let displayIconBg = tool.iconBgClass;
+  let festiveEmoji: string | null = null;
+  if (tool.id === '/duit-raya') {
+    let drTheme = 'raya';
+    try {
+      const drStr = localStorage.getItem('duit_raya_manager_data');
+      if (drStr) drTheme = JSON.parse(drStr).theme || 'raya';
+    } catch (e) {}
+    if (drTheme === 'angpao') {
+      displayTitle = 'Angpao Manager';
+      displayDesc = 'Plan & track CNY packets';
+      displayIconBg = 'bg-red-500/20 text-red-400';
+      festiveEmoji = '🧧';
+    } else {
+      displayTitle = 'Duit Raya Manager';
+      displayDesc = 'Plan & track Raya money';
+      displayIconBg = 'bg-emerald-500/20 text-emerald-400';
+      festiveEmoji = '🌙';
+    }
+  }
+
   // Calculate water percentage if this is the water tracker tool
   let waterPercentage = 0;
   if (tool.id === '/water-tracker') {
@@ -386,12 +418,17 @@ const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisab
               </div>
             )}
             <div className="flex items-center space-x-4 relative z-10">
-              <div className={`p-3 rounded-xl group-hover:scale-110 transition-transform ${tool.iconBgClass}`}>
-                <Icon size={28} />
+              <div className={`p-3 rounded-xl group-hover:scale-110 transition-transform ${displayIconBg}`}>
+                {festiveEmoji ? <span className="text-2xl leading-none">{festiveEmoji}</span> : <Icon size={28} />}
               </div>
               <div>
-                <h3 className="font-bold text-lg mb-1">{tool.title}</h3>
-                <p className="text-sm text-muted">{tool.desc}</p>
+                <h3 className="font-bold text-lg mb-1 flex items-center">
+                  {displayTitle}
+                  {isHot && (
+                    <span className="ml-2 px-1.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wide bg-orange-500 text-white shadow-sm animate-pulse">HOT!!</span>
+                  )}
+                </h3>
+                <p className="text-sm text-muted">{displayDesc}</p>
               </div>
             </div>
             <div className="flex items-center space-x-1 relative z-20">
@@ -425,6 +462,9 @@ const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisab
     >
       <div className={`block h-full group ${isReordering ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}>
         <div className={`glass-panel p-5 flex flex-col items-center justify-center text-center h-full transition-all duration-300 ${tool.borderClass} relative overflow-hidden`}>
+          {isHot && (
+            <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wide bg-orange-500 text-white shadow-sm animate-pulse">HOT!!</span>
+          )}
           {waterPercentage > 0 && (
             <div 
               className="absolute bottom-0 left-0 right-0 bg-blue-600/30 transition-all duration-[1500ms] ease-out z-0" 
@@ -546,10 +586,10 @@ const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisab
               className={`${isFavorite ? 'fill-rose-500 text-rose-500' : ''} ${favAnim ? 'heart-pop-anim' : ''}`}
             />
           </button>
-          <div className={`p-4 rounded-2xl mb-4 group-hover:scale-110 transition-transform ${tool.iconBgClass} relative z-10`}>
-            <Icon size={32} />
+          <div className={`p-4 rounded-2xl mb-4 group-hover:scale-110 transition-transform ${displayIconBg} relative z-10`}>
+            {festiveEmoji ? <span className="text-3xl leading-none">{festiveEmoji}</span> : <Icon size={32} />}
           </div>
-          <h3 className="font-bold text-sm leading-tight relative z-10">{tool.title}</h3>
+          <h3 className="font-bold text-sm leading-tight relative z-10">{displayTitle}</h3>
         </div>
       </div>
     </div>
@@ -631,18 +671,27 @@ const Home: React.FC = () => {
 
   const [tools, setTools] = useState(() => {
     const savedOrder = localStorage.getItem('home_tool_order');
+    let base = DEFAULT_TOOLS as typeof DEFAULT_TOOLS;
     if (savedOrder) {
       const orderIds = JSON.parse(savedOrder);
       // Reconstruct the array based on saved IDs
       const orderedTools = orderIds
         .map((id: string) => DEFAULT_TOOLS.find(t => t.id === id))
         .filter(Boolean);
-      
+
       // Append any new tools that aren't in the saved order yet
       const newTools = DEFAULT_TOOLS.filter(t => !orderIds.includes(t.id));
-      return [...orderedTools, ...newTools];
+      base = [...orderedTools, ...newTools];
     }
-    return DEFAULT_TOOLS;
+
+    // One-time promotion: move HOT tools to the top (respects manual reordering afterwards)
+    if (!localStorage.getItem('hot_tools_promoted_v2')) {
+      const hot = HOT_IDS.map(id => base.find(t => t.id === id)).filter(Boolean) as typeof DEFAULT_TOOLS;
+      const rest = base.filter(t => !HOT_IDS.includes(t.id));
+      base = [...hot, ...rest];
+      localStorage.setItem('hot_tools_promoted_v2', '1');
+    }
+    return base;
   });
 
   useEffect(() => {

@@ -52,6 +52,12 @@
   }
 }
 
+/* Duit Raya / Angpao themed accents — auto-darken on light mode for contrast */
+.dr-accent { color: #34d399; }            /* emerald-400 */
+.ap-accent { color: #f87171; }            /* red-400 */
+html.light .dr-accent { color: #047857; } /* emerald-700 */
+html.light .ap-accent { color: #b91c1c; } /* red-700 */
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
