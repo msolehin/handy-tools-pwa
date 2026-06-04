@@ -25,7 +25,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { getNextRenewalDate, getDaysUntil } from './SubscriptionTracker';
 
-const DEFAULT_TOOLS = [
+export const DEFAULT_TOOLS = [
   { 
     id: '/ic-scanner', to: '/ic-scanner', title: 'IC Combiner', desc: 'Scan & generate PDF', Icon: FileImage, category: 'Utilities',
     borderClass: 'hover:border-primary/50 hover:shadow-primary/20', iconBgClass: 'bg-primary/20 text-primary', arrowClass: 'group-hover:text-primary'
