@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, X, Target, Play, RefreshCw, Trophy, Swords } from 'lucide-react';
+import { Plus, X, Target, Play, RefreshCw, Trophy, Swords, Trash2 } from 'lucide-react';
 
 interface Option {
   id: string;
@@ -83,6 +83,13 @@ const DecisionMaker: React.FC = () => {
       resetGame();
       localStorage.removeItem('dm_question');
       localStorage.removeItem('dm_options');
+    }
+  };
+
+  const handleClearOptions = () => {
+    if (options.length > 0 && window.confirm("Clear all options?")) {
+      setOptions([]);
+      resetGame();
     }
   };
 
@@ -177,6 +184,7 @@ const DecisionMaker: React.FC = () => {
   };
 
   const getGradientStops = () => {
+    if (activeOptions.length === 0) return 'transparent 0deg 360deg';
     const sliceSize = 360 / activeOptions.length;
     return activeOptions.map((_, i) => {
       // Find original index to keep color consistent if possible
@@ -337,13 +345,22 @@ const DecisionMaker: React.FC = () => {
       <div className="glass-panel p-4 space-y-4">
         <div className="flex justify-between items-center mb-2">
           <h3 className="font-semibold">Options ({options.length}/24)</h3>
-          <button 
-            onClick={handleResetOptions}
-            disabled={isSpinning || spinResults.length > 0}
-            className="text-xs flex items-center text-muted hover:text-text transition-colors disabled:opacity-50"
-          >
-            <RefreshCw size={12} className="mr-1" /> Reset
-          </button>
+          <div className="flex space-x-3">
+            <button 
+              onClick={handleClearOptions}
+              disabled={isSpinning || options.length === 0 || spinResults.length > 0}
+              className="text-xs flex items-center text-muted hover:text-red-400 transition-colors disabled:opacity-50"
+            >
+              <Trash2 size={12} className="mr-1" /> Clear
+            </button>
+            <button 
+              onClick={handleResetOptions}
+              disabled={isSpinning || spinResults.length > 0}
+              className="text-xs flex items-center text-muted hover:text-text transition-colors disabled:opacity-50"
+            >
+              <RefreshCw size={12} className="mr-1" /> Reset
+            </button>
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
           {options.map((opt, index) => (

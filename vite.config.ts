@@ -12,8 +12,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'Handy Tools PWA',
-        short_name: 'HandyTools',
+        name: 'SenangKit',
+        short_name: 'SenangKit',
         description: 'A lightweight offline-capable tools app',
         theme_color: '#0f172a',
         background_color: '#0f172a',

@@ -35,7 +35,7 @@ const DEFAULT_TOOLS = [
     borderClass: 'hover:border-secondary/50 hover:shadow-secondary/20', iconBgClass: 'bg-secondary/20 text-secondary', arrowClass: 'group-hover:text-secondary'
   },
   { 
-    id: '/decision-maker', to: '/decision-maker', title: 'Random Decision Maker', desc: 'Spin the wheel to decide', Icon: PieChart, category: 'Fun',
+    id: '/decision-maker', to: '/decision-maker', title: 'Spin the wheel', desc: 'Make random decisions', Icon: PieChart, category: 'Fun',
     borderClass: 'hover:border-accent/50 hover:shadow-accent/20', iconBgClass: 'bg-accent/20 text-accent', arrowClass: 'group-hover:text-accent'
   },
   { 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { 
   Home, FileImage, MapPin, PieChart, Timer, Wallet, Users, Calendar, 
-  Landmark, ShieldAlert, Wrench, Plane, Activity, MoreHorizontal, X, ShoppingCart, Briefcase, Fuel, ArrowRightLeft, Banknote, Gift, Dices, Repeat, Droplets, HeartPulse, Car, ListChecks, HandCoins, Utensils, Sun, Moon
+  Landmark, ShieldAlert, Wrench, Plane, Activity, MoreHorizontal, X, ShoppingCart, Briefcase, Fuel, ArrowRightLeft, Banknote, Gift, Dices, Repeat, Droplets, HeartPulse, Car, ListChecks, HandCoins, Utensils, Sun, Moon, Zap
 } from 'lucide-react';
 
 const Layout: React.FC = () => {
@@ -58,8 +58,9 @@ const Layout: React.FC = () => {
       <header className="sticky top-0 z-40 glass-panel rounded-none border-x-0 border-t-0 rounded-b-2xl">
         <div className="max-w-md mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Handy Tools
+            <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent flex items-center space-x-1">
+              <Zap size={22} className="text-primary" />
+              <span>SenangKit</span>
             </h1>
             <span className="bg-primary/20 text-primary border border-primary/30 text-[10px] px-2 py-0.5 rounded text-center font-bold tracking-widest shadow-sm">
               MY
