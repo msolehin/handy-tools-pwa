@@ -85,7 +85,10 @@ const ICScanner: React.FC = () => {
 
   const WatermarkPreview = () => {
     if (!wmEnabled || !wmText) return null;
-    const ratio = 0.68; // approx scale from 350 PDF points to DOM width
+    const targetWidth = 350 * cardScale;
+    const sizePct = (wmSize / targetWidth) * 100;
+    const thickPct = (wmThickness / targetWidth) * 100;
+    const padPct = sizePct * 0.4;
     return (
       <div 
         className="absolute flex flex-col items-center justify-center cursor-move touch-none z-20"
@@ -102,9 +105,9 @@ const ICScanner: React.FC = () => {
           color: wmColor
         }}
       >
-        <div style={{ height: `${wmThickness * ratio}px`, backgroundColor: wmColor, width: '100%', marginBottom: `${wmSize * 0.4 * ratio}px` }}></div>
-        <div style={{ fontSize: `${wmSize * ratio}px`, fontWeight: 'bold', whiteSpace: 'nowrap', lineHeight: 1 }}>{wmText}</div>
-        <div style={{ height: `${wmThickness * ratio}px`, backgroundColor: wmColor, width: '100%', marginTop: `${wmSize * 0.4 * ratio}px` }}></div>
+        <div style={{ height: `${thickPct}cqw`, backgroundColor: wmColor, width: '100%', marginBottom: `${padPct}cqw` }}></div>
+        <div style={{ fontSize: `${sizePct}cqw`, fontWeight: 'bold', whiteSpace: 'nowrap', lineHeight: 1 }}>{wmText}</div>
+        <div style={{ height: `${thickPct}cqw`, backgroundColor: wmColor, width: '100%', marginTop: `${padPct}cqw` }}></div>
       </div>
     );
   };
@@ -185,7 +188,7 @@ const ICScanner: React.FC = () => {
           const drawWm = (imageY: number) => {
             const startX = centerX + (targetWidth * (wmOffset.x / 100));
             const startY = (imageY + targetHeight) - (targetHeight * (wmOffset.y / 100));
-            const angle = degrees(wmRotation);
+            const angle = degrees(-wmRotation);
             const textWidth = font.widthOfTextAtSize(wmText, wmSize);
             const textHeight = font.heightAtSize(wmSize);
 
@@ -199,7 +202,7 @@ const ICScanner: React.FC = () => {
               rotate: angle
             });
 
-            const rad = (wmRotation * Math.PI) / 180;
+            const rad = (-wmRotation * Math.PI) / 180;
             const padding = wmSize * 0.4;
 
             const drawRotatedLine = (x1: number, y1: number, x2: number, y2: number) => {
@@ -384,7 +387,8 @@ const ICScanner: React.FC = () => {
                   style={{ 
                     width: `${((350 * cardScale) / 595.28) * 100}%`, 
                     height: `${(((350 * cardScale) / 1.58) / 841.89) * 100}%`,
-                    top: `${(100 / 841.89) * 100}%` 
+                    top: `${(100 / 841.89) * 100}%`,
+                    containerType: 'inline-size'
                   }} 
                 >
                   <img src={frontImage} className="w-full h-full object-cover shadow-[0_4px_10px_rgba(0,0,0,0.1)]" />
@@ -397,7 +401,8 @@ const ICScanner: React.FC = () => {
                   style={{ 
                     width: `${((350 * cardScale) / 595.28) * 100}%`, 
                     height: `${(((350 * cardScale) / 1.58) / 841.89) * 100}%`,
-                    top: `${((100 + ((350 * cardScale) / 1.58) + 50) / 841.89) * 100}%` 
+                    top: `${((100 + ((350 * cardScale) / 1.58) + 50) / 841.89) * 100}%`,
+                    containerType: 'inline-size'
                   }} 
                 >
                   <img src={backImage} className="w-full h-full object-cover shadow-[0_4px_10px_rgba(0,0,0,0.1)]" />
