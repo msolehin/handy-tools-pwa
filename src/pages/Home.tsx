@@ -470,14 +470,14 @@ const Home: React.FC = () => {
             <div className="flex bg-text/5 p-1 rounded-xl">
               <button 
                 onClick={() => setViewMode('list')}
-                className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-primary text-text shadow-lg' : 'text-muted hover:text-text'}`}
+                className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'}`}
                 title="List View"
               >
                 <List size={18} />
               </button>
               <button 
                 onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-primary text-text shadow-lg' : 'text-muted hover:text-text'}`}
+                className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'}`}
                 title="Grid View"
               >
                 <LayoutGrid size={18} />
@@ -487,7 +487,7 @@ const Home: React.FC = () => {
                   setViewMode('category');
                   setIsReordering(false); // disable reordering in category mode
                 }}
-                className={`p-2 rounded-lg transition-all ${viewMode === 'category' ? 'bg-primary text-text shadow-lg' : 'text-muted hover:text-text'}`}
+                className={`p-2 rounded-lg transition-all ${viewMode === 'category' ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'}`}
                 title="Category View"
               >
                 <Layers size={18} />

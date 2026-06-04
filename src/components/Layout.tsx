@@ -57,12 +57,15 @@ const Layout: React.FC = () => {
       {/* Top Navbar */}
       <header className="sticky top-0 z-40 glass-panel rounded-none border-x-0 border-t-0 rounded-b-2xl">
         <div className="max-w-md mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent flex items-center space-x-1">
-              <Zap size={22} className="text-primary" />
-              <span>SenangKit</span>
+            <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold flex items-center space-x-1.5">
+              <img src="/favicon.png" alt="Logo" className="w-6 h-6 object-contain" />
+              <div className="flex tracking-tight">
+                <span className="text-text">Senang</span>
+                <span className="bg-gradient-to-r from-pink-500 to-orange-400 bg-clip-text text-transparent">Kit</span>
+              </div>
             </h1>
-            <span className="bg-primary/20 text-primary border border-primary/30 text-[10px] px-2 py-0.5 rounded text-center font-bold tracking-widest shadow-sm">
+            <span className="bg-pink-500/10 text-pink-500 border border-pink-500/30 text-[10px] px-2 py-0.5 rounded text-center font-bold tracking-widest shadow-sm">
               MY
             </span>
           </div>
@@ -89,7 +92,7 @@ const Layout: React.FC = () => {
               to="/"
               className={({ isActive }) =>
                 `flex flex-col items-center p-2 rounded-xl transition-all duration-200 shrink-0 w-[16%] ${
-                  isActive ? 'text-primary bg-primary/10' : 'text-muted hover:text-text'
+                  isActive ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'
                 }`
               }
             >
@@ -100,7 +103,7 @@ const Layout: React.FC = () => {
               to="/ic-scanner"
               className={({ isActive }) =>
                 `flex flex-col items-center p-2 rounded-xl transition-all duration-200 shrink-0 w-[16%] ${
-                  isActive ? 'text-primary bg-primary/10' : 'text-muted hover:text-text'
+                  isActive ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'
                 }`
               }
             >
@@ -111,7 +114,7 @@ const Layout: React.FC = () => {
               to="/parking"
               className={({ isActive }) =>
                 `flex flex-col items-center p-2 rounded-xl transition-all duration-200 shrink-0 w-[16%] ${
-                  isActive ? 'text-primary bg-primary/10' : 'text-muted hover:text-text'
+                  isActive ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'
                 }`
               }
             >
@@ -122,7 +125,7 @@ const Layout: React.FC = () => {
               to="/decision-maker"
               className={({ isActive }) =>
                 `flex flex-col items-center p-2 rounded-xl transition-all duration-200 shrink-0 w-[16%] ${
-                  isActive ? 'text-primary bg-primary/10' : 'text-muted hover:text-text'
+                  isActive ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'
                 }`
               }
             >
@@ -133,7 +136,7 @@ const Layout: React.FC = () => {
               to="/expense-splitter"
               className={({ isActive }) =>
                 `flex flex-col items-center p-2 rounded-xl transition-all duration-200 shrink-0 w-[16%] ${
-                  isActive ? 'text-primary bg-primary/10' : 'text-muted hover:text-text'
+                  isActive ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'
                 }`
               }
             >
@@ -145,7 +148,7 @@ const Layout: React.FC = () => {
             <button
               onClick={() => setShowMoreMenu(true)}
               className={`flex flex-col items-center p-2 rounded-xl transition-all duration-200 shrink-0 w-[16%] ${
-                isMoreActive && !showMoreMenu ? 'text-primary bg-primary/10' : 'text-muted hover:text-text'
+                isMoreActive && !showMoreMenu ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'
               }`}
             >
               <MoreHorizontal size={22} />
@@ -203,7 +206,7 @@ const Layout: React.FC = () => {
                       onClick={() => setShowMoreMenu(false)}
                       className={`flex flex-col items-center p-3 rounded-2xl transition-all duration-200 ${
                         isActive 
-                          ? 'bg-primary/20 text-primary shadow-[0_0_15px_rgba(var(--color-primary),0.2)]' 
+                          ? 'bg-surface text-text shadow-sm' 
                           : 'bg-text/5 text-muted hover:bg-text/10 hover:text-text'
                       }`}
                     >
