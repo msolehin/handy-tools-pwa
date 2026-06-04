@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { 
   Home, FileImage, MapPin, PieChart, Timer, Wallet, Users, Calendar, 
-  Landmark, ShieldAlert, Wrench, Plane, Activity, MoreHorizontal, X, ShoppingCart, Briefcase, Fuel, ArrowRightLeft, Banknote, Gift, Dices, Repeat, Droplets, HeartPulse, Car, ListChecks, HandCoins
+  Landmark, ShieldAlert, Wrench, Plane, Activity, MoreHorizontal, X, ShoppingCart, Briefcase, Fuel, ArrowRightLeft, Banknote, Gift, Dices, Repeat, Droplets, HeartPulse, Car, ListChecks, HandCoins, Utensils
 } from 'lucide-react';
 
 const Layout: React.FC = () => {
@@ -31,6 +31,7 @@ const Layout: React.FC = () => {
     { to: "/carpool-splitter", icon: Car, label: "Carpool" },
     { to: "/checklists", icon: ListChecks, label: "Lists" },
     { to: "/debt-tracker", icon: HandCoins, label: "Debts" },
+    { to: "/restaurant-splitter", icon: Utensils, label: "Restaurant" },
     { to: "https://befday.com/", icon: Gift, label: "Birthday" },
   ];
 

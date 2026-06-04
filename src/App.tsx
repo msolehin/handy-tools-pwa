@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Analytics } from "@vercel/analytics/react";
+import ScrollToTop from './components/ScrollToTop';
 import Layout from './components/Layout';
 import Home from './pages/Home';
 import ICScanner from './pages/ICScanner';
@@ -27,10 +28,12 @@ import EmergencyCard from './pages/EmergencyCard';
 import CarpoolSplitter from './pages/CarpoolSplitter';
 import ChecklistTemplate from './pages/ChecklistTemplate';
 import DebtTracker from './pages/DebtTracker';
+import RestaurantSplitter from './pages/RestaurantSplitter';
 
 function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
@@ -59,6 +62,7 @@ function App() {
           <Route path="carpool-splitter" element={<CarpoolSplitter />} />
           <Route path="checklists" element={<ChecklistTemplate />} />
           <Route path="debt-tracker" element={<DebtTracker />} />
+          <Route path="restaurant-splitter" element={<RestaurantSplitter />} />
         </Route>
       </Routes>
       <Analytics />
