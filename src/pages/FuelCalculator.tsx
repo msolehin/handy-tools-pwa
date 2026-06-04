@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { Fuel, Car, Users, Landmark, Calculator, AlertCircle } from 'lucide-react';
 
 const FUEL_TYPES = [
-  { id: 'ron95_subsidized', name: 'RON 95 (Budi MADANI)', defaultPrice: 2.05 },
-  { id: 'ron95_float', name: 'RON 95 (Float)', defaultPrice: 2.05 },
-  { id: 'ron97', name: 'RON 97', defaultPrice: 3.47 },
+  { id: 'ron95_subsidized', name: 'RON 95 (Budi MADANI)', defaultPrice: 1.99 },
+  { id: 'ron95_float', name: 'RON 95 (Float)', defaultPrice: 3.72 },
+  { id: 'ron97', name: 'RON 97', defaultPrice: 4.35 },
   { id: 'diesel_subsidized', name: 'Diesel (Budi MADANI)', defaultPrice: 2.15 },
-  { id: 'diesel_float', name: 'Diesel (Float)', defaultPrice: 3.35 },
+  { id: 'diesel_float', name: 'Diesel (Float)', defaultPrice: 4.67 },
 ];
 
 const VEHICLE_PRESETS = [
@@ -245,9 +245,12 @@ const FuelCalculator: React.FC = () => {
                 min="0" step="0.01"
                 value={currentPrice}
                 onChange={handlePriceChange}
-                className="input-field pl-9 w-full"
+                className="input-field w-full pl-10"
               />
             </div>
+            <p className="text-[10px] text-muted/70 mt-1.5 italic">
+              You can change the price manually. It will automatically be saved to your browser for next time.
+            </p>
           </div>
         </div>
 
