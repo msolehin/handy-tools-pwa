@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import {
-  Home, FileImage, MapPin, PieChart, Timer, Wallet, Users, Calendar,
-  Landmark, ShieldAlert, Wrench, Plane, Activity, MoreHorizontal, X, ShoppingCart, Briefcase, Fuel, ArrowRightLeft, Banknote, Gift, Dices, Repeat, Droplets, HeartPulse, Car, ListChecks, HandCoins, Utensils, Sun, Moon, Settings, Check
+  Home, MoreHorizontal, X, Sun, Moon, Settings, Check
 } from 'lucide-react';
 import { DEFAULT_TOOLS } from '../pages/Home';
 
