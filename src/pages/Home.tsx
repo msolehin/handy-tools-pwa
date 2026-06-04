@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   FileImage, MapPin, ArrowRight, Shield, PieChart, Timer, Wallet, 
   Users, Calendar, Landmark, ShieldAlert, Wrench, Plane, Activity,
-  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, Briefcase, Fuel, Gift
+  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, Briefcase, Fuel, Gift, ArrowRightLeft, Banknote, Dices, Repeat, Droplets, Layers, Search, HeartPulse, Car
 } from 'lucide-react';
 import { 
   DndContext, 
@@ -26,104 +26,104 @@ import { CSS } from '@dnd-kit/utilities';
 
 const DEFAULT_TOOLS = [
   { 
-    id: '/ic-scanner', to: '/ic-scanner', title: 'IC Combiner', desc: 'Scan & generate PDF', Icon: FileImage, 
-    borderClass: 'hover:border-primary/50 hover:shadow-primary/20',
-    iconBgClass: 'bg-primary/20 text-primary',
-    arrowClass: 'group-hover:text-primary'
+    id: '/ic-scanner', to: '/ic-scanner', title: 'IC Combiner', desc: 'Scan & generate PDF', Icon: FileImage, category: 'Utilities',
+    borderClass: 'hover:border-primary/50 hover:shadow-primary/20', iconBgClass: 'bg-primary/20 text-primary', arrowClass: 'group-hover:text-primary'
   },
   { 
-    id: '/parking', to: '/parking', title: 'Parking Locator', desc: 'Save & find your vehicle', Icon: MapPin, 
-    borderClass: 'hover:border-secondary/50 hover:shadow-secondary/20',
-    iconBgClass: 'bg-secondary/20 text-secondary',
-    arrowClass: 'group-hover:text-secondary'
+    id: '/parking', to: '/parking', title: 'Parking Locator', desc: 'Save & find your vehicle', Icon: MapPin, category: 'Auto & Travel',
+    borderClass: 'hover:border-secondary/50 hover:shadow-secondary/20', iconBgClass: 'bg-secondary/20 text-secondary', arrowClass: 'group-hover:text-secondary'
   },
   { 
-    id: '/decision-maker', to: '/decision-maker', title: 'Random Decision Maker', desc: 'Spin the wheel to decide', Icon: PieChart, 
-    borderClass: 'hover:border-accent/50 hover:shadow-accent/20',
-    iconBgClass: 'bg-accent/20 text-accent',
-    arrowClass: 'group-hover:text-accent'
+    id: '/decision-maker', to: '/decision-maker', title: 'Random Decision Maker', desc: 'Spin the wheel to decide', Icon: PieChart, category: 'Fun',
+    borderClass: 'hover:border-accent/50 hover:shadow-accent/20', iconBgClass: 'bg-accent/20 text-accent', arrowClass: 'group-hover:text-accent'
   },
   { 
-    id: '/pace-calculator', to: '/pace-calculator', title: 'Pace Calculator', desc: 'Time, Distance & Pace', Icon: Timer, 
-    borderClass: 'hover:border-blue-400/50 hover:shadow-blue-400/20',
-    iconBgClass: 'bg-blue-500/20 text-blue-400',
-    arrowClass: 'group-hover:text-blue-400'
+    id: '/pace-calculator', to: '/pace-calculator', title: 'Pace Calculator', desc: 'Time, Distance & Pace', Icon: Timer, category: 'Health & Fitness',
+    borderClass: 'hover:border-blue-400/50 hover:shadow-blue-400/20', iconBgClass: 'bg-blue-500/20 text-blue-400', arrowClass: 'group-hover:text-blue-400'
   },
   { 
-    id: '/affordability', to: '/affordability', title: 'Can I Afford It?', desc: 'Cost vs Income Calculator', Icon: Wallet, 
-    borderClass: 'hover:border-green-400/50 hover:shadow-green-400/20',
-    iconBgClass: 'bg-green-500/20 text-green-400',
-    arrowClass: 'group-hover:text-green-400'
+    id: '/affordability', to: '/affordability', title: 'Can I Afford It?', desc: 'Cost vs Income Calculator', Icon: Wallet, category: 'Finance',
+    borderClass: 'hover:border-green-400/50 hover:shadow-green-400/20', iconBgClass: 'bg-green-500/20 text-green-400', arrowClass: 'group-hover:text-green-400'
   },
   { 
-    id: '/expense-splitter', to: '/expense-splitter', title: 'Expense Splitter', desc: 'Group Bills & Settle Up', Icon: Users, 
-    borderClass: 'hover:border-purple-400/50 hover:shadow-purple-400/20',
-    iconBgClass: 'bg-purple-500/20 text-purple-400',
-    arrowClass: 'group-hover:text-purple-400'
+    id: '/expense-splitter', to: '/expense-splitter', title: 'Expense Splitter', desc: 'Group Bills & Settle Up', Icon: Users, category: 'Finance',
+    borderClass: 'hover:border-purple-400/50 hover:shadow-purple-400/20', iconBgClass: 'bg-purple-500/20 text-purple-400', arrowClass: 'group-hover:text-purple-400'
   },
   { 
-    id: '/countdown', to: '/countdown', title: 'Countdown Day', desc: 'Track Events & Holidays', Icon: Calendar, 
-    borderClass: 'hover:border-pink-500/50 hover:shadow-pink-500/20',
-    iconBgClass: 'bg-pink-500/20 text-pink-400',
-    arrowClass: 'group-hover:text-pink-400'
+    id: '/countdown', to: '/countdown', title: 'Countdown Day', desc: 'Track Events & Holidays', Icon: Calendar, category: 'Utilities',
+    borderClass: 'hover:border-pink-500/50 hover:shadow-pink-500/20', iconBgClass: 'bg-pink-500/20 text-pink-400', arrowClass: 'group-hover:text-pink-400'
   },
   { 
-    id: '/financial-calculators', to: '/financial-calculators', title: 'Financial Hub', desc: 'Loans, savings, and salary tools', Icon: Landmark, 
-    borderClass: 'hover:border-orange-500/50 hover:shadow-orange-500/20',
-    iconBgClass: 'bg-orange-500/20 text-orange-400',
-    arrowClass: 'group-hover:text-orange-400'
+    id: '/financial-calculators', to: '/financial-calculators', title: 'Financial Hub', desc: 'Loans, savings, and salary tools', Icon: Landmark, category: 'Finance',
+    borderClass: 'hover:border-orange-500/50 hover:shadow-orange-500/20', iconBgClass: 'bg-orange-500/20 text-orange-400', arrowClass: 'group-hover:text-orange-400'
   },
   { 
-    id: '/document-expiry', to: '/document-expiry', title: 'Document Expiry', desc: 'Track Passport, Roadtax, etc.', Icon: ShieldAlert, 
-    borderClass: 'hover:border-red-500/50 hover:shadow-red-500/20',
-    iconBgClass: 'bg-red-500/20 text-red-400',
-    arrowClass: 'group-hover:text-red-400'
+    id: '/document-expiry', to: '/document-expiry', title: 'Document Expiry', desc: 'Track Passport, Roadtax, etc.', Icon: ShieldAlert, category: 'Utilities',
+    borderClass: 'hover:border-red-500/50 hover:shadow-red-500/20', iconBgClass: 'bg-red-500/20 text-red-400', arrowClass: 'group-hover:text-red-400'
   },
   { 
-    id: '/vehicle-tracker', to: '/vehicle-tracker', title: 'Vehicle Tracker', desc: 'Log Service & Maintenance', Icon: Wrench, 
-    borderClass: 'hover:border-slate-400/50 hover:shadow-slate-400/20',
-    iconBgClass: 'bg-slate-500/20 text-slate-400',
-    arrowClass: 'group-hover:text-slate-400'
+    id: '/vehicle-tracker', to: '/vehicle-tracker', title: 'Vehicle Tracker', desc: 'Log Service & Maintenance', Icon: Wrench, category: 'Auto & Travel',
+    borderClass: 'hover:border-slate-400/50 hover:shadow-slate-400/20', iconBgClass: 'bg-slate-500/20 text-slate-400', arrowClass: 'group-hover:text-slate-400'
   },
   { 
-    id: '/trip-budget', to: '/trip-budget', title: 'Trip Budget', desc: 'Plan Vacation Expenses', Icon: Plane, 
-    borderClass: 'hover:border-cyan-400/50 hover:shadow-cyan-400/20',
-    iconBgClass: 'bg-cyan-500/20 text-cyan-400',
-    arrowClass: 'group-hover:text-cyan-400'
+    id: '/trip-budget', to: '/trip-budget', title: 'Trip Budget', desc: 'Plan Vacation Expenses', Icon: Plane, category: 'Auto & Travel',
+    borderClass: 'hover:border-cyan-400/50 hover:shadow-cyan-400/20', iconBgClass: 'bg-cyan-500/20 text-cyan-400', arrowClass: 'group-hover:text-cyan-400'
   },
   { 
-    id: '/bmi-calculator', to: '/bmi-calculator', title: 'BMI Calculator', desc: 'Check Health Metrics', Icon: Activity, 
-    borderClass: 'hover:border-emerald-400/50 hover:shadow-emerald-400/20',
-    iconBgClass: 'bg-emerald-500/20 text-emerald-400',
-    arrowClass: 'group-hover:text-emerald-400'
+    id: '/bmi-calculator', to: '/bmi-calculator', title: 'BMI Calculator', desc: 'Check Health Metrics', Icon: Activity, category: 'Health & Fitness',
+    borderClass: 'hover:border-emerald-400/50 hover:shadow-emerald-400/20', iconBgClass: 'bg-emerald-500/20 text-emerald-400', arrowClass: 'group-hover:text-emerald-400'
   },
   { 
-    id: '/grocery-budget', to: '/grocery-budget', title: 'Grocery Budget', desc: 'Track cart total while shopping', Icon: ShoppingCart, 
-    borderClass: 'hover:border-green-400/50 hover:shadow-green-400/20',
-    iconBgClass: 'bg-green-500/20 text-green-400',
-    arrowClass: 'group-hover:text-green-400'
+    id: '/grocery-budget', to: '/grocery-budget', title: 'Grocery Budget', desc: 'Track cart total while shopping', Icon: ShoppingCart, category: 'Lifestyle',
+    borderClass: 'hover:border-green-400/50 hover:shadow-green-400/20', iconBgClass: 'bg-green-500/20 text-green-400', arrowClass: 'group-hover:text-green-400'
   },
   { 
-    id: '/packing-checklist', to: '/packing-checklist', title: 'Packing Checklist', desc: 'Never forget an item again', Icon: Briefcase, 
-    borderClass: 'hover:border-purple-400/50 hover:shadow-purple-400/20',
-    iconBgClass: 'bg-purple-500/20 text-purple-400',
-    arrowClass: 'group-hover:text-purple-400'
+    id: '/packing-checklist', to: '/packing-checklist', title: 'Packing Checklist', desc: 'Never forget an item again', Icon: Briefcase, category: 'Lifestyle',
+    borderClass: 'hover:border-purple-400/50 hover:shadow-purple-400/20', iconBgClass: 'bg-purple-500/20 text-purple-400', arrowClass: 'group-hover:text-purple-400'
   },
   { 
-    id: '/fuel-calculator', to: '/fuel-calculator', title: 'Fuel & Tolls', desc: 'Calculate road trip costs', Icon: Fuel, 
-    borderClass: 'hover:border-orange-400/50 hover:shadow-orange-400/20',
-    iconBgClass: 'bg-orange-500/20 text-orange-400',
-    arrowClass: 'group-hover:text-orange-400'
+    id: '/fuel-calculator', to: '/fuel-calculator', title: 'Fuel & Tolls', desc: 'Calculate road trip costs', Icon: Fuel, category: 'Auto & Travel',
+    borderClass: 'hover:border-orange-400/50 hover:shadow-orange-400/20', iconBgClass: 'bg-orange-500/20 text-orange-400', arrowClass: 'group-hover:text-orange-400'
   },
   { 
-    id: 'https://befday.com/', to: 'https://befday.com/', title: 'Birthday Claim', desc: 'Know where to claim birthday (credit dzulhelmynazri)', Icon: Gift, 
-    borderClass: 'hover:border-pink-400/50 hover:shadow-pink-400/20',
-    iconBgClass: 'bg-pink-500/20 text-pink-400',
-    arrowClass: 'group-hover:text-pink-400'
+    id: '/unit-converter', to: '/unit-converter', title: 'Unit Converter', desc: 'Convert length, weight, temp', Icon: ArrowRightLeft, category: 'Utilities',
+    borderClass: 'hover:border-indigo-400/50 hover:shadow-indigo-400/20', iconBgClass: 'bg-indigo-500/20 text-indigo-400', arrowClass: 'group-hover:text-indigo-400'
+  },
+  { 
+    id: '/currency-converter', to: '/currency-converter', title: 'Currency Converter', desc: 'Live & Offline FX rates', Icon: Banknote, category: 'Finance',
+    borderClass: 'hover:border-emerald-400/50 hover:shadow-emerald-400/20', iconBgClass: 'bg-emerald-500/20 text-emerald-400', arrowClass: 'group-hover:text-emerald-400'
+  },
+  { 
+    id: '/randomizer', to: '/randomizer', title: 'Randomizer', desc: 'Coin, Dice, and Numbers', Icon: Dices, category: 'Fun',
+    borderClass: 'hover:border-rose-400/50 hover:shadow-rose-400/20', iconBgClass: 'bg-rose-500/20 text-rose-400', arrowClass: 'group-hover:text-rose-400'
+  },
+  { 
+    id: '/subscription-tracker', to: '/subscription-tracker', title: 'Subscriptions', desc: 'Track recurring payments', Icon: Repeat, category: 'Finance',
+    borderClass: 'hover:border-indigo-400/50 hover:shadow-indigo-400/20', iconBgClass: 'bg-indigo-500/20 text-indigo-400', arrowClass: 'group-hover:text-indigo-400'
+  },
+  { 
+    id: '/water-tracker', to: '/water-tracker', title: 'Water Tracker', desc: 'Hydration with fluid animations', Icon: Droplets, category: 'Health & Fitness',
+    borderClass: 'hover:border-blue-400/50 hover:shadow-blue-400/20', iconBgClass: 'bg-blue-500/20 text-blue-400', arrowClass: 'group-hover:text-blue-400'
+  },
+  { 
+    id: '/paycheck-countdown', to: '/paycheck-countdown', title: 'Payday Countdown', desc: 'Live ticking clock to next salary', Icon: Wallet, category: 'Finance',
+    borderClass: 'hover:border-emerald-400/50 hover:shadow-emerald-400/20', iconBgClass: 'bg-emerald-500/20 text-emerald-400', arrowClass: 'group-hover:text-emerald-400'
+  },
+  { 
+    id: '/emergency-card', to: '/emergency-card', title: 'Medical ID', desc: 'Offline Emergency Info & QR', Icon: HeartPulse, category: 'Health & Fitness',
+    borderClass: 'hover:border-rose-500/50 hover:shadow-rose-500/20', iconBgClass: 'bg-rose-500/20 text-rose-500', arrowClass: 'group-hover:text-rose-500'
+  },
+  { 
+    id: '/carpool-splitter', to: '/carpool-splitter', title: 'Carpool Splitter', desc: 'Divide road trip fuel & tolls', Icon: Car, category: 'Auto & Travel',
+    borderClass: 'hover:border-cyan-400/50 hover:shadow-cyan-400/20', iconBgClass: 'bg-cyan-500/20 text-cyan-400', arrowClass: 'group-hover:text-cyan-400'
+  },
+  { 
+    id: 'https://befday.com/', to: 'https://befday.com/', title: 'Birthday Claim', desc: 'Know where to claim birthday (credit dzulhelmynazri)', Icon: Gift, category: 'Fun',
+    borderClass: 'hover:border-pink-400/50 hover:shadow-pink-400/20', iconBgClass: 'bg-pink-500/20 text-pink-400', arrowClass: 'group-hover:text-pink-400'
   },
 ];
 
-const SortableToolCard = ({ tool, viewMode, isReordering }: { tool: typeof DEFAULT_TOOLS[0], viewMode: 'list' | 'grid', isReordering: boolean }) => {
+const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag }: { tool: typeof DEFAULT_TOOLS[0], viewMode: 'list' | 'grid', isReordering: boolean, forceDisableDrag?: boolean }) => {
   const {
     attributes,
     listeners,
@@ -131,7 +131,7 @@ const SortableToolCard = ({ tool, viewMode, isReordering }: { tool: typeof DEFAU
     transform,
     transition,
     isDragging
-  } = useSortable({ id: tool.id, disabled: !isReordering });
+  } = useSortable({ id: tool.id, disabled: forceDisableDrag || !isReordering });
 
   const navigate = useNavigate();
   const [startPos, setStartPos] = useState<{x: number, y: number} | null>(null);
@@ -226,17 +226,18 @@ const SortableToolCard = ({ tool, viewMode, isReordering }: { tool: typeof DEFAU
 
 interface AlertItem {
   id: string;
-  type: 'document' | 'countdown';
+  type: 'document' | 'event' | 'subscription';
   title: string;
   daysLeft: number;
   to: string;
 }
 
 const Home: React.FC = () => {
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>(() => {
-    return (localStorage.getItem('home_view_mode') as 'list' | 'grid') || 'list';
+  const [viewMode, setViewMode] = useState<'list' | 'grid' | 'category'>(() => {
+    return (localStorage.getItem('home_view_mode') as 'list' | 'grid' | 'category') || 'list';
   });
   const [isReordering, setIsReordering] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   
   const navigate = useNavigate();
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
@@ -308,10 +309,32 @@ const Home: React.FC = () => {
           if (days >= 0 && days <= 7) {
             newAlerts.push({
               id: `ev-${ev.id}`,
-              type: 'countdown',
+              type: 'event',
               title: ev.title,
               daysLeft: days,
               to: '/countdown'
+            });
+          }
+        });
+      } catch (e) {}
+    }
+
+    // 3. Subscriptions (Upcoming in next 3 days)
+    const subsStr = localStorage.getItem('sub_tracker_data');
+    if (subsStr) {
+      try {
+        const subs = JSON.parse(subsStr);
+        subs.forEach((sub: any) => {
+          const nextDate = getNextRenewalDate(sub.startDate, sub.cycle);
+          const days = getDaysUntil(nextDate);
+          
+          if (days >= 0 && days <= 3) {
+            newAlerts.push({
+              id: `sub-${sub.id}`,
+              type: 'subscription',
+              title: `${sub.name} (RM${sub.price})`,
+              daysLeft: days,
+              to: '/subscription-tracker'
             });
           }
         });
@@ -370,83 +393,174 @@ const Home: React.FC = () => {
                     ? alert.daysLeft < 0 
                       ? 'bg-red-500/10 border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.15)]' 
                       : 'bg-yellow-500/10 border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.1)]'
-                    : 'bg-pink-500/10 border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.15)]'
+                    : alert.type === 'subscription'
+                      ? 'bg-indigo-500/10 border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)]'
+                      : 'bg-pink-500/10 border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.15)]'
                 }`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-2 mb-2">
-                    {alert.type === 'document' ? <ShieldAlert size={16} className={alert.daysLeft < 0 ? 'text-red-400' : 'text-yellow-400'} /> : <Calendar size={16} className="text-pink-400" />}
+                    {alert.type === 'document' ? (
+                      <ShieldAlert size={20} className={alert.daysLeft < 0 ? 'text-red-400' : 'text-yellow-400'} />
+                    ) : alert.type === 'subscription' ? (
+                      <Repeat size={20} className="text-indigo-400" />
+                    ) : (
+                      <Calendar size={20} className="text-pink-400" />
+                    )}
                     <span className="text-[10px] font-bold text-white/60 uppercase tracking-wider">{alert.type}</span>
                   </div>
                 </div>
-                <h4 className="font-bold text-base truncate mb-1">{alert.title}</h4>
-                <p className={`text-sm font-bold ${
-                  alert.type === 'document' 
-                    ? alert.daysLeft < 0 ? 'text-red-400' : 'text-yellow-400'
-                    : 'text-pink-400'
-                }`}>
-                  {alert.daysLeft < 0 
-                    ? `Expired ${Math.abs(alert.daysLeft)} days ago` 
-                    : alert.daysLeft === 0 
-                      ? 'Today!' 
-                      : `${alert.daysLeft} Days Left`}
-                </p>
+                <div className="flex-1 min-w-0 pr-4">
+                  <p className="font-bold text-[13px] text-white truncate leading-tight mb-1">
+                    {alert.type === 'document' ? 'Renew: ' : alert.type === 'subscription' ? 'Due: ' : ''}{alert.title}
+                  </p>
+                  <p className={`text-[11px] font-medium leading-none ${
+                    alert.type === 'document' 
+                      ? alert.daysLeft < 0 ? 'text-red-400' : 'text-yellow-400'
+                      : alert.type === 'subscription' ? 'text-indigo-400' : 'text-pink-400'
+                  }`}>
+                    {alert.daysLeft < 0 
+                      ? `Expired ${Math.abs(alert.daysLeft)} days ago` 
+                      : alert.daysLeft === 0 
+                        ? 'Today!' 
+                        : `${alert.daysLeft} Days Left`}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      <div className="flex items-end justify-between mt-4 mb-6">
+      <div className="flex items-end justify-between mt-4 mb-4">
         <section>
           <h2 className="text-3xl font-bold mb-1">Welcome</h2>
           <p className="text-muted text-sm pr-4">Select a tool below to get started. Works fully offline.</p>
         </section>
         <div className="flex flex-col items-end space-y-2">
-          <button
-            onClick={() => setIsReordering(!isReordering)}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold tracking-wider uppercase transition-all ${
-              isReordering 
-                ? 'bg-primary text-white shadow-[0_0_15px_rgba(var(--color-primary),0.3)]' 
-                : 'bg-white/5 text-muted hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            <ArrowUpDown size={12} />
-            <span>Reorder</span>
-          </button>
-          <div className="flex space-x-1 shrink-0 bg-black/20 p-1 rounded-xl">
-            <button 
-              onClick={() => setViewMode('list')}
-              className={`p-1.5 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-primary/20 text-primary' : 'text-muted hover:text-white'}`}
-            >
-              <List size={18} />
-            </button>
-            <button 
-              onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-primary/20 text-primary' : 'text-muted hover:text-white'}`}
-            >
-              <LayoutGrid size={18} />
-            </button>
+            {/* Reorder Button */}
+            {viewMode !== 'category' && !searchQuery && (
+              <button 
+                onClick={() => setIsReordering(!isReordering)}
+                className={`p-2 rounded-xl transition-all border flex items-center justify-center ${
+                  isReordering 
+                    ? 'bg-rose-500/20 border-rose-500/50 text-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.3)]' 
+                    : 'bg-surface border-white/10 text-muted hover:bg-white/5 hover:text-white'
+                }`}
+                title="Reorder Tools"
+              >
+                <ArrowUpDown size={20} className={isReordering ? 'animate-pulse' : ''} />
+              </button>
+            )}
+
+            {/* View Mode Toggle */}
+            <div className="flex bg-white/5 p-1 rounded-xl">
+              <button 
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-primary text-white shadow-lg' : 'text-muted hover:text-white'}`}
+                title="List View"
+              >
+                <List size={18} />
+              </button>
+              <button 
+                onClick={() => setViewMode('grid')}
+                className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-primary text-white shadow-lg' : 'text-muted hover:text-white'}`}
+                title="Grid View"
+              >
+                <LayoutGrid size={18} />
+              </button>
+              <button 
+                onClick={() => {
+                  setViewMode('category');
+                  setIsReordering(false); // disable reordering in category mode
+                }}
+                className={`p-2 rounded-lg transition-all ${viewMode === 'category' ? 'bg-primary text-white shadow-lg' : 'text-muted hover:text-white'}`}
+                title="Category View"
+              >
+                <Layers size={18} />
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      <DndContext 
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <div className={viewMode === 'list' ? "grid gap-4" : "grid grid-cols-2 md:grid-cols-3 gap-4"}>
-          <SortableContext 
-            items={tools.map(t => t.id)}
-            strategy={rectSortingStrategy}
-          >
-            {tools.map(tool => (
-              <SortableToolCard key={tool.id} tool={tool} viewMode={viewMode} isReordering={isReordering} />
-            ))}
-          </SortableContext>
+        {/* Search Bar */}
+        <div className="relative mb-6">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search size={18} className="text-muted" />
+          </div>
+          <input 
+            type="text" 
+            placeholder="Search tools..." 
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              if (e.target.value) setIsReordering(false);
+            }}
+            className="input-field w-full pl-10 bg-white/5 border-white/10 text-sm py-3"
+          />
         </div>
-      </DndContext>
+
+        <DndContext 
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          {viewMode === 'category' ? (
+            <div className="space-y-8 animate-fade-in">
+              {Array.from(new Set(tools.map(t => t.category))).map(cat => {
+                const catTools = tools.filter(t => 
+                  t.category === cat && 
+                  (t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                   t.desc.toLowerCase().includes(searchQuery.toLowerCase()))
+                );
+                
+                if (catTools.length === 0) return null;
+
+                return (
+                  <div key={cat!} className="space-y-4">
+                    <div className="flex items-center space-x-3 px-1">
+                      <div className="h-px bg-white/10 flex-1"></div>
+                      <h3 className="text-sm font-bold text-muted uppercase tracking-widest">{cat}</h3>
+                      <div className="h-px bg-white/10 flex-1"></div>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {catTools.map(tool => (
+                        <SortableToolCard key={tool.id} tool={tool} viewMode="grid" isReordering={false} forceDisableDrag={true} />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className={viewMode === 'list' ? "grid gap-4" : "grid grid-cols-2 md:grid-cols-3 gap-4"}>
+              <SortableContext 
+                items={tools
+                  .filter(t => t.id !== 'https://befday.com/' && (t.title.toLowerCase().includes(searchQuery.toLowerCase()) || t.desc.toLowerCase().includes(searchQuery.toLowerCase())))
+                  .map(t => t.id)}
+                strategy={rectSortingStrategy}
+              >
+                {tools
+                  .filter(t => t.id !== 'https://befday.com/' && (t.title.toLowerCase().includes(searchQuery.toLowerCase()) || t.desc.toLowerCase().includes(searchQuery.toLowerCase())))
+                  .map(tool => (
+                    <SortableToolCard key={tool.id} tool={tool} viewMode={viewMode} isReordering={isReordering} />
+                  ))}
+              </SortableContext>
+              
+              {/* Birthday Claim at the end if it matches search */}
+              {(tools.find(t => t.id === 'https://befday.com/') || DEFAULT_TOOLS.find(t => t.id === 'https://befday.com/')) && 
+               DEFAULT_TOOLS.find(t => t.id === 'https://befday.com/')?.title.toLowerCase().includes(searchQuery.toLowerCase()) && (
+                <SortableToolCard 
+                  key="https://befday.com/" 
+                  tool={DEFAULT_TOOLS.find(t => t.id === 'https://befday.com/')!} 
+                  viewMode={viewMode} 
+                  isReordering={false} 
+                  forceDisableDrag={true} 
+                />
+              )}
+            </div>
+          )}
+        </DndContext>
 
       <div className="mt-8 p-5 bg-primary/5 border border-primary/10 rounded-2xl">
         <div className="flex items-start space-x-4">

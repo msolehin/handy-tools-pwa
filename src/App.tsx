@@ -17,6 +17,14 @@ import BMICalculator from './pages/BMICalculator';
 import GroceryBudget from './pages/GroceryBudget';
 import PackingChecklist from './pages/PackingChecklist';
 import FuelCalculator from './pages/FuelCalculator';
+import UnitConverter from './pages/UnitConverter';
+import CurrencyConverter from './pages/CurrencyConverter';
+import Randomizer from './pages/Randomizer';
+import SubscriptionTracker from './pages/SubscriptionTracker';
+import WaterTracker from './pages/WaterTracker';
+import PaycheckCountdown from './pages/PaycheckCountdown';
+import EmergencyCard from './pages/EmergencyCard';
+import CarpoolSplitter from './pages/CarpoolSplitter';
 
 function App() {
   return (
@@ -39,6 +47,14 @@ function App() {
           <Route path="grocery-budget" element={<GroceryBudget />} />
           <Route path="packing-checklist" element={<PackingChecklist />} />
           <Route path="fuel-calculator" element={<FuelCalculator />} />
+          <Route path="unit-converter" element={<UnitConverter />} />
+          <Route path="currency-converter" element={<CurrencyConverter />} />
+          <Route path="randomizer" element={<Randomizer />} />
+          <Route path="subscription-tracker" element={<SubscriptionTracker />} />
+          <Route path="water-tracker" element={<WaterTracker />} />
+          <Route path="paycheck-countdown" element={<PaycheckCountdown />} />
+          <Route path="emergency-card" element={<EmergencyCard />} />
+          <Route path="carpool-splitter" element={<CarpoolSplitter />} />
         </Route>
       </Routes>
       <Analytics />

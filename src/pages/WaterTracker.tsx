@@ -1,0 +1,237 @@
+import React, { useState, useEffect } from 'react';
+import { Droplets, Undo2, Settings, X, Plus } from 'lucide-react';
+
+interface WaterData {
+  date: string;
+  intake: number;
+  goal: number;
+  history: number[]; // to allow undo
+}
+
+const STORAGE_KEY = 'water_tracker_data';
+
+const getTodayString = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+};
+
+const WaterTracker: React.FC = () => {
+  const [data, setData] = useState<WaterData>({
+    date: getTodayString(),
+    intake: 0,
+    goal: 2500,
+    history: []
+  });
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [tempGoal, setTempGoal] = useState('2500');
+
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as WaterData;
+        if (parsed.date === getTodayString()) {
+          setData(parsed);
+          setTempGoal(parsed.goal.toString());
+        } else {
+          // Reset for a new day
+          const newData = {
+            date: getTodayString(),
+            intake: 0,
+            goal: parsed.goal || 2500,
+            history: []
+          };
+          setData(newData);
+          setTempGoal(newData.goal.toString());
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
+        }
+      } catch (e) {}
+    }
+  }, []);
+
+  const save = (newData: WaterData) => {
+    setData(newData);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
+  };
+
+  const addWater = (amount: number) => {
+    const newData = {
+      ...data,
+      intake: data.intake + amount,
+      history: [...data.history, amount]
+    };
+    save(newData);
+  };
+
+  const undo = () => {
+    if (data.history.length === 0) return;
+    const newHistory = [...data.history];
+    const lastAmount = newHistory.pop() || 0;
+    const newData = {
+      ...data,
+      intake: Math.max(0, data.intake - lastAmount),
+      history: newHistory
+    };
+    save(newData);
+  };
+
+  const saveSettings = () => {
+    const parsed = parseInt(tempGoal);
+    if (!isNaN(parsed) && parsed > 0) {
+      save({ ...data, goal: parsed });
+    }
+    setIsSettingsOpen(false);
+  };
+
+  const percentage = Math.min(100, Math.round((data.intake / data.goal) * 100));
+
+  // CSS wave effect
+  const waveSvg1 = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 88.7'%3E%3Cpath d='M800 56.9c-155.5 0-204.9-50-405.5-49.9-200 0-250 49.9-394.5 49.9v31.8h800v-.2-31.6z' fill='%2360a5fa' opacity='0.4'/%3E%3C/svg%3E`;
+  const waveSvg2 = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 88.7'%3E%3Cpath d='M800 56.9c-155.5 0-204.9-50-405.5-49.9-200 0-250 49.9-394.5 49.9v31.8h800v-.2-31.6z' fill='%233b82f6' opacity='0.6'/%3E%3C/svg%3E`;
+
+  return (
+    <div className="max-w-md mx-auto space-y-6 pb-20 relative min-h-[85vh] flex flex-col">
+      <div className="flex items-center justify-between z-10 relative px-2">
+        <div className="flex items-center space-x-3">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-500/20 text-blue-400">
+            <Droplets size={24} />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-white/90">Hydration</h1>
+            <p className="text-xs text-muted">Daily Goal: {data.goal}ml</p>
+          </div>
+        </div>
+        <button 
+          onClick={() => setIsSettingsOpen(true)}
+          className="p-3 bg-white/5 rounded-xl hover:bg-white/10 text-muted transition-colors"
+        >
+          <Settings size={20} />
+        </button>
+      </div>
+
+      <div className="flex-1 flex flex-col items-center justify-center relative z-10 pointer-events-none mt-10">
+        <h2 className="text-6xl font-black text-white drop-shadow-2xl font-mono tracking-tighter">
+          {data.intake}<span className="text-2xl text-white/70">ml</span>
+        </h2>
+        <p className="text-xl font-bold mt-2 text-blue-200 drop-shadow-md bg-black/20 px-4 py-1 rounded-full backdrop-blur-sm">
+          {percentage}% Complete
+        </p>
+        
+        {data.intake >= data.goal && (
+          <div className="mt-4 px-4 py-2 bg-emerald-500/20 text-emerald-300 font-bold rounded-xl border border-emerald-500/30 animate-fade-in backdrop-blur-md">
+            Goal Reached! 🎉
+          </div>
+        )}
+      </div>
+
+      {/* Quick Add Buttons */}
+      <div className="grid grid-cols-3 gap-3 z-10 relative mt-auto pt-20">
+        <button 
+          onClick={() => addWater(250)}
+          className="glass-panel p-4 flex flex-col items-center justify-center hover:bg-white/10 active:scale-95 transition-all border-blue-500/20 hover:border-blue-400/50"
+        >
+          <Droplets size={20} className="text-blue-300 mb-2" />
+          <span className="font-bold text-sm">+250ml</span>
+        </button>
+        <button 
+          onClick={() => addWater(500)}
+          className="glass-panel p-4 flex flex-col items-center justify-center hover:bg-white/10 active:scale-95 transition-all border-blue-500/30 hover:border-blue-400/50 bg-blue-500/5"
+        >
+          <Droplets size={24} className="text-blue-400 mb-2" />
+          <span className="font-bold text-sm">+500ml</span>
+        </button>
+        <button 
+          onClick={() => addWater(1000)}
+          className="glass-panel p-4 flex flex-col items-center justify-center hover:bg-white/10 active:scale-95 transition-all border-blue-500/40 hover:border-blue-400/50 bg-blue-500/10"
+        >
+          <Droplets size={28} className="text-blue-500 mb-2" />
+          <span className="font-bold text-sm">+1L</span>
+        </button>
+      </div>
+
+      {data.history.length > 0 && (
+        <div className="flex justify-center z-10 relative mt-4">
+          <button 
+            onClick={undo}
+            className="flex items-center space-x-2 px-4 py-2 bg-white/5 rounded-full text-sm font-medium text-muted hover:text-white hover:bg-white/10 transition-colors"
+          >
+            <Undo2 size={16} />
+            <span>Undo Last</span>
+          </button>
+        </div>
+      )}
+
+      {/* Water Fill Animation Background */}
+      <div 
+        className="fixed bottom-0 left-0 right-0 bg-blue-600/30 transition-all duration-[1500ms] ease-[cubic-bezier(0.4,0,0.2,1)] pointer-events-none z-0"
+        style={{ height: `${percentage}%`, minHeight: percentage > 0 ? '5%' : '0%' }}
+      >
+        {/* Waves */}
+        {percentage > 0 && (
+          <>
+            <div 
+              className="absolute w-[200%] h-12 left-0 -top-[47px] bg-repeat-x wave-anim"
+              style={{ backgroundImage: `url("${waveSvg1}")`, backgroundSize: '400px 100%' }}
+            />
+            <div 
+              className="absolute w-[200%] h-12 left-0 -top-[47px] bg-repeat-x wave-anim-fast"
+              style={{ backgroundImage: `url("${waveSvg2}")`, backgroundSize: '400px 100%' }}
+            />
+          </>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-blue-900/80 to-blue-500/20" />
+      </div>
+
+      {/* Settings Modal */}
+      {isSettingsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-surface border border-white/10 p-6 rounded-3xl w-full max-w-sm shadow-2xl relative animate-slide-up">
+            <button 
+              onClick={() => setIsSettingsOpen(false)}
+              className="absolute top-4 right-4 p-2 text-muted hover:text-white bg-white/5 rounded-full transition-colors"
+            >
+              <X size={18} />
+            </button>
+            
+            <h2 className="text-xl font-bold mb-6">Settings</h2>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">Daily Goal (ml)</label>
+                <input 
+                  type="number"
+                  inputMode="numeric"
+                  value={tempGoal} 
+                  onChange={e => setTempGoal(e.target.value)}
+                  className="input-field w-full text-xl font-mono text-center"
+                />
+              </div>
+              <button 
+                onClick={saveSettings}
+                className="w-full btn-primary bg-blue-500 hover:bg-blue-600 mt-6"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes wave {
+          0% { transform: translateX(0) translateZ(0); }
+          50% { transform: translateX(-25%) translateZ(0); }
+          100% { transform: translateX(-50%) translateZ(0); }
+        }
+        .wave-anim {
+          animation: wave 10s linear infinite;
+        }
+        .wave-anim-fast {
+          animation: wave 7s linear infinite reverse;
+        }
+      `}} />
+    </div>
+  );
+};
+
+export default WaterTracker;

@@ -28,6 +28,7 @@ const AffordabilityCalculator: React.FC = () => {
   let percentage = 0;
   let hoursNeeded = 0;
   let daysNeeded = 0;
+  let affordabilityStatus = { text: '', color: '' };
 
   if (sVal > 0 && pVal > 0) {
     percentage = (pVal / sVal) * 100;
@@ -35,6 +36,12 @@ const AffordabilityCalculator: React.FC = () => {
     const hourlyWage = sVal / (20 * hpdVal);
     hoursNeeded = pVal / hourlyWage;
     daysNeeded = hoursNeeded / hpdVal;
+      
+    if (percentage <= 10) affordabilityStatus = { text: 'Easily Affordable', color: 'text-green-400 bg-green-500/10 border-green-500/30' };
+    else if (percentage <= 25) affordabilityStatus = { text: 'Affordable', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30' };
+    else if (percentage <= 50) affordabilityStatus = { text: 'Think Twice', color: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30' };
+    else if (percentage <= 100) affordabilityStatus = { text: 'Not Recommended', color: 'text-orange-400 bg-orange-500/10 border-orange-500/30' };
+    else affordabilityStatus = { text: 'Not Affordable', color: 'text-red-400 bg-red-500/10 border-red-500/30' };
   }
 
   return (
@@ -131,7 +138,12 @@ const AffordabilityCalculator: React.FC = () => {
             <div className="absolute top-0 right-0 p-12 bg-green-500/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
             <div className="absolute bottom-0 left-0 p-12 bg-accent/5 rounded-full blur-3xl -ml-10 -mb-10 pointer-events-none" />
             
-            <h3 className="font-semibold text-lg text-center mb-4">The True Cost</h3>
+            <div className="flex flex-col items-center justify-center mb-6 z-10 relative">
+              <h3 className="font-semibold text-lg text-center mb-3">The True Cost</h3>
+              <div className={`px-4 py-1.5 rounded-full border text-sm font-bold tracking-wide uppercase shadow-sm ${affordabilityStatus.color}`}>
+                {affordabilityStatus.text}
+              </div>
+            </div>
             
             <div className="flex flex-col space-y-4 relative z-10">
               <div className="flex items-center space-x-4 bg-black/20 p-4 rounded-xl">

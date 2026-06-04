@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { 
   Home, FileImage, MapPin, PieChart, Timer, Wallet, Users, Calendar, 
-  Landmark, ShieldAlert, Wrench, Plane, Activity, MoreHorizontal, X, ShoppingCart, Briefcase, Fuel
+  Landmark, ShieldAlert, Wrench, Plane, Activity, MoreHorizontal, X, ShoppingCart, Briefcase, Fuel, ArrowRightLeft, Banknote, Gift, Dices, Repeat, Droplets, HeartPulse, Car
 } from 'lucide-react';
 
 const Layout: React.FC = () => {
@@ -21,6 +21,15 @@ const Layout: React.FC = () => {
     { to: "/grocery-budget", icon: ShoppingCart, label: "Grocery" },
     { to: "/packing-checklist", icon: Briefcase, label: "Packing" },
     { to: "/fuel-calculator", icon: Fuel, label: "Fuel" },
+    { to: "/unit-converter", icon: ArrowRightLeft, label: "Units" },
+    { to: "/currency-converter", icon: Banknote, label: "Currency" },
+    { to: "/randomizer", icon: Dices, label: "Random" },
+    { to: "/subscription-tracker", icon: Repeat, label: "Subs" },
+    { to: "/water-tracker", icon: Droplets, label: "Water" },
+    { to: "/paycheck-countdown", icon: Wallet, label: "Payday" },
+    { to: "/emergency-card", icon: HeartPulse, label: "Medical" },
+    { to: "/carpool-splitter", icon: Car, label: "Carpool" },
+    { to: "https://befday.com/", icon: Gift, label: "Birthday" },
   ];
 
   // Check if current route is in the "more" menu so we can highlight the "Others" tab
@@ -146,6 +155,21 @@ const Layout: React.FC = () => {
               <div className="grid grid-cols-4 gap-y-6 gap-x-2">
                 {moreTools.map((tool, idx) => {
                   const Icon = tool.icon;
+                  if (tool.to.startsWith('http')) {
+                    return (
+                      <a
+                        key={idx}
+                        href={tool.to}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setShowMoreMenu(false)}
+                        className="flex flex-col items-center p-3 rounded-2xl transition-all duration-200 bg-white/5 text-muted hover:bg-white/10 hover:text-white"
+                      >
+                        <Icon size={26} className="mb-2" />
+                        <span className="text-[10px] font-medium text-center">{tool.label}</span>
+                      </a>
+                    );
+                  }
                   const isActive = location.pathname === tool.to;
                   return (
                     <NavLink
