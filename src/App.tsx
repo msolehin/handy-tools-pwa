@@ -25,6 +25,8 @@ import WaterTracker from './pages/WaterTracker';
 import PaycheckCountdown from './pages/PaycheckCountdown';
 import EmergencyCard from './pages/EmergencyCard';
 import CarpoolSplitter from './pages/CarpoolSplitter';
+import ChecklistTemplate from './pages/ChecklistTemplate';
+import DebtTracker from './pages/DebtTracker';
 
 function App() {
   return (
@@ -55,6 +57,8 @@ function App() {
           <Route path="paycheck-countdown" element={<PaycheckCountdown />} />
           <Route path="emergency-card" element={<EmergencyCard />} />
           <Route path="carpool-splitter" element={<CarpoolSplitter />} />
+          <Route path="checklists" element={<ChecklistTemplate />} />
+          <Route path="debt-tracker" element={<DebtTracker />} />
         </Route>
       </Routes>
       <Analytics />
