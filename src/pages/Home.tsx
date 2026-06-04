@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   FileImage, MapPin, ArrowRight, Shield, PieChart, Timer, Wallet, 
   Users, Calendar, Landmark, ShieldAlert, Wrench, Plane, Activity,
-  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, Briefcase, Fuel, Gift, ArrowRightLeft, Banknote, Dices, Repeat, Droplets, Layers, Search, HeartPulse, Car, ListChecks, HandCoins, Utensils, Gauge, ChevronDown, ChevronUp
+  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, Briefcase, Fuel, Gift, ArrowRightLeft, Banknote, Dices, Repeat, Droplets, Layers, Search, HeartPulse, Car, ListChecks, HandCoins, Utensils, Gauge, ChevronDown, ChevronUp, Sparkles
 } from 'lucide-react';
 import { 
   DndContext, 
@@ -148,7 +148,7 @@ export const DEFAULT_TOOLS = [
   }
 ];
 
-const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag }: { tool: typeof DEFAULT_TOOLS[0], viewMode: 'list' | 'grid', isReordering: boolean, forceDisableDrag?: boolean }) => {
+const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag, animationsEnabled = true }: { tool: typeof DEFAULT_TOOLS[0], viewMode: 'list' | 'grid', isReordering: boolean, forceDisableDrag?: boolean, animationsEnabled?: boolean }) => {
   const {
     attributes,
     listeners,
@@ -300,17 +300,17 @@ const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag }: { 
             {debtTotal > 0 && (
               <div className="absolute inset-0 stripes-anim opacity-70 z-0" />
             )}
-            {tool.id === '/document-expiry' && (
+            {animationsEnabled && tool.id === '/document-expiry' && (
               <div className="absolute inset-0 overflow-hidden z-0 opacity-50 pointer-events-none">
                 <div className="absolute left-0 right-0 h-[2px] blur-[1px] bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.8)] scan-line-anim" style={{ top: '10%' }} />
               </div>
             )}
-            {tool.id === '/countdown' && (
+            {animationsEnabled && tool.id === '/countdown' && (
               <div className="absolute inset-0 overflow-hidden z-0 opacity-40 pointer-events-none">
                 <div className="absolute -inset-[100%] spin-slow-anim" style={{ background: 'conic-gradient(from 0deg, transparent 0%, transparent 80%, rgba(236,72,153,0.4) 100%)' }} />
               </div>
             )}
-            {tool.id === '/pace-calculator' && (
+            {animationsEnabled && tool.id === '/pace-calculator' && (
               <>
                 <div className="absolute inset-0 overflow-hidden z-0 opacity-30 pointer-events-none flex flex-col justify-evenly py-4 -skew-x-[15deg]">
                   <div className="w-full h-[2px] run-track-anim" />
@@ -327,7 +327,7 @@ const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag }: { 
                 </div>
               </>
             )}
-            {tool.id === '/randomizer' && (
+            {animationsEnabled && tool.id === '/randomizer' && (
               <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-40">
                 <div className="absolute top-[40%] left-[20%] text-2xl tumble-anim-1 drop-shadow-md">🎲</div>
                 <div className="absolute top-[30%] right-[20%] font-black text-2xl text-purple-200 tumble-anim-2 drop-shadow-md">7</div>
@@ -335,7 +335,7 @@ const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag }: { 
                 <div className="absolute top-[60%] right-[40%] text-2xl tumble-anim-4 drop-shadow-md">🪙</div>
               </div>
             )}
-            {tool.id === '/trip-budget' && (
+            {animationsEnabled && tool.id === '/trip-budget' && (
               <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-50 text-cyan-400">
                 <div className="wind-line wind-1" />
                 <div className="wind-line wind-2" />
@@ -343,25 +343,25 @@ const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag }: { 
                 <div className="absolute top-[30%] right-0 text-2xl flight-anim drop-shadow-md">✈️</div>
               </div>
             )}
-            {tool.id === '/speedometer' && (
+            {animationsEnabled && tool.id === '/speedometer' && (
               <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-30">
                 <div className="absolute bottom-[20%] left-[50%] w-1 h-[40%] bg-rose-500 rounded-t-full needle-anim drop-shadow-sm -translate-x-1/2" />
                 <div className="absolute bottom-[18%] left-[50%] w-3 h-3 bg-rose-600 rounded-full -translate-x-1/2" />
               </div>
             )}
-            {tool.id === '/speed-test' && (
+            {animationsEnabled && tool.id === '/speed-test' && (
               <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none text-blue-500">
                 <div className="absolute bottom-0 left-0 right-0 h-1/2 speed-graph-anim" />
               </div>
             )}
-            {tool.id === '/grocery-budget' && (
+            {animationsEnabled && tool.id === '/grocery-budget' && (
               <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-50">
                 <div className="absolute top-0 left-[20%] text-xl item-drop-1 drop-shadow-md">🍎</div>
                 <div className="absolute top-0 left-[50%] text-xl item-drop-2 drop-shadow-md">🥦</div>
                 <div className="absolute top-0 right-[20%] text-xl item-drop-3 drop-shadow-md">🍞</div>
               </div>
             )}
-            {tool.id === '/parking' && (
+            {animationsEnabled && tool.id === '/parking' && (
               <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-60">
                 <div className="absolute bottom-[40%] left-[50%] -translate-x-1/2">
                   <div className="text-3xl pin-drop-anim drop-shadow-md">📍</div>
@@ -371,7 +371,7 @@ const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag }: { 
                 </div>
               </div>
             )}
-            {tool.id === '/decision-maker' && (
+            {animationsEnabled && tool.id === '/decision-maker' && (
               <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-40 flex items-center justify-end pr-6">
                 <div className="relative w-16 h-16">
                   <div className="w-full h-full spin-wheel-anim shadow-[0_0_15px_rgba(0,0,0,0.2)] border-[3px] border-white/30" />
@@ -379,7 +379,7 @@ const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag }: { 
                 </div>
               </div>
             )}
-            {tool.id === 'https://befday.com/' && (
+            {animationsEnabled && tool.id === 'https://befday.com/' && (
               <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-60">
                 <div className="absolute top-[50%] left-[10%] text-2xl tumble-anim-1 drop-shadow-md">🎈</div>
                 <div className="absolute top-[20%] right-[30%] text-xl item-drop-1 drop-shadow-md">🎊</div>
@@ -434,17 +434,17 @@ const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag }: { 
           {debtTotal > 0 && (
             <div className="absolute inset-0 stripes-anim opacity-70 z-0" />
           )}
-          {tool.id === '/document-expiry' && (
+          {animationsEnabled && tool.id === '/document-expiry' && (
             <div className="absolute inset-0 overflow-hidden z-0 opacity-50 pointer-events-none">
               <div className="absolute left-0 right-0 h-[2px] blur-[1px] bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.8)] scan-line-anim" style={{ top: '10%' }} />
             </div>
           )}
-          {tool.id === '/countdown' && (
+          {animationsEnabled && tool.id === '/countdown' && (
             <div className="absolute inset-0 overflow-hidden z-0 opacity-40 pointer-events-none">
               <div className="absolute -inset-[100%] spin-slow-anim" style={{ background: 'conic-gradient(from 0deg, transparent 0%, transparent 80%, rgba(236,72,153,0.4) 100%)' }} />
             </div>
           )}
-          {tool.id === '/pace-calculator' && (
+          {animationsEnabled && tool.id === '/pace-calculator' && (
             <>
               <div className="absolute inset-0 overflow-hidden z-0 opacity-30 pointer-events-none flex flex-col justify-evenly py-4 -skew-x-[15deg]">
                 <div className="w-full h-[2px] run-track-anim" />
@@ -461,7 +461,7 @@ const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag }: { 
               </div>
             </>
           )}
-          {tool.id === '/randomizer' && (
+          {animationsEnabled && tool.id === '/randomizer' && (
             <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-40">
               <div className="absolute top-[40%] left-[20%] text-3xl tumble-anim-1 drop-shadow-md">🎲</div>
               <div className="absolute top-[30%] right-[20%] font-black text-3xl text-purple-200 tumble-anim-2 drop-shadow-md">7</div>
@@ -469,7 +469,7 @@ const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag }: { 
               <div className="absolute top-[60%] right-[40%] text-3xl tumble-anim-4 drop-shadow-md">🪙</div>
             </div>
           )}
-          {tool.id === '/trip-budget' && (
+          {animationsEnabled && tool.id === '/trip-budget' && (
             <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-50 text-cyan-400">
               <div className="wind-line wind-1" />
               <div className="wind-line wind-2" />
@@ -477,25 +477,25 @@ const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag }: { 
               <div className="absolute top-[40%] right-0 text-3xl flight-anim drop-shadow-md">✈️</div>
             </div>
           )}
-          {tool.id === '/speedometer' && (
+          {animationsEnabled && tool.id === '/speedometer' && (
             <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-30">
               <div className="absolute bottom-[20%] left-[50%] w-1 h-[40%] bg-rose-500 rounded-t-full needle-anim drop-shadow-sm -translate-x-1/2" />
               <div className="absolute bottom-[18%] left-[50%] w-3 h-3 bg-rose-600 rounded-full -translate-x-1/2" />
             </div>
           )}
-          {tool.id === '/speed-test' && (
+          {animationsEnabled && tool.id === '/speed-test' && (
             <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none text-blue-500">
               <div className="absolute bottom-0 left-0 right-0 h-1/2 speed-graph-anim" />
             </div>
           )}
-          {tool.id === '/grocery-budget' && (
+          {animationsEnabled && tool.id === '/grocery-budget' && (
             <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-50">
               <div className="absolute top-0 left-[20%] text-2xl item-drop-1 drop-shadow-md">🍎</div>
               <div className="absolute top-0 left-[50%] text-2xl item-drop-2 drop-shadow-md">🥦</div>
               <div className="absolute top-0 right-[20%] text-2xl item-drop-3 drop-shadow-md">🍞</div>
             </div>
           )}
-          {tool.id === '/parking' && (
+          {animationsEnabled && tool.id === '/parking' && (
             <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-60">
               <div className="absolute bottom-[40%] left-[50%] -translate-x-1/2">
                 <div className="text-3xl pin-drop-anim drop-shadow-md">📍</div>
@@ -505,7 +505,7 @@ const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag }: { 
               </div>
             </div>
           )}
-          {tool.id === '/decision-maker' && (
+          {animationsEnabled && tool.id === '/decision-maker' && (
             <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-40 flex items-center justify-center translate-y-4">
               <div className="relative w-24 h-24">
                 <div className="w-full h-full spin-wheel-anim shadow-[0_0_15px_rgba(0,0,0,0.2)] border-[4px] border-white/30" />
@@ -513,7 +513,7 @@ const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag }: { 
               </div>
             </div>
           )}
-          {tool.id === 'https://befday.com/' && (
+          {animationsEnabled && tool.id === 'https://befday.com/' && (
             <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-60">
               <div className="absolute top-[50%] left-[10%] text-3xl tumble-anim-1 drop-shadow-md">🎈</div>
               <div className="absolute top-[20%] right-[30%] text-2xl item-drop-1 drop-shadow-md">🎊</div>
@@ -548,11 +548,19 @@ const Home: React.FC = () => {
     return (localStorage.getItem('home_view_mode') as 'list' | 'grid' | 'category') || 'list';
   });
   const [isReordering, setIsReordering] = useState(false);
+  const [animationsEnabled, setAnimationsEnabled] = useState(() => {
+    const saved = localStorage.getItem('handy-animations');
+    return saved ? JSON.parse(saved) : true;
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [isAlertsExpanded, setIsAlertsExpanded] = useState(false);
   
   const navigate = useNavigate();
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
+
+  useEffect(() => {
+    localStorage.setItem('handy-animations', JSON.stringify(animationsEnabled));
+  }, [animationsEnabled]);
 
   const [tools, setTools] = useState(() => {
     const savedOrder = localStorage.getItem('home_tool_order');
@@ -813,7 +821,7 @@ const Home: React.FC = () => {
                             : 'bg-pink-500/10 border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.15)]'
                 }`}
               >
-                {alert.type === 'document' && (
+                {animationsEnabled && alert.type === 'document' && (
                   <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none">
                     <div 
                       className={`absolute left-0 right-0 h-[2px] blur-[1px] scan-line-anim ${
@@ -823,12 +831,12 @@ const Home: React.FC = () => {
                     />
                   </div>
                 )}
-                {alert.type === 'event' && (
+                {animationsEnabled && alert.type === 'event' && (
                   <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-50">
                     <div className="absolute -inset-[100%] spin-slow-anim" style={{ background: 'conic-gradient(from 0deg, transparent 0%, transparent 80%, rgba(236,72,153,0.4) 100%)' }} />
                   </div>
                 )}
-                {alert.type === 'water' && alert.percentage !== undefined && alert.percentage > 0 && (
+                {animationsEnabled && alert.type === 'water' && alert.percentage !== undefined && alert.percentage > 0 && (
                   <div 
                     className="absolute bottom-0 left-0 right-0 bg-blue-600/30 transition-all duration-[1500ms] ease-out z-0" 
                     style={{ height: `${Math.min(90, alert.percentage)}%`, minHeight: '10%' }} 
@@ -837,7 +845,7 @@ const Home: React.FC = () => {
                     <div className="absolute w-[200%] h-6 left-0 -top-[23px] bg-repeat-x wave-anim-fast" style={{ backgroundImage: `url("${waveSvg2}")`, backgroundSize: '200px 100%' }} />
                   </div>
                 )}
-                {alert.type === 'payday' && alert.percentage !== undefined && alert.percentage > 0 && (
+                {animationsEnabled && alert.type === 'payday' && alert.percentage !== undefined && alert.percentage > 0 && (
                   <div 
                     className="absolute top-0 left-0 bottom-0 bg-emerald-500/10 transition-all duration-1000 ease-out z-0 border-r border-emerald-500/30 overflow-hidden" 
                     style={{ width: `${alert.percentage}%`, minWidth: '5%' }} 
@@ -846,7 +854,7 @@ const Home: React.FC = () => {
                     <div className="absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-r from-transparent to-emerald-500/20" />
                   </div>
                 )}
-                {alert.type === 'debt' && (
+                {animationsEnabled && alert.type === 'debt' && (
                   <div className="absolute inset-0 stripes-anim opacity-70 z-0" />
                 )}
                 
@@ -901,19 +909,34 @@ const Home: React.FC = () => {
         </section>
         <div className="flex flex-col items-end space-y-2">
             {/* Reorder Button */}
-            {viewMode !== 'category' && !searchQuery && (
-              <button 
-                onClick={() => setIsReordering(!isReordering)}
-                className={`p-2 rounded-xl transition-all border flex items-center justify-center ${
-                  isReordering 
-                    ? 'bg-rose-500/20 border-rose-500/50 text-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.3)]' 
-                    : 'bg-surface border-text/10 text-muted hover:bg-text/5 hover:text-text'
-                }`}
-                title="Reorder Tools"
-              >
-                <ArrowUpDown size={20} className={isReordering ? 'animate-pulse' : ''} />
-              </button>
-            )}    
+            <div className="flex items-center space-x-2">
+              {viewMode !== 'category' && !searchQuery && (
+                <button 
+                  onClick={() => setAnimationsEnabled(!animationsEnabled)}
+                  className={`p-2 rounded-xl transition-all border flex items-center justify-center ${
+                    animationsEnabled 
+                      ? 'bg-blue-500/20 border-blue-500/50 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.3)]' 
+                      : 'bg-surface border-text/10 text-muted hover:bg-text/5 hover:text-text'
+                  }`}
+                  title="Toggle Animations"
+                >
+                  <Sparkles size={20} className={animationsEnabled ? 'animate-pulse' : ''} />
+                </button>
+              )}
+              {viewMode !== 'category' && !searchQuery && (
+                <button 
+                  onClick={() => setIsReordering(!isReordering)}
+                  className={`p-2 rounded-xl transition-all border flex items-center justify-center ${
+                    isReordering 
+                      ? 'bg-rose-500/20 border-rose-500/50 text-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.3)]' 
+                      : 'bg-surface border-text/10 text-muted hover:bg-text/5 hover:text-text'
+                  }`}
+                  title="Reorder Tools"
+                >
+                  <ArrowUpDown size={20} className={isReordering ? 'animate-pulse' : ''} />
+                </button>
+              )}
+            </div>
              
 
             {/* View Mode Toggle */}
@@ -988,7 +1011,8 @@ const Home: React.FC = () => {
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {catTools.map(tool => (
-                        <SortableToolCard key={tool.id} tool={tool} viewMode="grid" isReordering={false} forceDisableDrag={true} />
+                        <SortableToolCard key={tool.id} tool={tool} viewMode="grid" isReordering={false} forceDisableDrag={true}
+                  animationsEnabled={animationsEnabled} />
                       ))}
                     </div>
                   </div>
@@ -1006,7 +1030,7 @@ const Home: React.FC = () => {
                 {tools
                   .filter(t => t.id !== 'https://befday.com/' && (t.title.toLowerCase().includes(searchQuery.toLowerCase()) || t.desc.toLowerCase().includes(searchQuery.toLowerCase())))
                   .map(tool => (
-                    <SortableToolCard key={tool.id} tool={tool} viewMode={viewMode} isReordering={isReordering} />
+                    <SortableToolCard key={tool.id} tool={tool} viewMode={viewMode} isReordering={isReordering} animationsEnabled={animationsEnabled} />
                   ))}
               </SortableContext>
               
@@ -1018,7 +1042,8 @@ const Home: React.FC = () => {
                   tool={DEFAULT_TOOLS.find(t => t.id === 'https://befday.com/')!} 
                   viewMode={viewMode} 
                   isReordering={false} 
-                  forceDisableDrag={true} 
+                  forceDisableDrag={true}
+                  animationsEnabled={animationsEnabled} 
                 />
               )}
             </div>
