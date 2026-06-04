@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Droplets, Undo2, Settings, X, Plus } from 'lucide-react';
+import { Droplets, Undo2, Settings, X } from 'lucide-react';
 
 interface WaterData {
   date: string;

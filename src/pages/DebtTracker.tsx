@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { HandCoins, Users, Receipt, UserPlus, Trash2, ArrowRight, CheckSquare, Square, Plus, Check, X } from 'lucide-react';
+import { HandCoins, Users, UserPlus, Trash2, ArrowRight, CheckSquare, Square, Plus, X } from 'lucide-react';
 
 interface Member {
   id: string;

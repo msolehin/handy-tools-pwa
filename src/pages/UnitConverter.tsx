@@ -67,7 +67,7 @@ const CATEGORIES: Record<CategoryId, CategoryDef> = {
   }
 };
 
-const UnitConverter: React.ReactFC = () => {
+const UnitConverter: React.FC = () => {
   const [category, setCategory] = useState<CategoryId>('length');
   const [unitFrom, setUnitFrom] = useState('m');
   const [unitTo, setUnitTo] = useState('ft');
