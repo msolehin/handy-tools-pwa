@@ -276,7 +276,7 @@ const ICScanner: React.FC = () => {
             </button>
             <button onClick={(e) => { e.stopPropagation(); onFile(); }} className="flex flex-col items-center p-3 bg-text/5 rounded-xl hover:bg-text/10 transition-colors border border-text/10">
               <Upload className="text-primary mb-2" size={24} />
-              <span className="text-xs font-medium">Upload</span>
+              <span className="text-xs font-medium">Insert Image</span>
             </button>
           </div>
         </>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { 
   Home, FileImage, MapPin, PieChart, Timer, Wallet, Users, Calendar, 
-  Landmark, ShieldAlert, Wrench, Plane, Activity, MoreHorizontal, X, ShoppingCart, Briefcase, Fuel, ArrowRightLeft, Banknote, Gift, Dices, Repeat, Droplets, HeartPulse, Car, ListChecks, HandCoins, Utensils, Sun, Moon, Zap
+  Landmark, ShieldAlert, Wrench, Plane, Activity, MoreHorizontal, X, ShoppingCart, Briefcase, Fuel, ArrowRightLeft, Banknote, Gift, Dices, Repeat, Droplets, HeartPulse, Car, ListChecks, HandCoins, Utensils, Sun, Moon
 } from 'lucide-react';
 
 const Layout: React.FC = () => {
@@ -53,7 +53,7 @@ const Layout: React.FC = () => {
   const isMoreActive = moreTools.some(t => location.pathname === t.to);
 
   return (
-    <div className="flex flex-col min-h-screen bg-background text-text">
+    <div className="flex flex-col min-h-screen max-w-md mx-auto w-full bg-background text-text shadow-[0_0_40px_rgba(0,0,0,0.15)] dark:shadow-[0_0_40px_rgba(0,0,0,0.5)] relative">
       {/* Top Navbar */}
       <header className="sticky top-0 z-40 glass-panel rounded-none border-x-0 border-t-0 rounded-b-2xl">
         <div className="max-w-md mx-auto px-6 py-4 flex items-center justify-between">
@@ -85,7 +85,7 @@ const Layout: React.FC = () => {
       </main>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40">
+      <nav className="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-md z-40">
         <div className="max-w-md mx-auto mb-4 px-4">
           <div className="glass-panel flex justify-between items-center p-2">
             <NavLink

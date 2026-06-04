@@ -27,7 +27,10 @@
   }
 
   body {
-    @apply bg-background text-text font-sans antialiased transition-colors duration-300;
+    @apply bg-[#050505] text-text font-sans antialiased transition-colors duration-300;
+  }
+  html.light body {
+    @apply bg-slate-200;
   }
 }
 
