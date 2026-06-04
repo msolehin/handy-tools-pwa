@@ -34,6 +34,7 @@ const GroupSplitBill: React.FC = () => {
   const [txAmount, setTxAmount] = useState('');
   const [txPaidBy, setTxPaidBy] = useState('you');
   const [txSplitIds, setTxSplitIds] = useState<string[]>(['you']);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // Load state
   useEffect(() => {
@@ -55,12 +56,15 @@ const GroupSplitBill: React.FC = () => {
         } catch (e) {}
       }
     }
+    setIsLoaded(true);
   }, []);
 
   // Save state
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ members, transactions }));
-  }, [members, transactions]);
+    if (isLoaded) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ members, transactions }));
+    }
+  }, [members, transactions, isLoaded]);
 
   const generateId = () => Math.random().toString(36).substring(2, 9);
 

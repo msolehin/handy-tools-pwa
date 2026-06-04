@@ -65,3 +65,205 @@
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-text/20;
 }
+
+@keyframes wave {
+  0% { transform: translateX(0) translateZ(0); }
+  50% { transform: translateX(-25%) translateZ(0); }
+  100% { transform: translateX(-50%) translateZ(0); }
+}
+.wave-anim {
+  animation: wave 10s linear infinite;
+}
+.wave-anim-fast {
+  animation: wave 7s linear infinite reverse;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%) skewX(-15deg); }
+  100% { transform: translateX(300%) skewX(-15deg); }
+}
+.shimmer-anim {
+  animation: shimmer 2.5s infinite linear;
+}
+
+@keyframes stripes-move {
+  0% { background-position: 0 0; }
+  100% { background-position: 28px 0; }
+}
+.stripes-anim {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(244, 63, 94, 0.15),
+    rgba(244, 63, 94, 0.15) 10px,
+    transparent 10px,
+    transparent 20px
+  );
+  background-size: 28px 28px;
+  animation: stripes-move 1s linear infinite;
+}
+
+@keyframes scan-line {
+  0% { transform: translateY(-100%); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(400%); opacity: 0; }
+}
+.scan-line-anim {
+  animation: scan-line 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes spin-slow {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.spin-slow-anim {
+  animation: spin-slow 4s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes run-track {
+  0% { background-position: 40px 0; }
+  100% { background-position: 0 0; }
+}
+.run-track-anim {
+  background-image: linear-gradient(90deg, rgba(96, 165, 250, 0.5) 50%, transparent 50%);
+  background-size: 40px 2px;
+  background-repeat: repeat-x;
+  animation: run-track 0.4s linear infinite;
+}
+
+@keyframes runner-bounce {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-4px) rotate(5deg); }
+}
+.runner-bounce {
+  animation: runner-bounce 0.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  display: inline-block;
+}
+
+@keyframes tumble-up {
+  0% { transform: translateY(30px) rotate(0deg) scale(0.5); opacity: 0; }
+  20% { opacity: 0.7; }
+  80% { opacity: 0.7; }
+  100% { transform: translateY(-60px) rotate(360deg) scale(1.2); opacity: 0; }
+}
+@keyframes tumble-up-reverse {
+  0% { transform: translateY(30px) rotate(0deg) scale(0.5); opacity: 0; }
+  20% { opacity: 0.7; }
+  80% { opacity: 0.7; }
+  100% { transform: translateY(-50px) rotate(-360deg) scale(1); opacity: 0; }
+}
+
+.tumble-anim-1 { animation: tumble-up 3.5s infinite ease-out; }
+.tumble-anim-2 { animation: tumble-up-reverse 4s infinite ease-out; animation-delay: 1.2s; }
+.tumble-anim-3 { animation: tumble-up 3.8s infinite ease-out; animation-delay: 2.5s; }
+.tumble-anim-4 { animation: tumble-up-reverse 3.6s infinite ease-out; animation-delay: 0.6s; }
+
+/* Trip Budget */
+@keyframes flight-move {
+  0% { transform: rotate(20deg) translateX(250px) scaleX(-1); }
+  50% { transform: rotate(20deg) translateX(0px) scaleX(-1) translateY(-10px); }
+  100% { transform: rotate(20deg) translateX(-250px) scaleX(-1); }
+}
+.flight-anim { animation: flight-move 4s linear infinite; }
+
+@keyframes wind-move {
+  0% { transform: rotate(20deg) translateX(150px); opacity: 0; }
+  10% { opacity: 0.4; }
+  90% { opacity: 0.4; }
+  100% { transform: rotate(20deg) translateX(-250px); opacity: 0; }
+}
+.wind-line {
+  animation: wind-move 2s linear infinite;
+  background: currentColor;
+  height: 2px;
+  border-radius: 2px;
+  position: absolute;
+}
+.wind-1 { width: 40px; animation-delay: 0.2s; top: 30%; right: 20%; }
+.wind-2 { width: 70px; animation-delay: 0.8s; top: 60%; right: 10%; }
+.wind-3 { width: 30px; animation-delay: 1.5s; top: 80%; right: 30%; }
+
+/* Spin Wheel */
+@keyframes spin-wheel-stop {
+  0% { transform: rotate(0deg); }
+  60% { transform: rotate(1080deg); }
+  100% { transform: rotate(1080deg); }
+}
+.spin-wheel-anim {
+  background: conic-gradient(
+    rgba(248, 113, 113, 0.8) 0deg 60deg,
+    rgba(251, 191, 36, 0.8) 60deg 120deg,
+    rgba(52, 211, 153, 0.8) 120deg 180deg,
+    rgba(96, 165, 250, 0.8) 180deg 240deg,
+    rgba(167, 139, 250, 0.8) 240deg 300deg,
+    rgba(244, 114, 182, 0.8) 300deg 360deg
+  );
+  border-radius: 50%;
+  animation: spin-wheel-stop 4s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+}
+.spin-wheel-marker {
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 12px solid white;
+  z-index: 10;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3));
+}
+
+/* Speedometer */
+@keyframes needle-spin {
+  0% { transform: rotate(-45deg); }
+  20% { transform: rotate(60deg); }
+  40% { transform: rotate(20deg); }
+  60% { transform: rotate(100deg); }
+  80% { transform: rotate(45deg); }
+  100% { transform: rotate(-45deg); }
+}
+.needle-anim {
+  animation: needle-spin 4s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+  transform-origin: bottom center;
+}
+
+/* Speed Test */
+@keyframes speed-graph {
+  0% { background-position: 0 0; }
+  100% { background-position: -40px 0; }
+}
+.speed-graph-anim {
+  background-image: repeating-linear-gradient(90deg, currentColor 0px, currentColor 15px, transparent 15px, transparent 40px);
+  background-size: 40px 100%;
+  animation: speed-graph 0.5s linear infinite;
+  opacity: 0.2;
+}
+
+/* Grocery Budget */
+@keyframes item-drop {
+  0% { transform: translateY(-30px) scale(0.5) rotate(-20deg); opacity: 0; }
+  20% { opacity: 1; }
+  70% { transform: translateY(20px) scale(1) rotate(10deg); opacity: 1; }
+  100% { transform: translateY(40px) scale(0.8) rotate(20deg); opacity: 0; }
+}
+.item-drop-1 { animation: item-drop 2.5s infinite; }
+.item-drop-2 { animation: item-drop 2.8s infinite; animation-delay: 0.8s; }
+.item-drop-3 { animation: item-drop 2.2s infinite; animation-delay: 1.5s; }
+
+/* Parking Locator */
+@keyframes pin-drop {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+.pin-drop-anim { animation: pin-drop 1.5s ease-in-out infinite; }
+
+@keyframes car-drive {
+  0% { transform: translateX(-100px) scaleX(-1); opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translateX(100px) scaleX(-1); opacity: 0; }
+}
+.car-drive-anim { animation: car-drive 3.5s ease-in-out infinite; display: inline-block; }

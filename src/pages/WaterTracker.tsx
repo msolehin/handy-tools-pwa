@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Droplets, Undo2, Settings, X } from 'lucide-react';
+import { Droplets, Undo2, Settings, X, RotateCcw } from 'lucide-react';
 
 interface WaterData {
   date: string;
@@ -73,6 +73,17 @@ const WaterTracker: React.FC = () => {
       history: newHistory
     };
     save(newData);
+  };
+
+  const reset = () => {
+    if (window.confirm('Are you sure you want to reset your water intake for today?')) {
+      const newData = {
+        ...data,
+        intake: 0,
+        history: []
+      };
+      save(newData);
+    }
   };
 
   const saveSettings = () => {
@@ -149,22 +160,33 @@ const WaterTracker: React.FC = () => {
         </button>
       </div>
 
-      {data.history.length > 0 && (
-        <div className="flex justify-center z-10 relative mt-4">
-          <button 
-            onClick={undo}
-            className="flex items-center space-x-2 px-4 py-2 bg-text/5 rounded-full text-sm font-medium text-muted hover:text-text hover:bg-text/10 transition-colors"
-          >
-            <Undo2 size={16} />
-            <span>Undo Last</span>
-          </button>
+      {(data.history.length > 0 || data.intake > 0) && (
+        <div className="flex justify-center space-x-3 z-10 relative mt-4">
+          {data.history.length > 0 && (
+            <button 
+              onClick={undo}
+              className="flex items-center space-x-2 px-4 py-2 bg-text/5 rounded-full text-sm font-medium text-muted hover:text-text hover:bg-text/10 transition-colors"
+            >
+              <Undo2 size={16} />
+              <span>Undo</span>
+            </button>
+          )}
+          {data.intake > 0 && (
+            <button 
+              onClick={reset}
+              className="flex items-center space-x-2 px-4 py-2 bg-rose-500/10 text-rose-400 rounded-full text-sm font-medium hover:bg-rose-500/20 transition-colors border border-rose-500/20"
+            >
+              <RotateCcw size={16} />
+              <span>Reset</span>
+            </button>
+          )}
         </div>
       )}
 
       {/* Water Fill Animation Background */}
       <div 
         className="fixed bottom-0 left-0 right-0 bg-blue-600/30 transition-all duration-[1500ms] ease-[cubic-bezier(0.4,0,0.2,1)] pointer-events-none z-0"
-        style={{ height: `${percentage}%`, minHeight: percentage > 0 ? '5%' : '0%' }}
+        style={{ height: `${Math.min(95, percentage)}%`, minHeight: percentage > 0 ? '5%' : '0%' }}
       >
         {/* Waves */}
         {percentage > 0 && (

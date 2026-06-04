@@ -19,6 +19,7 @@ const DebtTracker: React.FC = () => {
   const [iouDesc, setIouDesc] = useState('');
   const [iouAmount, setIouAmount] = useState('');
   const [iouType, setIouType] = useState<'owe_me' | 'i_owe'>('owe_me');
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -36,11 +37,14 @@ const DebtTracker: React.FC = () => {
         } catch (e) {}
       }
     }
+    setIsLoaded(true);
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(ious));
-  }, [ious]);
+    if (isLoaded) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(ious));
+    }
+  }, [ious, isLoaded]);
 
   const generateId = () => Math.random().toString(36).substring(2, 9);
 

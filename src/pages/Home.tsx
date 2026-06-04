@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   FileImage, MapPin, ArrowRight, Shield, PieChart, Timer, Wallet, 
   Users, Calendar, Landmark, ShieldAlert, Wrench, Plane, Activity,
-  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, Briefcase, Fuel, Gift, ArrowRightLeft, Banknote, Dices, Repeat, Droplets, Layers, Search, HeartPulse, Car, ListChecks, HandCoins, Utensils, Gauge
+  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, Briefcase, Fuel, Gift, ArrowRightLeft, Banknote, Dices, Repeat, Droplets, Layers, Search, HeartPulse, Car, ListChecks, HandCoins, Utensils, Gauge, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { 
   DndContext, 
@@ -95,7 +95,7 @@ export const DEFAULT_TOOLS = [
     borderClass: 'hover:border-emerald-400/50 hover:shadow-emerald-400/20', iconBgClass: 'bg-emerald-500/20 text-emerald-400', arrowClass: 'group-hover:text-emerald-400'
   },
   { 
-    id: '/randomizer', to: '/randomizer', title: 'Randomizer', desc: 'Coin, Dice, and Numbers', Icon: Dices, category: 'Fun',
+    id: '/randomizer', to: '/randomizer', title: 'Randomizer', desc: 'Coin, Dice, Numbers and Bottle', Icon: Dices, category: 'Fun',
     borderClass: 'hover:border-rose-400/50 hover:shadow-rose-400/20', iconBgClass: 'bg-rose-500/20 text-rose-400', arrowClass: 'group-hover:text-rose-400'
   },
   { 
@@ -199,6 +199,72 @@ const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag }: { 
 
   const Icon = tool.Icon;
   
+  // Calculate water percentage if this is the water tracker tool
+  let waterPercentage = 0;
+  if (tool.id === '/water-tracker') {
+    const waterStr = localStorage.getItem('water_tracker_data');
+    if (waterStr) {
+      try {
+        const water = JSON.parse(waterStr);
+        const d = new Date();
+        const todayStr = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+        if (water.date === todayStr && typeof water.intake === 'number') {
+          const goal = water.goal || 2500;
+          waterPercentage = Math.min(100, Math.max(0, (water.intake / goal) * 100));
+        }
+      } catch(e) {}
+    }
+  }
+
+  // Calculate payday percentage
+  let paydayPercentage = 0;
+  if (tool.id === '/paycheck-countdown') {
+    const paydayStr = localStorage.getItem('paycheck_config');
+    if (paydayStr) {
+      try {
+        const config = JSON.parse(paydayStr);
+        const t = new Date();
+        t.setHours(0, 0, 0, 0);
+        let nextDate;
+        let cycleDays = 30;
+        if (config.type === 'monthly') {
+          nextDate = new Date(t.getFullYear(), t.getMonth(), config.dayOfMonth);
+          if (t.getTime() >= nextDate.getTime()) {
+            nextDate.setMonth(nextDate.getMonth() + 1);
+          }
+        } else {
+          cycleDays = 14;
+          const ref = new Date(config.referenceDate);
+          ref.setHours(0, 0, 0, 0);
+          if (t.getTime() < ref.getTime()) {
+            nextDate = ref;
+          } else {
+            const msPer14Days = 14 * 24 * 60 * 60 * 1000;
+            const diff = t.getTime() - ref.getTime();
+            const periodsPassed = Math.floor(diff / msPer14Days);
+            nextDate = new Date(ref.getTime() + (periodsPassed + 1) * msPer14Days);
+          }
+        }
+        nextDate.setHours(0, 0, 0, 0);
+        const diffTime = nextDate.getTime() - t.getTime();
+        const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        paydayPercentage = Math.max(0, Math.min(100, 100 - (daysLeft / cycleDays) * 100));
+      } catch (e) {}
+    }
+  }
+
+  // Calculate debt total
+  let debtTotal = 0;
+  if (tool.id === '/debt-tracker') {
+    const debtStr = localStorage.getItem('debt_tracker_ious');
+    if (debtStr) {
+      try {
+        const ious = JSON.parse(debtStr);
+        debtTotal = ious.filter((i: any) => i.type === 'i_owe' && !i.isSettled).reduce((acc: number, curr: any) => acc + curr.amount, 0);
+      } catch (e) {}
+    }
+  }
+
   // Choose which props to pass for drag
   const dragProps = isReordering ? { ...attributes, ...listeners } : {};
 
@@ -212,8 +278,116 @@ const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag }: { 
         onPointerUpCapture={handlePointerUp}
       >
         <div className={`block group ${isReordering ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}>
-          <div className={`glass-panel p-6 flex items-center justify-between transition-all duration-300 ${tool.borderClass}`}>
-            <div className="flex items-center space-x-4">
+          <div className={`glass-panel p-6 flex items-center justify-between transition-all duration-300 ${tool.borderClass} relative overflow-hidden`}>
+            {waterPercentage > 0 && (
+              <div 
+                className="absolute bottom-0 left-0 right-0 bg-blue-600/30 transition-all duration-[1500ms] ease-out z-0" 
+                style={{ height: `${Math.min(90, waterPercentage)}%`, minHeight: '10%' }} 
+              >
+                <div className="absolute w-[200%] h-6 left-0 -top-[23px] bg-repeat-x wave-anim" style={{ backgroundImage: `url("${waveSvg1}")`, backgroundSize: '200px 100%' }} />
+                <div className="absolute w-[200%] h-6 left-0 -top-[23px] bg-repeat-x wave-anim-fast" style={{ backgroundImage: `url("${waveSvg2}")`, backgroundSize: '200px 100%' }} />
+              </div>
+            )}
+            {paydayPercentage > 0 && (
+              <div 
+                className="absolute top-0 left-0 bottom-0 bg-emerald-500/10 transition-all duration-1000 ease-out z-0 border-r border-emerald-500/30 overflow-hidden" 
+                style={{ width: `${paydayPercentage}%`, minWidth: '5%' }} 
+              >
+                <div className="absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-transparent via-emerald-400/20 to-transparent shimmer-anim" />
+                <div className="absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-r from-transparent to-emerald-500/20" />
+              </div>
+            )}
+            {debtTotal > 0 && (
+              <div className="absolute inset-0 stripes-anim opacity-70 z-0" />
+            )}
+            {tool.id === '/document-expiry' && (
+              <div className="absolute inset-0 overflow-hidden z-0 opacity-50 pointer-events-none">
+                <div className="absolute left-0 right-0 h-[2px] blur-[1px] bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.8)] scan-line-anim" style={{ top: '10%' }} />
+              </div>
+            )}
+            {tool.id === '/countdown' && (
+              <div className="absolute inset-0 overflow-hidden z-0 opacity-40 pointer-events-none">
+                <div className="absolute -inset-[100%] spin-slow-anim" style={{ background: 'conic-gradient(from 0deg, transparent 0%, transparent 80%, rgba(236,72,153,0.4) 100%)' }} />
+              </div>
+            )}
+            {tool.id === '/pace-calculator' && (
+              <>
+                <div className="absolute inset-0 overflow-hidden z-0 opacity-30 pointer-events-none flex flex-col justify-evenly py-4 -skew-x-[15deg]">
+                  <div className="w-full h-[2px] run-track-anim" />
+                  <div className="w-full h-[2px] run-track-anim" />
+                  <div className="w-full h-[2px] run-track-anim" />
+                </div>
+                <div className="absolute inset-0 z-0 pointer-events-none flex flex-col justify-evenly py-4">
+                  <div className="h-[2px]" />
+                  <div className="h-[2px] relative">
+                    <div className="absolute left-[35%] -top-[24px] text-2xl runner-bounce drop-shadow-sm">🏃</div>
+                    <div className="absolute left-[65%] -top-[20px] text-xl runner-bounce drop-shadow-sm" style={{ animationDelay: '0.2s', filter: 'brightness(0.9)' }}>🏃‍♀️</div>
+                  </div>
+                  <div className="h-[2px]" />
+                </div>
+              </>
+            )}
+            {tool.id === '/randomizer' && (
+              <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-40">
+                <div className="absolute top-[40%] left-[20%] text-2xl tumble-anim-1 drop-shadow-md">🎲</div>
+                <div className="absolute top-[30%] right-[20%] font-black text-2xl text-purple-200 tumble-anim-2 drop-shadow-md">7</div>
+                <div className="absolute top-[50%] left-[60%] text-2xl tumble-anim-3 drop-shadow-md">🍾</div>
+                <div className="absolute top-[60%] right-[40%] text-2xl tumble-anim-4 drop-shadow-md">🪙</div>
+              </div>
+            )}
+            {tool.id === '/trip-budget' && (
+              <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-50 text-cyan-400">
+                <div className="wind-line wind-1" />
+                <div className="wind-line wind-2" />
+                <div className="wind-line wind-3" />
+                <div className="absolute top-[30%] right-0 text-2xl flight-anim drop-shadow-md">✈️</div>
+              </div>
+            )}
+            {tool.id === '/speedometer' && (
+              <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-30">
+                <div className="absolute bottom-[20%] left-[50%] w-1 h-[40%] bg-rose-500 rounded-t-full needle-anim drop-shadow-sm -translate-x-1/2" />
+                <div className="absolute bottom-[18%] left-[50%] w-3 h-3 bg-rose-600 rounded-full -translate-x-1/2" />
+              </div>
+            )}
+            {tool.id === '/speed-test' && (
+              <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none text-blue-500">
+                <div className="absolute bottom-0 left-0 right-0 h-1/2 speed-graph-anim" />
+              </div>
+            )}
+            {tool.id === '/grocery-budget' && (
+              <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-50">
+                <div className="absolute top-0 left-[20%] text-xl item-drop-1 drop-shadow-md">🍎</div>
+                <div className="absolute top-0 left-[50%] text-xl item-drop-2 drop-shadow-md">🥦</div>
+                <div className="absolute top-0 right-[20%] text-xl item-drop-3 drop-shadow-md">🍞</div>
+              </div>
+            )}
+            {tool.id === '/parking' && (
+              <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-60">
+                <div className="absolute bottom-[40%] left-[50%] -translate-x-1/2">
+                  <div className="text-3xl pin-drop-anim drop-shadow-md">📍</div>
+                </div>
+                <div className="absolute bottom-[15%] left-[50%] -translate-x-1/2">
+                  <div className="text-2xl car-drive-anim drop-shadow-md">🚗</div>
+                </div>
+              </div>
+            )}
+            {tool.id === '/decision-maker' && (
+              <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-40 flex items-center justify-end pr-6">
+                <div className="relative w-16 h-16">
+                  <div className="w-full h-full spin-wheel-anim shadow-[0_0_15px_rgba(0,0,0,0.2)] border-[3px] border-white/30" />
+                  <div className="spin-wheel-marker" />
+                </div>
+              </div>
+            )}
+            {tool.id === 'https://befday.com/' && (
+              <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-60">
+                <div className="absolute top-[50%] left-[10%] text-2xl tumble-anim-1 drop-shadow-md">🎈</div>
+                <div className="absolute top-[20%] right-[30%] text-xl item-drop-1 drop-shadow-md">🎊</div>
+                <div className="absolute top-[60%] right-[10%] text-2xl tumble-anim-2 drop-shadow-md">🎁</div>
+                <div className="absolute top-[10%] left-[40%] text-lg item-drop-2 drop-shadow-md">🎉</div>
+              </div>
+            )}
+            <div className="flex items-center space-x-4 relative z-10">
               <div className={`p-3 rounded-xl group-hover:scale-110 transition-transform ${tool.iconBgClass}`}>
                 <Icon size={28} />
               </div>
@@ -222,7 +396,7 @@ const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag }: { 
                 <p className="text-sm text-muted">{tool.desc}</p>
               </div>
             </div>
-            <ArrowRight className={`text-muted transition-colors ${tool.arrowClass}`} />
+            <ArrowRight className={`text-muted transition-colors ${tool.arrowClass} relative z-10`} />
           </div>
         </div>
       </div>
@@ -238,11 +412,119 @@ const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag }: { 
       onPointerUpCapture={handlePointerUp}
     >
       <div className={`block h-full group ${isReordering ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}>
-        <div className={`glass-panel p-5 flex flex-col items-center justify-center text-center h-full transition-all duration-300 ${tool.borderClass}`}>
-          <div className={`p-4 rounded-2xl mb-4 group-hover:scale-110 transition-transform ${tool.iconBgClass}`}>
+        <div className={`glass-panel p-5 flex flex-col items-center justify-center text-center h-full transition-all duration-300 ${tool.borderClass} relative overflow-hidden`}>
+          {waterPercentage > 0 && (
+            <div 
+              className="absolute bottom-0 left-0 right-0 bg-blue-600/30 transition-all duration-[1500ms] ease-out z-0" 
+              style={{ height: `${Math.min(90, waterPercentage)}%`, minHeight: '10%' }} 
+            >
+              <div className="absolute w-[200%] h-6 left-0 -top-[23px] bg-repeat-x wave-anim" style={{ backgroundImage: `url("${waveSvg1}")`, backgroundSize: '200px 100%' }} />
+              <div className="absolute w-[200%] h-6 left-0 -top-[23px] bg-repeat-x wave-anim-fast" style={{ backgroundImage: `url("${waveSvg2}")`, backgroundSize: '200px 100%' }} />
+            </div>
+          )}
+          {paydayPercentage > 0 && (
+            <div 
+              className="absolute top-0 left-0 bottom-0 bg-emerald-500/10 transition-all duration-1000 ease-out z-0 border-r border-emerald-500/30 overflow-hidden" 
+              style={{ width: `${paydayPercentage}%`, minWidth: '5%' }} 
+            >
+              <div className="absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-transparent via-emerald-400/20 to-transparent shimmer-anim" />
+              <div className="absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-r from-transparent to-emerald-500/20" />
+            </div>
+          )}
+          {debtTotal > 0 && (
+            <div className="absolute inset-0 stripes-anim opacity-70 z-0" />
+          )}
+          {tool.id === '/document-expiry' && (
+            <div className="absolute inset-0 overflow-hidden z-0 opacity-50 pointer-events-none">
+              <div className="absolute left-0 right-0 h-[2px] blur-[1px] bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.8)] scan-line-anim" style={{ top: '10%' }} />
+            </div>
+          )}
+          {tool.id === '/countdown' && (
+            <div className="absolute inset-0 overflow-hidden z-0 opacity-40 pointer-events-none">
+              <div className="absolute -inset-[100%] spin-slow-anim" style={{ background: 'conic-gradient(from 0deg, transparent 0%, transparent 80%, rgba(236,72,153,0.4) 100%)' }} />
+            </div>
+          )}
+          {tool.id === '/pace-calculator' && (
+            <>
+              <div className="absolute inset-0 overflow-hidden z-0 opacity-30 pointer-events-none flex flex-col justify-evenly py-4 -skew-x-[15deg]">
+                <div className="w-full h-[2px] run-track-anim" />
+                <div className="w-full h-[2px] run-track-anim" />
+                <div className="w-full h-[2px] run-track-anim" />
+              </div>
+              <div className="absolute inset-0 z-0 pointer-events-none flex flex-col justify-evenly py-4">
+                <div className="h-[2px]" />
+                <div className="h-[2px] relative">
+                  <div className="absolute left-[35%] -top-[24px] text-2xl runner-bounce drop-shadow-sm">🏃</div>
+                  <div className="absolute left-[65%] -top-[20px] text-xl runner-bounce drop-shadow-sm" style={{ animationDelay: '0.2s', filter: 'brightness(0.9)' }}>🏃‍♀️</div>
+                </div>
+                <div className="h-[2px]" />
+              </div>
+            </>
+          )}
+          {tool.id === '/randomizer' && (
+            <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-40">
+              <div className="absolute top-[40%] left-[20%] text-3xl tumble-anim-1 drop-shadow-md">🎲</div>
+              <div className="absolute top-[30%] right-[20%] font-black text-3xl text-purple-200 tumble-anim-2 drop-shadow-md">7</div>
+              <div className="absolute top-[50%] left-[60%] text-3xl tumble-anim-3 drop-shadow-md">🍾</div>
+              <div className="absolute top-[60%] right-[40%] text-3xl tumble-anim-4 drop-shadow-md">🪙</div>
+            </div>
+          )}
+          {tool.id === '/trip-budget' && (
+            <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-50 text-cyan-400">
+              <div className="wind-line wind-1" />
+              <div className="wind-line wind-2" />
+              <div className="wind-line wind-3" />
+              <div className="absolute top-[40%] right-0 text-3xl flight-anim drop-shadow-md">✈️</div>
+            </div>
+          )}
+          {tool.id === '/speedometer' && (
+            <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-30">
+              <div className="absolute bottom-[20%] left-[50%] w-1 h-[40%] bg-rose-500 rounded-t-full needle-anim drop-shadow-sm -translate-x-1/2" />
+              <div className="absolute bottom-[18%] left-[50%] w-3 h-3 bg-rose-600 rounded-full -translate-x-1/2" />
+            </div>
+          )}
+          {tool.id === '/speed-test' && (
+            <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none text-blue-500">
+              <div className="absolute bottom-0 left-0 right-0 h-1/2 speed-graph-anim" />
+            </div>
+          )}
+          {tool.id === '/grocery-budget' && (
+            <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-50">
+              <div className="absolute top-0 left-[20%] text-2xl item-drop-1 drop-shadow-md">🍎</div>
+              <div className="absolute top-0 left-[50%] text-2xl item-drop-2 drop-shadow-md">🥦</div>
+              <div className="absolute top-0 right-[20%] text-2xl item-drop-3 drop-shadow-md">🍞</div>
+            </div>
+          )}
+          {tool.id === '/parking' && (
+            <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-60">
+              <div className="absolute bottom-[40%] left-[50%] -translate-x-1/2">
+                <div className="text-3xl pin-drop-anim drop-shadow-md">📍</div>
+              </div>
+              <div className="absolute bottom-[15%] left-[50%] -translate-x-1/2">
+                <div className="text-2xl car-drive-anim drop-shadow-md">🚗</div>
+              </div>
+            </div>
+          )}
+          {tool.id === '/decision-maker' && (
+            <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-40 flex items-center justify-center translate-y-4">
+              <div className="relative w-24 h-24">
+                <div className="w-full h-full spin-wheel-anim shadow-[0_0_15px_rgba(0,0,0,0.2)] border-[4px] border-white/30" />
+                <div className="spin-wheel-marker" />
+              </div>
+            </div>
+          )}
+          {tool.id === 'https://befday.com/' && (
+            <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-60">
+              <div className="absolute top-[50%] left-[10%] text-3xl tumble-anim-1 drop-shadow-md">🎈</div>
+              <div className="absolute top-[20%] right-[30%] text-2xl item-drop-1 drop-shadow-md">🎊</div>
+              <div className="absolute top-[60%] right-[10%] text-3xl tumble-anim-2 drop-shadow-md">🎁</div>
+              <div className="absolute top-[10%] left-[40%] text-2xl item-drop-2 drop-shadow-md">🎉</div>
+            </div>
+          )}
+          <div className={`p-4 rounded-2xl mb-4 group-hover:scale-110 transition-transform ${tool.iconBgClass} relative z-10`}>
             <Icon size={32} />
           </div>
-          <h3 className="font-bold text-sm leading-tight">{tool.title}</h3>
+          <h3 className="font-bold text-sm leading-tight relative z-10">{tool.title}</h3>
         </div>
       </div>
     </div>
@@ -251,11 +533,15 @@ const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag }: { 
 
 interface AlertItem {
   id: string;
-  type: 'document' | 'event' | 'subscription';
+  type: 'document' | 'event' | 'subscription' | 'payday' | 'water' | 'debt';
   title: string;
   daysLeft: number;
   to: string;
+  percentage?: number;
 }
+
+const waveSvg1 = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 88.7'%3E%3Cpath d='M800 56.9c-155.5 0-204.9-50-405.5-49.9-200 0-250 49.9-394.5 49.9v31.8h800v-.2-31.6z' fill='%2360a5fa' opacity='0.4'/%3E%3C/svg%3E`;
+const waveSvg2 = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 88.7'%3E%3Cpath d='M800 56.9c-155.5 0-204.9-50-405.5-49.9-200 0-250 49.9-394.5 49.9v31.8h800v-.2-31.6z' fill='%233b82f6' opacity='0.6'/%3E%3C/svg%3E`;
 
 const Home: React.FC = () => {
   const [viewMode, setViewMode] = useState<'list' | 'grid' | 'category'>(() => {
@@ -263,6 +549,7 @@ const Home: React.FC = () => {
   });
   const [isReordering, setIsReordering] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isAlertsExpanded, setIsAlertsExpanded] = useState(false);
   
   const navigate = useNavigate();
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
@@ -366,6 +653,93 @@ const Home: React.FC = () => {
       } catch (e) {}
     }
 
+    // 4. Payday Countdown
+    const paydayStr = localStorage.getItem('paycheck_config');
+    if (paydayStr) {
+      try {
+        const config = JSON.parse(paydayStr);
+        const getNextPayday = (conf: any) => {
+          const t = new Date();
+          if (conf.type === 'monthly') {
+            const candidate = new Date(t.getFullYear(), t.getMonth(), conf.dayOfMonth);
+            if (t.getTime() >= candidate.getTime()) {
+              candidate.setMonth(candidate.getMonth() + 1);
+            }
+            return candidate;
+          } else {
+            const ref = new Date(conf.referenceDate);
+            ref.setHours(0, 0, 0, 0);
+            if (t.getTime() < ref.getTime()) return ref;
+            const msPer14Days = 14 * 24 * 60 * 60 * 1000;
+            const diff = t.getTime() - ref.getTime();
+            const periodsPassed = Math.floor(diff / msPer14Days);
+            return new Date(ref.getTime() + (periodsPassed + 1) * msPer14Days);
+          }
+        };
+        const nextDate = getNextPayday(config);
+        const days = getDaysLeft(nextDate.toISOString().split('T')[0]);
+        if (days >= 0 && days <= 7) {
+          const cycleDays = config.type === 'monthly' ? 30 : 14;
+          const percentage = Math.max(0, Math.min(100, 100 - (days / cycleDays) * 100));
+          newAlerts.push({
+            id: 'payday',
+            type: 'payday',
+            title: `Next in ${days} Days`,
+            daysLeft: days,
+            percentage,
+            to: '/paycheck-countdown'
+          });
+        }
+      } catch (e) {}
+    }
+
+    // 5. Water Tracker
+    const waterStr = localStorage.getItem('water_tracker_data');
+    if (waterStr) {
+      try {
+        const water = JSON.parse(waterStr);
+        const d = new Date();
+        const todayStr = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+        
+        const goal = water.goal || 2500;
+        let consumed = 0;
+        if (water.date === todayStr && typeof water.intake === 'number') {
+          consumed = water.intake;
+        }
+        
+        // Show if not completed, or just show as summary
+        if (consumed < goal) {
+          const percentage = Math.min(100, Math.max(0, (consumed / goal) * 100));
+          newAlerts.push({
+            id: 'water',
+            type: 'water',
+            title: `${consumed} / ${goal} ml`,
+            daysLeft: 0,
+            percentage,
+            to: '/water-tracker'
+          });
+        }
+      } catch (e) {}
+    }
+
+    // 6. Debt Tracker
+    const debtStr = localStorage.getItem('debt_tracker_ious');
+    if (debtStr) {
+      try {
+        const ious = JSON.parse(debtStr);
+        const totalOwed = ious.filter((i: any) => i.type === 'i_owe' && !i.isSettled).reduce((acc: number, curr: any) => acc + curr.amount, 0);
+        if (totalOwed > 0) {
+          newAlerts.push({
+            id: 'debt',
+            type: 'debt',
+            title: `RM${totalOwed.toFixed(2)}`,
+            daysLeft: 0,
+            to: '/debt-tracker'
+          });
+        }
+      } catch (e) {}
+    }
+
     newAlerts.sort((a, b) => a.daysLeft - b.daysLeft);
     setAlerts(newAlerts);
   }, []);
@@ -404,47 +778,110 @@ const Home: React.FC = () => {
       {/* Alerts Section */}
       {alerts.length > 0 && (
         <div className="mt-4 mb-2 space-y-3">
-          <div className="flex items-center space-x-2 text-text/80 mb-2 px-1">
-            <Bell size={18} className="text-yellow-400 animate-pulse" />
-            <h3 className="font-bold text-sm">Action Needed</h3>
+          <div 
+            className="flex items-center justify-between text-text/80 mb-2 px-1 cursor-pointer hover:text-text transition-colors"
+            onClick={() => setIsAlertsExpanded(!isAlertsExpanded)}
+          >
+            <div className="flex items-center space-x-2">
+              <Bell size={18} className="text-yellow-400 animate-pulse" />
+              <h3 className="font-bold text-sm">Action Needed <span className="text-muted text-xs font-normal ml-1">({alerts.length})</span></h3>
+            </div>
+            <button className="p-1 rounded-full bg-text/5 hover:bg-text/10 text-muted transition-colors">
+              {isAlertsExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
           </div>
-          <div className="flex overflow-x-auto gap-3 pb-2 custom-scrollbar snap-x">
+          <div className={`flex gap-3 pb-2 transition-all ${isAlertsExpanded ? 'flex-col' : 'overflow-x-auto custom-scrollbar snap-x'}`}>
             {alerts.map(alert => (
               <div 
                 key={alert.id}
                 onClick={() => navigate(alert.to)}
-                className={`shrink-0 w-[220px] snap-start cursor-pointer p-4 rounded-2xl border transition-all hover:scale-[1.02] ${
+                className={`shrink-0 cursor-pointer p-4 rounded-2xl border transition-all hover:scale-[1.02] relative overflow-hidden ${
+                  isAlertsExpanded ? 'w-full' : 'w-[220px] snap-start'
+                } ${
                   alert.type === 'document' 
                     ? alert.daysLeft < 0 
                       ? 'bg-red-500/10 border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.15)]' 
                       : 'bg-yellow-500/10 border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.1)]'
                     : alert.type === 'subscription'
                       ? 'bg-indigo-500/10 border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)]'
-                      : 'bg-pink-500/10 border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.15)]'
+                      : alert.type === 'payday'
+                        ? 'bg-emerald-500/10 border-emerald-500/30 shadow-[0_0_15px_rgba(52,211,153,0.15)]'
+                        : alert.type === 'water'
+                          ? 'bg-blue-500/10 border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.15)]'
+                          : alert.type === 'debt'
+                            ? 'bg-rose-500/10 border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.15)]'
+                            : 'bg-pink-500/10 border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.15)]'
                 }`}
               >
-                <div className="flex items-start justify-between">
+                {alert.type === 'document' && (
+                  <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none">
+                    <div 
+                      className={`absolute left-0 right-0 h-[2px] blur-[1px] scan-line-anim ${
+                        alert.daysLeft < 0 ? 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,1)]' : 'bg-yellow-400 shadow-[0_0_12px_rgba(250,204,21,1)]'
+                      }`} 
+                      style={{ top: '10%' }}
+                    />
+                  </div>
+                )}
+                {alert.type === 'event' && (
+                  <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-50">
+                    <div className="absolute -inset-[100%] spin-slow-anim" style={{ background: 'conic-gradient(from 0deg, transparent 0%, transparent 80%, rgba(236,72,153,0.4) 100%)' }} />
+                  </div>
+                )}
+                {alert.type === 'water' && alert.percentage !== undefined && alert.percentage > 0 && (
+                  <div 
+                    className="absolute bottom-0 left-0 right-0 bg-blue-600/30 transition-all duration-[1500ms] ease-out z-0" 
+                    style={{ height: `${Math.min(90, alert.percentage)}%`, minHeight: '10%' }} 
+                  >
+                    <div className="absolute w-[200%] h-6 left-0 -top-[23px] bg-repeat-x wave-anim" style={{ backgroundImage: `url("${waveSvg1}")`, backgroundSize: '200px 100%' }} />
+                    <div className="absolute w-[200%] h-6 left-0 -top-[23px] bg-repeat-x wave-anim-fast" style={{ backgroundImage: `url("${waveSvg2}")`, backgroundSize: '200px 100%' }} />
+                  </div>
+                )}
+                {alert.type === 'payday' && alert.percentage !== undefined && alert.percentage > 0 && (
+                  <div 
+                    className="absolute top-0 left-0 bottom-0 bg-emerald-500/10 transition-all duration-1000 ease-out z-0 border-r border-emerald-500/30 overflow-hidden" 
+                    style={{ width: `${alert.percentage}%`, minWidth: '5%' }} 
+                  >
+                    <div className="absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-transparent via-emerald-400/20 to-transparent shimmer-anim" />
+                    <div className="absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-r from-transparent to-emerald-500/20" />
+                  </div>
+                )}
+                {alert.type === 'debt' && (
+                  <div className="absolute inset-0 stripes-anim opacity-70 z-0" />
+                )}
+                
+                <div className="flex items-start justify-between relative z-10">
                   <div className="flex items-center space-x-2 mb-2">
                     {alert.type === 'document' ? (
                       <ShieldAlert size={20} className={alert.daysLeft < 0 ? 'text-red-400' : 'text-yellow-400'} />
                     ) : alert.type === 'subscription' ? (
                       <Repeat size={20} className="text-indigo-400" />
+                    ) : alert.type === 'payday' ? (
+                      <Wallet size={20} className="text-emerald-400" />
+                    ) : alert.type === 'water' ? (
+                      <Droplets size={20} className="text-blue-400" />
+                    ) : alert.type === 'debt' ? (
+                      <HandCoins size={20} className="text-rose-400" />
                     ) : (
                       <Calendar size={20} className="text-pink-400" />
                     )}
                     <span className="text-[10px] font-bold text-text/60 uppercase tracking-wider">{alert.type}</span>
                   </div>
                 </div>
-                <div className="flex-1 min-w-0 pr-4">
+                <div className="flex-1 min-w-0 pr-4 relative z-10">
                   <p className="font-bold text-[13px] text-text truncate leading-tight mb-1">
-                    {alert.type === 'document' ? 'Renew: ' : alert.type === 'subscription' ? 'Due: ' : ''}{alert.title}
+                    {alert.type === 'document' ? 'Renew: ' : alert.type === 'subscription' ? 'Due: ' : alert.type === 'payday' ? 'Payday: ' : alert.type === 'water' ? 'Water: ' : alert.type === 'debt' ? 'Owe: ' : ''}{alert.title}
                   </p>
                   <p className={`text-[11px] font-medium leading-none ${
                     alert.type === 'document' 
                       ? alert.daysLeft < 0 ? 'text-red-400' : 'text-yellow-400'
-                      : alert.type === 'subscription' ? 'text-indigo-400' : 'text-pink-400'
+                      : alert.type === 'subscription' ? 'text-indigo-400'
+                      : alert.type === 'payday' ? 'text-emerald-400'
+                      : alert.type === 'water' ? 'text-blue-400' 
+                      : alert.type === 'debt' ? 'text-rose-400'
+                      : 'text-pink-400'
                   }`}>
-                    {alert.daysLeft < 0 
+                    {alert.type === 'water' ? 'Drink up!' : alert.type === 'debt' ? 'Action Required' : alert.daysLeft < 0 
                       ? `Expired ${Math.abs(alert.daysLeft)} days ago` 
                       : alert.daysLeft === 0 
                         ? 'Today!' 
@@ -476,7 +913,8 @@ const Home: React.FC = () => {
               >
                 <ArrowUpDown size={20} className={isReordering ? 'animate-pulse' : ''} />
               </button>
-            )}
+            )}    
+             
 
             {/* View Mode Toggle */}
             <div className="flex bg-text/5 p-1 rounded-xl">
