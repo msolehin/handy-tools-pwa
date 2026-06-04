@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   FileImage, MapPin, ArrowRight, Shield, PieChart, Timer, Wallet, 
   Users, Calendar, Landmark, ShieldAlert, Wrench, Plane, Activity,
-  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, Briefcase, Fuel, Gift, ArrowRightLeft, Banknote, Dices, Repeat, Droplets, Layers, Search, HeartPulse, Car, ListChecks, HandCoins, Utensils, Gauge, ChevronDown, ChevronUp, Sparkles, Heart
+  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, Briefcase, Fuel, Gift, ArrowRightLeft, Banknote, Dices, Repeat, Droplets, Layers, Search, HeartPulse, Car, ListChecks, HandCoins, Utensils, Gauge, ChevronDown, ChevronUp, Sparkles, Heart, ArrowDownAZ
 } from 'lucide-react';
 import { 
   DndContext, 
@@ -103,7 +103,7 @@ export const DEFAULT_TOOLS = [
     borderClass: 'hover:border-indigo-400/50 hover:shadow-indigo-400/20', iconBgClass: 'bg-indigo-500/20 text-indigo-400', arrowClass: 'group-hover:text-indigo-400'
   },
   { 
-    id: '/water-tracker', to: '/water-tracker', title: 'Water Tracker', desc: 'Hydration with fluid animations', Icon: Droplets, category: 'Health & Fitness',
+    id: '/water-tracker', to: '/water-tracker', title: 'Drink', desc: 'Hydration with fluid animations', Icon: Droplets, category: 'Health & Fitness',
     borderClass: 'hover:border-blue-400/50 hover:shadow-blue-400/20', iconBgClass: 'bg-blue-500/20 text-blue-400', arrowClass: 'group-hover:text-blue-400'
   },
   { 
@@ -610,8 +610,8 @@ const waveSvg2 = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' v
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
-  const [viewMode, setViewMode] = useState<'list' | 'grid' | 'category'>(() => {
-    return (localStorage.getItem('home_view_mode') as 'list' | 'grid' | 'category') || 'list';
+  const [viewMode, setViewMode] = useState<'list' | 'grid' | 'category' | 'alphabet'>(() => {
+    return (localStorage.getItem('home_view_mode') as 'list' | 'grid' | 'category' | 'alphabet') || 'list';
   });
   const [isReordering, setIsReordering] = useState(false);
   const [animationsEnabled, setAnimationsEnabled] = useState(() => {
@@ -1055,8 +1055,8 @@ const Home: React.FC = () => {
                   <Sparkles size={20} className={animationsEnabled ? 'animate-pulse' : ''} />
                 </button>
               )}
-              {viewMode !== 'category' && !searchQuery && (
-                <button 
+              {viewMode !== 'category' && viewMode !== 'alphabet' && !searchQuery && (
+                <button
                   onClick={() => setIsReordering(!isReordering)}
                   className={`p-2 rounded-xl transition-all border flex items-center justify-center ${
                     isReordering 
@@ -1087,7 +1087,7 @@ const Home: React.FC = () => {
               >
                 <LayoutGrid size={18} />
               </button>
-              <button 
+              <button
                 onClick={() => {
                   setViewMode('category');
                   setIsReordering(false); // disable reordering in category mode
@@ -1096,6 +1096,16 @@ const Home: React.FC = () => {
                 title="Category View"
               >
                 <Layers size={18} />
+              </button>
+              <button
+                onClick={() => {
+                  setViewMode('alphabet');
+                  setIsReordering(false); // disable reordering in alphabet mode
+                }}
+                className={`p-2 rounded-lg transition-all ${viewMode === 'alphabet' ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'}`}
+                title="Sort A–Z"
+              >
+                <ArrowDownAZ size={18} />
               </button>
             </div>
           </div>
@@ -1154,6 +1164,32 @@ const Home: React.FC = () => {
                   </div>
                 );
               })}
+            </div>
+          ) : viewMode === 'alphabet' ? (
+            <div className="space-y-4 animate-fade-in">
+              <div className="flex items-center space-x-3 px-1">
+                <div className="h-px bg-text/10 flex-1"></div>
+                <h3 className="text-sm font-bold text-muted uppercase tracking-widest">All Tools (A–Z)</h3>
+                <div className="h-px bg-text/10 flex-1"></div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {[...tools]
+                  .filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase()) || t.desc.toLowerCase().includes(searchQuery.toLowerCase()))
+                  .sort((a, b) => a.title.localeCompare(b.title))
+                  .map(tool => (
+                    <SortableToolCard
+                      key={tool.id}
+                      tool={tool}
+                      viewMode="grid"
+                      isReordering={false}
+                      forceDisableDrag={true}
+                      animationsEnabled={animationsEnabled}
+                      isFavorite={favorites.includes(tool.id)}
+                      onToggleFavorite={toggleFavorite}
+                      onToolClick={handleToolClick}
+                    />
+                  ))}
+              </div>
             </div>
           ) : (
             <div className="space-y-8">
