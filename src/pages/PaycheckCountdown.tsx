@@ -166,7 +166,8 @@ const PaycheckCountdown: React.FC = () => {
               cy="150"
               r={radius}
               fill="none"
-              stroke="rgba(255,255,255,0.05)"
+              stroke="currentColor"
+              className="text-text opacity-10"
               strokeWidth="12"
             />
             {/* Progress Track */}

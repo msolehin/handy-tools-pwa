@@ -28,7 +28,10 @@ import EmergencyCard from './pages/EmergencyCard';
 import CarpoolSplitter from './pages/CarpoolSplitter';
 import ChecklistTemplate from './pages/ChecklistTemplate';
 import DebtTracker from './pages/DebtTracker';
+import GroupSplitBill from './pages/GroupSplitBill';
 import RestaurantSplitter from './pages/RestaurantSplitter';
+import SpeedTest from './pages/SpeedTest';
+import Speedometer from './pages/Speedometer';
 
 function App() {
   return (
@@ -62,7 +65,10 @@ function App() {
           <Route path="carpool-splitter" element={<CarpoolSplitter />} />
           <Route path="checklists" element={<ChecklistTemplate />} />
           <Route path="debt-tracker" element={<DebtTracker />} />
+          <Route path="group-split-bill" element={<GroupSplitBill />} />
           <Route path="restaurant-splitter" element={<RestaurantSplitter />} />
+          <Route path="speed-test" element={<SpeedTest />} />
+          <Route path="speedometer" element={<Speedometer />} />
         </Route>
       </Routes>
       <Analytics />

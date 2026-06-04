@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   FileImage, MapPin, ArrowRight, Shield, PieChart, Timer, Wallet, 
   Users, Calendar, Landmark, ShieldAlert, Wrench, Plane, Activity,
-  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, Briefcase, Fuel, Gift, ArrowRightLeft, Banknote, Dices, Repeat, Droplets, Layers, Search, HeartPulse, Car, ListChecks, HandCoins, Utensils
+  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, Briefcase, Fuel, Gift, ArrowRightLeft, Banknote, Dices, Repeat, Droplets, Layers, Search, HeartPulse, Car, ListChecks, HandCoins, Utensils, Gauge
 } from 'lucide-react';
 import { 
   DndContext, 
@@ -123,17 +123,29 @@ export const DEFAULT_TOOLS = [
     borderClass: 'hover:border-violet-400/50 hover:shadow-violet-400/20', iconBgClass: 'bg-violet-500/20 text-violet-400', arrowClass: 'group-hover:text-violet-400'
   },
   { 
-    id: '/debt-tracker', to: '/debt-tracker', title: 'Split & Track', desc: 'Group Bills & IOUs', Icon: HandCoins, category: 'Finance',
+    id: '/debt-tracker', to: '/debt-tracker', title: 'Debt Tracker', desc: 'Track Simple IOUs', Icon: HandCoins, category: 'Finance',
     borderClass: 'hover:border-indigo-400/50 hover:shadow-indigo-400/20', iconBgClass: 'bg-indigo-500/20 text-indigo-400', arrowClass: 'group-hover:text-indigo-400'
+  },
+  { 
+    id: '/group-split-bill', to: '/group-split-bill', title: 'Group Split Bill', desc: 'Split Group Expenses', Icon: Users, category: 'Finance',
+    borderClass: 'hover:border-emerald-400/50 hover:shadow-emerald-400/20', iconBgClass: 'bg-emerald-500/20 text-emerald-400', arrowClass: 'group-hover:text-emerald-400'
   },
   { 
     id: 'https://befday.com/', to: 'https://befday.com/', title: 'Birthday Claim', desc: 'Know where to claim birthday (credit dzulhelmynazri)', Icon: Gift, category: 'Fun',
     borderClass: 'hover:border-pink-400/50 hover:shadow-pink-400/20', iconBgClass: 'bg-pink-500/20 text-pink-400', arrowClass: 'group-hover:text-pink-400'
   },
   { 
-    id: '/restaurant-splitter', to: '/restaurant-splitter', title: 'Restaurant Splitter', desc: 'Split food & proportional tax', Icon: Utensils, category: 'Finance',
+    id: '/restaurant-splitter', to: '/restaurant-splitter', title: 'Restaurant Bill Splitter', desc: 'Split food & proportional tax', Icon: Utensils, category: 'Finance',
     borderClass: 'hover:border-rose-400/50 hover:shadow-rose-400/20', iconBgClass: 'bg-rose-500/20 text-rose-400', arrowClass: 'group-hover:text-rose-400'
   },
+  {
+    id: '/speed-test', to: '/speed-test', title: 'Speed Test', desc: 'Check internet ping & speed', Icon: Activity, category: 'Utilities',
+    borderClass: 'hover:border-blue-400/50 hover:shadow-blue-400/20', iconBgClass: 'bg-blue-500/20 text-blue-400', arrowClass: 'group-hover:text-blue-400'
+  },
+  {
+    id: '/speedometer', to: '/speedometer', title: 'Speedometer', desc: 'GPS Live Speed Tracker', Icon: Gauge, category: 'Utilities',
+    borderClass: 'hover:border-cyan-400/50 hover:shadow-cyan-400/20', iconBgClass: 'bg-cyan-500/20 text-cyan-400', arrowClass: 'group-hover:text-cyan-400'
+  }
 ];
 
 const SortableToolCard = ({ tool, viewMode, isReordering, forceDisableDrag }: { tool: typeof DEFAULT_TOOLS[0], viewMode: 'list' | 'grid', isReordering: boolean, forceDisableDrag?: boolean }) => {

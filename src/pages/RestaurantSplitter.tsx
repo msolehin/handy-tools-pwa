@@ -219,7 +219,7 @@ const RestaurantSplitter: React.FC = () => {
           <div className="p-2 bg-rose-500/20 text-rose-400 rounded-xl">
             <Receipt size={24} />
           </div>
-          <h2 className="text-2xl font-bold">Restaurant Splitter</h2>
+          <h2 className="text-2xl font-bold">Restaurant Bill Splitter</h2>
         </div>
         <div className="flex items-center space-x-2">
           <button 
