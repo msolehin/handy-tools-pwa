@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Droplets, Undo2, Settings, X, RotateCcw } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Droplets, Undo2, Settings, X, RotateCcw, Smartphone } from 'lucide-react';
 
 interface WaterData {
   date: string;
@@ -24,6 +24,49 @@ const WaterTracker: React.FC = () => {
   });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [tempGoal, setTempGoal] = useState('2500');
+
+  // Device-tilt water motion
+  const waterRef = useRef<HTMLDivElement>(null);
+  const [motionEnabled, setMotionEnabled] = useState(false);
+  const [needsPermission, setNeedsPermission] = useState(false);
+
+  const MAX_TILT = 14; // degrees the water surface can lean
+  const handleOrientation = useCallback((e: DeviceOrientationEvent) => {
+    if (!waterRef.current) return;
+    const gamma = e.gamma ?? 0; // left/right tilt, -90..90
+    const clamped = Math.max(-MAX_TILT, Math.min(MAX_TILT, gamma));
+    // Counter-rotate so the surface leans toward the lower side, like real water
+    waterRef.current.style.transform = `rotate(${-clamped}deg)`;
+  }, []);
+
+  const enableMotion = useCallback(async () => {
+    const DOE = window.DeviceOrientationEvent as any;
+    try {
+      if (DOE && typeof DOE.requestPermission === 'function') {
+        const res = await DOE.requestPermission();
+        if (res !== 'granted') return;
+      }
+      window.addEventListener('deviceorientation', handleOrientation);
+      setMotionEnabled(true);
+      setNeedsPermission(false);
+    } catch (e) {
+      // ignore — motion just won't be available
+    }
+  }, [handleOrientation]);
+
+  useEffect(() => {
+    const DOE = window.DeviceOrientationEvent as any;
+    if (!DOE) return; // no sensor (most desktops)
+    if (typeof DOE.requestPermission === 'function') {
+      // iOS 13+ — needs a user tap to grant motion access
+      setNeedsPermission(true);
+    } else {
+      // Android / others — attach directly
+      window.addEventListener('deviceorientation', handleOrientation);
+      setMotionEnabled(true);
+    }
+    return () => window.removeEventListener('deviceorientation', handleOrientation);
+  }, [handleOrientation]);
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -112,12 +155,23 @@ const WaterTracker: React.FC = () => {
             <p className="text-xs text-muted">Daily Goal: {data.goal}ml</p>
           </div>
         </div>
-        <button 
-          onClick={() => setIsSettingsOpen(true)}
-          className="p-3 bg-text/5 rounded-xl hover:bg-text/10 text-muted transition-colors"
-        >
-          <Settings size={20} />
-        </button>
+        <div className="flex items-center space-x-2">
+          {needsPermission && !motionEnabled && (
+            <button
+              onClick={enableMotion}
+              title="Enable tilt motion"
+              className="p-3 bg-blue-500/15 rounded-xl hover:bg-blue-500/25 text-blue-400 border border-blue-500/30 transition-colors active:scale-90"
+            >
+              <Smartphone size={20} />
+            </button>
+          )}
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="p-3 bg-text/5 rounded-xl hover:bg-text/10 text-muted transition-colors"
+          >
+            <Settings size={20} />
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center relative z-10 pointer-events-none mt-10">
@@ -183,25 +237,32 @@ const WaterTracker: React.FC = () => {
         </div>
       )}
 
-      {/* Water Fill Animation Background */}
-      <div 
-        className="fixed bottom-0 left-0 right-0 bg-blue-600/30 transition-all duration-[1500ms] ease-[cubic-bezier(0.4,0,0.2,1)] pointer-events-none z-0"
-        style={{ height: `${Math.min(95, percentage)}%`, minHeight: percentage > 0 ? '5%' : '0%' }}
-      >
-        {/* Waves */}
-        {percentage > 0 && (
-          <>
-            <div 
-              className="absolute w-[200%] h-12 left-0 -top-[47px] bg-repeat-x wave-anim"
-              style={{ backgroundImage: `url("${waveSvg1}")`, backgroundSize: '400px 100%' }}
-            />
-            <div 
-              className="absolute w-[200%] h-12 left-0 -top-[47px] bg-repeat-x wave-anim-fast"
-              style={{ backgroundImage: `url("${waveSvg2}")`, backgroundSize: '400px 100%' }}
-            />
-          </>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-blue-900/80 to-blue-500/20" />
+      {/* Water Fill Animation Background (clipped to the viewport) */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div
+          ref={waterRef}
+          className="absolute left-[-75%] right-[-75%] bg-blue-600/30 origin-top"
+          style={{
+            bottom: '-60vh',
+            height: `calc(${Math.min(95, percentage)}% + 60vh)`,
+            transition: 'height 1500ms cubic-bezier(0.4,0,0.2,1), transform 250ms ease-out'
+          }}
+        >
+          {/* Waves */}
+          {percentage > 0 && (
+            <>
+              <div
+                className="absolute w-[200%] h-12 left-0 -top-[47px] bg-repeat-x wave-anim"
+                style={{ backgroundImage: `url("${waveSvg1}")`, backgroundSize: '400px 100%' }}
+              />
+              <div
+                className="absolute w-[200%] h-12 left-0 -top-[47px] bg-repeat-x wave-anim-fast"
+                style={{ backgroundImage: `url("${waveSvg2}")`, backgroundSize: '400px 100%' }}
+              />
+            </>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-blue-900/80 to-blue-500/20" />
+        </div>
       </div>
 
       {/* Settings Modal */}

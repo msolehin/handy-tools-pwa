@@ -311,8 +311,8 @@ const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisab
           <div className={`glass-panel p-6 flex items-center justify-between transition-all duration-300 ${tool.borderClass} relative overflow-hidden`}>
             {waterPercentage > 0 && (
               <div 
-                className="absolute bottom-0 left-0 right-0 bg-blue-600/30 transition-all duration-[1500ms] ease-out z-0" 
-                style={{ height: `${Math.min(90, waterPercentage)}%`, minHeight: '10%' }} 
+                className="absolute left-[-25%] right-[-25%] bg-blue-600/30 z-0 origin-top" 
+                style={{ bottom: '-25%', height: `calc(${Math.min(90, waterPercentage)}% + 25%)`, transform: 'rotate(var(--water-tilt, 0deg))', transition: 'height 1500ms ease-out, transform 250ms ease-out' }}
               >
                 <div className="absolute w-[200%] h-6 left-0 -top-[23px] bg-repeat-x wave-anim" style={{ backgroundImage: `url("${waveSvg1}")`, backgroundSize: '200px 100%' }} />
                 <div className="absolute w-[200%] h-6 left-0 -top-[23px] bg-repeat-x wave-anim-fast" style={{ backgroundImage: `url("${waveSvg2}")`, backgroundSize: '200px 100%' }} />
@@ -467,8 +467,8 @@ const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisab
           )}
           {waterPercentage > 0 && (
             <div 
-              className="absolute bottom-0 left-0 right-0 bg-blue-600/30 transition-all duration-[1500ms] ease-out z-0" 
-              style={{ height: `${Math.min(90, waterPercentage)}%`, minHeight: '10%' }} 
+              className="absolute left-[-25%] right-[-25%] bg-blue-600/30 z-0 origin-top" 
+              style={{ bottom: '-25%', height: `calc(${Math.min(90, waterPercentage)}% + 25%)`, transform: 'rotate(var(--water-tilt, 0deg))', transition: 'height 1500ms ease-out, transform 250ms ease-out' }}
             >
               <div className="absolute w-[200%] h-6 left-0 -top-[23px] bg-repeat-x wave-anim" style={{ backgroundImage: `url("${waveSvg1}")`, backgroundSize: '200px 100%' }} />
               <div className="absolute w-[200%] h-6 left-0 -top-[23px] bg-repeat-x wave-anim-fast" style={{ backgroundImage: `url("${waveSvg2}")`, backgroundSize: '200px 100%' }} />
@@ -629,7 +629,21 @@ const Home: React.FC = () => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 1600);
   };
-  
+
+  // Tilt the water animations (Drink card + water alert) with device orientation.
+  // Sets a shared CSS variable read by every water-fill element.
+  useEffect(() => {
+    const DOE = (window as any).DeviceOrientationEvent;
+    if (!DOE) return;
+    const handle = (e: DeviceOrientationEvent) => {
+      const gamma = e.gamma ?? 0; // left/right tilt
+      const clamped = Math.max(-14, Math.min(14, gamma));
+      document.documentElement.style.setProperty('--water-tilt', `${-clamped}deg`);
+    };
+    window.addEventListener('deviceorientation', handle);
+    return () => window.removeEventListener('deviceorientation', handle);
+  }, []);
+
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
 
   // Favorites state
@@ -996,8 +1010,8 @@ const Home: React.FC = () => {
                 )}
                 {animationsEnabled && alert.type === 'water' && alert.percentage !== undefined && alert.percentage > 0 && (
                   <div 
-                    className="absolute bottom-0 left-0 right-0 bg-blue-600/30 transition-all duration-[1500ms] ease-out z-0" 
-                    style={{ height: `${Math.min(90, alert.percentage)}%`, minHeight: '10%' }} 
+                    className="absolute left-[-25%] right-[-25%] bg-blue-600/30 z-0 origin-top" 
+                    style={{ bottom: '-25%', height: `calc(${Math.min(90, alert.percentage)}% + 25%)`, transform: 'rotate(var(--water-tilt, 0deg))', transition: 'height 1500ms ease-out, transform 250ms ease-out' }} 
                   >
                     <div className="absolute w-[200%] h-6 left-0 -top-[23px] bg-repeat-x wave-anim" style={{ backgroundImage: `url("${waveSvg1}")`, backgroundSize: '200px 100%' }} />
                     <div className="absolute w-[200%] h-6 left-0 -top-[23px] bg-repeat-x wave-anim-fast" style={{ backgroundImage: `url("${waveSvg2}")`, backgroundSize: '200px 100%' }} />
