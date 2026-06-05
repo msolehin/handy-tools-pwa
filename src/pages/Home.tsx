@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   MapPin, ArrowRight, Shield, PieChart, Timer, Wallet,
@@ -620,6 +620,15 @@ const Home: React.FC = () => {
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [isAlertsExpanded, setIsAlertsExpanded] = useState(false);
+
+  // Transient toast feedback
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const showToast = (message: string) => {
+    setToast(message);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 1600);
+  };
   
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
 
@@ -651,7 +660,7 @@ const Home: React.FC = () => {
 
   const [recentMinimized, setRecentMinimized] = useState(() => {
     const saved = localStorage.getItem('handy-tools-recents-minimized');
-    return saved ? JSON.parse(saved) : false;
+    return saved ? JSON.parse(saved) : true;
   });
 
   useEffect(() => {
@@ -913,8 +922,25 @@ const Home: React.FC = () => {
     });
   };
 
+  // Theme-aware title for the Duit Raya / Angpao tool (used for alphabet sort & search)
+  const duitRayaTitle = (() => {
+    try {
+      const s = localStorage.getItem('duit_raya_manager_data');
+      if (s && JSON.parse(s).theme === 'angpao') return 'Angpao Manager';
+    } catch (e) {}
+    return 'Duit Raya Manager';
+  })();
+  const titleOf = (tool: typeof DEFAULT_TOOLS[0]) => (tool.id === '/duit-raya' ? duitRayaTitle : tool.title);
+
   return (
     <div className="space-y-6 animate-fade-in pb-12">
+      {/* Toast feedback */}
+      {toast && (
+        <div className="fixed bottom-36 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl bg-surface border border-text/10 shadow-xl text-sm font-bold text-text animate-fade-in pointer-events-none">
+          {toast}
+        </div>
+      )}
+
       {/* Alerts Section */}
       {alerts.length > 0 && (
         <div className="mt-4 mb-2 space-y-3">
@@ -1042,12 +1068,16 @@ const Home: React.FC = () => {
         <div className="flex flex-col items-end space-y-2">
             {/* Reorder Button */}
             <div className="flex items-center space-x-2">
-              {viewMode !== 'category' && !searchQuery && (
-                <button 
-                  onClick={() => setAnimationsEnabled(!animationsEnabled)}
-                  className={`p-2 rounded-xl transition-all border flex items-center justify-center ${
-                    animationsEnabled 
-                      ? 'bg-blue-500/20 border-blue-500/50 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.3)]' 
+              {!searchQuery && (
+                <button
+                  onClick={() => {
+                    const next = !animationsEnabled;
+                    setAnimationsEnabled(next);
+                    showToast(next ? '✨ Animations on' : '⏸️ Animations off');
+                  }}
+                  className={`p-2 rounded-xl transition-all border flex items-center justify-center active:scale-90 ${
+                    animationsEnabled
+                      ? 'bg-blue-500/20 border-blue-500/50 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.3)]'
                       : 'bg-surface border-text/10 text-muted hover:bg-text/5 hover:text-text'
                   }`}
                   title="Toggle Animations"
@@ -1073,16 +1103,16 @@ const Home: React.FC = () => {
 
             {/* View Mode Toggle */}
             <div className="flex bg-text/5 p-1 rounded-xl">
-              <button 
-                onClick={() => setViewMode('list')}
-                className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'}`}
+              <button
+                onClick={() => { setViewMode('list'); showToast('📋 List view'); }}
+                className={`p-2 rounded-lg transition-all active:scale-90 ${viewMode === 'list' ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'}`}
                 title="List View"
               >
                 <List size={18} />
               </button>
-              <button 
-                onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'}`}
+              <button
+                onClick={() => { setViewMode('grid'); showToast('▦ Grid view'); }}
+                className={`p-2 rounded-lg transition-all active:scale-90 ${viewMode === 'grid' ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'}`}
                 title="Grid View"
               >
                 <LayoutGrid size={18} />
@@ -1091,8 +1121,9 @@ const Home: React.FC = () => {
                 onClick={() => {
                   setViewMode('category');
                   setIsReordering(false); // disable reordering in category mode
+                  showToast('🗂️ Category view');
                 }}
-                className={`p-2 rounded-lg transition-all ${viewMode === 'category' ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'}`}
+                className={`p-2 rounded-lg transition-all active:scale-90 ${viewMode === 'category' ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'}`}
                 title="Category View"
               >
                 <Layers size={18} />
@@ -1101,8 +1132,9 @@ const Home: React.FC = () => {
                 onClick={() => {
                   setViewMode('alphabet');
                   setIsReordering(false); // disable reordering in alphabet mode
+                  showToast('🔤 Sorted A–Z');
                 }}
-                className={`p-2 rounded-lg transition-all ${viewMode === 'alphabet' ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'}`}
+                className={`p-2 rounded-lg transition-all active:scale-90 ${viewMode === 'alphabet' ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'}`}
                 title="Sort A–Z"
               >
                 <ArrowDownAZ size={18} />
@@ -1128,7 +1160,14 @@ const Home: React.FC = () => {
           />
         </div>
 
-        <DndContext 
+        {isReordering && (
+          <div className="mb-4 flex items-center gap-2 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm font-medium animate-fade-in">
+            <ArrowUpDown size={16} className="shrink-0 animate-pulse" />
+            <span>Drag &amp; drop tools to reorder them. Tap the button again when you're done.</span>
+          </div>
+        )}
+
+        <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
@@ -1174,8 +1213,8 @@ const Home: React.FC = () => {
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {[...tools]
-                  .filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase()) || t.desc.toLowerCase().includes(searchQuery.toLowerCase()))
-                  .sort((a, b) => a.title.localeCompare(b.title))
+                  .filter(t => titleOf(t).toLowerCase().includes(searchQuery.toLowerCase()) || t.desc.toLowerCase().includes(searchQuery.toLowerCase()))
+                  .sort((a, b) => titleOf(a).localeCompare(titleOf(b)))
                   .map(tool => (
                     <SortableToolCard
                       key={tool.id}
@@ -1251,22 +1290,32 @@ const Home: React.FC = () => {
                     <div className="h-px bg-text/10 flex-1"></div>
                   </div>
                   {!recentMinimized && (
-                  <div className={viewMode === 'list' ? "grid gap-4" : "grid grid-cols-2 md:grid-cols-3 gap-4"}>
+                  <div className="grid grid-cols-2 gap-2">
                     {recentTools.map(id => {
                       const tool = tools.find(t => t.id === id) || DEFAULT_TOOLS.find(t => t.id === id);
                       if (!tool) return null;
+                      const RecentIcon = tool.Icon;
+                      const isDuitRaya = tool.id === '/duit-raya';
+                      const recentEmoji = isDuitRaya ? (duitRayaTitle === 'Angpao Manager' ? '🧧' : '🌙') : null;
+                      const recentIconBg = isDuitRaya
+                        ? (duitRayaTitle === 'Angpao Manager' ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400')
+                        : tool.iconBgClass;
+                      const goTo = () => {
+                        handleToolClick(tool.id);
+                        if (tool.to.startsWith('http')) window.open(tool.to, '_blank', 'noopener,noreferrer');
+                        else navigate(tool.to);
+                      };
                       return (
-                        <SortableToolCard 
-                          key={`rec-${tool.id}`} 
-                          tool={tool} 
-                          viewMode={viewMode} 
-                          isReordering={false} 
-                          forceDisableDrag={true}
-                          animationsEnabled={animationsEnabled}
-                          isFavorite={favorites.includes(tool.id)}
-                          onToggleFavorite={toggleFavorite}
-                          onToolClick={handleToolClick}
-                        />
+                        <button
+                          key={`rec-${tool.id}`}
+                          onClick={goTo}
+                          className="glass-panel flex items-center gap-2 p-2 rounded-xl hover:bg-text/5 transition-colors text-left"
+                        >
+                          <div className={`p-1.5 rounded-lg shrink-0 ${recentIconBg}`}>
+                            {recentEmoji ? <span className="text-base leading-none">{recentEmoji}</span> : <RecentIcon size={16} />}
+                          </div>
+                          <span className="text-xs font-semibold truncate">{titleOf(tool)}</span>
+                        </button>
                       );
                     })}
                   </div>

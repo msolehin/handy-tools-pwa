@@ -282,8 +282,16 @@ const ParkingLocator: React.FC = () => {
                 <div>
                   <h4 className="font-semibold text-lg">{loc.title}</h4>
                   <p className="text-xs text-muted mt-1">
-                    {new Date(loc.createdAt).toLocaleString()}
+                    {new Date(loc.createdAt).toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </p>
+                  <button
+                    onClick={() => navigator.clipboard?.writeText(`${loc.latitude}, ${loc.longitude}`)}
+                    title="Tap to copy coordinates"
+                    className="flex items-center gap-1.5 mt-1.5 text-[11px] font-mono text-muted hover:text-text transition-colors"
+                  >
+                    <Crosshair size={12} className="shrink-0 text-primary" />
+                    {loc.latitude.toFixed(6)}, {loc.longitude.toFixed(6)}
+                  </button>
                   {loc.note && <p className="text-sm mt-2 text-text/80">{loc.note}</p>}
                 </div>
                 <button 
