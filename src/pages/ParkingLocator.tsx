@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Navigation, Save, Trash2, Crosshair, Plus, Map as MapIcon, Compass, Camera, Upload, X } from 'lucide-react';
+import { Navigation, Save, Trash2, Crosshair, Plus, Map as MapIcon, Compass, Camera, Upload, X, Satellite } from 'lucide-react';
 import L from 'leaflet';
 import { db, type ParkingLocation } from '../db';
 import { CompassNavigator } from '../components/CompassNavigator';
@@ -30,6 +30,15 @@ const ParkingLocator: React.FC = () => {
   const [navigatingTo, setNavigatingTo] = useState<ParkingLocation | null>(null);
   const [fullImage, setFullImage] = useState<string | null>(null);
   const [isLocating, setIsLocating] = useState(false);
+  const [accuracy, setAccuracy] = useState<number | null>(null);
+
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const showToast = (message: string) => {
+    setToast(message);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 1800);
+  };
 
   const cameraInputRef = React.useRef<HTMLInputElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -57,22 +66,27 @@ const ParkingLocator: React.FC = () => {
 
   const locations = useLiveQuery(() => db.parkingLocations.orderBy('createdAt').reverse().toArray());
 
-  const getLocation = () => {
+  const getLocation = (manual = false) => {
     setIsLocating(true);
+    if (manual) showToast('📍 Getting your location…');
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setCurrentLocation([position.coords.latitude, position.coords.longitude]);
+          setAccuracy(position.coords.accuracy);
           setIsLocating(false);
+          if (manual) showToast('✅ Location updated');
         },
         (error) => {
           console.error("Error getting location", error);
+          showToast('⚠️ Couldn’t get location');
           alert("Could not get your precise location. Please ensure location services are enabled.");
           setIsLocating(false);
         },
         { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
       );
     } else {
+      showToast('⚠️ Geolocation not supported');
       alert("Geolocation is not supported by this browser.");
       setIsLocating(false);
     }
@@ -89,6 +103,8 @@ const ParkingLocator: React.FC = () => {
 
     setIsSaving(true);
     try {
+      // Only one parking location is kept at a time — saving replaces the previous one.
+      await db.parkingLocations.clear();
       await db.parkingLocations.add({
         uuid: uuidv4(),
         title,
@@ -125,8 +141,24 @@ const ParkingLocator: React.FC = () => {
     window.open(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`, '_blank');
   };
 
+  // Derive GNSS signal quality from location accuracy (smaller = better)
+  const signalLevel = accuracy == null ? 0 : accuracy <= 10 ? 4 : accuracy <= 25 ? 3 : accuracy <= 50 ? 2 : 1;
+  const signalMeta = [
+    { label: 'No signal', text: 'text-muted', bar: 'bg-emerald-400' },
+    { label: 'Weak', text: 'text-red-400', bar: 'bg-red-400' },
+    { label: 'Fair', text: 'text-amber-400', bar: 'bg-amber-400' },
+    { label: 'Good', text: 'text-lime-400', bar: 'bg-lime-400' },
+    { label: 'Excellent', text: 'text-emerald-400', bar: 'bg-emerald-400' },
+  ][signalLevel];
+
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Toast feedback */}
+      {toast && (
+        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 px-5 py-3 rounded-xl bg-surface border border-text/10 shadow-xl text-sm font-bold text-text animate-fade-in pointer-events-none">
+          {toast}
+        </div>
+      )}
       {navigatingTo && (
         <CompassNavigator 
           targetLat={navigatingTo.latitude} 
@@ -136,13 +168,39 @@ const ParkingLocator: React.FC = () => {
       )}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Parking Locator</h2>
-        <button 
-          onClick={getLocation} 
+        <button
+          onClick={() => getLocation(true)}
           disabled={isLocating}
-          className={`p-2 rounded-full transition-colors ${isLocating ? 'bg-primary/20 text-primary' : 'bg-surface hover:bg-surface/80 text-primary'}`}
+          className={`p-2 rounded-full transition-colors active:scale-90 ${isLocating ? 'bg-primary/20 text-primary' : 'bg-surface hover:bg-surface/80 text-primary'}`}
         >
           <Crosshair size={20} className={isLocating ? "animate-spin" : ""} />
         </button>
+      </div>
+
+      {/* GNSS Signal */}
+      <div className="glass-panel px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <Satellite size={20} className={`${signalMeta.text} ${isLocating ? 'animate-pulse' : ''}`} />
+          <div>
+            <p className="text-xs font-bold text-text/90">GNSS Signal</p>
+            <p className={`text-[11px] ${signalMeta.text}`}>
+              {isLocating
+                ? 'Locking on…'
+                : accuracy == null
+                  ? 'No fix yet'
+                  : `${signalMeta.label} · ±${Math.round(accuracy)}m`}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-end gap-1 h-6">
+          {[1, 2, 3, 4].map(b => (
+            <div
+              key={b}
+              className={`w-2 rounded-sm transition-all ${b <= signalLevel ? signalMeta.bar : 'bg-text/15'}`}
+              style={{ height: `${b * 25}%` }}
+            />
+          ))}
+        </div>
       </div>
 
       {/* Map Preview */}
@@ -269,12 +327,12 @@ const ParkingLocator: React.FC = () => {
         </form>
       )}
 
-      {/* Saved Locations List */}
+      {/* Saved Location */}
       <div className="mt-8">
-        <h3 className="text-lg font-semibold mb-4 text-text/90">Saved Locations</h3>
+        <h3 className="text-lg font-semibold mb-4 text-text/90">Saved Location</h3>
         <div className="space-y-4">
           {locations?.length === 0 && (
-            <p className="text-muted text-sm text-center py-8">No saved parking locations yet.</p>
+            <p className="text-muted text-sm text-center py-8">No saved parking location yet.</p>
           )}
           {locations?.map((loc: ParkingLocation) => (
             <div key={loc.id} className="glass-panel p-4">
