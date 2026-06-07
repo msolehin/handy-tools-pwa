@@ -81,12 +81,17 @@ const Layout: React.FC = () => {
   useEffect(() => {
     const standalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
     setIsStandalone(standalone);
-    const onBIP = (e: Event) => { e.preventDefault(); setInstallPrompt(e); };
+    // Pick up a prompt that may have fired before React mounted (captured in main.tsx)
+    if ((window as any).__deferredInstallPrompt) setInstallPrompt((window as any).__deferredInstallPrompt);
+    const onBIP = (e: Event) => { e.preventDefault(); (window as any).__deferredInstallPrompt = e; setInstallPrompt(e); };
+    const onCaptured = () => setInstallPrompt((window as any).__deferredInstallPrompt);
     const onInstalled = () => { setInstallPrompt(null); setIsStandalone(true); };
     window.addEventListener('beforeinstallprompt', onBIP);
+    window.addEventListener('pwa-installable', onCaptured);
     window.addEventListener('appinstalled', onInstalled);
     return () => {
       window.removeEventListener('beforeinstallprompt', onBIP);
+      window.removeEventListener('pwa-installable', onCaptured);
       window.removeEventListener('appinstalled', onInstalled);
     };
   }, []);
@@ -123,7 +128,8 @@ const Layout: React.FC = () => {
   useEffect(() => {
     const container = document.getElementById('main-scroll-area');
     const onScroll = () => {
-      const y = container?.scrollTop ?? window.scrollY;
+      // On mobile the window scrolls; on desktop the #main-scroll-area element does.
+      const y = Math.max(window.scrollY || 0, container?.scrollTop || 0);
       const delta = y - lastScrollY.current;
       if (y < 40) {
         setHeaderHidden(false);

@@ -39,7 +39,7 @@ export const DEFAULT_TOOLS = [
     borderClass: 'hover:border-accent/50 hover:shadow-accent/20', iconBgClass: 'bg-accent/20 text-accent', arrowClass: 'group-hover:text-accent'
   },
   { 
-    id: '/pace-calculator', to: '/pace-calculator', title: 'Pace Calculator', desc: 'Time, Distance & Pace', Icon: Timer, category: 'Health & Fitness',
+    id: '/pace-calculator', to: '/pace-calculator', title: 'Kira Pace', desc: 'Time, Distance & Pace', Icon: Timer, category: 'Health & Fitness',
     borderClass: 'hover:border-blue-400/50 hover:shadow-blue-400/20', iconBgClass: 'bg-blue-500/20 text-blue-400', arrowClass: 'group-hover:text-blue-400'
   },
   { 
@@ -1173,7 +1173,7 @@ const Home: React.FC = () => {
             {/* Column count (grid-based views only) */}
             {viewMode !== 'list' && (
               <div className="flex bg-text/5 p-1 rounded-xl">
-                {([2, 3, 4] as const).map(n => (
+                {([2, 3] as const).map(n => (
                   <button
                     key={n}
                     onClick={() => { setGridCols(n); showToast(`▦ ${n} columns`); }}
