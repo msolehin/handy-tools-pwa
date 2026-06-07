@@ -118,7 +118,7 @@ const PaceCalculator: React.FC = () => {
           <div className="p-2 bg-primary/20 text-primary rounded-xl">
             <Activity size={24} />
           </div>
-          <h2 className="text-2xl font-bold">Pace Calculator</h2>
+          <h2 className="text-2xl font-bold">Kira Pace</h2>
         </div>
         <button 
           onClick={handleReset}
