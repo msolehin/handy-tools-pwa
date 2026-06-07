@@ -111,6 +111,9 @@ const Layout: React.FC = () => {
   const [notifMode, setNotifMode] = useState(false);
   const lastScrollY = useRef(0);
   const touchStartY = useRef<number | null>(null);
+  const hiddenRef = useRef(false);
+  const lockRef = useRef(false);
+  const lockTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Receive alerts published by the Home page
   useEffect(() => {
@@ -127,22 +130,38 @@ const Layout: React.FC = () => {
   // Hide the header on scroll-down and swap the bottom bar to notifications.
   useEffect(() => {
     const container = document.getElementById('main-scroll-area');
+    const DEADZONE = 12;   // ignore tiny scroll jitter
+    const TOP_ZONE = 64;   // always show header near the top
+
+    const applyState = (hidden: boolean) => {
+      hiddenRef.current = hidden;
+      setHeaderHidden(hidden);
+      setNotifMode(hidden && location.pathname === '/');
+      // Lock briefly so the reflow caused by the header animation can't flip the state.
+      lockRef.current = true;
+      if (lockTimer.current) clearTimeout(lockTimer.current);
+      lockTimer.current = setTimeout(() => { lockRef.current = false; }, 400);
+    };
+
     const onScroll = () => {
       // On mobile the window scrolls; on desktop the #main-scroll-area element does.
       const y = Math.max(window.scrollY || 0, container?.scrollTop || 0);
-      const delta = y - lastScrollY.current;
-      if (y < 40) {
-        setHeaderHidden(false);
-        setNotifMode(false);
-      } else if (delta > 6) {
-        setHeaderHidden(true);
-        if (location.pathname === '/') setNotifMode(true);
-      } else if (delta < -6) {
-        setHeaderHidden(false);
-        setNotifMode(false);
+      if (lockRef.current) { lastScrollY.current = y; return; }
+
+      if (y < TOP_ZONE) {
+        if (hiddenRef.current) applyState(false);
+        lastScrollY.current = y;
+        return;
       }
+
+      const delta = y - lastScrollY.current;
+      if (Math.abs(delta) < DEADZONE) return; // accumulate; don't reset baseline
+
+      if (delta > 0 && !hiddenRef.current) applyState(true);
+      else if (delta < 0 && hiddenRef.current) applyState(false);
       lastScrollY.current = y;
     };
+
     window.addEventListener('scroll', onScroll, { passive: true });
     container?.addEventListener('scroll', onScroll, { passive: true });
     return () => {
@@ -155,6 +174,8 @@ const Layout: React.FC = () => {
   useEffect(() => {
     setHeaderHidden(false);
     setNotifMode(false);
+    hiddenRef.current = false;
+    lockRef.current = false;
     lastScrollY.current = 0;
   }, [location.pathname]);
 
