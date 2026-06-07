@@ -174,8 +174,9 @@ const Layout: React.FC = () => {
     touchStartY.current = null;
   };
 
-  const showNotif = notifMode && location.pathname === '/' && alerts.length > 0;
+  const showNotif = notifMode && location.pathname === '/';
   const currentAlert = alerts[notifIndex] || alerts[0];
+  const hasAlerts = alerts.length > 0;
 
   const moreTools = [
     ...DEFAULT_TOOLS.map(tool => {
@@ -263,30 +264,41 @@ const Layout: React.FC = () => {
                 className="glass-panel flex items-center gap-3 p-3 animate-fade-in select-none"
               >
                 <div className="relative shrink-0">
-                  <div className="w-10 h-10 rounded-xl bg-yellow-500/15 text-yellow-400 flex items-center justify-center">
-                    <Bell size={20} className="animate-pulse" />
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${hasAlerts ? 'bg-yellow-500/15 text-yellow-400' : 'bg-text/10 text-muted'}`}>
+                    <Bell size={20} className={hasAlerts ? 'animate-pulse' : ''} />
                   </div>
-                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">{alerts.length}</span>
+                  {hasAlerts && (
+                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">{alerts.length}</span>
+                  )}
                 </div>
-                <button onClick={() => currentAlert && navigate(currentAlert.to)} className="flex-1 min-w-0 text-left overflow-hidden">
-                  <div key={notifIndex} className={notifDir === 'up' ? 'notif-up-anim' : 'notif-down-anim'}>
-                    <p className="text-[9px] uppercase tracking-wider text-muted font-bold">
-                      {ALERT_PREFIX[currentAlert?.type] || 'Alert'} · {notifIndex + 1}/{alerts.length}
-                    </p>
-                    <p className="text-sm font-bold truncate text-text/90">{currentAlert?.title}</p>
+                {hasAlerts ? (
+                  <button onClick={() => currentAlert && navigate(currentAlert.to)} className="flex-1 min-w-0 text-left overflow-hidden">
+                    <div key={notifIndex} className={notifDir === 'up' ? 'notif-up-anim' : 'notif-down-anim'}>
+                      <p className="text-[9px] uppercase tracking-wider text-muted font-bold">
+                        {ALERT_PREFIX[currentAlert?.type] || 'Alert'} · {notifIndex + 1}/{alerts.length}
+                      </p>
+                      <p className="text-sm font-bold truncate text-text/90">{currentAlert?.title}</p>
+                    </div>
+                  </button>
+                ) : (
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[9px] uppercase tracking-wider text-muted font-bold">Notifications</p>
+                    <p className="text-sm font-bold truncate text-text/70">You're all caught up 🎉</p>
                   </div>
-                </button>
-                <div className="flex items-center gap-2 shrink-0">
-                  <div className="flex flex-col gap-1">
-                    {alerts.slice(0, 4).map((a, i) => (
-                      <span key={a.id} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === notifIndex ? 'bg-yellow-400' : 'bg-text/20'}`} />
-                    ))}
+                )}
+                {hasAlerts && (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex flex-col gap-1">
+                      {alerts.slice(0, 4).map((a, i) => (
+                        <span key={a.id} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === notifIndex ? 'bg-yellow-400' : 'bg-text/20'}`} />
+                      ))}
+                    </div>
+                    <div className="flex flex-col">
+                      <button onClick={() => cycleNotif(-1)} className="p-1 text-muted hover:text-text transition-colors"><ChevronUp size={16} /></button>
+                      <button onClick={() => cycleNotif(1)} className="p-1 text-muted hover:text-text transition-colors"><ChevronDown size={16} /></button>
+                    </div>
                   </div>
-                  <div className="flex flex-col">
-                    <button onClick={() => cycleNotif(-1)} className="p-1 text-muted hover:text-text transition-colors"><ChevronUp size={16} /></button>
-                    <button onClick={() => cycleNotif(1)} className="p-1 text-muted hover:text-text transition-colors"><ChevronDown size={16} /></button>
-                  </div>
-                </div>
+                )}
               </div>
             ) : (
             <div className="glass-panel flex justify-between items-center p-2 animate-fade-in" key="menu">
