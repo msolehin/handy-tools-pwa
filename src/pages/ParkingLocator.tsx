@@ -167,7 +167,7 @@ const ParkingLocator: React.FC = () => {
         />
       )}
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Parking Locator</h2>
+        <h2 className="text-2xl font-bold">Lupa parking?</h2>
         <button
           onClick={() => getLocation(true)}
           disabled={isLocating}

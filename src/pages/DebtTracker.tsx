@@ -86,7 +86,7 @@ const DebtTracker: React.FC = () => {
           <HandCoins className="text-indigo-400" size={28} />
         </div>
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-text/90">Debt Tracker</h1>
+          <h1 className="text-xl font-bold tracking-tight text-text/90">Catat Hutang</h1>
           <p className="text-[10px] text-muted uppercase tracking-wider">Simple IOUs</p>
         </div>
       </div>

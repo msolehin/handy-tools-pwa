@@ -272,7 +272,7 @@ const DuitRayaManager: React.FC = () => {
         <div className="flex items-center space-x-3">
           <div className={`p-3 rounded-xl ${t.iconWrap} text-2xl leading-none`}>{t.emoji}</div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-text/90">{t.label} Manager</h1>
+            <h1 className="text-xl font-bold tracking-tight text-text/90">Kira {t.label}</h1>
             <p className="text-[10px] text-muted uppercase tracking-wider">{t.greeting}</p>
           </div>
         </div>

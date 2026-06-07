@@ -287,7 +287,7 @@ const ICScanner: React.FC = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">IC Combiner</h2>
+        <h2 className="text-2xl font-bold">IC Palang</h2>
         {(frontImage || backImage) && (
           <button onClick={reset} className="text-xs text-muted hover:text-text transition-colors">
             Reset All

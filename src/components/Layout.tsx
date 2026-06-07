@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Home, MoreHorizontal, X, Sun, Moon, Settings, Check, Bell, ChevronUp, ChevronDown
+  Home, MoreHorizontal, X, Sun, Moon, Settings, Check, Bell, ChevronUp, ChevronDown, Download
 } from 'lucide-react';
 import { DEFAULT_TOOLS } from '../pages/Home';
 
@@ -74,6 +74,28 @@ const Layout: React.FC = () => {
       localStorage.setItem('theme', 'dark');
     }
   }, [isLightMode]);
+
+  // --- PWA install prompt ---
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [isStandalone, setIsStandalone] = useState(false);
+  useEffect(() => {
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
+    setIsStandalone(standalone);
+    const onBIP = (e: Event) => { e.preventDefault(); setInstallPrompt(e); };
+    const onInstalled = () => { setInstallPrompt(null); setIsStandalone(true); };
+    window.addEventListener('beforeinstallprompt', onBIP);
+    window.addEventListener('appinstalled', onInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBIP);
+      window.removeEventListener('appinstalled', onInstalled);
+    };
+  }, []);
+  const handleInstall = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    try { await installPrompt.userChoice; } catch (e) { /* dismissed */ }
+    setInstallPrompt(null);
+  };
 
   // --- Scroll-driven header hide + notification bar (home only) ---
   const navigate = useNavigate();
@@ -153,7 +175,7 @@ const Layout: React.FC = () => {
     ...DEFAULT_TOOLS.map(tool => {
       if (tool.id === '/duit-raya') {
         const angpao = drTheme === 'angpao';
-        const label = angpao ? 'Angpao Manager' : 'Duit Raya Manager';
+        const label = angpao ? 'Kira Angpao' : 'Kira Duit Raya';
         return {
           to: tool.to,
           icon: tool.Icon,
@@ -196,13 +218,26 @@ const Layout: React.FC = () => {
                 MY
               </span>
             </div>
-            <button
-              onClick={() => setIsLightMode(!isLightMode)}
-              className="p-2 rounded-xl bg-surface/50 text-muted hover:text-primary transition-colors border border-text/10"
-              aria-label="Toggle Theme"
-            >
-              {isLightMode ? <Moon size={18} /> : <Sun size={18} />}
-            </button>
+            <div className="flex items-center gap-2">
+              {installPrompt && !isStandalone && (
+                <button
+                  onClick={handleInstall}
+                  className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-primary/15 text-primary hover:bg-primary/25 transition-colors border border-primary/30 text-xs font-bold active:scale-90"
+                  aria-label="Install App"
+                  title="Install App"
+                >
+                  <Download size={16} />
+                  <span>Install</span>
+                </button>
+              )}
+              <button
+                onClick={() => setIsLightMode(!isLightMode)}
+                className="p-2 rounded-xl bg-surface/50 text-muted hover:text-primary transition-colors border border-text/10"
+                aria-label="Toggle Theme"
+              >
+                {isLightMode ? <Moon size={18} /> : <Sun size={18} />}
+              </button>
+            </div>
           </div>
         </header>
 

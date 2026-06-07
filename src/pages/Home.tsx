@@ -27,11 +27,11 @@ import { getNextRenewalDate, getDaysUntil } from './SubscriptionTracker';
 
 export const DEFAULT_TOOLS = [
   { 
-    id: '/ic-scanner', to: '/ic-scanner', title: 'IC Combiner', desc: 'Scan & generate PDF', Icon: IdCard, category: 'Utilities',
+    id: '/ic-scanner', to: '/ic-scanner', title: 'IC Palang', desc: 'Scan & generate PDF', Icon: IdCard, category: 'Utilities',
     borderClass: 'hover:border-primary/50 hover:shadow-primary/20', iconBgClass: 'bg-primary/20 text-primary', arrowClass: 'group-hover:text-primary'
   },
   { 
-    id: '/parking', to: '/parking', title: 'Parking Locator', desc: 'Save & find your vehicle', Icon: MapPin, category: 'Auto & Travel',
+    id: '/parking', to: '/parking', title: 'Lupa parking?', desc: 'Save & find your vehicle', Icon: MapPin, category: 'Auto & Travel',
     borderClass: 'hover:border-secondary/50 hover:shadow-secondary/20', iconBgClass: 'bg-secondary/20 text-secondary', arrowClass: 'group-hover:text-secondary'
   },
   { 
@@ -103,7 +103,7 @@ export const DEFAULT_TOOLS = [
     borderClass: 'hover:border-indigo-400/50 hover:shadow-indigo-400/20', iconBgClass: 'bg-indigo-500/20 text-indigo-400', arrowClass: 'group-hover:text-indigo-400'
   },
   { 
-    id: '/water-tracker', to: '/water-tracker', title: 'Drink', desc: 'Hydration with fluid animations', Icon: Droplets, category: 'Health & Fitness',
+    id: '/water-tracker', to: '/water-tracker', title: 'Minum', desc: 'Hydration with fluid animations', Icon: Droplets, category: 'Health & Fitness',
     borderClass: 'hover:border-blue-400/50 hover:shadow-blue-400/20', iconBgClass: 'bg-blue-500/20 text-blue-400', arrowClass: 'group-hover:text-blue-400'
   },
   { 
@@ -123,7 +123,7 @@ export const DEFAULT_TOOLS = [
     borderClass: 'hover:border-violet-400/50 hover:shadow-violet-400/20', iconBgClass: 'bg-violet-500/20 text-violet-400', arrowClass: 'group-hover:text-violet-400'
   },
   { 
-    id: '/debt-tracker', to: '/debt-tracker', title: 'Debt Tracker', desc: 'Track Simple IOUs', Icon: HandCoins, category: 'Finance',
+    id: '/debt-tracker', to: '/debt-tracker', title: 'Catat Hutang', desc: 'Track Simple IOUs', Icon: HandCoins, category: 'Finance',
     borderClass: 'hover:border-indigo-400/50 hover:shadow-indigo-400/20', iconBgClass: 'bg-indigo-500/20 text-indigo-400', arrowClass: 'group-hover:text-indigo-400'
   },
   { 
@@ -147,7 +147,7 @@ export const DEFAULT_TOOLS = [
     borderClass: 'hover:border-cyan-400/50 hover:shadow-cyan-400/20', iconBgClass: 'bg-cyan-500/20 text-cyan-400', arrowClass: 'group-hover:text-cyan-400'
   },
   {
-    id: '/duit-raya', to: '/duit-raya', title: 'Duit Raya Manager', desc: 'Plan & track Raya / Angpao money', Icon: Gift, category: 'Finance',
+    id: '/duit-raya', to: '/duit-raya', title: 'Kira Duit Raya', desc: 'Plan & track Raya / Angpao money', Icon: Gift, category: 'Finance',
     borderClass: 'hover:border-emerald-400/50 hover:shadow-emerald-400/20', iconBgClass: 'bg-emerald-500/20 text-emerald-400', arrowClass: 'group-hover:text-emerald-400'
   }
 ];
@@ -218,12 +218,12 @@ const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisab
       if (drStr) drTheme = JSON.parse(drStr).theme || 'raya';
     } catch (e) {}
     if (drTheme === 'angpao') {
-      displayTitle = 'Angpao Manager';
+      displayTitle = 'Kira Angpao';
       displayDesc = 'Plan & track CNY packets';
       displayIconBg = 'bg-red-500/20 text-red-400';
       festiveEmoji = '🧧';
     } else {
-      displayTitle = 'Duit Raya Manager';
+      displayTitle = 'Kira Duit Raya';
       displayDesc = 'Plan & track Raya money';
       displayIconBg = 'bg-emerald-500/20 text-emerald-400';
       festiveEmoji = '🌙';
@@ -614,6 +614,13 @@ const Home: React.FC = () => {
     return (localStorage.getItem('home_view_mode') as 'list' | 'grid' | 'category' | 'alphabet') || 'list';
   });
   const [isReordering, setIsReordering] = useState(false);
+  const [gridCols, setGridCols] = useState<2 | 3 | 4>(() => {
+    const saved = parseInt(localStorage.getItem('home_grid_cols') || '');
+    return saved === 3 || saved === 4 ? saved : 2;
+  });
+  useEffect(() => {
+    localStorage.setItem('home_grid_cols', String(gridCols));
+  }, [gridCols]);
   const [animationsEnabled, setAnimationsEnabled] = useState(() => {
     const saved = localStorage.getItem('handy-animations');
     return saved ? JSON.parse(saved) : true;
@@ -945,11 +952,14 @@ const Home: React.FC = () => {
   const duitRayaTitle = (() => {
     try {
       const s = localStorage.getItem('duit_raya_manager_data');
-      if (s && JSON.parse(s).theme === 'angpao') return 'Angpao Manager';
+      if (s && JSON.parse(s).theme === 'angpao') return 'Kira Angpao';
     } catch (e) {}
-    return 'Duit Raya Manager';
+    return 'Kira Duit Raya';
   })();
   const titleOf = (tool: typeof DEFAULT_TOOLS[0]) => (tool.id === '/duit-raya' ? duitRayaTitle : tool.title);
+
+  // Column count for grid-based views (not list)
+  const gridColClass = gridCols === 4 ? 'grid-cols-4' : gridCols === 3 ? 'grid-cols-3' : 'grid-cols-2';
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">
@@ -1159,6 +1169,22 @@ const Home: React.FC = () => {
                 <ArrowDownAZ size={18} />
               </button>
             </div>
+
+            {/* Column count (grid-based views only) */}
+            {viewMode !== 'list' && (
+              <div className="flex bg-text/5 p-1 rounded-xl">
+                {([2, 3, 4] as const).map(n => (
+                  <button
+                    key={n}
+                    onClick={() => { setGridCols(n); showToast(`▦ ${n} columns`); }}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all active:scale-90 ${gridCols === n ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'}`}
+                    title={`${n} columns`}
+                  >
+                    x{n}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -1209,7 +1235,7 @@ const Home: React.FC = () => {
                       <h3 className="text-sm font-bold text-muted uppercase tracking-widest">{cat}</h3>
                       <div className="h-px bg-text/10 flex-1"></div>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className={`grid ${gridColClass} gap-4`}>
                       {catTools.map(tool => (
                         <SortableToolCard key={tool.id} tool={tool} viewMode="grid" isReordering={false} forceDisableDrag={true}
                           animationsEnabled={animationsEnabled} 
@@ -1230,7 +1256,7 @@ const Home: React.FC = () => {
                 <h3 className="text-sm font-bold text-muted uppercase tracking-widest">All Tools (A–Z)</h3>
                 <div className="h-px bg-text/10 flex-1"></div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className={`grid ${gridColClass} gap-4`}>
                 {[...tools]
                   .filter(t => titleOf(t).toLowerCase().includes(searchQuery.toLowerCase()) || t.desc.toLowerCase().includes(searchQuery.toLowerCase()))
                   .sort((a, b) => titleOf(a).localeCompare(titleOf(b)))
@@ -1258,7 +1284,7 @@ const Home: React.FC = () => {
                     <h3 className="text-sm font-bold text-muted uppercase tracking-widest">❤️ Favorites</h3>
                     <div className="h-px bg-text/10 flex-1"></div>
                   </div>
-                  <div className={viewMode === 'list' ? "grid gap-4" : "grid grid-cols-2 md:grid-cols-3 gap-4"}>
+                  <div className={viewMode === 'list' ? "grid gap-4" : `grid ${gridColClass} gap-4`}>
                     <SortableContext
                       items={favorites.map(id => `fav-${id}`)}
                       strategy={rectSortingStrategy}
@@ -1315,9 +1341,9 @@ const Home: React.FC = () => {
                       if (!tool) return null;
                       const RecentIcon = tool.Icon;
                       const isDuitRaya = tool.id === '/duit-raya';
-                      const recentEmoji = isDuitRaya ? (duitRayaTitle === 'Angpao Manager' ? '🧧' : '🌙') : null;
+                      const recentEmoji = isDuitRaya ? (duitRayaTitle === 'Kira Angpao' ? '🧧' : '🌙') : null;
                       const recentIconBg = isDuitRaya
-                        ? (duitRayaTitle === 'Angpao Manager' ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400')
+                        ? (duitRayaTitle === 'Kira Angpao' ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400')
                         : tool.iconBgClass;
                       const goTo = () => {
                         handleToolClick(tool.id);
@@ -1350,7 +1376,7 @@ const Home: React.FC = () => {
                     <div className="h-px bg-text/10 flex-1"></div>
                   </div>
                 )}
-                <div className={viewMode === 'list' ? "grid gap-4" : "grid grid-cols-2 md:grid-cols-3 gap-4"}>
+                <div className={viewMode === 'list' ? "grid gap-4" : `grid ${gridColClass} gap-4`}>
               <SortableContext 
                 items={tools
                   .filter(t => t.id !== 'https://befday.com/' && (t.title.toLowerCase().includes(searchQuery.toLowerCase()) || t.desc.toLowerCase().includes(searchQuery.toLowerCase())))
