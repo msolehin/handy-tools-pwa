@@ -646,6 +646,11 @@ const Home: React.FC = () => {
 
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
 
+  // Publish alerts so the Layout bottom bar can show them as notifications
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('home:alerts', { detail: alerts }));
+  }, [alerts]);
+
   // Favorites state
   const [favorites, setFavorites] = useState<string[]>(() => {
     const saved = localStorage.getItem('handy-tools-favorites');

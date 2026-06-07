@@ -1,9 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import { Outlet, NavLink, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Home, MoreHorizontal, X, Sun, Moon, Settings, Check
+  Home, MoreHorizontal, X, Sun, Moon, Settings, Check, Bell, ChevronUp, ChevronDown
 } from 'lucide-react';
 import { DEFAULT_TOOLS } from '../pages/Home';
+
+interface NavAlert {
+  id: string;
+  type: string;
+  title: string;
+  daysLeft: number;
+  to: string;
+}
+
+const ALERT_PREFIX: Record<string, string> = {
+  document: 'Renew',
+  event: 'Event',
+  subscription: 'Due',
+  payday: 'Payday',
+  water: 'Hydration',
+  debt: 'Owe',
+};
 
 const Layout: React.FC = () => {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -58,6 +75,80 @@ const Layout: React.FC = () => {
     }
   }, [isLightMode]);
 
+  // --- Scroll-driven header hide + notification bar (home only) ---
+  const navigate = useNavigate();
+  const [alerts, setAlerts] = useState<NavAlert[]>([]);
+  const [notifIndex, setNotifIndex] = useState(0);
+  const [notifDir, setNotifDir] = useState<'up' | 'down'>('up');
+  const [headerHidden, setHeaderHidden] = useState(false);
+  const [notifMode, setNotifMode] = useState(false);
+  const lastScrollY = useRef(0);
+  const touchStartY = useRef<number | null>(null);
+
+  // Receive alerts published by the Home page
+  useEffect(() => {
+    const onAlerts = (e: Event) => {
+      const detail = (e as CustomEvent).detail as NavAlert[];
+      const list = Array.isArray(detail) ? detail : [];
+      setAlerts(list);
+      setNotifIndex(i => (list.length ? Math.min(i, list.length - 1) : 0));
+    };
+    window.addEventListener('home:alerts', onAlerts as EventListener);
+    return () => window.removeEventListener('home:alerts', onAlerts as EventListener);
+  }, []);
+
+  // Hide the header on scroll-down and swap the bottom bar to notifications.
+  useEffect(() => {
+    const container = document.getElementById('main-scroll-area');
+    const onScroll = () => {
+      const y = container?.scrollTop ?? window.scrollY;
+      const delta = y - lastScrollY.current;
+      if (y < 40) {
+        setHeaderHidden(false);
+        setNotifMode(false);
+      } else if (delta > 6) {
+        setHeaderHidden(true);
+        if (location.pathname === '/') setNotifMode(true);
+      } else if (delta < -6) {
+        setHeaderHidden(false);
+        setNotifMode(false);
+      }
+      lastScrollY.current = y;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    container?.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      container?.removeEventListener('scroll', onScroll);
+    };
+  }, [location.pathname]);
+
+  // Reset header/bar when the route changes (e.g. tapping a tool returns to the menu)
+  useEffect(() => {
+    setHeaderHidden(false);
+    setNotifMode(false);
+    lastScrollY.current = 0;
+  }, [location.pathname]);
+
+  const cycleNotif = (dir: number) => {
+    setNotifDir(dir > 0 ? 'up' : 'down');
+    setNotifIndex(i => {
+      const n = alerts.length;
+      return n ? (i + dir + n) % n : 0;
+    });
+  };
+  const onNotifTouchStart = (e: React.TouchEvent) => { touchStartY.current = e.touches[0].clientY; };
+  const onNotifTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartY.current == null) return;
+    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    if (dy < -30) cycleNotif(1);
+    else if (dy > 30) cycleNotif(-1);
+    touchStartY.current = null;
+  };
+
+  const showNotif = notifMode && location.pathname === '/' && alerts.length > 0;
+  const currentAlert = alerts[notifIndex] || alerts[0];
+
   const moreTools = [
     ...DEFAULT_TOOLS.map(tool => {
       if (tool.id === '/duit-raya') {
@@ -91,7 +182,7 @@ const Layout: React.FC = () => {
     <div className="sm:flex sm:items-center sm:justify-center sm:min-h-screen sm:py-8 sm:w-full">
       <div className="flex flex-col min-h-screen sm:min-h-0 sm:h-[min(850px,calc(100vh-4rem))] max-w-md mx-auto w-full bg-background text-text shadow-[0_0_40px_rgba(0,0,0,0.15)] dark:shadow-[0_0_40px_rgba(0,0,0,0.5)] relative sm:rounded-[2.5rem] sm:border-[8px] sm:border-slate-800 dark:sm:border-slate-900 sm:overflow-hidden">
         {/* Top Navbar */}
-        <header className="sticky top-0 z-40 glass-panel rounded-none border-x-0 border-t-0 rounded-b-2xl">
+        <header className={`sticky top-0 z-40 glass-panel rounded-none border-x-0 border-t-0 rounded-b-2xl overflow-hidden transition-all duration-300 ${headerHidden ? 'max-h-0 opacity-0' : 'max-h-24 opacity-100'}`}>
           <div className="max-w-md mx-auto px-6 py-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold flex items-center space-x-1.5">
@@ -123,7 +214,41 @@ const Layout: React.FC = () => {
         {/* Bottom Navigation */}
         <nav className="fixed bottom-0 sm:absolute sm:bottom-0 left-0 right-0 mx-auto w-full max-w-md z-40">
           <div className="max-w-md mx-auto mb-4 px-4">
-            <div className="glass-panel flex justify-between items-center p-2">
+            {showNotif ? (
+              <div
+                key="notif"
+                onTouchStart={onNotifTouchStart}
+                onTouchEnd={onNotifTouchEnd}
+                className="glass-panel flex items-center gap-3 p-3 animate-fade-in select-none"
+              >
+                <div className="relative shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-yellow-500/15 text-yellow-400 flex items-center justify-center">
+                    <Bell size={20} className="animate-pulse" />
+                  </div>
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">{alerts.length}</span>
+                </div>
+                <button onClick={() => currentAlert && navigate(currentAlert.to)} className="flex-1 min-w-0 text-left overflow-hidden">
+                  <div key={notifIndex} className={notifDir === 'up' ? 'notif-up-anim' : 'notif-down-anim'}>
+                    <p className="text-[9px] uppercase tracking-wider text-muted font-bold">
+                      {ALERT_PREFIX[currentAlert?.type] || 'Alert'} · {notifIndex + 1}/{alerts.length}
+                    </p>
+                    <p className="text-sm font-bold truncate text-text/90">{currentAlert?.title}</p>
+                  </div>
+                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex flex-col gap-1">
+                    {alerts.slice(0, 4).map((a, i) => (
+                      <span key={a.id} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === notifIndex ? 'bg-yellow-400' : 'bg-text/20'}`} />
+                    ))}
+                  </div>
+                  <div className="flex flex-col">
+                    <button onClick={() => cycleNotif(-1)} className="p-1 text-muted hover:text-text transition-colors"><ChevronUp size={16} /></button>
+                    <button onClick={() => cycleNotif(1)} className="p-1 text-muted hover:text-text transition-colors"><ChevronDown size={16} /></button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+            <div className="glass-panel flex justify-between items-center p-2 animate-fade-in" key="menu">
               <NavLink
                 to="/"
                 onClick={() => setShowMoreMenu(false)}
@@ -183,6 +308,7 @@ const Layout: React.FC = () => {
                 </span>
               </button>
             </div>
+            )}
           </div>
         </nav>
 

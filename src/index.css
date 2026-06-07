@@ -288,3 +288,14 @@ html.light .ap-accent { color: #b91c1c; } /* red-700 */
   100% { transform: scale(2.2); opacity: 0; }
 }
 .heart-burst-anim { animation: heart-burst 0.5s ease-out forwards; }
+
+@keyframes notif-up {
+  from { transform: translateY(70%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes notif-down {
+  from { transform: translateY(-70%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.notif-up-anim { animation: notif-up 0.25s ease-out; }
+.notif-down-anim { animation: notif-down 0.25s ease-out; }
