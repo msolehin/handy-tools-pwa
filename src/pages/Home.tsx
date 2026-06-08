@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   MapPin, ArrowRight, Shield, PieChart, Timer, Wallet,
   Users, Calendar, Landmark, ShieldAlert, Wrench, Plane, Activity,
-  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, Briefcase, Fuel, Gift, ArrowRightLeft, Banknote, Dices, Repeat, Droplets, Layers, Search, HeartPulse, Car, ListChecks, HandCoins, Utensils, Gauge, ChevronDown, ChevronUp, Sparkles, Heart, ArrowDownAZ, IdCard, Box
+  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, Briefcase, Fuel, Gift, ArrowRightLeft, Banknote, Dices, Repeat, Droplets, Layers, Search, HeartPulse, Car, ListChecks, HandCoins, Utensils, Gauge, ChevronDown, ChevronUp, Sparkles, Heart, ArrowDownAZ, IdCard, Box, BookOpen
 } from 'lucide-react';
 import { 
   DndContext, 
@@ -165,11 +165,15 @@ export const DEFAULT_TOOLS = [
   {
     id: '/asset-warranty', to: '/asset-warranty', title: 'Asset & Warranty', desc: 'Track valuables and warranties', Icon: Box, category: 'Utilities',
     borderClass: 'hover:border-amber-400/50 hover:shadow-amber-400/20', iconBgClass: 'bg-amber-500/20 text-amber-500', arrowClass: 'group-hover:text-amber-500'
+  },
+  {
+    id: '/book-tracker', to: '/book-tracker', title: 'My Books', desc: 'Track reading, wishlist & quotes', Icon: BookOpen, category: 'Lifestyle',
+    borderClass: 'hover:border-violet-400/50 hover:shadow-violet-400/20', iconBgClass: 'bg-violet-500/20 text-violet-400', arrowClass: 'group-hover:text-violet-400'
   }
 ];
 
 // Tools flagged as "HOT" — shown with a badge and promoted to the top of the list
-export const HOT_IDS = ['/ic-scanner', '/decision-maker', '/duit-raya', '/habit-tracker', '/expense-manager', '/travel-history', '/restaurant-splitter', '/asset-warranty'];
+export const HOT_IDS = ['/ic-scanner', '/decision-maker', '/duit-raya', '/habit-tracker', '/expense-manager', '/travel-history', '/restaurant-splitter', '/asset-warranty', '/book-tracker'];
 
 // Newly launched tools — show a "NEW" badge for 7 days, then they roll over to "HOT"
 const NEW_TOOLS: Record<string, string> = {
@@ -177,6 +181,7 @@ const NEW_TOOLS: Record<string, string> = {
   '/expense-manager': '2026-06-08',
   '/travel-history': '2026-06-08',
   '/asset-warranty': '2026-06-08',
+  '/book-tracker': '2026-06-08',
 };
 const NEW_DAYS = 7;
 const badgeFor = (id: string): 'new' | 'hot' | null => {

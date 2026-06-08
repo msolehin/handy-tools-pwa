@@ -58,6 +58,15 @@
 html.light .dr-accent { color: #047857; } /* emerald-700 */
 html.light .ap-accent { color: #b91c1c; } /* red-700 */
 
+/* Hide scrollbar for horizontally-scrolling tab bars */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
