@@ -11,8 +11,47 @@ interface NavAlert {
   title: string;
   subtitle?: string;
   daysLeft: number;
+  percentage?: number;
   to: string;
 }
+
+const navWave1 = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 88.7'%3E%3Cpath d='M800 56.9c-155.5 0-204.9-50-405.5-49.9-200 0-250 49.9-394.5 49.9v31.8h800v-.2-31.6z' fill='%2360a5fa' opacity='0.4'/%3E%3C/svg%3E`;
+const navWave2 = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 88.7'%3E%3Cpath d='M800 56.9c-155.5 0-204.9-50-405.5-49.9-200 0-250 49.9-394.5 49.9v31.8h800v-.2-31.6z' fill='%233b82f6' opacity='0.6'/%3E%3C/svg%3E`;
+
+// Per-type animated background for the notification bar (mirrors the Home alert cards)
+const NavAlertBg: React.FC<{ alert: NavAlert }> = ({ alert }) => {
+  const pct = alert.percentage;
+  if (alert.type === 'water' && pct !== undefined && pct > 0) {
+    return (
+      <div className="absolute left-[-25%] right-[-25%] bg-blue-600/25 z-0 origin-top pointer-events-none" style={{ bottom: '-25%', height: `calc(${Math.min(90, pct)}% + 25%)`, transform: 'rotate(var(--water-tilt, 0deg))', transition: 'height 1500ms ease-out, transform 250ms ease-out' }}>
+        <div className="absolute w-[200%] h-6 left-0 -top-[23px] bg-repeat-x wave-anim" style={{ backgroundImage: `url("${navWave1}")`, backgroundSize: '200px 100%' }} />
+        <div className="absolute w-[200%] h-6 left-0 -top-[23px] bg-repeat-x wave-anim-fast" style={{ backgroundImage: `url("${navWave2}")`, backgroundSize: '200px 100%' }} />
+      </div>
+    );
+  }
+  if ((alert.type === 'payday' || alert.type === 'habit' || alert.type === 'expense') && pct !== undefined && pct > 0) {
+    const c = alert.type === 'payday' ? 'emerald' : alert.type === 'habit' ? 'violet' : (pct >= 100 ? 'red' : 'emerald');
+    const map: Record<string, string> = { emerald: 'bg-emerald-500/15 border-emerald-500/30 via-emerald-400/20', violet: 'bg-violet-500/15 border-violet-500/30 via-violet-400/20', red: 'bg-red-500/20 border-red-500/40 via-red-400/20' };
+    const cls = map[c];
+    return (
+      <div className={`absolute top-0 left-0 bottom-0 z-0 border-r overflow-hidden pointer-events-none transition-all duration-1000 ease-out ${cls.split(' ').slice(0, 2).join(' ')}`} style={{ width: `${pct}%`, minWidth: '8%' }}>
+        <div className={`absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-transparent to-transparent shimmer-anim ${cls.split(' ')[2]}`} />
+      </div>
+    );
+  }
+  if (alert.type === 'debt') return <div className="absolute inset-0 stripes-anim opacity-60 z-0 pointer-events-none" />;
+  if (alert.type === 'document') return (
+    <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none">
+      <div className={`absolute left-0 right-0 h-[2px] blur-[1px] scan-line-anim ${alert.daysLeft < 0 ? 'bg-red-500' : 'bg-yellow-400'}`} style={{ top: '30%' }} />
+    </div>
+  );
+  if (alert.type === 'event') return (
+    <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-40">
+      <div className="absolute -inset-[100%] spin-slow-anim" style={{ background: 'conic-gradient(from 0deg, transparent 0%, transparent 80%, rgba(236,72,153,0.4) 100%)' }} />
+    </div>
+  );
+  return null;
+};
 
 const ALERT_PREFIX: Record<string, string> = {
   document: 'Renew',
@@ -203,6 +242,7 @@ const Layout: React.FC = () => {
   const showNotif = notifMode && location.pathname === '/';
   const currentAlert = alerts[notifIndex] || alerts[0];
   const hasAlerts = alerts.length > 0;
+  const animOn = (() => { try { const s = localStorage.getItem('handy-animations'); return s ? JSON.parse(s) : true; } catch (e) { return true; } })();
 
   const moreTools = [
     ...DEFAULT_TOOLS.map(tool => {
@@ -295,9 +335,10 @@ const Layout: React.FC = () => {
                 key="notif"
                 onTouchStart={onNotifTouchStart}
                 onTouchEnd={onNotifTouchEnd}
-                className="glass-panel flex items-center gap-3 p-3 animate-fade-in select-none"
+                className="glass-panel flex items-center gap-3 p-3 animate-fade-in select-none relative overflow-hidden"
               >
-                <div className="relative shrink-0">
+                {animOn && hasAlerts && currentAlert && <NavAlertBg alert={currentAlert} />}
+                <div className="relative shrink-0 z-10">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${hasAlerts ? 'bg-yellow-500/15 text-yellow-400' : 'bg-text/10 text-muted'}`}>
                     <Bell size={20} className={hasAlerts ? 'animate-pulse' : ''} />
                   </div>
@@ -306,7 +347,7 @@ const Layout: React.FC = () => {
                   )}
                 </div>
                 {hasAlerts ? (
-                  <button onClick={() => currentAlert && navigate(currentAlert.to)} className="flex-1 min-w-0 text-left overflow-hidden">
+                  <button onClick={() => currentAlert && navigate(currentAlert.to)} className="flex-1 min-w-0 text-left overflow-hidden relative z-10">
                     <div key={notifIndex} className={notifDir === 'up' ? 'notif-up-anim' : 'notif-down-anim'}>
                       <p className="text-[9px] uppercase tracking-wider text-muted font-bold">
                         {ALERT_PREFIX[currentAlert?.type] || 'Alert'} · {notifIndex + 1}/{alerts.length}
@@ -315,13 +356,13 @@ const Layout: React.FC = () => {
                     </div>
                   </button>
                 ) : (
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 relative z-10">
                     <p className="text-[9px] uppercase tracking-wider text-muted font-bold">Notifications</p>
                     <p className="text-sm font-bold truncate text-text/70">You're all caught up 🎉</p>
                   </div>
                 )}
                 {hasAlerts && (
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0 relative z-10">
                     <div className="flex flex-col gap-1">
                       {alerts.slice(0, 4).map((a, i) => (
                         <span key={a.id} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === notifIndex ? 'bg-yellow-400' : 'bg-text/20'}`} />
