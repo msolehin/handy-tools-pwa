@@ -13,8 +13,33 @@ const WORLD_FC: any = feature(worldTopo as any, (worldTopo as any).objects.count
 const MAP_W = 800, MAP_H = 388;
 const _mapPath = geoPath(geoEqualEarth().fitSize([MAP_W, MAP_H], WORLD_FC));
 const COUNTRY_PATHS: { name: string; d: string }[] = WORLD_FC.features.map((f: any) => ({ name: f.properties.name, d: _mapPath(f) || '' }));
+// Per-country path + bounding box, for drawing a single-country silhouette
+const COUNTRY_BOX: Record<string, { d: string; box: [number, number, number, number] }> = {};
+WORLD_FC.features.forEach((f: any) => {
+  const d = _mapPath(f) || '';
+  const b = _mapPath.bounds(f);
+  COUNTRY_BOX[f.properties.name] = { d, box: [b[0][0], b[0][1], b[1][0] - b[0][0], b[1][1] - b[0][1]] };
+});
 // Map our country names to the world-atlas naming where they differ
 const MAP_ALIAS: Record<string, string> = { 'United States': 'United States of America', 'Czech Republic': 'Czechia' };
+
+// Faint silhouette of a country, used as a card background watermark
+const CountryBg: React.FC<{ country: string }> = ({ country }) => {
+  const c = COUNTRY_BOX[MAP_ALIAS[country] || country];
+  if (!c || !c.d) return null;
+  const [x, y, w, h] = c.box;
+  const pad = Math.max(w, h) * 0.15;
+  return (
+    <svg
+      viewBox={`${x - pad} ${y - pad} ${w + pad * 2} ${h + pad * 2}`}
+      preserveAspectRatio="xMidYMid meet"
+      className="absolute right-0 inset-y-0 w-2/3 text-cyan-400 opacity-[0.08] pointer-events-none"
+      aria-hidden
+    >
+      <path d={c.d} fill="currentColor" />
+    </svg>
+  );
+};
 
 const WorldMap: React.FC<{ counts: Record<string, number> }> = ({ counts }) => {
   const maxCount = Object.values(counts).reduce((m, v) => Math.max(m, v), 1);
@@ -326,7 +351,9 @@ const TravelHistory: React.FC = () => {
     const [showItin, setShowItin] = useState(false);
     const days = t.itinerary || [];
     return (
-    <div className="glass-panel p-4 space-y-2">
+    <div className="glass-panel p-4 relative overflow-hidden">
+      <CountryBg country={t.country} />
+      <div className="relative z-10 space-y-2">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <h4 className="font-bold text-text/90 truncate">{t.flag} {t.title}</h4>
@@ -391,6 +418,7 @@ const TravelHistory: React.FC = () => {
         <button onClick={() => openExpenses(t)} className="flex-1 py-2 rounded-lg bg-text/5 text-xs font-bold text-text/80 hover:bg-text/10 flex items-center justify-center gap-1.5"><Wallet size={13} /> Expenses</button>
         <button onClick={() => setItinTripId(t.id)} className="flex-1 py-2 rounded-lg bg-text/5 text-xs font-bold text-text/80 hover:bg-text/10 flex items-center justify-center gap-1.5"><MapIcon size={13} /> Itinerary</button>
       </div>
+      </div>
     </div>
     );
   };
@@ -444,11 +472,21 @@ const TravelHistory: React.FC = () => {
               <WorldMap counts={Object.fromEntries(countryCounts.map(c => [MAP_ALIAS[c.country] || c.country, c.count]))} />
             </div>
             <div className="flex flex-wrap gap-2">
-              {countryCounts.sort((a, b) => b.count - a.count).map(c => (
-                <span key={c.country} className="px-2.5 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs font-medium flex items-center gap-1.5">
-                  <span className="text-base leading-none">{c.flag}</span> {c.country}{c.count > 1 && <span className="text-emerald-400 font-bold">×{c.count}</span>}
-                </span>
-              ))}
+              {(() => {
+                const maxVisits = countryCounts.reduce((m, c) => Math.max(m, c.count), 1);
+                return countryCounts.slice().sort((a, b) => b.count - a.count).map(c => {
+                  const f = (c.count - 1) / Math.max(1, maxVisits - 1); // 0..1
+                  return (
+                    <span
+                      key={c.country}
+                      className="px-2.5 py-1.5 rounded-xl border text-xs font-medium flex items-center gap-1.5"
+                      style={{ backgroundColor: `rgba(16,185,129,${0.1 + f * 0.5})`, borderColor: `rgba(16,185,129,${0.25 + f * 0.45})` }}
+                    >
+                      <span className="text-base leading-none">{c.flag}</span> {c.country}{c.count > 1 && <span className="text-emerald-400 font-bold">×{c.count}</span>}
+                    </span>
+                  );
+                });
+              })()}
             </div>
             <p className="text-[10px] text-muted">Very small countries may not show on the map — see the list above.</p>
           </div>
@@ -530,9 +568,12 @@ const TravelHistory: React.FC = () => {
                 {sortedByDate.filter(t => yearOf(t.startDate) === yr).map(t => (
                   <div key={t.id} className="relative">
                     <span className="absolute -left-[22px] top-1.5 w-2.5 h-2.5 rounded-full bg-cyan-400 ring-4 ring-background" />
-                    <button onClick={() => openEdit(t)} className="text-left w-full glass-panel p-3 hover:bg-text/5 transition-colors">
-                      <p className="font-bold text-sm text-text/90">{t.flag} {t.title}</p>
-                      <p className="text-[11px] text-muted">{longDate(t.startDate)} – {longDate(t.endDate)} · RM{fmt(t.budget)}</p>
+                    <button onClick={() => openEdit(t)} className="text-left w-full glass-panel p-3 hover:bg-text/5 transition-colors relative overflow-hidden">
+                      <CountryBg country={t.country} />
+                      <div className="relative z-10">
+                        <p className="font-bold text-sm text-text/90">{t.flag} {t.title}</p>
+                        <p className="text-[11px] text-muted">{longDate(t.startDate)} – {longDate(t.endDate)}{t.budget > 0 ? ` · RM${fmt(t.budget)}` : ''}</p>
+                      </div>
                     </button>
                   </div>
                 ))}
