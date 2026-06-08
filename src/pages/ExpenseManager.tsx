@@ -519,13 +519,31 @@ const ExpenseManager: React.FC = () => {
             })()}
           </div>
 
-          {/* Last month overview */}
-          <div className="glass-panel p-4">
-            <h3 className="font-bold text-sm mb-2">{monthLabel(prevMonth)} Overview</h3>
-            <div className="flex justify-between text-xs font-mono">
-              <span className="text-emerald-400">+RM{fmt(prevIncome)}</span>
-              <span className="text-red-400">-RM{fmt(prevExpense + prevPaid)}</span>
-              <span className={prevNet < 0 ? 'text-red-400 font-bold' : 'text-text/90 font-bold'}>Net RM{fmt(prevNet)}</span>
+          {/* Month Comparison */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="glass-panel p-4">
+              <h3 className="font-bold text-xs mb-2 text-muted uppercase tracking-wider">{monthLabel(prevMonth)}</h3>
+              <div className="space-y-1 text-xs font-mono">
+                <div className="flex justify-between"><span className="text-text/50">In</span><span className="text-emerald-400">+RM{fmt(prevIncome)}</span></div>
+                <div className="flex justify-between"><span className="text-text/50">Out</span><span className="text-red-400">-RM{fmt(prevExpense + prevPaid)}</span></div>
+                <div className="flex justify-between pt-1 border-t border-text/10 mt-1">
+                  <span className="text-text/80 font-bold">Net</span>
+                  <span className={prevNet < 0 ? 'text-red-400 font-bold' : 'text-text/90 font-bold'}>{prevNet < 0 ? '-' : ''}RM{fmt(Math.abs(prevNet))}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="glass-panel p-4 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-1 h-full bg-emerald-500/50" />
+              <h3 className="font-bold text-xs mb-2 text-emerald-400 uppercase tracking-wider">{monthLabel(viewMonth)}</h3>
+              <div className="space-y-1 text-xs font-mono">
+                <div className="flex justify-between"><span className="text-text/50">In</span><span className="text-emerald-400">+RM{fmt(receivedIncome)}</span></div>
+                <div className="flex justify-between"><span className="text-text/50">Out</span><span className="text-red-400">-RM{fmt(totalExpenses + paidCommitment)}</span></div>
+                <div className="flex justify-between pt-1 border-t border-text/10 mt-1">
+                  <span className="text-text/80 font-bold">Net</span>
+                  <span className={balance < 0 ? 'text-red-400 font-bold' : 'text-text/90 font-bold'}>{balance < 0 ? '-' : ''}RM{fmt(Math.abs(balance))}</span>
+                </div>
+              </div>
             </div>
           </div>
 

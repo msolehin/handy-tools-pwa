@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Calculator, Landmark, Wallet, PiggyBank, Briefcase, 
-  Tag, Calendar, RefreshCw, Plus, Trash2, Clock
+  Calculator, Landmark, PiggyBank, Briefcase, 
+  Tag, Calendar, RefreshCw, Clock
 } from 'lucide-react';
 
 type TabType = 'loan' | 'savings' | 'salary' | 'discount';
