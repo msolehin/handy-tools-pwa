@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Globe, Plus, Trash2, Pencil, X, Calendar, MapPin, Plane, Star,
-  Clock, Search, ArrowUpDown, Layers, TrendingUp, ZoomIn, ZoomOut, Maximize, Wallet, Map as MapIcon, ChevronUp, ChevronDown
+  Clock, Search, ArrowUpDown, Layers, TrendingUp, ZoomIn, ZoomOut, Maximize, Wallet, Map as MapIcon, ChevronUp, ChevronDown, Check, Backpack
 } from 'lucide-react';
 import { geoEqualEarth, geoPath } from 'd3-geo';
 import { feature } from 'topojson-client';
@@ -186,6 +186,17 @@ const WorldMap: React.FC<{ counts: Record<string, number>; focus?: { name: strin
 
 interface ItinActivity { id: string; time?: string; text: string; }
 interface ItinDay { id: string; label: string; timed: boolean; activities: ItinActivity[]; }
+interface ChecklistItem { id: string; category: string; text: string; done: boolean; }
+
+const DEFAULT_CHECKLIST: Record<string, string[]> = {
+  Documents: ['Passport', 'Visa', 'ID card', 'Flight tickets', 'Hotel booking', 'Travel insurance'],
+  Money: ['Cash', 'Credit / debit cards', 'Local currency'],
+  Clothing: ['Shirts', 'Pants', 'Underwear', 'Socks', 'Jacket', 'Sleepwear', 'Comfortable shoes'],
+  Toiletries: ['Toothbrush', 'Toothpaste', 'Shampoo', 'Soap', 'Deodorant', 'Sunscreen', 'Skincare'],
+  Electronics: ['Phone', 'Charger', 'Power bank', 'Travel adapter', 'Earphones'],
+  Health: ['Medication', 'First aid kit', 'Hand sanitizer', 'Face masks'],
+  Essentials: ['Reusable water bottle', 'Umbrella', 'Snacks', 'Travel pillow'],
+};
 
 interface Trip {
   id: string;
@@ -200,6 +211,7 @@ interface Trip {
   cities?: string[];
   notes?: string;
   itinerary?: ItinDay[];
+  checklist?: ChecklistItem[];
 }
 
 const STORAGE_KEY = 'travel_history_data';
@@ -353,10 +365,11 @@ const TravelHistory: React.FC = () => {
       bestLocation: fBest.trim() || undefined,
       cities: cities.length ? cities : undefined,
       notes: fNotes.trim() || undefined,
-      // Preserve expenses + itinerary, which are managed separately on the Trips tab
+      // Preserve expenses + itinerary + checklist, which are managed separately on the Trips tab
       budget: existing?.budget ?? 0,
       categories: existing?.categories,
       itinerary: existing?.itinerary,
+      checklist: existing?.checklist,
     };
     setTrips(prev => editId ? prev.map(t => t.id === editId ? trip : t) : [...prev, trip]);
     setShowForm(false);
@@ -417,6 +430,37 @@ const TravelHistory: React.FC = () => {
     const arr = [...d.activities]; [arr[idx], arr[j]] = [arr[j], arr[idx]]; return { ...d, activities: arr };
   });
 
+  // --- Manage Checklist modal ---
+  const [checkTripId, setCheckTripId] = useState<string | null>(null);
+  const checkTrip = trips.find(t => t.id === checkTripId) || null;
+  const [checkExtraCats, setCheckExtraCats] = useState<string[]>([]);
+  const [checkDraft, setCheckDraft] = useState<Record<string, string>>({});
+  const [newCheckCat, setNewCheckCat] = useState('');
+  const openChecklist = (id: string) => { setCheckTripId(id); setCheckExtraCats([]); setCheckDraft({}); setNewCheckCat(''); };
+  const updateChecklist = (fn: (list: ChecklistItem[]) => ChecklistItem[]) =>
+    setTrips(prev => prev.map(t => t.id === checkTripId ? { ...t, checklist: fn(t.checklist || []) } : t));
+  const loadDefaultChecklist = () => {
+    const add: ChecklistItem[] = [];
+    Object.entries(DEFAULT_CHECKLIST).forEach(([cat, arr]) => arr.forEach(text => add.push({ id: generateId(), category: cat, text, done: false })));
+    updateChecklist(list => [...list, ...add.filter(i => !list.some(x => x.category === i.category && x.text.toLowerCase() === i.text.toLowerCase()))]);
+  };
+  const addCheckItem = (cat: string) => {
+    const text = (checkDraft[cat] || '').trim();
+    if (!text) return;
+    updateChecklist(list => [...list, { id: generateId(), category: cat, text, done: false }]);
+    setCheckDraft(prev => ({ ...prev, [cat]: '' }));
+  };
+  const toggleCheckItem = (id: string) => updateChecklist(list => list.map(i => i.id === id ? { ...i, done: !i.done } : i));
+  const deleteCheckItem = (id: string) => updateChecklist(list => list.filter(i => i.id !== id));
+  const addCheckCategory = () => { const c = newCheckCat.trim(); if (c && !checkExtraCats.includes(c)) setCheckExtraCats(prev => [...prev, c]); setNewCheckCat(''); };
+  const deleteCheckCategory = (cat: string) => {
+    const count = (checkTrip?.checklist || []).filter(i => i.category === cat).length;
+    if (count > 0 && !window.confirm(`Delete "${cat}" and its ${count} item${count > 1 ? 's' : ''}?`)) return;
+    updateChecklist(list => list.filter(i => i.category !== cat));
+    setCheckExtraCats(prev => prev.filter(c => c !== cat));
+  };
+  const clearChecklist = () => { if (window.confirm('Clear the whole packing list?')) { updateChecklist(() => []); setCheckExtraCats([]); } };
+
   // --- Stats ---
   const uniqueCountries = Array.from(new Set(trips.map(t => t.country)));
   const totalSpending = trips.reduce((s, t) => s + t.budget, 0);
@@ -457,6 +501,7 @@ const TravelHistory: React.FC = () => {
       <div className="flex items-center gap-3 flex-wrap text-xs">
         {t.budget > 0 && <span className="font-mono font-bold text-cyan-400">RM{fmt(t.budget)}</span>}
         {t.bestLocation && <span className="text-muted flex items-center gap-1"><Star size={12} /> {t.bestLocation}</span>}
+        {t.checklist && t.checklist.length > 0 && <span className="text-muted flex items-center gap-1"><Backpack size={12} /> {t.checklist.filter(i => i.done).length}/{t.checklist.length}</span>}
       </div>
       {t.categories && (
         <div className="flex flex-wrap gap-1">
@@ -504,9 +549,10 @@ const TravelHistory: React.FC = () => {
         </div>
       )}
 
-      <div className="flex gap-2 pt-1">
-        <button onClick={() => openExpenses(t)} className="flex-1 py-2 rounded-lg bg-text/5 text-xs font-bold text-text/80 hover:bg-text/10 flex items-center justify-center gap-1.5"><Wallet size={13} /> Expenses</button>
-        <button onClick={() => setItinTripId(t.id)} className="flex-1 py-2 rounded-lg bg-text/5 text-xs font-bold text-text/80 hover:bg-text/10 flex items-center justify-center gap-1.5"><MapIcon size={13} /> Itinerary</button>
+      <div className="flex gap-1.5 pt-1">
+        <button onClick={() => openExpenses(t)} className="flex-1 py-2 rounded-lg bg-text/5 text-[11px] font-bold text-text/80 hover:bg-text/10 flex items-center justify-center gap-1"><Wallet size={13} /> Expenses</button>
+        <button onClick={() => setItinTripId(t.id)} className="flex-1 py-2 rounded-lg bg-text/5 text-[11px] font-bold text-text/80 hover:bg-text/10 flex items-center justify-center gap-1"><MapIcon size={13} /> Itinerary</button>
+        <button onClick={() => openChecklist(t.id)} className="flex-1 py-2 rounded-lg bg-text/5 text-[11px] font-bold text-text/80 hover:bg-text/10 flex items-center justify-center gap-1"><Backpack size={13} /> Packing</button>
       </div>
       </div>
     </div>
@@ -823,6 +869,67 @@ const TravelHistory: React.FC = () => {
           </div>
         </div>
       ), document.body)}
+
+      {/* Manage Checklist (packing) modal */}
+      {checkTrip && createPortal((() => {
+        const items = checkTrip.checklist || [];
+        const done = items.filter(i => i.done).length;
+        const total = items.length;
+        const pct = total ? Math.round((done / total) * 100) : 0;
+        const cats = Array.from(new Set([...items.map(i => i.category), ...checkExtraCats]));
+        return (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setCheckTripId(null)}>
+            <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-3 animate-slide-up max-h-[88vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between"><h3 className="font-bold text-lg flex items-center gap-2"><Backpack size={18} className="text-cyan-400" /> {checkTrip.flag} Packing</h3><button onClick={() => setCheckTripId(null)} className="p-1 text-muted hover:text-text"><X size={20} /></button></div>
+
+              {/* Packing progress */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs"><span className="text-muted font-bold">{done}/{total} packed</span><span className="font-bold text-cyan-400">{pct}%</span></div>
+                <div className="h-2 bg-black/20 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-full transition-all" style={{ width: `${pct}%` }} /></div>
+              </div>
+
+              {total === 0 && (
+                <button onClick={loadDefaultChecklist} className="w-full py-2.5 rounded-xl bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 font-bold text-sm">✨ Load travel essentials</button>
+              )}
+
+              {cats.map(cat => {
+                const list = items.filter(i => i.category === cat);
+                return (
+                  <div key={cat} className="glass-panel p-3 space-y-1.5 border-text/10">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-bold text-xs text-cyan-400">{cat}</h4>
+                      <button onClick={() => deleteCheckCategory(cat)} className="text-rose-400 opacity-50 hover:opacity-100" title="Delete category"><Trash2 size={13} /></button>
+                    </div>
+                    {list.map(i => (
+                      <div key={i.id} className="flex items-center gap-2">
+                        <button onClick={() => toggleCheckItem(i.id)} className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${i.done ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-text/30 text-transparent'}`}><Check size={13} strokeWidth={3} /></button>
+                        <span className={`flex-1 text-sm ${i.done ? 'line-through text-text/40' : 'text-text/90'}`}>{i.text}</span>
+                        <button onClick={() => deleteCheckItem(i.id)} className="text-rose-400 opacity-40 hover:opacity-100"><X size={14} /></button>
+                      </div>
+                    ))}
+                    <div className="flex gap-2 pt-1">
+                      <input value={checkDraft[cat] || ''} onChange={e => setCheckDraft(prev => ({ ...prev, [cat]: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') addCheckItem(cat); }} placeholder="Add item…" className="input-field flex-1 py-1.5 text-sm" />
+                      <button onClick={() => addCheckItem(cat)} className="px-2 rounded-lg bg-cyan-500/20 text-cyan-400"><Plus size={16} /></button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Add custom category */}
+              <div className="flex gap-2">
+                <input value={newCheckCat} onChange={e => setNewCheckCat(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addCheckCategory(); }} placeholder="New category (e.g. Baby, Hiking)" className="input-field flex-1 text-sm" />
+                <button onClick={addCheckCategory} className="px-4 rounded-xl bg-cyan-500 text-white font-bold text-sm">Add</button>
+              </div>
+              {total > 0 && (
+                <div className="flex gap-2">
+                  <button onClick={loadDefaultChecklist} className="flex-1 py-2 text-xs font-bold text-cyan-400">+ Add essentials</button>
+                  <button onClick={clearChecklist} className="flex-1 py-2 text-xs font-bold text-rose-400 flex items-center justify-center gap-1"><Trash2 size={13} /> Clear all</button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })(), document.body)}
     </div>
   );
 };

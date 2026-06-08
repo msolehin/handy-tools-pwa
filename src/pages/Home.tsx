@@ -165,7 +165,23 @@ export const DEFAULT_TOOLS = [
 ];
 
 // Tools flagged as "HOT" — shown with a badge and promoted to the top of the list
-export const HOT_IDS = ['/ic-scanner', '/decision-maker', '/duit-raya', '/restaurant-splitter', '/habit-tracker', '/expense-manager', '/travel-history'];
+export const HOT_IDS = ['/ic-scanner', '/decision-maker', '/duit-raya', '/habit-tracker', '/expense-manager', '/travel-history', '/restaurant-splitter'];
+
+// Newly launched tools — show a "NEW" badge for 7 days, then they roll over to "HOT"
+const NEW_TOOLS: Record<string, string> = {
+  '/habit-tracker': '2026-06-08',
+  '/expense-manager': '2026-06-08',
+  '/travel-history': '2026-06-08',
+};
+const NEW_DAYS = 7;
+const badgeFor = (id: string): 'new' | 'hot' | null => {
+  const launch = NEW_TOOLS[id];
+  if (launch) {
+    const days = (Date.now() - new Date(launch).getTime()) / 86400000;
+    return days < NEW_DAYS ? 'new' : 'hot';
+  }
+  return HOT_IDS.includes(id) ? 'hot' : null;
+};
 
 const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisableDrag, animationsEnabled = true, isFavorite, onToggleFavorite, onToolClick }: { tool: typeof DEFAULT_TOOLS[0], sortableId?: string, viewMode: 'list' | 'grid', isReordering: boolean, forceDisableDrag?: boolean, animationsEnabled?: boolean, isFavorite?: boolean, onToggleFavorite?: (id: string) => void, onToolClick?: (id: string) => void }) => {
   const {
@@ -216,7 +232,7 @@ const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisab
   };
 
   const Icon = tool.Icon;
-  const isHot = HOT_IDS.includes(tool.id);
+  const badge = badgeFor(tool.id);
 
   // Duit Raya / Angpao card swaps its look based on the saved theme
   let displayTitle = tool.title;
@@ -436,8 +452,11 @@ const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisab
               <div>
                 <h3 className="font-bold text-lg mb-1 flex items-center">
                   {displayTitle}
-                  {isHot && (
+                  {badge === 'hot' && (
                     <span className="ml-2 px-1.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wide bg-orange-500 text-white shadow-sm animate-pulse">HOT!!</span>
+                  )}
+                  {badge === 'new' && (
+                    <span className="ml-2 px-1.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wide bg-emerald-500 text-white shadow-sm animate-pulse">NEW</span>
                   )}
                 </h3>
                 <p className="text-sm text-muted">{displayDesc}</p>
@@ -474,8 +493,11 @@ const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisab
     >
       <div className={`block h-full group ${isReordering ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}>
         <div className={`glass-panel p-5 flex flex-col items-center justify-center text-center h-full transition-all duration-300 ${tool.borderClass} relative overflow-hidden`}>
-          {isHot && (
+          {badge === 'hot' && (
             <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wide bg-orange-500 text-white shadow-sm animate-pulse">HOT!!</span>
+          )}
+          {badge === 'new' && (
+            <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wide bg-emerald-500 text-white shadow-sm animate-pulse">NEW</span>
           )}
           {waterPercentage > 0 && (
             <div 
@@ -732,11 +754,11 @@ const Home: React.FC = () => {
     }
 
     // One-time promotion: move HOT tools to the top (respects manual reordering afterwards)
-    if (!localStorage.getItem('hot_tools_promoted_v2')) {
+    if (!localStorage.getItem('hot_tools_promoted_v3')) {
       const hot = HOT_IDS.map(id => base.find(t => t.id === id)).filter(Boolean) as typeof DEFAULT_TOOLS;
       const rest = base.filter(t => !HOT_IDS.includes(t.id));
       base = [...hot, ...rest];
-      localStorage.setItem('hot_tools_promoted_v2', '1');
+      localStorage.setItem('hot_tools_promoted_v3', '1');
     }
     return base;
   });
