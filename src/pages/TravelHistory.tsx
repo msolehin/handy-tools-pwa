@@ -199,10 +199,56 @@ const COUNTRIES: { name: string; code: string }[] = [
 
 const flagOf = (code: string) => code.toUpperCase().replace(/./g, c => String.fromCodePoint(127397 + c.charCodeAt(0)));
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const dateKey = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 const generateId = () => Math.random().toString(36).substring(2, 9);
 const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
 const longDate = (key: string) => { if (!key) return ''; const [y, m, d] = key.split('-').map(Number); return `${d} ${MONTHS[m - 1]} ${y}`; };
 const yearOf = (key: string) => key.slice(0, 4);
+
+// Dev-only: rich sample data to preview the tool
+const makeSampleTrips = (): Trip[] => {
+  const flag = (name: string) => { const c = COUNTRIES.find(x => x.name === name); return c ? flagOf(c.code) : '🌍'; };
+  const mk = (country: string, year: number, month: number, day: number, len: number, budget: number, extra: Partial<Trip> = {}): Trip => {
+    const sd = new Date(year, month - 1, day);
+    const ed = new Date(year, month - 1, day + len);
+    return { id: generateId(), country, flag: flag(country), title: `${country} ${year}`, startDate: dateKey(sd), endDate: dateKey(ed), budget, ...extra };
+  };
+  const japanItin: ItinDay[] = [
+    { id: generateId(), label: 'Day 1', timed: true, activities: [
+      { id: generateId(), time: '09:00', text: 'Arrive Narita, train to Tokyo' },
+      { id: generateId(), time: '13:00', text: 'Lunch at Tsukiji Market' },
+      { id: generateId(), time: '19:00', text: 'Shibuya crossing & dinner' },
+    ] },
+    { id: generateId(), label: 'Day 2', timed: false, activities: [
+      { id: generateId(), text: 'Senso-ji Temple' },
+      { id: generateId(), text: 'Akihabara shopping' },
+      { id: generateId(), text: 'TeamLab Planets' },
+    ] },
+  ];
+  return [
+    mk('Japan', 2025, 3, 1, 9, 4250, { categories: { Transport: 1200, Hotel: 1500, Food: 900, Shopping: 650 }, bestLocation: 'Osaka Castle', cities: ['Tokyo', 'Osaka', 'Kyoto'], notes: 'Sakura season', itinerary: japanItin }),
+    mk('Japan', 2024, 11, 10, 7, 3900, { bestLocation: 'Mount Fuji', cities: ['Tokyo', 'Hakone'] }),
+    mk('Japan', 2023, 4, 5, 8, 3600, { cities: ['Kyoto', 'Nara'] }),
+    mk('Thailand', 2026, 1, 12, 5, 1800, { categories: { Transport: 400, Hotel: 600, Food: 500, Shopping: 300 }, bestLocation: 'Grand Palace', cities: ['Bangkok'], notes: 'Food trip' }),
+    mk('Thailand', 2025, 6, 20, 4, 1500, { cities: ['Phuket'] }),
+    mk('Thailand', 2024, 2, 14, 6, 2100, { cities: ['Chiang Mai'] }),
+    mk('Thailand', 2023, 9, 3, 5, 1700, { cities: ['Krabi'] }),
+    mk('Indonesia', 2025, 8, 8, 6, 2400, { bestLocation: 'Uluwatu', cities: ['Bali'], notes: 'Beach & villas' }),
+    mk('Indonesia', 2023, 12, 22, 7, 2600, { cities: ['Jakarta', 'Bandung'] }),
+    mk('South Korea', 2025, 10, 2, 7, 3800, { categories: { Transport: 1000, Hotel: 1300, Food: 800, Shopping: 700 }, bestLocation: 'Gyeongbokgung', cities: ['Seoul', 'Busan'], notes: 'Autumn leaves' }),
+    mk('South Korea', 2022, 5, 18, 6, 3200, { cities: ['Seoul'] }),
+    mk('Singapore', 2024, 7, 1, 3, 1600, { bestLocation: 'Gardens by the Bay', cities: ['Singapore'] }),
+    mk('Vietnam', 2024, 3, 9, 5, 1400, { bestLocation: 'Ha Long Bay', cities: ['Hanoi', 'Ha Long'] }),
+    mk('Australia', 2023, 1, 15, 10, 7800, { categories: { Transport: 2500, Hotel: 2800, Food: 1500, Shopping: 1000 }, bestLocation: 'Sydney Opera House', cities: ['Sydney', 'Melbourne'], notes: 'Summer trip' }),
+    mk('United Kingdom', 2022, 8, 5, 9, 8200, { bestLocation: 'Tower Bridge', cities: ['London', 'Edinburgh'] }),
+    mk('France', 2019, 6, 12, 8, 7400, { bestLocation: 'Eiffel Tower', cities: ['Paris', 'Nice'], notes: 'Honeymoon' }),
+    mk('Turkey', 2023, 10, 20, 7, 5200, { bestLocation: 'Cappadocia', cities: ['Istanbul', 'Cappadocia'], notes: 'Hot air balloon' }),
+    mk('Maldives', 2024, 12, 5, 5, 6800, { bestLocation: 'Overwater villa', cities: ['Malé'] }),
+    mk('China', 2018, 9, 1, 8, 4100, { bestLocation: 'Great Wall', cities: ['Beijing', 'Shanghai'] }),
+    mk('Egypt', 2021, 11, 3, 9, 6100, { bestLocation: 'Pyramids of Giza', cities: ['Cairo', 'Luxor'] }),
+  ];
+};
 
 const TravelHistory: React.FC = () => {
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -482,7 +528,7 @@ const TravelHistory: React.FC = () => {
                       className="px-2.5 py-1.5 rounded-xl border text-xs font-medium flex items-center gap-1.5"
                       style={{ backgroundColor: `rgba(16,185,129,${0.1 + f * 0.5})`, borderColor: `rgba(16,185,129,${0.25 + f * 0.45})` }}
                     >
-                      <span className="text-base leading-none">{c.flag}</span> {c.country}{c.count > 1 && <span className="text-emerald-400 font-bold">×{c.count}</span>}
+                      <span className="text-base leading-none">{c.flag}</span> {c.country}{c.count > 1 && <span className="font-black text-text">×{c.count}</span>}
                     </span>
                   );
                 });
@@ -585,6 +631,17 @@ const TravelHistory: React.FC = () => {
 
       {/* Add trip button */}
       <button onClick={openAdd} className="w-full py-3 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-cyan-500/50 hover:text-cyan-400 transition-all flex items-center justify-center"><Plus size={18} className="mr-2" /> Add Trip</button>
+
+      {/* Dev tools — only available on localhost / dev server */}
+      {import.meta.env.DEV && (
+        <div className="border border-dashed border-amber-500/30 rounded-2xl p-3 space-y-2">
+          <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Dev tools (localhost only)</p>
+          <div className="flex gap-2">
+            <button onClick={() => setTrips(makeSampleTrips())} className="flex-1 py-2 rounded-lg bg-amber-500/15 text-amber-400 text-xs font-bold hover:bg-amber-500/25">Generate sample data</button>
+            <button onClick={() => { if (window.confirm('Clear all trips?')) setTrips([]); }} className="flex-1 py-2 rounded-lg bg-rose-500/15 text-rose-400 text-xs font-bold hover:bg-rose-500/25">Clear all data</button>
+          </div>
+        </div>
+      )}
 
       {/* Trip form modal */}
       {showForm && createPortal((
