@@ -25,6 +25,7 @@ const monthLabel = (mk: string) => { const [y, m] = mk.split('-').map(Number); r
 const addMonth = (mk: string, delta: number) => { const [y, m] = mk.split('-').map(Number); const d = new Date(y, m - 1 + delta, 1); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; };
 const daysInMonth = (mk: string) => { const [y, m] = mk.split('-').map(Number); return new Date(y, m, 0).getDate(); };
 const fmt = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtDate = (key: string) => { const [y, m, d] = key.split('-'); return `${Number(d)}/${Number(m)}/${y}`; }; // d/m/yyyy
 const generateId = () => Math.random().toString(36).substring(2, 9);
 const catColor = (cat: string, all: string[]) => CAT_COLORS[Math.max(0, all.indexOf(cat)) % CAT_COLORS.length];
 // Is an income counted in a given month? Recurring incomes are effective-dated.
@@ -78,6 +79,7 @@ const ExpenseManager: React.FC = () => {
   const monthIncomes = incomes.filter(i => incomeActive(i, viewMonth));
   // Whether the income has actually been received (reached its pay day) in this month
   const incomeReceived = (i: Income, mk: string) => {
+    if (!incomeActive(i, mk)) return false; // not effective for this month (start/end window)
     if (!i.recurring) return i.date <= todayKey;
     if (mk < currentMonth) return true;
     if (mk > currentMonth) return false;
@@ -230,9 +232,23 @@ const ExpenseManager: React.FC = () => {
   const txns: Txn[] = [];
   expenses.forEach(e => { if (inRange(e.date)) txns.push({ id: 'e' + e.id, date: e.date, label: e.description, amount: e.amount, type: 'out', category: e.category }); });
   commitments.forEach(c => Object.entries(c.payments).forEach(([, d]) => { if (inRange(d)) txns.push({ id: 'c' + c.id + d, date: d, label: c.title, amount: c.amount, type: 'out', category: c.category }); }));
+  // Months the selected window can touch (a week can straddle two months)
+  const rangeMonths = period === 'daily'
+    ? [monthOf(dateKey(selDay))]
+    : period === 'monthly'
+      ? [selMonth]
+      : Array.from(new Set([monthOf(dateKey(selWeekStart)), monthOf(dateKey(selWeekEnd))]));
   incomes.forEach(i => {
-    if (period === 'monthly') { if (incomeReceived(i, selMonth)) txns.push({ id: 'i' + i.id, date: i.date, label: i.title, amount: i.amount, type: 'in' }); }
-    else if (!i.recurring && inRange(i.date)) txns.push({ id: 'i' + i.id, date: i.date, label: i.title, amount: i.amount, type: 'in' });
+    if (i.recurring) {
+      // Emit the salary on its real pay date for each month in range (if active & not future)
+      rangeMonths.forEach(mk => {
+        if (!incomeActive(i, mk)) return;
+        const payKey = `${mk}-${pad(Math.min(i.day || 1, daysInMonth(mk)))}`;
+        if (payKey <= todayKey && inRange(payKey)) txns.push({ id: 'i' + i.id + mk, date: payKey, label: i.title, amount: i.amount, type: 'in' });
+      });
+    } else if (i.date <= todayKey && inRange(i.date)) {
+      txns.push({ id: 'i' + i.id, date: i.date, label: i.title, amount: i.amount, type: 'in' });
+    }
   });
   txns.sort((a, b) => b.date.localeCompare(a.date));
   const txIn = txns.filter(t => t.type === 'in').reduce((s, t) => s + t.amount, 0);
@@ -289,7 +305,7 @@ const ExpenseManager: React.FC = () => {
         <div className="flex items-center justify-between px-1">
           <button onClick={() => setViewMonth(m => addMonth(m, -1))} className="p-1.5 rounded-lg bg-text/5 text-muted hover:text-text"><ChevronLeft size={18} /></button>
           <span className="text-sm font-bold text-text/90">{monthLabel(viewMonth)}</span>
-          <button onClick={() => setViewMonth(m => addMonth(m, 1))} className="p-1.5 rounded-lg bg-text/5 text-muted hover:text-text"><ChevronRight size={18} /></button>
+          <button onClick={() => setViewMonth(m => (m >= currentMonth ? m : addMonth(m, 1)))} disabled={viewMonth >= currentMonth} className="p-1.5 rounded-lg bg-text/5 text-muted hover:text-text disabled:opacity-30"><ChevronRight size={18} /></button>
         </div>
       )}
 
@@ -329,7 +345,7 @@ const ExpenseManager: React.FC = () => {
                   <button onClick={() => paid ? undoPay(c.id) : openPay(c)} className={`w-6 h-6 rounded-md border-2 flex items-center justify-center shrink-0 ${paid ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-text/30 text-transparent'}`}><Check size={14} strokeWidth={3} /></button>
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm font-medium truncate ${paid ? 'line-through text-text/50' : 'text-text/90'}`}>{c.title}</p>
-                    <p className="text-[10px] text-muted">Day {c.paymentDay} · {c.category}{paid ? ` · paid ${c.payments[viewMonth]}` : ''}{c.archived ? ' · archived' : ''}</p>
+                    <p className="text-[10px] text-muted">Day {c.paymentDay} · {c.category}{paid ? ` · paid ${fmtDate(c.payments[viewMonth])}` : ''}{c.archived ? ' · archived' : ''}</p>
                   </div>
                   <span className={`font-mono text-sm font-bold ${paid ? 'text-text/50' : 'text-amber-400'}`}>RM{fmt(c.amount)}</span>
                 </div>
@@ -381,7 +397,7 @@ const ExpenseManager: React.FC = () => {
                 <div className="flex items-center gap-2 flex-wrap">
                   {paid ? (
                     <>
-                      <span className="text-xs text-emerald-400 font-bold flex items-center gap-1"><Check size={14} /> Paid {c.payments[viewMonth]}</span>
+                      <span className="text-xs text-emerald-400 font-bold flex items-center gap-1"><Check size={14} /> Paid {fmtDate(c.payments[viewMonth])}</span>
                       <button onClick={() => undoPay(c.id)} className="text-xs px-2 py-1 rounded-lg bg-text/5 text-muted hover:text-text flex items-center gap-1"><RotateCcw size={12} /> Undo</button>
                     </>
                   ) : (
@@ -400,6 +416,7 @@ const ExpenseManager: React.FC = () => {
           {commitments.some(c => c.archived) && (
             <div className="space-y-2 pt-2">
               <h3 className="text-xs font-bold text-muted uppercase tracking-wider px-1">Archived</h3>
+              <p className="text-[11px] text-muted px-1 leading-relaxed">Archived commitments stop appearing as upcoming bills, but stay on past months where they were already paid (so your history and balances don't change). Restore one to bring it back to your active list.</p>
               {commitments.filter(c => c.archived).map(c => (
                 <div key={c.id} className="glass-panel p-3 flex items-center justify-between opacity-60">
                   <div className="min-w-0"><p className="font-medium truncate text-sm">{c.title}</p><p className="text-[10px] text-muted">{c.category}</p></div>
@@ -514,7 +531,7 @@ const ExpenseManager: React.FC = () => {
               <p className="text-xs text-muted text-center py-3">No transactions.</p>
             ) : txns.map(t => (
               <div key={t.id} className="flex items-center gap-3 py-1.5 border-t border-white/5 first:border-0">
-                <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate text-text/90">{t.label}</p><p className="text-[10px] text-muted">{t.date}{t.category ? ` · ${t.category}` : ''}</p></div>
+                <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate text-text/90">{t.label}</p><p className="text-[10px] text-muted">{fmtDate(t.date)}{t.category ? ` · ${t.category}` : ''}</p></div>
                 <span className={`font-mono text-sm font-bold ${t.type === 'in' ? 'text-emerald-400' : 'text-red-400'}`}>{t.type === 'in' ? '+' : '-'}RM{fmt(t.amount)}</span>
               </div>
             ))}

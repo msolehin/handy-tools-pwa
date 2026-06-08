@@ -242,8 +242,8 @@ const Layout: React.FC = () => {
                   <span className="bg-gradient-to-r from-pink-500 to-orange-400 bg-clip-text text-transparent">Kit</span>
                 </div>
               </h1>
-              <span className="bg-pink-500/10 text-pink-500 border border-pink-500/30 text-[10px] px-2 py-0.5 rounded text-center font-bold tracking-widest shadow-sm">
-                MY
+              <span className="bg-text/5 text-text border border-text/20 text-[10px] px-2 py-0.5 rounded text-center font-bold tracking-widest shadow-sm">
+                .MY
               </span>
             </div>
             <div className="flex items-center gap-2">
