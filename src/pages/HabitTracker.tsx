@@ -5,17 +5,33 @@ interface Habit {
   id: string;
   name: string;
   color: string;
+  emoji?: string;
   completedDates: string[]; // 'YYYY-MM-DD'
 }
 
 const STORAGE_KEY = 'habit_tracker_data';
 
 const PRESET_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899'];
+const PRESET_EMOJIS = ['🔥', '💧', '🏃', '📚', '🧘', '💪', '🥗', '😴', '🚭', '🎯', '✍️', '🧹'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
+// Keep only the last emoji/character typed (handles multi-codepoint emojis like 🏃‍♀️)
+const lastEmoji = (s: string) => {
+  if (!s) return '';
+  try {
+    const Seg = (Intl as any).Segmenter;
+    if (Seg) {
+      const parts = Array.from(new Seg(undefined, { granularity: 'grapheme' }).segment(s), (x: any) => x.segment);
+      return (parts[parts.length - 1] as string) || '';
+    }
+  } catch (e) {}
+  const arr = Array.from(s);
+  return arr[arr.length - 1] || '';
+};
 const toKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const toDisplay = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 const parseKey = (k: string) => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
 const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
 const isNextDay = (a: string, b: string) => toKey(addDays(parseKey(a), 1)) === b;
@@ -54,6 +70,7 @@ const HabitTracker: React.FC = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState(PRESET_COLORS[3]);
+  const [newEmoji, setNewEmoji] = useState('');
   const [error, setError] = useState('');
 
   const [weekOffset, setWeekOffset] = useState(0);
@@ -61,6 +78,7 @@ const HabitTracker: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editColor, setEditColor] = useState(PRESET_COLORS[3]);
+  const [editEmoji, setEditEmoji] = useState('');
   const [editError, setEditError] = useState('');
   const [isReordering, setIsReordering] = useState(false);
 
@@ -88,9 +106,10 @@ const HabitTracker: React.FC = () => {
       setError('A habit with this name already exists');
       return;
     }
-    setHabits(prev => [...prev, { id: generateId(), name, color: newColor, completedDates: [] }]);
+    setHabits(prev => [...prev, { id: generateId(), name, color: newColor, emoji: newEmoji.trim() || undefined, completedDates: [] }]);
     setNewName('');
     setNewColor(PRESET_COLORS[3]);
+    setNewEmoji('');
     setError('');
     setIsAdding(false);
   };
@@ -101,7 +120,7 @@ const HabitTracker: React.FC = () => {
     setHabits(prev => prev.filter(x => x.id !== id));
   };
 
-  const startEdit = (h: Habit) => { setEditingId(h.id); setEditName(h.name); setEditColor(h.color); setEditError(''); };
+  const startEdit = (h: Habit) => { setEditingId(h.id); setEditName(h.name); setEditColor(h.color); setEditEmoji(h.emoji || ''); setEditError(''); };
   const saveEdit = () => {
     const name = editName.trim();
     if (!name) { setEditError('Enter a name'); return; }
@@ -109,7 +128,7 @@ const HabitTracker: React.FC = () => {
       setEditError('Name already exists');
       return;
     }
-    setHabits(prev => prev.map(h => h.id === editingId ? { ...h, name, color: editColor } : h));
+    setHabits(prev => prev.map(h => h.id === editingId ? { ...h, name, color: editColor, emoji: editEmoji.trim() || undefined } : h));
     setEditingId(null);
     setEditError('');
   };
@@ -186,6 +205,19 @@ const HabitTracker: React.FC = () => {
       lastMonth = cell.getMonth();
     }
   }
+  const todayIndex = yearCells.findIndex(d => toKey(d) === todayKey);
+  const todayCol = todayIndex >= 0 ? Math.floor(todayIndex / 7) : 0;
+
+  // Centre today's column in the yearly grids when the tab opens
+  useEffect(() => {
+    if (tab !== 'yearly') return;
+    const id = requestAnimationFrame(() => {
+      document.querySelectorAll<HTMLDivElement>('[data-year-scroll]').forEach(el => {
+        el.scrollLeft = Math.max(0, todayCol * STEP + STEP / 2 - el.clientWidth / 2);
+      });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [tab]);
 
   return (
     <div className="max-w-md mx-auto p-4 pb-24 space-y-6 animate-fade-in">
@@ -220,6 +252,31 @@ const HabitTracker: React.FC = () => {
               placeholder="e.g. Drink water, Read 10 pages"
               className="input-field w-full"
             />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-muted uppercase tracking-wider">Emoji (optional)</label>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <input
+                type="text"
+                value={newEmoji}
+                onChange={e => setNewEmoji(lastEmoji(e.target.value))}
+                placeholder="🙂"
+                autoCapitalize="none"
+                autoComplete="off"
+                className="input-field w-16 text-center text-xl py-1.5"
+              />
+              {PRESET_EMOJIS.map(em => (
+                <button
+                  key={em}
+                  onClick={() => setNewEmoji(em)}
+                  className={`w-8 h-8 rounded-lg text-lg leading-none flex items-center justify-center transition-all ${newEmoji === em ? 'bg-violet-500/20 ring-1 ring-violet-500/50' : 'bg-text/5 hover:bg-text/10'}`}
+                >
+                  {em}
+                </button>
+              ))}
+              {newEmoji && <button onClick={() => setNewEmoji('')} className="text-xs text-muted hover:text-text px-1">clear</button>}
+            </div>
+            <p className="text-[10px] text-muted">Tap the box and use your keyboard's emoji picker for any emoji.</p>
           </div>
           <div className="space-y-2">
             <label className="text-xs font-bold text-muted uppercase tracking-wider">Colour</label>
@@ -316,12 +373,33 @@ const HabitTracker: React.FC = () => {
                             <input type="color" value={editColor} onChange={e => setEditColor(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" />
                           </label>
                         </div>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <input
+                            type="text"
+                            value={editEmoji}
+                            onChange={e => setEditEmoji(lastEmoji(e.target.value))}
+                            placeholder="🙂"
+                            autoCapitalize="none"
+                            autoComplete="off"
+                            className="input-field w-12 text-center text-lg py-1"
+                          />
+                          {PRESET_EMOJIS.map(em => (
+                            <button
+                              key={em}
+                              onClick={() => setEditEmoji(em)}
+                              className={`w-7 h-7 rounded-lg text-base leading-none flex items-center justify-center transition-all ${editEmoji === em ? 'bg-violet-500/20 ring-1 ring-violet-500/50' : 'bg-text/5 hover:bg-text/10'}`}
+                            >
+                              {em}
+                            </button>
+                          ))}
+                          {editEmoji && <button onClick={() => setEditEmoji('')} className="text-xs text-muted hover:text-text px-1">clear</button>}
+                        </div>
                         {editError && <p className="text-[10px] text-red-400">{editError}</p>}
                       </div>
                     ) : (
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <h4 className="font-bold text-text/90 truncate">{habit.name}</h4>
+                          <h4 className="font-bold text-text/90 truncate">{habit.emoji ? habit.emoji + ' ' : ''}{habit.name}</h4>
                           {!isReordering && (
                             <button onClick={() => startEdit(habit)} className="text-muted hover:text-text shrink-0 transition-colors" title="Edit name"><Pencil size={13} /></button>
                           )}
@@ -360,7 +438,7 @@ const HabitTracker: React.FC = () => {
                 <div key={habit.id} className="glass-panel p-4 space-y-3">
                   <div className="flex items-center gap-2">
                     <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: habit.color }} />
-                    <h4 className="font-bold text-text/90 truncate flex-1">{habit.name}</h4>
+                    <h4 className="font-bold text-text/90 truncate flex-1">{habit.emoji ? habit.emoji + ' ' : ''}{habit.name}</h4>
                   </div>
                   <StreakRow habit={habit} />
                   <div className="grid grid-cols-7 gap-1.5">
@@ -405,11 +483,11 @@ const HabitTracker: React.FC = () => {
                   <div key={habit.id} className="glass-panel p-4 space-y-3">
                     <div className="flex items-center gap-3">
                       <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: habit.color }} />
-                      <h4 className="font-bold text-text/90 truncate flex-1">{habit.name}</h4>
+                      <h4 className="font-bold text-text/90 truncate flex-1">{habit.emoji ? habit.emoji + ' ' : ''}{habit.name}</h4>
                       <Tick done={done} color={habit.color} size={32} onClick={() => toggleDate(habit.id, todayKey)} label="Mark today" />
                     </div>
                     <StreakRow habit={habit} />
-                    <div className="overflow-x-auto custom-scrollbar pb-1">
+                    <div className="overflow-x-auto custom-scrollbar pb-1" data-year-scroll>
                       <div style={{ width: weeksCount * STEP }}>
                         {/* Month labels */}
                         <div className="relative h-4 mb-1" style={{ width: weeksCount * STEP }}>
@@ -431,7 +509,7 @@ const HabitTracker: React.FC = () => {
                                 key={i}
                                 onClick={() => interactive && toggleDate(habit.id, key)}
                                 disabled={!interactive}
-                                title={inYear ? key : ''}
+                                title={inYear ? toDisplay(d) : ''}
                                 className={`rounded-[2px] ${interactive ? 'cursor-pointer' : 'cursor-default'}`}
                                 style={{
                                   width: CELL, height: CELL,
