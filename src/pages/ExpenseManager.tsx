@@ -212,7 +212,10 @@ const ExpenseManager: React.FC = () => {
   // --- Commitment payment confirm ---
   const [payTarget, setPayTarget] = useState<Commitment | null>(null);
   const [payDate, setPayDate] = useState(todayKey);
-  const openPay = (c: Commitment) => { setPayTarget(c); setPayDate(todayKey); };
+  const openPay = (c: Commitment) => { 
+    setPayTarget(c); 
+    setPayDate(viewMonth === currentMonth ? todayKey : `${viewMonth}-${pad(daysInMonth(viewMonth))}`); 
+  };
   const confirmPay = () => {
     if (!payTarget) return;
     setCommitments(prev => prev.map(c => c.id === payTarget.id ? { ...c, payments: { ...c.payments, [viewMonth]: payDate } } : c));
@@ -825,22 +828,26 @@ const ExpenseManager: React.FC = () => {
       ), document.body)}
 
       {/* Confirm payment modal */}
-      {payTarget && createPortal((
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setPayTarget(null)}>
-          <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up" onClick={e => e.stopPropagation()}>
-            <h3 className="font-bold text-lg">Confirm Payment</h3>
-            <p className="text-sm text-muted">{payTarget.title} · <span className="font-mono font-bold text-amber-400">RM{fmt(payTarget.amount)}</span></p>
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Payment date</label>
-              <input type="date" value={payDate} max={todayKey} onChange={e => setPayDate(e.target.value)} className="input-field w-full" />
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => setPayTarget(null)} className="flex-1 py-3 rounded-xl bg-text/5 text-text font-bold">Cancel</button>
-              <button onClick={confirmPay} className="flex-1 py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600">Confirm Paid</button>
+      {payTarget && createPortal((() => {
+        const payDateValid = payDate.startsWith(viewMonth) && payDate <= (viewMonth === currentMonth ? todayKey : `${viewMonth}-${pad(daysInMonth(viewMonth))}`);
+        return (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setPayTarget(null)}>
+            <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up" onClick={e => e.stopPropagation()}>
+              <h3 className="font-bold text-lg">Confirm Payment</h3>
+              <p className="text-sm text-muted">{payTarget.title} · <span className="font-mono font-bold text-amber-400">RM{fmt(payTarget.amount)}</span></p>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">Payment date</label>
+                <input type="date" min={`${viewMonth}-01`} max={viewMonth === currentMonth ? todayKey : `${viewMonth}-${pad(daysInMonth(viewMonth))}`} value={payDate} onChange={e => setPayDate(e.target.value)} className={`input-field w-full ${!payDateValid ? 'border-red-500/60 text-red-400' : ''}`} />
+                {!payDateValid && <p className="text-[10px] text-red-400">Date must be within {monthLabel(viewMonth)}{viewMonth === currentMonth ? ' and not in the future' : ''}.</p>}
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setPayTarget(null)} className="flex-1 py-3 rounded-xl bg-text/5 text-text font-bold">Cancel</button>
+                <button onClick={confirmPay} disabled={!payDateValid} className="flex-1 py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 disabled:opacity-40 disabled:pointer-events-none">Confirm Paid</button>
+              </div>
             </div>
           </div>
-        </div>
-      ), document.body)}
+        );
+      })(), document.body)}
     </div>
   );
 };
