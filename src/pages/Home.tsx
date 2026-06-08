@@ -632,7 +632,8 @@ const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisab
 
 interface AlertItem {
   id: string;
-  type: 'document' | 'event' | 'subscription' | 'payday' | 'water' | 'debt';
+  type: 'document' | 'event' | 'subscription' | 'payday' | 'water' | 'debt' | 'expense' | 'habit';
+  subtitle?: string;
   title: string;
   daysLeft: number;
   to: string;
@@ -661,6 +662,11 @@ const Home: React.FC = () => {
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [isAlertsExpanded, setIsAlertsExpanded] = useState(false);
+  const [alertsReorder, setAlertsReorder] = useState(false);
+  const [alertOrder, setAlertOrder] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('home_alert_order') || '[]'); } catch (e) { return []; }
+  });
+  useEffect(() => { localStorage.setItem('home_alert_order', JSON.stringify(alertOrder)); }, [alertOrder]);
 
   // Transient toast feedback
   const [toast, setToast] = useState<string | null>(null);
@@ -687,10 +693,18 @@ const Home: React.FC = () => {
 
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
 
-  // Publish alerts so the Layout bottom bar can show them as notifications
+  // Publish alerts (in the user's saved order) so the Layout bottom bar matches Home
   useEffect(() => {
-    window.dispatchEvent(new CustomEvent('home:alerts', { detail: alerts }));
-  }, [alerts]);
+    const ordered = [...alerts].sort((a, b) => {
+      const ia = alertOrder.indexOf(a.id);
+      const ib = alertOrder.indexOf(b.id);
+      if (ia === -1 && ib === -1) return a.daysLeft - b.daysLeft;
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    });
+    window.dispatchEvent(new CustomEvent('home:alerts', { detail: ordered }));
+  }, [alerts, alertOrder]);
 
   // Favorites state
   const [favorites, setFavorites] = useState<string[]>(() => {
@@ -933,6 +947,65 @@ const Home: React.FC = () => {
       } catch (e) {}
     }
 
+    // 7. Expense Manager — this month's spending vs income
+    const expStr = localStorage.getItem('expense_manager_data');
+    if (expStr) {
+      try {
+        const data = JSON.parse(expStr);
+        const now = new Date();
+        const mk = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const fmtRM = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const spent = (data.expenses || [])
+          .filter((e: any) => typeof e.date === 'string' && e.date.slice(0, 7) === mk)
+          .reduce((s: number, e: any) => s + (e.amount || 0), 0);
+        const income = (data.incomes || [])
+          .filter((i: any) => {
+            if (i.recurring) {
+              if (i.startMonth && mk < i.startMonth) return false;
+              if (i.endMonth && mk > i.endMonth) return false;
+              return true;
+            }
+            return typeof i.date === 'string' && i.date.slice(0, 7) === mk;
+          })
+          .reduce((s: number, i: any) => s + (i.amount || 0), 0);
+        if (spent > 0 || income > 0) {
+          newAlerts.push({
+            id: 'expense',
+            type: 'expense',
+            title: `Spent RM${fmtRM(spent)}`,
+            daysLeft: 0,
+            percentage: income > 0 ? Math.min(100, Math.round((spent / income) * 100)) : (spent > 0 ? 100 : 0),
+            to: '/expense-manager'
+          });
+        }
+      } catch (e) {}
+    }
+
+    // 8. Habit Tracker — habits still to do today
+    const habitStr = localStorage.getItem('habit_tracker_data');
+    if (habitStr) {
+      try {
+        const habits = JSON.parse(habitStr);
+        if (Array.isArray(habits) && habits.length > 0) {
+          const now = new Date();
+          const tkey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+          const total = habits.length;
+          const done = habits.filter((h: any) => Array.isArray(h.completedDates) && h.completedDates.includes(tkey)).length;
+          const left = total - done;
+          if (left > 0) {
+            newAlerts.push({
+              id: 'habit',
+              type: 'habit',
+              title: `${left} left today`,
+              daysLeft: 0,
+              percentage: Math.round((done / total) * 100),
+              to: '/habit-tracker'
+            });
+          }
+        }
+      } catch (e) {}
+    }
+
     newAlerts.sort((a, b) => a.daysLeft - b.daysLeft);
     setAlerts(newAlerts);
   }, []);
@@ -995,6 +1068,24 @@ const Home: React.FC = () => {
   // Column count for grid-based views (not list)
   const gridColClass = gridCols === 4 ? 'grid-cols-4' : gridCols === 3 ? 'grid-cols-3' : 'grid-cols-2';
 
+  // Alerts in the user's saved order; new alerts (not yet ordered) fall to the end by urgency
+  const orderedAlerts = [...alerts].sort((a, b) => {
+    const ia = alertOrder.indexOf(a.id);
+    const ib = alertOrder.indexOf(b.id);
+    if (ia === -1 && ib === -1) return a.daysLeft - b.daysLeft;
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
+  const moveAlert = (id: string, dir: -1 | 1) => {
+    const ids = orderedAlerts.map(a => a.id);
+    const i = ids.indexOf(id);
+    const j = i + dir;
+    if (j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    setAlertOrder(ids);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in pb-12">
       {/* Toast feedback */}
@@ -1007,24 +1098,34 @@ const Home: React.FC = () => {
       {/* Alerts Section */}
       {alerts.length > 0 && (
         <div className="mt-4 mb-2 space-y-3">
-          <div 
-            className="flex items-center justify-between text-text/80 mb-2 px-1 cursor-pointer hover:text-text transition-colors"
-            onClick={() => setIsAlertsExpanded(!isAlertsExpanded)}
-          >
-            <div className="flex items-center space-x-2">
+          <div className="flex items-center justify-between text-text/80 mb-2 px-1">
+            <div
+              className="flex items-center space-x-2 cursor-pointer hover:text-text transition-colors"
+              onClick={() => setIsAlertsExpanded(!isAlertsExpanded)}
+            >
               <Bell size={18} className="text-yellow-400 animate-pulse" />
               <h3 className="font-bold text-sm">Action Needed <span className="text-muted text-xs font-normal ml-1">({alerts.length})</span></h3>
             </div>
-            <button className="p-1 rounded-full bg-text/5 hover:bg-text/10 text-muted transition-colors">
-              {isAlertsExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            </button>
+            <div className="flex items-center gap-1.5">
+              {alerts.length > 1 && (
+                <button
+                  onClick={() => { setAlertsReorder(r => !r); setIsAlertsExpanded(true); }}
+                  className={`px-2 py-1 rounded-full text-[10px] font-bold transition-colors flex items-center gap-1 ${alertsReorder ? 'bg-yellow-500/20 text-yellow-400' : 'bg-text/5 text-muted hover:text-text'}`}
+                >
+                  <ArrowUpDown size={13} /> {alertsReorder ? 'Done' : 'Reorder'}
+                </button>
+              )}
+              <button onClick={() => setIsAlertsExpanded(!isAlertsExpanded)} className="p-1 rounded-full bg-text/5 hover:bg-text/10 text-muted transition-colors">
+                {isAlertsExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+            </div>
           </div>
           <div className={`flex gap-3 pb-2 transition-all ${isAlertsExpanded ? 'flex-col' : 'overflow-x-auto custom-scrollbar snap-x'}`}>
-            {alerts.map(alert => (
-              <div 
+            {orderedAlerts.map((alert, idx) => (
+              <div
                 key={alert.id}
-                onClick={() => navigate(alert.to)}
-                className={`shrink-0 cursor-pointer p-4 rounded-2xl border transition-all hover:scale-[1.02] relative overflow-hidden ${
+                onClick={alertsReorder ? undefined : () => navigate(alert.to)}
+                className={`shrink-0 p-4 rounded-2xl border transition-all relative overflow-hidden ${alertsReorder ? '' : 'cursor-pointer hover:scale-[1.02]'} ${
                   isAlertsExpanded ? 'w-full' : 'w-[220px] snap-start'
                 } ${
                   alert.type === 'document' 
@@ -1039,7 +1140,11 @@ const Home: React.FC = () => {
                           ? 'bg-blue-500/10 border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.15)]'
                           : alert.type === 'debt'
                             ? 'bg-rose-500/10 border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.15)]'
-                            : 'bg-pink-500/10 border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.15)]'
+                            : alert.type === 'expense'
+                              ? 'bg-emerald-500/10 border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
+                              : alert.type === 'habit'
+                                ? 'bg-violet-500/10 border-violet-500/30 shadow-[0_0_15px_rgba(139,92,246,0.15)]'
+                                : 'bg-pink-500/10 border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.15)]'
                 }`}
               >
                 {animationsEnabled && alert.type === 'document' && (
@@ -1078,6 +1183,22 @@ const Home: React.FC = () => {
                 {animationsEnabled && alert.type === 'debt' && (
                   <div className="absolute inset-0 stripes-anim opacity-70 z-0" />
                 )}
+                {animationsEnabled && alert.type === 'habit' && alert.percentage !== undefined && alert.percentage > 0 && (
+                  <div
+                    className="absolute top-0 left-0 bottom-0 bg-violet-500/10 transition-all duration-1000 ease-out z-0 border-r border-violet-500/30 overflow-hidden"
+                    style={{ width: `${alert.percentage}%`, minWidth: '5%' }}
+                  >
+                    <div className="absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-transparent via-violet-400/20 to-transparent shimmer-anim" />
+                  </div>
+                )}
+                {animationsEnabled && alert.type === 'expense' && alert.percentage !== undefined && alert.percentage > 0 && (
+                  <div
+                    className={`absolute top-0 left-0 bottom-0 transition-all duration-1000 ease-out z-0 border-r overflow-hidden ${alert.percentage >= 100 ? 'bg-red-500/15 border-red-500/40' : 'bg-emerald-500/10 border-emerald-500/30'}`}
+                    style={{ width: `${alert.percentage}%`, minWidth: '5%' }}
+                  >
+                    <div className={`absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-transparent to-transparent shimmer-anim ${alert.percentage >= 100 ? 'via-red-400/20' : 'via-emerald-400/20'}`} />
+                  </div>
+                )}
                 
                 <div className="flex items-start justify-between relative z-10">
                   <div className="flex items-center space-x-2 mb-2">
@@ -1091,6 +1212,10 @@ const Home: React.FC = () => {
                       <Droplets size={20} className="text-blue-400" />
                     ) : alert.type === 'debt' ? (
                       <HandCoins size={20} className="text-rose-400" />
+                    ) : alert.type === 'expense' ? (
+                      <Banknote size={20} className="text-emerald-400" />
+                    ) : alert.type === 'habit' ? (
+                      <ListChecks size={20} className="text-violet-400" />
                     ) : (
                       <Calendar size={20} className="text-pink-400" />
                     )}
@@ -1099,24 +1224,32 @@ const Home: React.FC = () => {
                 </div>
                 <div className="flex-1 min-w-0 pr-4 relative z-10">
                   <p className="font-bold text-[13px] text-text truncate leading-tight mb-1">
-                    {alert.type === 'document' ? 'Renew: ' : alert.type === 'subscription' ? 'Due: ' : alert.type === 'payday' ? 'Payday: ' : alert.type === 'water' ? 'Water: ' : alert.type === 'debt' ? 'Owe: ' : ''}{alert.title}
+                    {alert.type === 'document' ? 'Renew: ' : alert.type === 'subscription' ? 'Due: ' : alert.type === 'payday' ? 'Payday: ' : alert.type === 'water' ? 'Water: ' : alert.type === 'debt' ? 'Owe: ' : alert.type === 'habit' ? 'Habits: ' : ''}{alert.title}
                   </p>
                   <p className={`text-[11px] font-medium leading-none ${
-                    alert.type === 'document' 
+                    alert.type === 'document'
                       ? alert.daysLeft < 0 ? 'text-red-400' : 'text-yellow-400'
                       : alert.type === 'subscription' ? 'text-indigo-400'
                       : alert.type === 'payday' ? 'text-emerald-400'
-                      : alert.type === 'water' ? 'text-blue-400' 
+                      : alert.type === 'water' ? 'text-blue-400'
                       : alert.type === 'debt' ? 'text-rose-400'
+                      : alert.type === 'expense' ? 'text-emerald-400'
+                      : alert.type === 'habit' ? 'text-violet-400'
                       : 'text-pink-400'
                   }`}>
-                    {alert.type === 'water' ? 'Drink up!' : alert.type === 'debt' ? 'Action Required' : alert.daysLeft < 0 
+                    {alert.type === 'water' ? 'Drink up!' : alert.type === 'debt' ? 'Action Required' : alert.type === 'expense' ? `${alert.percentage ?? 0}% of income spent` : alert.type === 'habit' ? `${alert.percentage ?? 0}% done` : alert.daysLeft < 0
                       ? `Expired ${Math.abs(alert.daysLeft)} days ago` 
                       : alert.daysLeft === 0 
-                        ? 'Today!' 
+                        ? 'Today!'
                         : `${alert.daysLeft} Days Left`}
                   </p>
                 </div>
+                {alertsReorder && (
+                  <div className="absolute right-1.5 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-1">
+                    <button onClick={(e) => { e.stopPropagation(); moveAlert(alert.id, -1); }} disabled={idx === 0} className="w-6 h-6 rounded-md bg-surface/90 border border-text/10 text-text flex items-center justify-center disabled:opacity-30"><ChevronUp size={14} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); moveAlert(alert.id, 1); }} disabled={idx === orderedAlerts.length - 1} className="w-6 h-6 rounded-md bg-surface/90 border border-text/10 text-text flex items-center justify-center disabled:opacity-30"><ChevronDown size={14} /></button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

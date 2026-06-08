@@ -36,6 +36,59 @@ const incomeActive = (i: Income, mk: string) => {
   return true;
 };
 
+// Dev-only: generate a rich set of sample data
+const makeSampleData = (): { expenses: Expense[]; incomes: Income[]; commitments: Commitment[] } => {
+  const today = new Date();
+  const cur = monthOf(dateKey(today));
+  const rnd = (n: number) => Math.floor(Math.random() * n);
+  const descByCat: Record<string, string[]> = {
+    Food: ['Lunch', 'Groceries', 'Dinner out', 'Coffee', 'Fast food', 'Bubble tea', 'Breakfast'],
+    Transport: ['Petrol', 'Grab ride', 'Toll', 'Parking', 'Train fare'],
+    Shopping: ['Shopee order', 'Clothes', 'Shoes', 'Lazada', 'Gadget'],
+    Bills: ['Electric bill', 'Water bill', 'Internet', 'Phone topup'],
+    Health: ['Pharmacy', 'Clinic visit', 'Supplements', 'Gym pass'],
+    Entertainment: ['Movie', 'Spotify', 'Games', 'Concert ticket'],
+    Other: ['Gift', 'Donation', 'Misc'],
+  };
+  const expenses: Expense[] = [];
+  for (let m = 0; m < 6; m++) {
+    const mk = addMonth(cur, -m);
+    const maxDay = mk === cur ? today.getDate() : daysInMonth(mk);
+    const count = 10 + rnd(10);
+    for (let i = 0; i < count; i++) {
+      const cat = DEFAULT_EXPENSE_CATS[rnd(DEFAULT_EXPENSE_CATS.length)];
+      const descs = descByCat[cat] || ['Expense'];
+      expenses.push({ id: generateId(), description: descs[rnd(descs.length)], amount: 5 + rnd(195), category: cat, date: `${mk}-${pad(1 + rnd(maxDay))}` });
+    }
+  }
+  const sixAgo = addMonth(cur, -6);
+  const lastMonth = addMonth(cur, -1);
+  const incomes: Income[] = [
+    { id: generateId(), title: 'Salary', amount: 3700, recurring: true, date: `${sixAgo}-01`, startMonth: sixAgo, endMonth: addMonth(cur, -2), day: 25 },
+    { id: generateId(), title: 'Salary', amount: 4200, recurring: true, date: `${lastMonth}-01`, startMonth: lastMonth, day: 25 },
+    { id: generateId(), title: 'Freelance', amount: 600, recurring: true, date: `${sixAgo}-01`, startMonth: sixAgo, day: 10 },
+    { id: generateId(), title: 'Performance bonus', amount: 2000, recurring: false, date: `${addMonth(cur, -3)}-15` },
+    { id: generateId(), title: 'Sold old phone', amount: 800, recurring: false, date: `${lastMonth}-08` },
+  ];
+  const mkCommit = (title: string, amount: number, day: number, category: string): Commitment =>
+    ({ id: generateId(), title, amount, paymentDay: day, category, archived: false, payments: {} });
+  const commitments: Commitment[] = [
+    mkCommit('Car loan', 950, 5, 'Loan'),
+    mkCommit('House rent', 1200, 1, 'Rent'),
+    mkCommit('Car insurance', 180, 15, 'Insurance'),
+    mkCommit('Netflix', 55, 8, 'Subscription'),
+    mkCommit('Spotify', 24, 8, 'Subscription'),
+    mkCommit('Gym membership', 130, 3, 'Subscription'),
+    mkCommit('Phone postpaid', 98, 20, 'Utilities'),
+  ];
+  commitments.forEach(c => {
+    for (let m = 1; m <= 5; m++) { const mk = addMonth(cur, -m); c.payments[mk] = `${mk}-${pad(Math.min(c.paymentDay, daysInMonth(mk)))}`; }
+    if (c.paymentDay <= today.getDate() && Math.random() > 0.4) c.payments[cur] = `${cur}-${pad(c.paymentDay)}`;
+  });
+  commitments[5].archived = true; // archived but past payments kept
+  return { expenses, incomes, commitments };
+};
+
 const ExpenseManager: React.FC = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [incomes, setIncomes] = useState<Income[]>([]);
@@ -100,10 +153,24 @@ const ExpenseManager: React.FC = () => {
   const prevPaid = commitments.filter(c => c.payments[prevMonth]).reduce((s, c) => s + c.amount, 0);
   const prevNet = prevIncome - prevPaid - prevExpense;
 
+  // 6-month net trend (ending at the viewed month)
+  const netForMonth = (mk: string) => {
+    const inc = incomes.filter(i => incomeReceived(i, mk)).reduce((s, i) => s + i.amount, 0);
+    const exp = expenses.filter(e => monthOf(e.date) === mk).reduce((s, e) => s + e.amount, 0);
+    const paid = commitments.filter(c => c.payments[mk]).reduce((s, c) => s + c.amount, 0);
+    return inc - paid - exp;
+  };
+  const netTrend = Array.from({ length: 6 }, (_, k) => { const mk = addMonth(viewMonth, -(5 - k)); return { mk, net: netForMonth(mk) }; });
+  const netMaxAbs = Math.max(1, ...netTrend.map(d => Math.abs(d.net)));
+  const compact = (n: number) => `${n < 0 ? '-' : '+'}${Math.abs(n) >= 1000 ? (Math.abs(n) / 1000).toFixed(1) + 'k' : Math.round(Math.abs(n))}`;
+
   const todayExpenses = expenses.filter(e => e.date === todayKey);
 
   // --- Expense modal ---
   const [showExpense, setShowExpense] = useState(false);
+  const [expScope, setExpScope] = useState<'today' | 'month'>('today');
+  const [frameEl, setFrameEl] = useState<HTMLElement | null>(null);
+  useEffect(() => { setFrameEl(document.getElementById('app-frame')); }, []);
   const [eDesc, setEDesc] = useState('');
   const [eAmount, setEAmount] = useState('');
   const [eCat, setECat] = useState(DEFAULT_EXPENSE_CATS[0]);
@@ -177,57 +244,112 @@ const ExpenseManager: React.FC = () => {
   const payDayNum = parseInt(iDay);
   const payDayInvalid = iRecurring && !isPastView && (iDay.trim() === '' || isNaN(payDayNum) || payDayNum < 1 || payDayNum > 31);
   const deleteIncome = (id: string) => setIncomes(prev => prev.filter(i => i.id !== id));
+  // Safer delete: one-time asks confirm; recurring offers "stop from this month" vs "delete everywhere"
+  const [delIncome, setDelIncome] = useState<Income | null>(null);
+  const requestDeleteIncome = (i: Income) => {
+    if (!i.recurring) {
+      if (window.confirm(`Delete "${i.title}"? It will be removed from ${monthLabel(viewMonth)}.`)) deleteIncome(i.id);
+      return;
+    }
+    setDelIncome(i);
+  };
+  const stopIncomeFromMonth = () => {
+    if (!delIncome) return;
+    const start = delIncome.startMonth || '';
+    if (start && start >= viewMonth) {
+      // Starts this month or later → stopping now removes it entirely
+      deleteIncome(delIncome.id);
+    } else {
+      const prevM = addMonth(viewMonth, -1);
+      setIncomes(prev => prev.map(i => i.id === delIncome.id ? { ...i, endMonth: prevM } : i));
+    }
+    setDelIncome(null);
+  };
+  const deleteIncomeEverywhere = () => { if (delIncome) deleteIncome(delIncome.id); setDelIncome(null); };
 
-  // --- Edit income (handles raises: change going forward, keep past) ---
+  // --- Edit income (handles raises / pay-day changes; can keep past) ---
   const [editIncome, setEditIncome] = useState<Income | null>(null);
   const [ieTitle, setIeTitle] = useState('');
   const [ieAmount, setIeAmount] = useState('');
-  const openIncomeEdit = (i: Income) => { setEditIncome(i); setIeTitle(i.title); setIeAmount(String(i.amount)); };
+  const [ieDay, setIeDay] = useState('1');
+  const ieDayNum = parseInt(ieDay);
+  const ieDayInvalid = !!editIncome?.recurring && (ieDay.trim() === '' || isNaN(ieDayNum) || ieDayNum < 1 || ieDayNum > 31);
+  const openIncomeEdit = (i: Income) => { setEditIncome(i); setIeTitle(i.title); setIeAmount(String(i.amount)); setIeDay(i.day ? String(i.day) : '1'); };
   const saveIncomeEdit = (scope: 'all' | 'forward') => {
     if (!editIncome) return;
     const amount = parseFloat(ieAmount);
     const title = ieTitle.trim();
     if (!title || isNaN(amount) || amount <= 0) return;
+    if (editIncome.recurring && ieDayInvalid) return;
+    const day = Math.min(31, Math.max(1, ieDayNum || 1));
 
     if (!editIncome.recurring || scope === 'all') {
-      setIncomes(prev => prev.map(i => i.id === editIncome.id ? { ...i, title, amount } : i));
+      setIncomes(prev => prev.map(i => i.id === editIncome.id ? { ...i, title, amount, ...(editIncome.recurring ? { day } : {}) } : i));
     } else {
       // "From this month onward": cap the old record at the previous month, add a new one.
       const start = editIncome.startMonth || '';
       if (start && start >= viewMonth) {
         // It already starts this month or later — just update it in place.
-        setIncomes(prev => prev.map(i => i.id === editIncome.id ? { ...i, title, amount, startMonth: viewMonth } : i));
+        setIncomes(prev => prev.map(i => i.id === editIncome.id ? { ...i, title, amount, day, startMonth: viewMonth } : i));
       } else {
         const prevM = addMonth(viewMonth, -1);
         setIncomes(prev => [
-          { id: generateId(), title, amount, recurring: true, date: `${viewMonth}-01`, startMonth: viewMonth, ...(editIncome.day ? { day: editIncome.day } : {}), ...(editIncome.endMonth ? { endMonth: editIncome.endMonth } : {}) },
+          { id: generateId(), title, amount, recurring: true, date: `${viewMonth}-01`, startMonth: viewMonth, day, ...(editIncome.endMonth ? { endMonth: editIncome.endMonth } : {}) },
           ...prev.map(i => i.id === editIncome.id ? { ...i, endMonth: prevM } : i),
         ]);
       }
     }
     setEditIncome(null);
   };
+  // Editing a PAST month → override that single month only (keeps the rest unchanged)
+  const saveIncomeEditSingle = () => {
+    if (!editIncome) return;
+    const amount = parseFloat(ieAmount);
+    const title = ieTitle.trim();
+    if (!title || isNaN(amount) || amount <= 0) return;
+    if (editIncome.recurring && ieDayInvalid) return;
+    const day = Math.min(31, Math.max(1, ieDayNum || 1));
+    const m = viewMonth;
+    const orig = editIncome;
+    const segments: Income[] = [];
+    // months before m keep the original settings
+    if (!orig.startMonth || orig.startMonth < m) {
+      segments.push({ ...orig, id: generateId(), endMonth: addMonth(m, -1) });
+    }
+    // the single overridden month
+    segments.push({ id: generateId(), title, amount, recurring: true, date: `${m}-01`, startMonth: m, endMonth: m, day });
+    // months after m keep the original settings
+    if (!orig.endMonth || orig.endMonth > m) {
+      segments.push({ ...orig, id: generateId(), startMonth: addMonth(m, 1) });
+    }
+    setIncomes(prev => [...segments, ...prev.filter(i => i.id !== orig.id)]);
+    setEditIncome(null);
+  };
 
   // --- Transaction tab ---
-  const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
+  const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
   const [txOffset, setTxOffset] = useState(0); // periods back from now (0 = current)
-  const changePeriod = (p: 'daily' | 'weekly' | 'monthly') => { setPeriod(p); setTxOffset(0); };
+  const changePeriod = (p: 'daily' | 'weekly' | 'monthly' | 'yearly') => { setPeriod(p); setTxOffset(0); };
   const shortDay = (d: Date) => `${pad(d.getDate())} ${MONTHS[d.getMonth()].slice(0, 3)}`;
   // Selected window based on period + offset
   const selDay = new Date(today); selDay.setDate(today.getDate() - txOffset);
   const selWeekStart = new Date(today); selWeekStart.setDate(today.getDate() - today.getDay() - txOffset * 7);
   const selWeekEnd = new Date(selWeekStart); selWeekEnd.setDate(selWeekStart.getDate() + 6);
   const selMonth = addMonth(currentMonth, -txOffset);
+  const selYear = today.getFullYear() - txOffset;
   const inRange = (key: string) => {
     if (period === 'daily') return key === dateKey(selDay);
     if (period === 'weekly') return key >= dateKey(selWeekStart) && key <= dateKey(selWeekEnd);
+    if (period === 'yearly') return key.slice(0, 4) === String(selYear);
     return monthOf(key) === selMonth;
   };
   const periodLabel = period === 'daily'
     ? (txOffset === 0 ? 'Today' : `${shortDay(selDay)} ${selDay.getFullYear()}`)
     : period === 'weekly'
       ? `${shortDay(selWeekStart)} – ${shortDay(selWeekEnd)}`
-      : monthLabel(selMonth);
+      : period === 'yearly'
+        ? String(selYear)
+        : monthLabel(selMonth);
   type Txn = { id: string; date: string; label: string; amount: number; type: 'in' | 'out'; category?: string };
   const txns: Txn[] = [];
   expenses.forEach(e => { if (inRange(e.date)) txns.push({ id: 'e' + e.id, date: e.date, label: e.description, amount: e.amount, type: 'out', category: e.category }); });
@@ -237,7 +359,9 @@ const ExpenseManager: React.FC = () => {
     ? [monthOf(dateKey(selDay))]
     : period === 'monthly'
       ? [selMonth]
-      : Array.from(new Set([monthOf(dateKey(selWeekStart)), monthOf(dateKey(selWeekEnd))]));
+      : period === 'yearly'
+        ? Array.from({ length: 12 }, (_, i) => `${selYear}-${pad(i + 1)}`)
+        : Array.from(new Set([monthOf(dateKey(selWeekStart)), monthOf(dateKey(selWeekEnd))]));
   incomes.forEach(i => {
     if (i.recurring) {
       // Emit the salary on its real pay date for each month in range (if active & not future)
@@ -353,19 +477,30 @@ const ExpenseManager: React.FC = () => {
             })}
           </div>
 
-          {/* Today's expenses */}
+          {/* Today's expenses (current month) or all of the viewed month */}
           <div className="glass-panel p-4 space-y-2">
-            <h3 className="font-bold text-sm flex items-center gap-2"><CalendarDays size={16} className="text-red-400" /> Today's Expenses</h3>
-            {todayExpenses.length === 0 ? (
-              <p className="text-xs text-muted text-center py-3">Nothing spent today.</p>
-            ) : todayExpenses.map(e => (
-              <div key={e.id} className="flex items-center gap-3 py-1">
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: catColor(e.category, expenseCats) }} />
-                <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate text-text/90">{e.description}</p><p className="text-[10px] text-muted">{e.category}</p></div>
-                <span className="font-mono text-sm font-bold text-red-400">-RM{fmt(e.amount)}</span>
-                <button onClick={() => deleteExpense(e.id)} className="text-rose-400 opacity-50 hover:opacity-100 p-1"><Trash2 size={13} /></button>
-              </div>
-            ))}
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="font-bold text-sm flex items-center gap-2"><CalendarDays size={16} className="text-red-400" /> {isPastView || expScope === 'month' ? `${monthLabel(viewMonth)} Expenses` : "Today's Expenses"}</h3>
+              {!isPastView && (
+                <div className="flex p-0.5 bg-text/5 rounded-lg text-[10px] font-bold shrink-0">
+                  <button onClick={() => setExpScope('today')} className={`px-2 py-0.5 rounded ${expScope === 'today' ? 'bg-surface text-red-400 shadow-sm' : 'text-muted'}`}>Today</button>
+                  <button onClick={() => setExpScope('month')} className={`px-2 py-0.5 rounded ${expScope === 'month' ? 'bg-surface text-red-400 shadow-sm' : 'text-muted'}`}>Month</button>
+                </div>
+              )}
+            </div>
+            {(() => {
+              const showMonth = isPastView || expScope === 'month';
+              const list = showMonth ? [...monthExpenses].sort((a, b) => b.date.localeCompare(a.date)) : todayExpenses;
+              if (list.length === 0) return <p className="text-xs text-muted text-center py-3">{showMonth ? 'No expenses this month.' : 'Nothing spent today.'}</p>;
+              return list.map(e => (
+                <div key={e.id} className="flex items-center gap-3 py-1">
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: catColor(e.category, expenseCats) }} />
+                  <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate text-text/90">{e.description}</p><p className="text-[10px] text-muted">{e.category}{showMonth ? ` · ${fmtDate(e.date)}` : ''}</p></div>
+                  <span className="font-mono text-sm font-bold text-red-400">-RM{fmt(e.amount)}</span>
+                  <button onClick={() => deleteExpense(e.id)} className="text-rose-400 opacity-50 hover:opacity-100 p-1"><Trash2 size={13} /></button>
+                </div>
+              ));
+            })()}
           </div>
 
           {/* Last month overview */}
@@ -375,6 +510,31 @@ const ExpenseManager: React.FC = () => {
               <span className="text-emerald-400">+RM{fmt(prevIncome)}</span>
               <span className="text-red-400">-RM{fmt(prevExpense + prevPaid)}</span>
               <span className={prevNet < 0 ? 'text-red-400 font-bold' : 'text-text/90 font-bold'}>Net RM{fmt(prevNet)}</span>
+            </div>
+          </div>
+
+          {/* 6-month net trend */}
+          <div className="glass-panel p-4 space-y-2">
+            <h3 className="font-bold text-sm flex items-center gap-2"><TrendingUp size={16} className="text-emerald-400" /> 6-Month Net Trend</h3>
+            <div className="flex gap-1.5 items-stretch" style={{ height: 112 }}>
+              {netTrend.map(d => {
+                const h = Math.round((Math.abs(d.net) / netMaxAbs) * 46);
+                const isView = d.mk === viewMonth;
+                return (
+                  <div key={d.mk} className="flex-1 flex flex-col items-center min-w-0" title={`${monthLabel(d.mk)}: RM${fmt(d.net)}`}>
+                    <span className={`text-[8px] font-mono mb-0.5 ${d.net < 0 ? 'text-red-400' : 'text-emerald-400'}`}>{compact(d.net)}</span>
+                    <div className="relative w-full flex-1 flex flex-col">
+                      <div className="h-1/2 flex items-end justify-center">
+                        {d.net >= 0 && <div className="w-3/5 rounded-t" style={{ height: h, backgroundColor: 'rgb(52 211 153)' }} />}
+                      </div>
+                      <div className="h-1/2 flex items-start justify-center border-t border-text/15">
+                        {d.net < 0 && <div className="w-3/5 rounded-b" style={{ height: h, backgroundColor: 'rgb(248 113 113)' }} />}
+                      </div>
+                    </div>
+                    <span className={`text-[9px] mt-1 ${isView ? 'text-emerald-400 font-bold' : 'text-muted'}`}>{MONTHS[parseInt(d.mk.slice(5, 7)) - 1].slice(0, 3)}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -479,7 +639,7 @@ const ExpenseManager: React.FC = () => {
                 </div>
                 <span className={`font-mono text-sm font-bold ${received ? 'text-emerald-400' : 'text-amber-400/70'}`}>+RM{fmt(i.amount)}</span>
                 <button onClick={() => openIncomeEdit(i)} className="text-muted hover:text-text p-1"><Pencil size={13} /></button>
-                <button onClick={() => deleteIncome(i.id)} className="text-rose-400 opacity-50 hover:opacity-100 p-1"><Trash2 size={13} /></button>
+                <button onClick={() => requestDeleteIncome(i)} className="text-rose-400 opacity-50 hover:opacity-100 p-1"><Trash2 size={13} /></button>
               </div>
               );
             })}
@@ -491,8 +651,8 @@ const ExpenseManager: React.FC = () => {
       {tab === 'transaction' && (
         <div className="space-y-4">
           <div className="flex p-1 bg-text/5 rounded-xl">
-            {(['daily', 'weekly', 'monthly'] as const).map(p => (
-              <button key={p} onClick={() => changePeriod(p)} className={`flex-1 py-2 text-sm font-bold rounded-lg capitalize transition-all ${period === p ? 'bg-surface text-emerald-400 shadow-sm' : 'text-muted hover:text-text'}`}>{p}</button>
+            {(['daily', 'weekly', 'monthly', 'yearly'] as const).map(p => (
+              <button key={p} onClick={() => changePeriod(p)} className={`flex-1 py-2 text-xs font-bold rounded-lg capitalize transition-all ${period === p ? 'bg-surface text-emerald-400 shadow-sm' : 'text-muted hover:text-text'}`}>{p}</button>
             ))}
           </div>
 
@@ -539,12 +699,24 @@ const ExpenseManager: React.FC = () => {
         </div>
       )}
 
-      {/* Floating add-expense button (dashboard only) */}
-      {tab === 'dashboard' && (
+      {/* Dev tools — only on localhost / dev server */}
+      {import.meta.env.DEV && (
+        <div className="border border-dashed border-amber-500/30 rounded-2xl p-3 space-y-2">
+          <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Dev tools (localhost only)</p>
+          <div className="flex gap-2">
+            <button onClick={() => { const d = makeSampleData(); setExpenses(d.expenses); setIncomes(d.incomes); setCommitments(d.commitments); }} className="flex-1 py-2 rounded-lg bg-amber-500/15 text-amber-400 text-xs font-bold hover:bg-amber-500/25">Generate sample data</button>
+            <button onClick={() => { if (window.confirm('Clear all expense data?')) { setExpenses([]); setIncomes([]); setCommitments([]); } }} className="flex-1 py-2 rounded-lg bg-rose-500/15 text-rose-400 text-xs font-bold hover:bg-rose-500/25">Clear all data</button>
+          </div>
+        </div>
+      )}
+
+      {/* Floating add-expense button (dashboard only) — portaled into the phone frame so it
+          stays pinned bottom-right above the menu bar and never scrolls away */}
+      {tab === 'dashboard' && frameEl && createPortal((
         <button onClick={openExpense} className="fixed bottom-24 right-4 sm:absolute z-30 w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white shadow-xl shadow-emerald-500/30 flex items-center justify-center active:scale-90 transition-transform" title="Add expense">
           <Plus size={26} />
         </button>
-      )}
+      ), frameEl)}
 
       {/* Add Expense modal */}
       {showExpense && createPortal((
@@ -592,15 +764,49 @@ const ExpenseManager: React.FC = () => {
             <div className="flex items-center justify-between"><h3 className="font-bold text-lg">Edit Income</h3><button onClick={() => setEditIncome(null)} className="p-1 text-muted hover:text-text"><X size={20} /></button></div>
             <input autoFocus value={ieTitle} onChange={e => setIeTitle(e.target.value)} placeholder="Title" className="input-field w-full" />
             <input type="number" value={ieAmount} onChange={e => setIeAmount(e.target.value)} placeholder="Amount" className="input-field w-full font-mono text-lg" />
+            {editIncome.recurring && (
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-bold text-muted">Pay day</label>
+                  <input type="number" min={1} max={31} value={ieDay} onChange={e => setIeDay(e.target.value)} className={`input-field w-16 font-mono py-1.5 text-center ${ieDayInvalid ? 'border-red-500/60 focus:ring-red-500/40' : ''}`} />
+                  <span className="text-[10px] text-muted">Day salary is received each month</span>
+                </div>
+                {ieDayInvalid && <p className="text-[10px] text-red-400">Pay day must be between 1 and 31.</p>}
+              </div>
+            )}
             {editIncome.recurring ? (
               <div className="space-y-2">
-                <p className="text-xs text-muted">This is recurring income. How should the change apply?</p>
-                <button onClick={() => saveIncomeEdit('forward')} className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600">Apply from {monthLabel(viewMonth)} (keep past)</button>
-                <button onClick={() => saveIncomeEdit('all')} className="w-full py-2.5 rounded-xl bg-text/5 text-text font-bold hover:bg-text/10">Change all months</button>
+                {isPastView ? (
+                  <>
+                    <p className="text-xs text-muted">{monthLabel(viewMonth)} is a past month — this change applies to that month only.</p>
+                    <button onClick={saveIncomeEditSingle} disabled={ieDayInvalid} className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 disabled:opacity-40 disabled:pointer-events-none">Apply to {monthLabel(viewMonth)} only</button>
+                    <button onClick={() => saveIncomeEdit('all')} disabled={ieDayInvalid} className="w-full py-2.5 rounded-xl bg-text/5 text-text font-bold hover:bg-text/10 disabled:opacity-40 disabled:pointer-events-none">Change all months</button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs text-muted">Applies to {monthLabel(viewMonth)} and every upcoming month (past months stay the same).</p>
+                    <button onClick={() => saveIncomeEdit('forward')} disabled={ieDayInvalid} className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 disabled:opacity-40 disabled:pointer-events-none">Apply from {monthLabel(viewMonth)} onward</button>
+                    <button onClick={() => saveIncomeEdit('all')} disabled={ieDayInvalid} className="w-full py-2.5 rounded-xl bg-text/5 text-text font-bold hover:bg-text/10 disabled:opacity-40 disabled:pointer-events-none">Change all months</button>
+                  </>
+                )}
               </div>
             ) : (
               <button onClick={() => saveIncomeEdit('all')} className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600">Save</button>
             )}
+          </div>
+        </div>
+      ), document.body)}
+
+      {/* Delete recurring income modal */}
+      {delIncome && createPortal((
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setDelIncome(null)}>
+          <div className="bg-surface border border-text/10 rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up" onClick={e => e.stopPropagation()}>
+            <h3 className="font-bold text-lg">Delete recurring income</h3>
+            <p className="text-sm text-muted">{delIncome.title} · <span className="font-mono font-bold text-emerald-400">RM{fmt(delIncome.amount)}</span></p>
+            <p className="text-xs text-muted">This income repeats every month. Deleting it everywhere also removes it from past records.</p>
+            <button onClick={stopIncomeFromMonth} className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600">Stop from {monthLabel(viewMonth)} (keep past)</button>
+            <button onClick={deleteIncomeEverywhere} className="w-full py-2.5 rounded-xl bg-rose-500/15 text-rose-400 font-bold hover:bg-rose-500/25">Delete from all months</button>
+            <button onClick={() => setDelIncome(null)} className="w-full py-2.5 rounded-xl bg-text/5 text-text font-bold hover:bg-text/10">Cancel</button>
           </div>
         </div>
       ), document.body)}

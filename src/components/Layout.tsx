@@ -9,6 +9,7 @@ interface NavAlert {
   id: string;
   type: string;
   title: string;
+  subtitle?: string;
   daysLeft: number;
   to: string;
 }
@@ -20,11 +21,14 @@ const ALERT_PREFIX: Record<string, string> = {
   payday: 'Payday',
   water: 'Hydration',
   debt: 'Owe',
+  expense: 'This month',
+  habit: 'Habits',
 };
 
 const Layout: React.FC = () => {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [navHidden, setNavHidden] = useState(false);
   const location = useLocation();
 
   const [pinnedToolPaths, setPinnedToolPaths] = useState<string[]>(() => {
@@ -174,6 +178,7 @@ const Layout: React.FC = () => {
   useEffect(() => {
     setHeaderHidden(false);
     setNotifMode(false);
+    setNavHidden(false);
     hiddenRef.current = false;
     lockRef.current = false;
     lastScrollY.current = 0;
@@ -230,7 +235,7 @@ const Layout: React.FC = () => {
 
   return (
     <div className="sm:flex sm:items-center sm:justify-center sm:min-h-screen sm:py-8 sm:w-full">
-      <div className="flex flex-col min-h-screen sm:min-h-0 sm:h-[min(850px,calc(100vh-4rem))] max-w-md mx-auto w-full bg-background text-text shadow-[0_0_40px_rgba(0,0,0,0.15)] dark:shadow-[0_0_40px_rgba(0,0,0,0.5)] relative sm:rounded-[2.5rem] sm:border-[8px] sm:border-slate-800 dark:sm:border-slate-900 sm:overflow-hidden">
+      <div id="app-frame" className="flex flex-col min-h-screen sm:min-h-0 sm:h-[min(850px,calc(100vh-4rem))] max-w-md mx-auto w-full bg-background text-text shadow-[0_0_40px_rgba(0,0,0,0.15)] dark:shadow-[0_0_40px_rgba(0,0,0,0.5)] relative sm:rounded-[2.5rem] sm:border-[8px] sm:border-slate-800 dark:sm:border-slate-900 sm:overflow-hidden">
         {/* Top Navbar */}
         <header className={`sticky top-0 z-40 glass-panel rounded-none border-x-0 border-t-0 rounded-b-2xl overflow-hidden transition-all duration-300 ${headerHidden ? 'max-h-0 opacity-0' : 'max-h-24 opacity-100'}`}>
           <div className="max-w-md mx-auto px-6 py-4 flex items-center justify-between">
@@ -275,8 +280,16 @@ const Layout: React.FC = () => {
         </main>
 
         {/* Bottom Navigation */}
-        <nav className="fixed bottom-0 sm:absolute sm:bottom-0 left-0 right-0 mx-auto w-full max-w-md z-40">
+        {(() => { const navIsHidden = navHidden && location.pathname !== '/'; return (
+        <nav className={`fixed bottom-0 sm:absolute sm:bottom-0 left-0 right-0 mx-auto w-full max-w-md z-40 transition-transform duration-300 ${navIsHidden ? 'translate-y-[130%]' : 'translate-y-0'}`}>
           <div className="max-w-md mx-auto mb-4 px-4">
+            {location.pathname !== '/' && (
+              <div className="flex justify-center mb-1.5">
+                <button onClick={() => setNavHidden(true)} className="px-4 py-0.5 rounded-full bg-surface/90 border border-text/10 text-muted hover:text-text shadow-sm" aria-label="Hide menu" title="Hide menu">
+                  <ChevronDown size={16} />
+                </button>
+              </div>
+            )}
             {showNotif ? (
               <div
                 key="notif"
@@ -298,7 +311,7 @@ const Layout: React.FC = () => {
                       <p className="text-[9px] uppercase tracking-wider text-muted font-bold">
                         {ALERT_PREFIX[currentAlert?.type] || 'Alert'} · {notifIndex + 1}/{alerts.length}
                       </p>
-                      <p className="text-sm font-bold truncate text-text/90">{currentAlert?.title}</p>
+                      <p className="text-sm font-bold truncate text-text/90">{currentAlert?.title}{currentAlert?.subtitle ? ` · ${currentAlert.subtitle}` : ''}</p>
                     </div>
                   </button>
                 ) : (
@@ -385,6 +398,18 @@ const Layout: React.FC = () => {
             )}
           </div>
         </nav>
+        ); })()}
+
+        {/* Floating "show menu" button when the nav is hidden */}
+        {navHidden && location.pathname !== '/' && (
+          <button
+            onClick={() => setNavHidden(false)}
+            className="fixed bottom-3 sm:absolute sm:bottom-3 left-1/2 -translate-x-1/2 z-40 px-4 py-1.5 rounded-full bg-surface/95 border border-text/10 text-muted hover:text-text shadow-lg flex items-center gap-1.5 animate-fade-in"
+            aria-label="Show menu"
+          >
+            <ChevronUp size={16} /> <span className="text-xs font-bold">Menu</span>
+          </button>
+        )}
 
         {/* Others Bottom Sheet Modal */}
         {showMoreMenu && (
