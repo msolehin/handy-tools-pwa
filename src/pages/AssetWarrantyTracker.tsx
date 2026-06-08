@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Box, Plus, Clock, AlertTriangle, Trash2, Camera, Calendar, 
-  DollarSign, Store, Tag, FileText, CheckCircle, X, ChevronRight,
-  ShieldCheck, ShieldAlert, ShieldX, Activity, LayoutDashboard, List
+import {
+  Box, Plus, Clock, AlertTriangle, Trash2, Camera, Calendar,
+  DollarSign, Store, Tag, FileText, CheckCircle, X,
+  ShieldCheck, ShieldAlert, ShieldX, Activity, LayoutDashboard, List,
+  Laptop, Car, Sofa, Wrench, Package, Zap, Search, Pencil
 } from 'lucide-react';
 
 export interface AssetItem {
@@ -31,13 +32,24 @@ const WARRANTY_DURATIONS = [
   { label: 'Custom Date', value: 0 },
 ];
 
+const CATEGORY_ICONS: Record<string, React.ElementType> = {
+  Electronics: Laptop,
+  Appliances: Zap,
+  Vehicles: Car,
+  Furniture: Sofa,
+  Tools: Wrench,
+  Other: Package,
+};
+
+const getCategoryIcon = (category: string): React.ElementType => CATEGORY_ICONS[category] || Package;
+
 export default function AssetWarrantyTracker() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'assets' | 'expired'>('dashboard');
   const [items, setItems] = useState<AssetItem[]>(() => {
     const saved = localStorage.getItem('asset_warranty_tracker_data');
     return saved ? JSON.parse(saved) : [];
   });
-  
+
   const [customCategories, setCustomCategories] = useState<string[]>(() => {
     const saved = localStorage.getItem('asset_warranty_custom_categories');
     return saved ? JSON.parse(saved) : [];
@@ -45,6 +57,7 @@ export default function AssetWarrantyTracker() {
 
   const [isAdding, setIsAdding] = useState(false);
   const [editingItem, setEditingItem] = useState<AssetItem | null>(null);
+  const [search, setSearch] = useState('');
 
   // Form State
   const [name, setName] = useState('');
@@ -57,7 +70,7 @@ export default function AssetWarrantyTracker() {
   const [store, setStore] = useState('');
   const [notes, setNotes] = useState('');
   const [receiptPhoto, setReceiptPhoto] = useState('');
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -171,8 +184,17 @@ export default function AssetWarrantyTracker() {
     return 'active';
   };
 
+  // Percentage of warranty period already elapsed (0–100)
+  const getWarrantyProgress = (item: AssetItem) => {
+    const start = new Date(item.purchaseDate).setHours(0, 0, 0, 0);
+    const end = new Date(item.expiryDate).setHours(0, 0, 0, 0);
+    const now = new Date().setHours(0, 0, 0, 0);
+    if (end <= start) return 100;
+    return Math.min(100, Math.max(0, ((now - start) / (end - start)) * 100));
+  };
+
   const formatRM = (val: number) => `RM${val.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
-  
+
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-MY', {
       day: 'numeric',
@@ -190,20 +212,124 @@ export default function AssetWarrantyTracker() {
   const underWarrantyValue = activeItems.reduce((sum, item) => sum + item.purchasePrice, 0);
   const expiredWarrantyValue = expiredItems.reduce((sum, item) => sum + item.purchasePrice, 0);
 
+  // Search filtering for list tabs
+  const matchesSearch = (item: AssetItem) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return [item.name, item.category, item.store, item.serialNumber]
+      .filter(Boolean)
+      .some(f => f!.toLowerCase().includes(q));
+  };
+
+  const filteredActive = [...activeItems]
+    .filter(matchesSearch)
+    .sort((a, b) => getDaysLeft(a.expiryDate) - getDaysLeft(b.expiryDate));
+  const filteredExpired = [...expiredItems]
+    .filter(matchesSearch)
+    .sort((a, b) => getDaysLeft(b.expiryDate) - getDaysLeft(a.expiryDate));
+
+  const TABS = [
+    { key: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard },
+    { key: 'assets', label: 'Assets', Icon: List, count: activeItems.length },
+    { key: 'expired', label: 'Expired', Icon: Clock, count: expiredItems.length },
+  ] as const;
+
+  // Status pill shown on each asset card
+  const StatusBadge = ({ date }: { date: string }) => {
+    const status = getWarrantyStatus(date);
+    const days = getDaysLeft(date);
+    const map = {
+      active: { cls: 'bg-emerald-500/15 text-emerald-500', Icon: ShieldCheck, text: `${days} days left` },
+      'expiring-soon': { cls: 'bg-orange-500/15 text-orange-500', Icon: ShieldAlert, text: `${days} days left` },
+      expired: { cls: 'bg-rose-500/15 text-rose-500', Icon: ShieldX, text: `Expired ${Math.abs(days)}d ago` },
+    } as const;
+    const { cls, Icon, text } = map[status];
+    return (
+      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${cls}`}>
+        <Icon size={12} /> {text}
+      </span>
+    );
+  };
+
+  // Reusable asset row used in Assets / Expired tabs
+  const AssetCard = ({ item }: { item: AssetItem }) => {
+    const Icon = getCategoryIcon(item.category);
+    const status = getWarrantyStatus(item.expiryDate);
+    const progress = getWarrantyProgress(item);
+    const barColor = status === 'expired' ? 'bg-rose-500' : status === 'expiring-soon' ? 'bg-orange-500' : 'bg-emerald-500';
+    const iconWrap = status === 'expired' ? 'bg-rose-500/10 text-rose-500' : 'bg-orange-500/10 text-orange-500';
+
+    return (
+      <div className={`glass-panel p-4 group transition-all hover:border-orange-500/30 ${status === 'expired' ? 'opacity-80' : ''}`}>
+        <div className="flex items-start gap-3">
+          <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${iconWrap}`}>
+            <Icon size={22} />
+          </div>
+          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleEdit(item)}>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-text truncate">{item.name}</h3>
+            </div>
+            <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs text-muted mt-1">
+              <span className="px-2 py-0.5 rounded-md bg-text/5 font-medium text-text/70">{item.category}</span>
+              <span className="flex items-center gap-1 font-semibold text-text/80">
+                <DollarSign size={12} />{formatRM(item.purchasePrice)}
+              </span>
+              {item.store && (
+                <span className="flex items-center gap-1 truncate">
+                  <Store size={12} />{item.store}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => handleEdit(item)}
+              aria-label="Edit asset"
+              className="p-2 text-muted hover:text-orange-500 bg-text/5 hover:bg-orange-500/10 rounded-lg transition-colors"
+            >
+              <Pencil size={16} />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
+              aria-label="Delete asset"
+              className="p-2 text-muted hover:text-rose-500 bg-text/5 hover:bg-rose-500/10 rounded-lg transition-colors"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* Warranty timeline */}
+        <div className="mt-3 pt-3 border-t border-text/5">
+          <div className="flex items-center justify-between mb-2">
+            <StatusBadge date={item.expiryDate} />
+            <span className="text-[11px] text-muted">Expires {formatDate(item.expiryDate)}</span>
+          </div>
+          <div className="h-1.5 w-full bg-text/10 rounded-full overflow-hidden">
+            <div className={`h-full rounded-full ${barColor} transition-all`} style={{ width: `${progress}%` }} />
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6 animate-fade-in pb-20">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text flex items-center gap-2">
-            <Box className="text-orange-500" />
-            Asset & Warranty
-          </h1>
-          <p className="text-sm text-muted">Track valuables and warranties</p>
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-orange-500/15 text-orange-500 rounded-xl">
+            <Box size={24} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-text leading-tight">Asset & Warranty</h1>
+            <p className="text-sm text-muted">Track valuables and warranties</p>
+          </div>
         </div>
         {!isAdding && (
-          <button 
+          <button
             onClick={() => setIsAdding(true)}
-            className="w-10 h-10 rounded-full bg-orange-500 text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-transform shadow-lg shadow-orange-500/20"
+            aria-label="Add asset"
+            className="w-10 h-10 rounded-full bg-orange-500 text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-transform shadow-lg shadow-orange-500/20 shrink-0"
           >
             <Plus size={24} />
           </button>
@@ -212,19 +338,16 @@ export default function AssetWarrantyTracker() {
 
       {!isAdding && (
         <div className="grid grid-cols-3 gap-1 p-1 bg-text/5 rounded-xl">
-          {([
-            ['dashboard', 'Dashboard', LayoutDashboard],
-            ['assets', `Assets (${activeItems.length})`, List],
-            ['expired', `Expired (${expiredItems.length})`, Clock]
-          ] as const).map(([key, label, Icon]) => (
+          {TABS.map(({ key, label, Icon, count }) => (
             <button
               key={key}
-              onClick={() => setActiveTab(key as any)}
+              onClick={() => setActiveTab(key)}
               className={`py-2 text-xs font-bold rounded-lg transition-all flex flex-col items-center gap-1 ${
                 activeTab === key ? 'bg-surface text-orange-400 shadow-sm' : 'text-muted hover:text-text'
               }`}
             >
-              <Icon size={16} /> {label as React.ReactNode}
+              <Icon size={16} />
+              <span>{label}{typeof count === 'number' ? ` (${count})` : ''}</span>
             </button>
           ))}
         </div>
@@ -237,8 +360,9 @@ export default function AssetWarrantyTracker() {
               <Plus className="text-orange-500" />
               {editingItem ? 'Edit Asset' : 'Add New Asset'}
             </h2>
-            <button 
+            <button
               onClick={resetForm}
+              aria-label="Close form"
               className="p-2 bg-text/5 hover:bg-text/10 text-muted rounded-full transition-colors"
             >
               <X size={20} />
@@ -268,8 +392,8 @@ export default function AssetWarrantyTracker() {
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-xs font-bold text-muted uppercase tracking-wider">Category</label>
                   {customCategories.includes(category) && (
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => {
                         if (window.confirm(`Delete custom category "${category}"?`)) {
                           setCustomCategories(customCategories.filter(c => c !== category));
@@ -446,7 +570,7 @@ export default function AssetWarrantyTracker() {
                   </button>
                 </div>
               ) : (
-                <div 
+                <div
                   className="w-full border-2 border-dashed border-text/20 rounded-xl p-6 flex flex-col items-center justify-center text-muted hover:text-orange-500 hover:border-orange-500/50 hover:bg-orange-500/5 transition-all cursor-pointer"
                   onClick={() => fileInputRef.current?.click()}
                 >
@@ -477,48 +601,54 @@ export default function AssetWarrantyTracker() {
           {/* Dashboard Tab */}
           {activeTab === 'dashboard' && (
             <div className="space-y-6 animate-fade-in">
-              {/* Summary Cards */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="glass-panel p-5 relative overflow-hidden group">
-                  <div className="absolute -right-4 -top-4 w-24 h-24 bg-orange-500/10 rounded-full blur-xl group-hover:bg-orange-500/20 transition-colors" />
-                  <div className="flex items-center gap-3 mb-2 relative z-10">
-                    <div className="p-2 rounded-lg bg-orange-500/20 text-orange-500">
-                      <DollarSign size={20} />
-                    </div>
-                    <span className="font-bold text-sm text-text">Total Assets</span>
+              {/* Hero portfolio value */}
+              <div className="glass-panel p-6 relative overflow-hidden">
+                <div className="absolute -right-8 -top-8 w-40 h-40 bg-orange-500/15 rounded-full blur-2xl" />
+                <div className="relative z-10">
+                  <div className="flex items-center gap-2 text-muted mb-1">
+                    <DollarSign size={16} className="text-orange-500" />
+                    <span className="text-xs font-bold uppercase tracking-wider">Total Portfolio Value</span>
                   </div>
-                  <div className="text-2xl font-black text-text relative z-10">{formatRM(totalAssetsValue)}</div>
-                  <div className="text-xs text-muted mt-1 relative z-10">{items.length} items</div>
-                </div>
+                  <div className="text-4xl font-black text-text">{formatRM(totalAssetsValue)}</div>
+                  <div className="text-xs text-muted mt-1">{items.length} item{items.length !== 1 ? 's' : ''} tracked</div>
 
-                <div className="glass-panel p-5 relative overflow-hidden group">
-                  <div className="absolute -right-4 -top-4 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl group-hover:bg-emerald-500/20 transition-colors" />
-                  <div className="flex items-center gap-3 mb-2 relative z-10">
-                    <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-500">
-                      <ShieldCheck size={20} />
-                    </div>
-                    <span className="font-bold text-sm text-text">Under Warranty</span>
-                  </div>
-                  <div className="text-2xl font-black text-text relative z-10">{formatRM(underWarrantyValue)}</div>
-                  <div className="text-xs text-emerald-500 mt-1 font-medium relative z-10">{activeItems.length} active</div>
-                </div>
-
-                <div className="glass-panel p-5 relative overflow-hidden group col-span-2">
-                  <div className="absolute -right-4 -top-4 w-32 h-32 bg-rose-500/10 rounded-full blur-xl group-hover:bg-rose-500/20 transition-colors" />
-                  <div className="flex items-center justify-between relative z-10">
-                    <div>
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 rounded-lg bg-rose-500/20 text-rose-500">
-                          <ShieldX size={20} />
-                        </div>
-                        <span className="font-bold text-sm text-text">Expired Warranty</span>
+                  {totalAssetsValue > 0 && (
+                    <div className="mt-4">
+                      <div className="h-2 w-full rounded-full overflow-hidden flex bg-text/10">
+                        <div className="h-full bg-emerald-500" style={{ width: `${(underWarrantyValue / totalAssetsValue) * 100}%` }} />
+                        <div className="h-full bg-rose-500" style={{ width: `${(expiredWarrantyValue / totalAssetsValue) * 100}%` }} />
                       </div>
-                      <div className="text-2xl font-black text-text">{formatRM(expiredWarrantyValue)}</div>
+                      <div className="flex items-center justify-between mt-2 text-[11px] font-medium">
+                        <span className="flex items-center gap-1.5 text-emerald-500">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500" /> Covered {formatRM(underWarrantyValue)}
+                        </span>
+                        <span className="flex items-center gap-1.5 text-rose-500">
+                          <span className="w-2 h-2 rounded-full bg-rose-500" /> Expired {formatRM(expiredWarrantyValue)}
+                        </span>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-rose-500 font-bold">{expiredItems.length}</div>
-                      <div className="text-xs text-muted">items expired</div>
-                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Stat chips */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="glass-panel p-4 flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-emerald-500/15 text-emerald-500 shrink-0">
+                    <ShieldCheck size={22} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-2xl font-black text-text leading-none">{activeItems.length}</div>
+                    <div className="text-xs text-muted mt-1">Under warranty</div>
+                  </div>
+                </div>
+                <div className="glass-panel p-4 flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-rose-500/15 text-rose-500 shrink-0">
+                    <ShieldX size={22} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-2xl font-black text-text leading-none">{expiredItems.length}</div>
+                    <div className="text-xs text-muted mt-1">Expired</div>
                   </div>
                 </div>
               </div>
@@ -526,34 +656,45 @@ export default function AssetWarrantyTracker() {
               {/* Expiring Soon Section */}
               <div className="glass-panel p-5">
                 <div className="flex items-center gap-2 mb-4 text-orange-500">
-                  <AlertTriangle size={20} className="animate-pulse" />
-                  <h3 className="font-bold text-lg">⚠️ Expiring Soon</h3>
+                  <AlertTriangle size={20} className={expiringSoonItems.length > 0 ? 'animate-pulse' : ''} />
+                  <h3 className="font-bold text-lg text-text">Expiring Soon</h3>
+                  {expiringSoonItems.length > 0 && (
+                    <span className="ml-auto px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-500 text-xs font-bold">
+                      {expiringSoonItems.length}
+                    </span>
+                  )}
                 </div>
 
                 {expiringSoonItems.length > 0 ? (
                   <div className="space-y-3">
-                    {expiringSoonItems.map(item => (
-                      <div 
-                        key={item.id}
-                        onClick={() => handleEdit(item)}
-                        className="p-4 rounded-xl bg-surface border border-orange-500/30 flex items-center justify-between cursor-pointer hover:bg-orange-500/5 transition-colors"
-                      >
-                        <div>
-                          <div className="font-bold text-text">{item.name}</div>
-                          <div className="text-xs text-muted flex items-center gap-1 mt-1">
-                            <Store size={12} />
-                            {item.store || 'Unknown Store'}
+                    {expiringSoonItems.map(item => {
+                      const Icon = getCategoryIcon(item.category);
+                      return (
+                        <div
+                          key={item.id}
+                          onClick={() => handleEdit(item)}
+                          className="p-3 rounded-xl bg-surface border border-orange-500/30 flex items-center gap-3 cursor-pointer hover:bg-orange-500/5 transition-colors"
+                        >
+                          <div className="w-10 h-10 rounded-lg bg-orange-500/10 text-orange-500 flex items-center justify-center shrink-0">
+                            <Icon size={20} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-bold text-text truncate">{item.name}</div>
+                            <div className="text-xs text-muted flex items-center gap-1 mt-0.5">
+                              <Store size={12} />
+                              {item.store || 'Unknown Store'}
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="font-bold text-orange-500">{getDaysLeft(item.expiryDate)}d left</div>
+                            <div className="text-[11px] text-muted mt-0.5">{formatDate(item.expiryDate)}</div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="font-bold text-orange-500">{getDaysLeft(item.expiryDate)} days left</div>
-                          <div className="text-xs text-muted mt-1">{formatDate(item.expiryDate)}</div>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
-                  <div className="text-center py-6 text-muted bg-surface/50 rounded-xl border border-dashed border-text/10">
+                  <div className="text-center py-8 text-muted bg-surface/50 rounded-xl border border-dashed border-text/10">
                     <ShieldCheck size={32} className="mx-auto mb-2 opacity-50" />
                     <p className="font-medium text-sm">No items expiring soon.</p>
                   </div>
@@ -565,41 +706,28 @@ export default function AssetWarrantyTracker() {
           {/* Assets Tab (Active items) */}
           {activeTab === 'assets' && (
             <div className="space-y-4 animate-fade-in">
-              {activeItems.length > 0 ? (
-                activeItems.map(item => (
-                  <div key={item.id} className="glass-panel p-4 flex items-center gap-4 relative group">
-                    <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 shrink-0">
-                      <Box size={24} />
-                    </div>
-                    <div className="flex-1 min-w-0" onClick={() => handleEdit(item)}>
-                      <h3 className="font-bold text-text truncate">{item.name}</h3>
-                      <div className="flex items-center gap-3 text-xs text-muted mt-1">
-                        <span className="flex items-center gap-1">
-                          <DollarSign size={12} />
-                          {formatRM(item.purchasePrice)}
-                        </span>
-                        <span className="flex items-center gap-1 text-emerald-500">
-                          <ShieldCheck size={12} />
-                          {getDaysLeft(item.expiryDate)} days left
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => handleEdit(item)}
-                        className="p-2 text-muted hover:text-orange-500 bg-text/5 hover:bg-orange-500/10 rounded-lg transition-colors"
-                      >
-                        <ChevronRight size={18} />
-                      </button>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
-                        className="p-2 text-muted hover:text-rose-500 bg-text/5 hover:bg-rose-500/10 rounded-lg transition-colors"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
+              {activeItems.length > 0 && (
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted">
+                    <Search size={18} />
                   </div>
-                ))
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search assets..."
+                    className="w-full pl-10 pr-4 py-3 bg-surface border border-text/10 rounded-xl text-text focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-all"
+                  />
+                </div>
+              )}
+
+              {filteredActive.length > 0 ? (
+                filteredActive.map(item => <AssetCard key={item.id} item={item} />)
+              ) : activeItems.length > 0 ? (
+                <div className="glass-panel p-8 text-center text-muted">
+                  <Search size={28} className="mx-auto mb-2 opacity-50" />
+                  <p className="text-sm font-medium">No assets match “{search}”.</p>
+                </div>
               ) : (
                 <div className="glass-panel p-10 text-center flex flex-col items-center">
                   <div className="w-16 h-16 bg-orange-500/10 rounded-full flex items-center justify-center text-orange-500 mb-4">
@@ -607,7 +735,7 @@ export default function AssetWarrantyTracker() {
                   </div>
                   <h3 className="text-lg font-bold text-text mb-2">No active assets</h3>
                   <p className="text-sm text-muted mb-6 max-w-xs mx-auto">Keep track of your valuable items and their warranty periods.</p>
-                  <button 
+                  <button
                     onClick={() => setIsAdding(true)}
                     className="px-6 py-3 bg-orange-500 text-white rounded-xl font-bold flex items-center gap-2 hover:shadow-lg hover:shadow-orange-500/30 transition-all hover:-translate-y-0.5"
                   >
@@ -622,41 +750,28 @@ export default function AssetWarrantyTracker() {
           {/* Expired Tab */}
           {activeTab === 'expired' && (
             <div className="space-y-4 animate-fade-in">
-              {expiredItems.length > 0 ? (
-                expiredItems.map(item => (
-                  <div key={item.id} className="glass-panel p-4 flex items-center gap-4 relative group opacity-70">
-                    <div className="w-12 h-12 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500 shrink-0">
-                      <ShieldX size={24} />
-                    </div>
-                    <div className="flex-1 min-w-0" onClick={() => handleEdit(item)}>
-                      <h3 className="font-bold text-text truncate">{item.name}</h3>
-                      <div className="flex items-center gap-3 text-xs text-muted mt-1">
-                        <span className="flex items-center gap-1">
-                          <Calendar size={12} />
-                          Bought {formatDate(item.purchaseDate)}
-                        </span>
-                        <span className="flex items-center gap-1 text-rose-500">
-                          <Clock size={12} />
-                          Expired {Math.abs(getDaysLeft(item.expiryDate))} days ago
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => handleEdit(item)}
-                        className="p-2 text-muted hover:text-orange-500 bg-text/5 hover:bg-orange-500/10 rounded-lg transition-colors"
-                      >
-                        <ChevronRight size={18} />
-                      </button>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
-                        className="p-2 text-muted hover:text-rose-500 bg-text/5 hover:bg-rose-500/10 rounded-lg transition-colors"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
+              {expiredItems.length > 0 && (
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted">
+                    <Search size={18} />
                   </div>
-                ))
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search expired..."
+                    className="w-full pl-10 pr-4 py-3 bg-surface border border-text/10 rounded-xl text-text focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-all"
+                  />
+                </div>
+              )}
+
+              {filteredExpired.length > 0 ? (
+                filteredExpired.map(item => <AssetCard key={item.id} item={item} />)
+              ) : expiredItems.length > 0 ? (
+                <div className="glass-panel p-8 text-center text-muted">
+                  <Search size={28} className="mx-auto mb-2 opacity-50" />
+                  <p className="text-sm font-medium">No expired items match “{search}”.</p>
+                </div>
               ) : (
                 <div className="glass-panel p-10 text-center flex flex-col items-center">
                   <div className="w-16 h-16 bg-rose-500/10 rounded-full flex items-center justify-center text-rose-500 mb-4">

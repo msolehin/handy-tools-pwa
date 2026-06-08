@@ -674,7 +674,8 @@ const TravelHistory: React.FC = () => {
               </select>
             </div>
           </div>
-
+  {/* Add trip button */}
+      <button onClick={openAdd} className="w-full py-3 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-cyan-500/50 hover:text-cyan-400 transition-all flex items-center justify-center"><Plus size={18} className="mr-2" /> Add Trip</button>
           {groupBy === 'none' && sortedTrips.map(t => <TripCard key={t.id} t={t} />)}
 
           {groupBy === 'country' && uniqueCountries
@@ -728,8 +729,7 @@ const TravelHistory: React.FC = () => {
         </div>
       )}
 
-      {/* Add trip button */}
-      <button onClick={openAdd} className="w-full py-3 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-cyan-500/50 hover:text-cyan-400 transition-all flex items-center justify-center"><Plus size={18} className="mr-2" /> Add Trip</button>
+    
 
       {/* Dev tools — only available on localhost / dev server */}
       {import.meta.env.DEV && (
