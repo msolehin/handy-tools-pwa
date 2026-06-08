@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   MapPin, ArrowRight, Shield, PieChart, Timer, Wallet,
   Users, Calendar, Landmark, ShieldAlert, Wrench, Plane, Activity,
-  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, Briefcase, Fuel, Gift, ArrowRightLeft, Banknote, Dices, Repeat, Droplets, Layers, Search, HeartPulse, Car, ListChecks, HandCoins, Utensils, Gauge, ChevronDown, ChevronUp, Sparkles, Heart, ArrowDownAZ, IdCard
+  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, Briefcase, Fuel, Gift, ArrowRightLeft, Banknote, Dices, Repeat, Droplets, Layers, Search, HeartPulse, Car, ListChecks, HandCoins, Utensils, Gauge, ChevronDown, ChevronUp, Sparkles, Heart, ArrowDownAZ, IdCard, Box
 } from 'lucide-react';
 import { 
   DndContext, 
@@ -161,17 +161,22 @@ export const DEFAULT_TOOLS = [
   {
     id: '/travel-history', to: '/travel-history', title: 'My Travel History', desc: 'Record trips you have taken', Icon: Plane, category: 'Auto & Travel',
     borderClass: 'hover:border-cyan-400/50 hover:shadow-cyan-400/20', iconBgClass: 'bg-cyan-500/20 text-cyan-400', arrowClass: 'group-hover:text-cyan-400'
+  },
+  {
+    id: '/asset-warranty', to: '/asset-warranty', title: 'Asset & Warranty', desc: 'Track valuables and warranties', Icon: Box, category: 'Utilities',
+    borderClass: 'hover:border-amber-400/50 hover:shadow-amber-400/20', iconBgClass: 'bg-amber-500/20 text-amber-500', arrowClass: 'group-hover:text-amber-500'
   }
 ];
 
 // Tools flagged as "HOT" — shown with a badge and promoted to the top of the list
-export const HOT_IDS = ['/ic-scanner', '/decision-maker', '/duit-raya', '/habit-tracker', '/expense-manager', '/travel-history', '/restaurant-splitter'];
+export const HOT_IDS = ['/ic-scanner', '/decision-maker', '/duit-raya', '/habit-tracker', '/expense-manager', '/travel-history', '/restaurant-splitter', '/asset-warranty'];
 
 // Newly launched tools — show a "NEW" badge for 7 days, then they roll over to "HOT"
 const NEW_TOOLS: Record<string, string> = {
   '/habit-tracker': '2026-06-08',
   '/expense-manager': '2026-06-08',
   '/travel-history': '2026-06-08',
+  '/asset-warranty': '2026-06-08',
 };
 const NEW_DAYS = 7;
 const badgeFor = (id: string): 'new' | 'hot' | null => {
@@ -632,7 +637,7 @@ const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisab
 
 interface AlertItem {
   id: string;
-  type: 'document' | 'event' | 'subscription' | 'payday' | 'water' | 'debt' | 'expense' | 'habit';
+  type: 'document' | 'event' | 'subscription' | 'payday' | 'water' | 'debt' | 'expense' | 'habit' | 'warranty';
   subtitle?: string;
   title: string;
   daysLeft: number;
@@ -1006,6 +1011,28 @@ const Home: React.FC = () => {
       } catch (e) {}
     }
 
+    // 9. Asset & Warranty Tracker — items expiring within 30 days
+    const warrantyStr = localStorage.getItem('asset_warranty_tracker_data');
+    if (warrantyStr) {
+      try {
+        const assets = JSON.parse(warrantyStr);
+        assets.forEach((asset: any) => {
+          if (asset.expiryDate) {
+            const days = getDaysLeft(asset.expiryDate);
+            if (days >= 0 && days <= 30) {
+              newAlerts.push({
+                id: `warranty-${asset.id}`,
+                type: 'warranty',
+                title: asset.name,
+                daysLeft: days,
+                to: '/asset-warranty'
+              });
+            }
+          }
+        });
+      } catch (e) {}
+    }
+
     newAlerts.sort((a, b) => a.daysLeft - b.daysLeft);
     setAlerts(newAlerts);
   }, []);
@@ -1144,7 +1171,9 @@ const Home: React.FC = () => {
                               ? 'bg-emerald-500/10 border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
                               : alert.type === 'habit'
                                 ? 'bg-violet-500/10 border-violet-500/30 shadow-[0_0_15px_rgba(139,92,246,0.15)]'
-                                : 'bg-pink-500/10 border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.15)]'
+                                : alert.type === 'warranty'
+                                  ? 'bg-orange-500/10 border-orange-500/30 shadow-[0_0_15px_rgba(249,115,22,0.15)]'
+                                  : 'bg-pink-500/10 border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.15)]'
                 }`}
               >
                 {animationsEnabled && alert.type === 'document' && (
@@ -1216,6 +1245,8 @@ const Home: React.FC = () => {
                       <Banknote size={20} className="text-emerald-400" />
                     ) : alert.type === 'habit' ? (
                       <ListChecks size={20} className="text-violet-400" />
+                    ) : alert.type === 'warranty' ? (
+                      <Box size={20} className="text-orange-400" />
                     ) : (
                       <Calendar size={20} className="text-pink-400" />
                     )}
@@ -1224,7 +1255,7 @@ const Home: React.FC = () => {
                 </div>
                 <div className="flex-1 min-w-0 pr-4 relative z-10">
                   <p className="font-bold text-[13px] text-text truncate leading-tight mb-1">
-                    {alert.type === 'document' ? 'Renew: ' : alert.type === 'subscription' ? 'Due: ' : alert.type === 'payday' ? 'Payday: ' : alert.type === 'water' ? 'Water: ' : alert.type === 'debt' ? 'Owe: ' : alert.type === 'habit' ? 'Habits: ' : ''}{alert.title}
+                    {alert.type === 'document' ? 'Renew: ' : alert.type === 'subscription' ? 'Due: ' : alert.type === 'payday' ? 'Payday: ' : alert.type === 'water' ? 'Water: ' : alert.type === 'debt' ? 'Owe: ' : alert.type === 'habit' ? 'Habits: ' : alert.type === 'warranty' ? 'Warranty: ' : ''}{alert.title}
                   </p>
                   <p className={`text-[11px] font-medium leading-none ${
                     alert.type === 'document'
@@ -1235,6 +1266,7 @@ const Home: React.FC = () => {
                       : alert.type === 'debt' ? 'text-rose-400'
                       : alert.type === 'expense' ? 'text-emerald-400'
                       : alert.type === 'habit' ? 'text-violet-400'
+                      : alert.type === 'warranty' ? 'text-orange-400'
                       : 'text-pink-400'
                   }`}>
                     {alert.type === 'water' ? 'Drink up!' : alert.type === 'debt' ? 'Action Required' : alert.type === 'expense' ? `${alert.percentage ?? 0}% of income spent` : alert.type === 'habit' ? `${alert.percentage ?? 0}% done` : alert.daysLeft < 0

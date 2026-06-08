@@ -36,6 +36,7 @@ import DuitRayaManager from './pages/DuitRayaManager';
 import HabitTracker from './pages/HabitTracker';
 import ExpenseManager from './pages/ExpenseManager';
 import TravelHistory from './pages/TravelHistory';
+import AssetWarrantyTracker from './pages/AssetWarrantyTracker';
 
 function App() {
   return (
@@ -77,6 +78,7 @@ function App() {
           <Route path="habit-tracker" element={<HabitTracker />} />
           <Route path="expense-manager" element={<ExpenseManager />} />
           <Route path="travel-history" element={<TravelHistory />} />
+          <Route path="asset-warranty" element={<AssetWarrantyTracker />} />
         </Route>
       </Routes>
       <Analytics />

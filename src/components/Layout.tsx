@@ -50,6 +50,11 @@ const NavAlertBg: React.FC<{ alert: NavAlert }> = ({ alert }) => {
       <div className="absolute -inset-[100%] spin-slow-anim" style={{ background: 'conic-gradient(from 0deg, transparent 0%, transparent 80%, rgba(236,72,153,0.4) 100%)' }} />
     </div>
   );
+  if (alert.type === 'warranty') return (
+    <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none">
+      <div className={`absolute left-0 right-0 h-[2px] blur-[1px] scan-line-anim ${alert.daysLeft < 0 ? 'bg-rose-500' : 'bg-orange-400'}`} style={{ top: '50%' }} />
+    </div>
+  );
   return null;
 };
 
@@ -62,6 +67,7 @@ const ALERT_PREFIX: Record<string, string> = {
   debt: 'Owe',
   expense: 'This month',
   habit: 'Habits',
+  warranty: 'Warranty',
 };
 
 const Layout: React.FC = () => {
