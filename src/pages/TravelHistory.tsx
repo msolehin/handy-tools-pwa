@@ -590,9 +590,10 @@ const TravelHistory: React.FC = () => {
         ))}
       </div>
 
-      {trips.length === 0 ? (
-        <div className="text-center p-8 text-muted text-sm border border-dashed border-text/10 rounded-2xl">No trips recorded yet. Add your first trip below!</div>
-      ) : tab === 'dashboard' ? (
+      {tab === 'dashboard' ? (
+        trips.length === 0 ? (
+          <div className="text-center p-8 text-muted text-sm border border-dashed border-text/10 rounded-2xl">No trips recorded yet. Add your first trip on the Trips tab!</div>
+        ) : (
         <div className="space-y-4">
           {/* Stats */}
           <div className="grid grid-cols-3 gap-3">
@@ -652,31 +653,38 @@ const TravelHistory: React.FC = () => {
             )}
           </div>
         </div>
+        )
       ) : tab === 'trips' ? (
         <div className="space-y-3">
-          {/* Sort + group */}
-          <div className="flex gap-2">
-            <div className="flex-1 relative">
-              <ArrowUpDown size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
-              <select value={sort} onChange={e => setSort(e.target.value as any)} className="input-field w-full pl-8 py-2 text-sm appearance-none">
-                <option value="latest">Latest</option>
-                <option value="oldest">Oldest</option>
-                <option value="highest">Highest Budget</option>
-                <option value="lowest">Lowest Budget</option>
-              </select>
-            </div>
-            <div className="flex-1 relative">
-              <Layers size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
-              <select value={groupBy} onChange={e => setGroupBy(e.target.value as any)} className="input-field w-full pl-8 py-2 text-sm appearance-none">
-                <option value="none">No grouping</option>
-                <option value="country">Group: Country</option>
-                <option value="year">Group: Year</option>
-              </select>
-            </div>
-          </div>
-  {/* Add trip button */}
-      <button onClick={openAdd} className="w-full py-3 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-cyan-500/50 hover:text-cyan-400 transition-all flex items-center justify-center"><Plus size={18} className="mr-2" /> Add Trip</button>
-          {groupBy === 'none' && sortedTrips.map(t => <TripCard key={t.id} t={t} />)}
+          {/* Add trip button */}
+          <button onClick={openAdd} className="w-full py-3 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-cyan-500/50 hover:text-cyan-400 transition-all flex items-center justify-center"><Plus size={18} className="mr-2" /> Add Trip</button>
+
+          {trips.length === 0 ? (
+            <div className="text-center p-8 text-muted text-sm border border-dashed border-text/10 rounded-2xl">No trips recorded yet. Click the button above to add your first trip!</div>
+          ) : (
+            <>
+              {/* Sort + group */}
+              <div className="flex gap-2">
+                <div className="flex-1 relative">
+                  <ArrowUpDown size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+                  <select value={sort} onChange={e => setSort(e.target.value as any)} className="input-field w-full pl-8 py-2 text-sm appearance-none">
+                    <option value="latest">Latest</option>
+                    <option value="oldest">Oldest</option>
+                    <option value="highest">Highest Budget</option>
+                    <option value="lowest">Lowest Budget</option>
+                  </select>
+                </div>
+                <div className="flex-1 relative">
+                  <Layers size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+                  <select value={groupBy} onChange={e => setGroupBy(e.target.value as any)} className="input-field w-full pl-8 py-2 text-sm appearance-none">
+                    <option value="none">No grouping</option>
+                    <option value="country">Group: Country</option>
+                    <option value="year">Group: Year</option>
+                  </select>
+                </div>
+              </div>
+
+              {groupBy === 'none' && sortedTrips.map(t => <TripCard key={t.id} t={t} />)}
 
           {groupBy === 'country' && uniqueCountries
             .map(c => ({ c, list: sortedTrips.filter(t => t.country === c) }))
@@ -703,9 +711,14 @@ const TravelHistory: React.FC = () => {
               </div>
             );
           })}
+            </>
+          )}
         </div>
       ) : (
         /* TIMELINE */
+        trips.length === 0 ? (
+          <div className="text-center p-8 text-muted text-sm border border-dashed border-text/10 rounded-2xl">No trips recorded yet. Add your first trip on the Trips tab!</div>
+        ) : (
         <div className="space-y-4">
           {Array.from(new Set(sortedByDate.map(t => yearOf(t.startDate)))).sort((a, b) => b.localeCompare(a)).map(yr => (
             <div key={yr} className="flex gap-3">
@@ -727,6 +740,7 @@ const TravelHistory: React.FC = () => {
             </div>
           ))}
         </div>
+        )
       )}
 
     
