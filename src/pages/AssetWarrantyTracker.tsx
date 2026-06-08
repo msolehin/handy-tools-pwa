@@ -229,7 +229,7 @@ export default function AssetWarrantyTracker() {
     .sort((a, b) => getDaysLeft(b.expiryDate) - getDaysLeft(a.expiryDate));
 
   const TABS = [
-    { key: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard },
+    { key: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard, count: undefined },
     { key: 'assets', label: 'Assets', Icon: List, count: activeItems.length },
     { key: 'expired', label: 'Expired', Icon: Clock, count: expiredItems.length },
   ] as const;
