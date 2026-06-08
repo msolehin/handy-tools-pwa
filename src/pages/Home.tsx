@@ -157,11 +157,15 @@ export const DEFAULT_TOOLS = [
   {
     id: '/expense-manager', to: '/expense-manager', title: 'Expense Manager', desc: 'Income, commitments & spending', Icon: Wallet, category: 'Finance',
     borderClass: 'hover:border-emerald-400/50 hover:shadow-emerald-400/20', iconBgClass: 'bg-emerald-500/20 text-emerald-400', arrowClass: 'group-hover:text-emerald-400'
+  },
+  {
+    id: '/travel-history', to: '/travel-history', title: 'My Travel History', desc: 'Record trips you have taken', Icon: Plane, category: 'Auto & Travel',
+    borderClass: 'hover:border-cyan-400/50 hover:shadow-cyan-400/20', iconBgClass: 'bg-cyan-500/20 text-cyan-400', arrowClass: 'group-hover:text-cyan-400'
   }
 ];
 
 // Tools flagged as "HOT" — shown with a badge and promoted to the top of the list
-export const HOT_IDS = ['/ic-scanner', '/decision-maker', '/duit-raya', '/restaurant-splitter'];
+export const HOT_IDS = ['/ic-scanner', '/decision-maker', '/duit-raya', '/restaurant-splitter','habit-tracker','expense-manager','travel-history'];
 
 const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisableDrag, animationsEnabled = true, isFavorite, onToggleFavorite, onToolClick }: { tool: typeof DEFAULT_TOOLS[0], sortableId?: string, viewMode: 'list' | 'grid', isReordering: boolean, forceDisableDrag?: boolean, animationsEnabled?: boolean, isFavorite?: boolean, onToggleFavorite?: (id: string) => void, onToolClick?: (id: string) => void }) => {
   const {
