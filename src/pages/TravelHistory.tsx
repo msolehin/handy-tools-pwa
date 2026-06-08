@@ -41,12 +41,27 @@ const CountryBg: React.FC<{ country: string }> = ({ country }) => {
   );
 };
 
-const WorldMap: React.FC<{ counts: Record<string, number> }> = ({ counts }) => {
+const WorldMap: React.FC<{ counts: Record<string, number>; focus?: { name: string; n: number } | null; highlight?: string | null }> = ({ counts, focus, highlight }) => {
   const maxCount = Object.values(counts).reduce((m, v) => Math.max(m, v), 1);
   const [t, setT] = useState({ k: 1, x: 0, y: 0 });
+  const [smooth, setSmooth] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
   const ptrs = useRef<Map<number, { x: number; y: number }>>(new Map());
   const pinch = useRef<number | null>(null);
+
+  // Animate-zoom to a country when asked
+  useEffect(() => {
+    if (!focus) return;
+    const c = COUNTRY_BOX[focus.name];
+    if (!c || !c.d) return;
+    const [x, y, w, h] = c.box;
+    const k = Math.min(10, Math.max(1.5, Math.min(MAP_W / (w * 2.4), MAP_H / (h * 2.4))));
+    const cx = x + w / 2, cy = y + h / 2;
+    setSmooth(true);
+    setT({ k, x: MAP_W / 2 - cx * k, y: MAP_H / 2 - cy * k });
+    const id = setTimeout(() => setSmooth(false), 550);
+    return () => clearTimeout(id);
+  }, [focus?.n]);
 
   const toView = (clientX: number, clientY: number) => {
     const r = svgRef.current!.getBoundingClientRect();
@@ -76,6 +91,7 @@ const WorldMap: React.FC<{ counts: Record<string, number> }> = ({ counts }) => {
   }, []);
 
   const onPointerDown = (e: React.PointerEvent) => {
+    setSmooth(false); // dragging should be immediate, not animated
     (e.target as Element).setPointerCapture?.(e.pointerId);
     ptrs.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
   };
@@ -119,7 +135,7 @@ const WorldMap: React.FC<{ counts: Record<string, number> }> = ({ counts }) => {
         onPointerCancel={endPtr}
         onPointerLeave={endPtr}
       >
-        <g transform={`translate(${t.x} ${t.y}) scale(${t.k})`}>
+        <g transform={`translate(${t.x} ${t.y}) scale(${t.k})`} style={{ transition: smooth ? 'transform 0.5s ease' : 'none' }}>
           {COUNTRY_PATHS.map(c => {
             const n = counts[c.name] || 0;
             // Heatmap: more trips → darker. 1 trip starts mid, scales up to full at the max.
@@ -138,6 +154,18 @@ const WorldMap: React.FC<{ counts: Record<string, number> }> = ({ counts }) => {
               </path>
             );
           })}
+          {highlight && COUNTRY_BOX[highlight]?.d && (
+            <path
+              d={COUNTRY_BOX[highlight].d}
+              fill="rgb(34 211 238)"
+              fillOpacity={0.35}
+              stroke="rgb(34 211 238)"
+              strokeWidth={1.6}
+              vectorEffect="non-scaling-stroke"
+              style={{ filter: 'drop-shadow(0 0 3px rgb(34 211 238))' }}
+              pointerEvents="none"
+            />
+          )}
         </g>
       </svg>
       <div className="absolute bottom-1.5 right-1.5 flex flex-col gap-1">
@@ -254,6 +282,22 @@ const TravelHistory: React.FC = () => {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [tab, setTab] = useState<'dashboard' | 'trips' | 'timeline'>('dashboard');
+  const [mapFocus, setMapFocus] = useState<{ name: string; n: number } | null>(null);
+  const [focusedCountry, setFocusedCountry] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const showToast = (m: string) => { setToast(m); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 2400); };
+  const mapPanelRef = useRef<HTMLDivElement>(null);
+  const focusOnMap = (country: string) => {
+    const mapName = MAP_ALIAS[country] || country;
+    setFocusedCountry(country);
+    if (!COUNTRY_BOX[mapName] || !COUNTRY_BOX[mapName].d) {
+      showToast(`📍 ${country} is too small to show on the map`);
+      return;
+    }
+    setMapFocus(prev => ({ name: mapName, n: (prev?.n || 0) + 1 }));
+    mapPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -473,6 +517,13 @@ const TravelHistory: React.FC = () => {
 
   return (
     <div className="max-w-md mx-auto p-4 pb-24 space-y-5 animate-fade-in">
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-36 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl bg-surface border border-text/10 shadow-2xl text-sm font-bold text-text text-center animate-fade-in pointer-events-none max-w-[80%]">
+          {toast}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center space-x-3">
@@ -505,7 +556,7 @@ const TravelHistory: React.FC = () => {
           </div>
 
           {/* Visited countries */}
-          <div className="glass-panel p-4 space-y-3">
+          <div ref={mapPanelRef} className="glass-panel p-4 space-y-3 scroll-mt-4">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-sm flex items-center gap-2"><MapPin size={16} className="text-cyan-400" /> Countries Visited</h3>
               <span className="text-xs font-bold text-cyan-400">{uniqueCountries.length} <span className="text-muted font-normal">/ {TOTAL_COUNTRIES}</span></span>
@@ -515,7 +566,7 @@ const TravelHistory: React.FC = () => {
             </div>
             <p className="text-[10px] text-muted text-right">{((uniqueCountries.length / TOTAL_COUNTRIES) * 100).toFixed(1)}% of the world explored</p>
             <div className="-mx-1">
-              <WorldMap counts={Object.fromEntries(countryCounts.map(c => [MAP_ALIAS[c.country] || c.country, c.count]))} />
+              <WorldMap counts={Object.fromEntries(countryCounts.map(c => [MAP_ALIAS[c.country] || c.country, c.count]))} focus={mapFocus} highlight={focusedCountry ? (MAP_ALIAS[focusedCountry] || focusedCountry) : null} />
             </div>
             <div className="flex flex-wrap gap-2">
               {(() => {
@@ -523,13 +574,15 @@ const TravelHistory: React.FC = () => {
                 return countryCounts.slice().sort((a, b) => b.count - a.count).map(c => {
                   const f = (c.count - 1) / Math.max(1, maxVisits - 1); // 0..1
                   return (
-                    <span
+                    <button
                       key={c.country}
-                      className="px-2.5 py-1.5 rounded-xl border text-xs font-medium flex items-center gap-1.5"
+                      onClick={() => focusOnMap(c.country)}
+                      title={`Show ${c.country} on the map`}
+                      className={`px-2.5 py-1.5 rounded-xl border text-xs font-medium flex items-center gap-1.5 transition-transform active:scale-95 hover:brightness-110 ${focusedCountry === c.country ? 'ring-2 ring-cyan-400 ring-offset-1 ring-offset-surface' : ''}`}
                       style={{ backgroundColor: `rgba(16,185,129,${0.1 + f * 0.5})`, borderColor: `rgba(16,185,129,${0.25 + f * 0.45})` }}
                     >
                       <span className="text-base leading-none">{c.flag}</span> {c.country}{c.count > 1 && <span className="font-black text-text">×{c.count}</span>}
-                    </span>
+                    </button>
                   );
                 });
               })()}
