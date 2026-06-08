@@ -38,6 +38,7 @@ import ExpenseManager from './pages/ExpenseManager';
 import TravelHistory from './pages/TravelHistory';
 import AssetWarrantyTracker from './pages/AssetWarrantyTracker';
 import BookTracker from './pages/BookTracker';
+import NakBeli from './pages/NakBeli';
 
 function App() {
   return (
@@ -81,6 +82,7 @@ function App() {
           <Route path="travel-history" element={<TravelHistory />} />
           <Route path="asset-warranty" element={<AssetWarrantyTracker />} />
           <Route path="book-tracker" element={<BookTracker />} />
+          <Route path="nak-beli" element={<NakBeli />} />
         </Route>
       </Routes>
       <Analytics />
