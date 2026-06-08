@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Wallet, Plus, Trash2, Check, X, ChevronLeft, ChevronRight, Pencil, Archive, RotateCcw,
   TrendingUp, TrendingDown, PieChart, ListChecks, CreditCard, Coins, ArchiveRestore, CalendarDays
@@ -529,9 +530,9 @@ const ExpenseManager: React.FC = () => {
       )}
 
       {/* Add Expense modal */}
-      {showExpense && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowExpense(false)}>
-          <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up" onClick={e => e.stopPropagation()}>
+      {showExpense && createPortal((
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowExpense(false)}>
+          <div className="bg-surface border border-text/10 rounded-t-3xl w-full max-w-md p-5 space-y-4 animate-slide-up" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between"><h3 className="font-bold text-lg">Add Expense</h3><button onClick={() => setShowExpense(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button></div>
             <input autoFocus value={eDesc} onChange={e => setEDesc(e.target.value)} placeholder="Description" className="input-field w-full" />
             <input type="number" value={eAmount} onChange={e => setEAmount(e.target.value)} placeholder="Amount (RM)" className="input-field w-full font-mono text-lg" />
@@ -546,12 +547,12 @@ const ExpenseManager: React.FC = () => {
             <button onClick={saveExpense} className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600">Save Expense</button>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       {/* Commitment add/edit modal */}
-      {showCForm && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowCForm(false)}>
-          <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up" onClick={e => e.stopPropagation()}>
+      {showCForm && createPortal((
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowCForm(false)}>
+          <div className="bg-surface border border-text/10 rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between"><h3 className="font-bold text-lg">{cForm.id ? 'Edit' : 'Add'} Commitment</h3><button onClick={() => setShowCForm(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button></div>
             <input autoFocus value={cForm.title} onChange={e => setCForm(f => ({ ...f, title: e.target.value }))} placeholder="Title (e.g. Car loan)" className="input-field w-full" />
             <div className="flex gap-2">
@@ -565,10 +566,10 @@ const ExpenseManager: React.FC = () => {
             <button onClick={saveCForm} className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600">{cForm.id ? 'Save Changes' : 'Add Commitment'}</button>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       {/* Edit income modal */}
-      {editIncome && (
+      {editIncome && createPortal((
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setEditIncome(null)}>
           <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between"><h3 className="font-bold text-lg">Edit Income</h3><button onClick={() => setEditIncome(null)} className="p-1 text-muted hover:text-text"><X size={20} /></button></div>
@@ -585,10 +586,10 @@ const ExpenseManager: React.FC = () => {
             )}
           </div>
         </div>
-      )}
+      ), document.body)}
 
       {/* Confirm payment modal */}
-      {payTarget && (
+      {payTarget && createPortal((
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setPayTarget(null)}>
           <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up" onClick={e => e.stopPropagation()}>
             <h3 className="font-bold text-lg">Confirm Payment</h3>
@@ -603,7 +604,7 @@ const ExpenseManager: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   );
 };
