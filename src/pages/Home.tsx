@@ -23,7 +23,7 @@ import {
   SortableContext
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { getNextRenewalDate, getDaysUntil } from './SubscriptionTracker';
+import { getDaysUntil } from './CommitmentTracker';
 
 export const DEFAULT_TOOLS = [
   { 
@@ -99,7 +99,7 @@ export const DEFAULT_TOOLS = [
     borderClass: 'hover:border-rose-400/50 hover:shadow-rose-400/20', iconBgClass: 'bg-rose-500/20 text-rose-400', arrowClass: 'group-hover:text-rose-400'
   },
   { 
-    id: '/subscription-tracker', to: '/subscription-tracker', title: 'Subscriptions', desc: 'Track recurring payments', Icon: Repeat, category: 'Finance',
+    id: '/commitments', to: '/commitments', title: 'Commitments', desc: 'Track all monthly commitments', Icon: Repeat, category: 'Finance',
     borderClass: 'hover:border-indigo-400/50 hover:shadow-indigo-400/20', iconBgClass: 'bg-indigo-500/20 text-indigo-400', arrowClass: 'group-hover:text-indigo-400'
   },
   { 
@@ -647,7 +647,7 @@ const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisab
 
 interface AlertItem {
   id: string;
-  type: 'document' | 'event' | 'subscription' | 'payday' | 'water' | 'debt' | 'expense' | 'habit' | 'warranty';
+  type: 'document' | 'event' | 'commitment' | 'payday' | 'water' | 'debt' | 'expense' | 'habit' | 'warranty';
   subtitle?: string;
   title: string;
   daysLeft: number;
@@ -853,25 +853,34 @@ const Home: React.FC = () => {
       } catch (e) {}
     }
 
-    // 3. Subscriptions (Upcoming in next 3 days)
-    const subsStr = localStorage.getItem('sub_tracker_data');
-    if (subsStr) {
+    // 3. Commitments (Upcoming in next 3 days)
+    const subExpStr = localStorage.getItem('expense_manager_data');
+    if (subExpStr) {
       try {
-        const subs = JSON.parse(subsStr);
-        subs.forEach((sub: any) => {
-          const nextDate = getNextRenewalDate(sub.startDate, sub.cycle);
-          const days = getDaysUntil(nextDate);
+        const data = JSON.parse(subExpStr);
+        if (data.commitments && Array.isArray(data.commitments)) {
+          const today = new Date();
+          const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+          const maxDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
           
-          if (days >= 0 && days <= 3) {
-            newAlerts.push({
-              id: `sub-${sub.id}`,
-              type: 'subscription',
-              title: `${sub.name} (RM${sub.price})`,
-              daysLeft: days,
-              to: '/subscription-tracker'
-            });
-          }
-        });
+          data.commitments.forEach((c: any) => {
+            if (!c.archived && (!c.payments || !c.payments[currentMonth])) {
+              const day = Math.min(c.paymentDay, maxDay);
+              const renewalDate = new Date(today.getFullYear(), today.getMonth(), day);
+              const days = getDaysUntil(renewalDate);
+              
+              if (days >= 0 && days <= 3) {
+                newAlerts.push({
+                  id: `com-${c.id}`,
+                  type: 'commitment',
+                  title: `${c.title} (RM${c.amount})`,
+                  daysLeft: days,
+                  to: '/commitments'
+                });
+              }
+            }
+          });
+        }
       } catch (e) {}
     }
 
@@ -970,19 +979,43 @@ const Home: React.FC = () => {
         const now = new Date();
         const mk = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         const fmtRM = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const spent = (data.expenses || [])
+        
+        const rawExpenses = (data.expenses || [])
           .filter((e: any) => typeof e.date === 'string' && e.date.slice(0, 7) === mk)
           .reduce((s: number, e: any) => s + (e.amount || 0), 0);
+          
+        const paidCommitments = (data.commitments || [])
+          .filter((c: any) => c.payments && c.payments[mk])
+          .reduce((s: number, c: any) => s + (c.amount || 0), 0);
+          
+        const spent = rawExpenses + paidCommitments;
+
         const income = (data.incomes || [])
           .filter((i: any) => {
             if (i.recurring) {
               if (i.startMonth && mk < i.startMonth) return false;
               if (i.endMonth && mk > i.endMonth) return false;
+              
+              if (typeof i.day === 'number') {
+                const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                if (mk === currentMonth && now.getDate() < i.day) {
+                  return false;
+                }
+              }
               return true;
             }
-            return typeof i.date === 'string' && i.date.slice(0, 7) === mk;
+            if (typeof i.date === 'string' && i.date.slice(0, 7) === mk) {
+              const incomeDate = new Date(i.date);
+              incomeDate.setHours(0, 0, 0, 0);
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              if (incomeDate > today) return false;
+              return true;
+            }
+            return false;
           })
           .reduce((s: number, i: any) => s + (i.amount || 0), 0);
+          
         if (spent > 0 || income > 0) {
           newAlerts.push({
             id: 'expense',
@@ -1169,7 +1202,7 @@ const Home: React.FC = () => {
                     ? alert.daysLeft < 0 
                       ? 'bg-red-500/10 border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.15)]' 
                       : 'bg-yellow-500/10 border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.1)]'
-                    : alert.type === 'subscription'
+                    : alert.type === 'commitment'
                       ? 'bg-indigo-500/10 border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)]'
                       : alert.type === 'payday'
                         ? 'bg-emerald-500/10 border-emerald-500/30 shadow-[0_0_15px_rgba(52,211,153,0.15)]'
@@ -1243,7 +1276,7 @@ const Home: React.FC = () => {
                   <div className="flex items-center space-x-2 mb-2">
                     {alert.type === 'document' ? (
                       <ShieldAlert size={20} className={alert.daysLeft < 0 ? 'text-red-400' : 'text-yellow-400'} />
-                    ) : alert.type === 'subscription' ? (
+                    ) : alert.type === 'commitment' ? (
                       <Repeat size={20} className="text-indigo-400" />
                     ) : alert.type === 'payday' ? (
                       <Wallet size={20} className="text-emerald-400" />
@@ -1265,12 +1298,12 @@ const Home: React.FC = () => {
                 </div>
                 <div className="flex-1 min-w-0 pr-4 relative z-10">
                   <p className="font-bold text-[13px] text-text truncate leading-tight mb-1">
-                    {alert.type === 'document' ? 'Renew: ' : alert.type === 'subscription' ? 'Due: ' : alert.type === 'payday' ? 'Payday: ' : alert.type === 'water' ? 'Water: ' : alert.type === 'debt' ? 'Owe: ' : alert.type === 'habit' ? 'Habits: ' : alert.type === 'warranty' ? 'Warranty: ' : ''}{alert.title}
+                    {alert.type === 'document' ? 'Renew: ' : alert.type === 'commitment' ? 'Due: ' : alert.type === 'payday' ? 'Payday: ' : alert.type === 'water' ? 'Water: ' : alert.type === 'debt' ? 'Owe: ' : alert.type === 'habit' ? 'Habits: ' : alert.type === 'warranty' ? 'Warranty: ' : ''}{alert.title}
                   </p>
                   <p className={`text-[11px] font-medium leading-none ${
                     alert.type === 'document'
                       ? alert.daysLeft < 0 ? 'text-red-400' : 'text-yellow-400'
-                      : alert.type === 'subscription' ? 'text-indigo-400'
+                      : alert.type === 'commitment' ? 'text-indigo-400'
                       : alert.type === 'payday' ? 'text-emerald-400'
                       : alert.type === 'water' ? 'text-blue-400'
                       : alert.type === 'debt' ? 'text-rose-400'

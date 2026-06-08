@@ -4,7 +4,7 @@ import {
   Tag, Calendar, RefreshCw, Plus, Trash2, Clock
 } from 'lucide-react';
 
-type TabType = 'loan' | 'commitment' | 'savings' | 'salary' | 'discount';
+type TabType = 'loan' | 'savings' | 'salary' | 'discount';
 
 // ==========================================
 // 1. LOAN CALCULATOR
@@ -111,92 +111,92 @@ const LoanTab = () => {
 // ==========================================
 // 2. COMMITMENT CALCULATOR
 // ==========================================
-interface CommitmentItem {
-  id: string;
-  name: string;
-  amount: number;
-}
+// interface CommitmentItem {
+//   id: string;
+//   name: string;
+//   amount: number;
+// }
 
-const DEFAULT_COMMITMENTS = [
-  { id: '1', name: 'Car Loan', amount: 0 },
-  { id: '2', name: 'Rent / Mortgage', amount: 0 },
-  { id: '3', name: 'PTPTN / Student Loan', amount: 0 },
-  { id: '4', name: 'Internet', amount: 0 },
-];
+// const DEFAULT_COMMITMENTS = [
+//   { id: '1', name: 'Car Loan', amount: 0 },
+//   { id: '2', name: 'Rent / Mortgage', amount: 0 },
+//   { id: '3', name: 'PTPTN / Student Loan', amount: 0 },
+//   { id: '4', name: 'Internet', amount: 0 },
+// ];
 
-const CommitmentTab = () => {
-  const [items, setItems] = useState<CommitmentItem[]>(() => {
-    const saved = localStorage.getItem('fin_commitments');
-    return saved ? JSON.parse(saved) : DEFAULT_COMMITMENTS;
-  });
+// const CommitmentTab = () => {
+//   const [items, setItems] = useState<CommitmentItem[]>(() => {
+//     const saved = localStorage.getItem('fin_commitments');
+//     return saved ? JSON.parse(saved) : DEFAULT_COMMITMENTS;
+//   });
 
-  const [newName, setNewName] = useState('');
-  const [newAmount, setNewAmount] = useState('');
+//   const [newName, setNewName] = useState('');
+//   const [newAmount, setNewAmount] = useState('');
 
-  useEffect(() => {
-    localStorage.setItem('fin_commitments', JSON.stringify(items));
-  }, [items]);
+//   useEffect(() => {
+//     localStorage.setItem('fin_commitments', JSON.stringify(items));
+//   }, [items]);
 
-  const updateAmount = (id: string, val: string) => {
-    setItems(items.map(i => i.id === id ? { ...i, amount: parseFloat(val) || 0 } : i));
-  };
+//   const updateAmount = (id: string, val: string) => {
+//     setItems(items.map(i => i.id === id ? { ...i, amount: parseFloat(val) || 0 } : i));
+//   };
 
-  const addItem = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newName.trim()) return;
-    setItems([...items, { id: Math.random().toString(), name: newName.trim(), amount: parseFloat(newAmount) || 0 }]);
-    setNewName('');
-    setNewAmount('');
-  };
+//   const addItem = (e: React.FormEvent) => {
+//     e.preventDefault();
+//     if (!newName.trim()) return;
+//     setItems([...items, { id: Math.random().toString(), name: newName.trim(), amount: parseFloat(newAmount) || 0 }]);
+//     setNewName('');
+//     setNewAmount('');
+//   };
 
-  const removeItem = (id: string) => {
-    setItems(items.filter(i => i.id !== id));
-  };
+//   const removeItem = (id: string) => {
+//     setItems(items.filter(i => i.id !== id));
+//   };
 
-  const total = items.reduce((sum, i) => sum + i.amount, 0);
+//   const total = items.reduce((sum, i) => sum + i.amount, 0);
 
-  return (
-    <div className="space-y-4 animate-fade-in">
-      <h3 className="font-bold text-lg px-1">Monthly Commitments</h3>
+//   return (
+//     <div className="space-y-4 animate-fade-in">
+//       <h3 className="font-bold text-lg px-1">Monthly Commitments</h3>
       
-      <div className="glass-panel p-6 text-center bg-gradient-to-br from-red-500/10 to-orange-500/10">
-        <p className="text-sm text-muted mb-1">Total Fixed Expenses</p>
-        <h3 className="text-4xl font-black text-red-400">RM {total.toFixed(2)}</h3>
-        <p className="text-xs text-muted mt-2">Per Month</p>
-      </div>
+//       <div className="glass-panel p-6 text-center bg-gradient-to-br from-red-500/10 to-orange-500/10">
+//         <p className="text-sm text-muted mb-1">Total Fixed Expenses</p>
+//         <h3 className="text-4xl font-black text-red-400">RM {total.toFixed(2)}</h3>
+//         <p className="text-xs text-muted mt-2">Per Month</p>
+//       </div>
 
-      <div className="space-y-2">
-        {items.map(item => (
-          <div key={item.id} className="glass-panel p-3 flex items-center space-x-3">
-            <div className="flex-1 font-medium text-sm">{item.name}</div>
-            <div className="relative w-32">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-xs">RM</span>
-              <input 
-                type="number" min="0" step="0.01" 
-                value={item.amount || ''} onChange={(e) => updateAmount(item.id, e.target.value)} 
-                placeholder="0.00" className="input-field pl-8 py-1.5 text-sm w-full" 
-              />
-            </div>
-            <button onClick={() => removeItem(item.id)} className="text-muted hover:text-red-400 p-1">
-              <Trash2 size={16} />
-            </button>
-          </div>
-        ))}
-      </div>
+//       <div className="space-y-2">
+//         {items.map(item => (
+//           <div key={item.id} className="glass-panel p-3 flex items-center space-x-3">
+//             <div className="flex-1 font-medium text-sm">{item.name}</div>
+//             <div className="relative w-32">
+//               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-xs">RM</span>
+//               <input 
+//                 type="number" min="0" step="0.01" 
+//                 value={item.amount || ''} onChange={(e) => updateAmount(item.id, e.target.value)} 
+//                 placeholder="0.00" className="input-field pl-8 py-1.5 text-sm w-full" 
+//               />
+//             </div>
+//             <button onClick={() => removeItem(item.id)} className="text-muted hover:text-red-400 p-1">
+//               <Trash2 size={16} />
+//             </button>
+//           </div>
+//         ))}
+//       </div>
 
-      <form onSubmit={addItem} className="glass-panel p-3 flex items-center space-x-2">
-        <input type="text" placeholder="e.g. Netflix" value={newName} onChange={(e) => setNewName(e.target.value)} className="input-field flex-1 text-sm py-2" required />
-        <div className="relative w-28">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-xs">RM</span>
-          <input type="number" min="0" step="0.01" value={newAmount} onChange={(e) => setNewAmount(e.target.value)} placeholder="0.00" className="input-field pl-8 py-2 text-sm w-full" />
-        </div>
-        <button type="submit" disabled={!newName} className="btn-primary p-2 rounded-xl">
-          <Plus size={20} />
-        </button>
-      </form>
-    </div>
-  );
-};
+//       <form onSubmit={addItem} className="glass-panel p-3 flex items-center space-x-2">
+//         <input type="text" placeholder="e.g. Netflix" value={newName} onChange={(e) => setNewName(e.target.value)} className="input-field flex-1 text-sm py-2" required />
+//         <div className="relative w-28">
+//           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-xs">RM</span>
+//           <input type="number" min="0" step="0.01" value={newAmount} onChange={(e) => setNewAmount(e.target.value)} placeholder="0.00" className="input-field pl-8 py-2 text-sm w-full" />
+//         </div>
+//         <button type="submit" disabled={!newName} className="btn-primary p-2 rounded-xl">
+//           <Plus size={20} />
+//         </button>
+//       </form>
+//     </div>
+//   );
+// };
 
 // ==========================================
 // 3. SAVINGS GOAL CALCULATOR
@@ -381,7 +381,7 @@ const FinancialCalculators: React.FC = () => {
 
   const tabs: { id: TabType; name: string; icon: any }[] = [
     { id: 'loan', name: 'Loan', icon: Landmark },
-    { id: 'commitment', name: 'Commitment', icon: Wallet },
+    // { id: 'commitment', name: 'Commitment', icon: Wallet },
     { id: 'savings', name: 'Savings Goal', icon: PiggyBank },
     { id: 'salary', name: 'Salary/Hourly', icon: Briefcase },
     { id: 'discount', name: 'Discount', icon: Tag },
@@ -422,7 +422,7 @@ const FinancialCalculators: React.FC = () => {
       {/* Render Active Tab */}
       <div className="pt-2">
         {activeTab === 'loan' && <LoanTab />}
-        {activeTab === 'commitment' && <CommitmentTab />}
+        {/* {activeTab === 'commitment' && <CommitmentTab />} */}
         {activeTab === 'savings' && <SavingsTab />}
         {activeTab === 'salary' && <SalaryTab />}
         {activeTab === 'discount' && <DiscountTab />}

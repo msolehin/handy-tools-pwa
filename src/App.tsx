@@ -21,7 +21,7 @@ import FuelCalculator from './pages/FuelCalculator';
 import UnitConverter from './pages/UnitConverter';
 import CurrencyConverter from './pages/CurrencyConverter';
 import Randomizer from './pages/Randomizer';
-import SubscriptionTracker from './pages/SubscriptionTracker';
+import CommitmentTracker from './pages/CommitmentTracker';
 import WaterTracker from './pages/WaterTracker';
 import PaycheckCountdown from './pages/PaycheckCountdown';
 import EmergencyCard from './pages/EmergencyCard';
@@ -65,7 +65,7 @@ function App() {
           <Route path="unit-converter" element={<UnitConverter />} />
           <Route path="currency-converter" element={<CurrencyConverter />} />
           <Route path="randomizer" element={<Randomizer />} />
-          <Route path="subscription-tracker" element={<SubscriptionTracker />} />
+          <Route path="commitments" element={<CommitmentTracker />} />
           <Route path="water-tracker" element={<WaterTracker />} />
           <Route path="paycheck-countdown" element={<PaycheckCountdown />} />
           <Route path="emergency-card" element={<EmergencyCard />} />

@@ -448,8 +448,8 @@ const ExpenseManager: React.FC = () => {
               <p className="text-sm font-black text-emerald-400 font-mono mt-1">{fmt(totalIncome)}</p>
             </div>
             <div className="glass-panel p-3 text-center">
-              <p className="text-[9px] font-bold text-muted uppercase">Commit</p>
-              <p className="text-sm font-black text-amber-400 font-mono mt-1">{fmt(totalCommitment)}</p>
+              <p className="text-[9px] font-bold text-muted uppercase">Paid Commit</p>
+              <p className="text-sm font-black text-amber-400 font-mono mt-1">{fmt(paidCommitment)}</p>
             </div>
             <div className="glass-panel p-3 text-center">
               <p className="text-[9px] font-bold text-muted uppercase">Expenses</p>
@@ -459,7 +459,20 @@ const ExpenseManager: React.FC = () => {
 
           {/* Commitment checklist */}
           <div className="glass-panel p-4 space-y-2">
-            <h3 className="font-bold text-sm flex items-center gap-2"><CreditCard size={16} className="text-amber-400" /> Commitments</h3>
+            <h3 className="font-bold text-sm flex items-center gap-2 mb-1"><CreditCard size={16} className="text-amber-400" /> Commitments</h3>
+            
+            <div className="flex items-center justify-between text-[10px] font-bold text-muted bg-text/5 rounded-lg p-2 mb-3">
+              <div className="text-center flex-1 border-r border-text/10">
+                Total<br/><span className="text-text text-xs">RM{fmt(totalCommitment)}</span>
+              </div>
+              <div className="text-center flex-1 border-r border-text/10">
+                Paid<br/><span className="text-emerald-400 text-xs">RM{fmt(paidCommitment)}</span>
+              </div>
+              <div className="text-center flex-1">
+                Balance<br/><span className="text-amber-400 text-xs">RM{fmt(totalCommitment - paidCommitment)}</span>
+              </div>
+            </div>
+            
             {monthCommitments.length === 0 ? (
               <p className="text-xs text-muted text-center py-3">No commitments yet.</p>
             ) : monthCommitments.map(c => {
