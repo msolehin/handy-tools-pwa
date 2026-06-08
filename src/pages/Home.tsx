@@ -153,6 +153,10 @@ export const DEFAULT_TOOLS = [
   {
     id: '/habit-tracker', to: '/habit-tracker', title: 'Habit Tracker', desc: 'Build streaks & track habits', Icon: ListChecks, category: 'Lifestyle',
     borderClass: 'hover:border-violet-400/50 hover:shadow-violet-400/20', iconBgClass: 'bg-violet-500/20 text-violet-400', arrowClass: 'group-hover:text-violet-400'
+  },
+  {
+    id: '/expense-manager', to: '/expense-manager', title: 'Expense Manager', desc: 'Income, commitments & spending', Icon: Wallet, category: 'Finance',
+    borderClass: 'hover:border-emerald-400/50 hover:shadow-emerald-400/20', iconBgClass: 'bg-emerald-500/20 text-emerald-400', arrowClass: 'group-hover:text-emerald-400'
   }
 ];
 

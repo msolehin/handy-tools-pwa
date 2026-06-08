@@ -34,6 +34,7 @@ import SpeedTest from './pages/SpeedTest';
 import Speedometer from './pages/Speedometer';
 import DuitRayaManager from './pages/DuitRayaManager';
 import HabitTracker from './pages/HabitTracker';
+import ExpenseManager from './pages/ExpenseManager';
 
 function App() {
   return (
@@ -73,6 +74,7 @@ function App() {
           <Route path="speedometer" element={<Speedometer />} />
           <Route path="duit-raya" element={<DuitRayaManager />} />
           <Route path="habit-tracker" element={<HabitTracker />} />
+          <Route path="expense-manager" element={<ExpenseManager />} />
         </Route>
       </Routes>
       <Analytics />
