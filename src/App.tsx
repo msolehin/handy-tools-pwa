@@ -40,6 +40,9 @@ import AssetWarrantyTracker from './pages/AssetWarrantyTracker';
 import BookTracker from './pages/BookTracker';
 import NakBeli from './pages/NakBeli';
 
+import ImportantNumbers from './pages/ImportantNumbers';
+import ServiceReminders from './pages/ServiceReminders';
+
 function App() {
   return (
     <BrowserRouter>
@@ -83,6 +86,8 @@ function App() {
           <Route path="asset-warranty" element={<AssetWarrantyTracker />} />
           <Route path="book-tracker" element={<BookTracker />} />
           <Route path="nak-beli" element={<NakBeli />} />
+          <Route path="important-numbers" element={<ImportantNumbers />} />
+          <Route path="service-reminders" element={<ServiceReminders />} />
         </Route>
       </Routes>
       <Analytics />

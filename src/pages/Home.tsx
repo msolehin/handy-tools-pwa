@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   MapPin, ArrowRight, Shield, PieChart, Timer, Wallet,
   Users, Calendar, Landmark, ShieldAlert, Wrench, Plane, Activity,
-  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, ShoppingBag, Briefcase, Fuel, Gift, ArrowRightLeft, Banknote, Dices, Repeat, Droplets, Layers, Search, HeartPulse, Car, ListChecks, HandCoins, Utensils, Gauge, ChevronDown, ChevronUp, Sparkles, Heart, ArrowDownAZ, IdCard, Box, BookOpen
+  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, ShoppingBag, Briefcase, Fuel, Gift, ArrowRightLeft, Banknote, Dices, Repeat, Droplets, Layers, Search, HeartPulse, Car, ListChecks, HandCoins, Utensils, Gauge, ChevronDown, ChevronUp, Sparkles, Heart, ArrowDownAZ, IdCard, Box, BookOpen, Hash, BellRing
 } from 'lucide-react';
 import { 
   DndContext, 
@@ -173,6 +173,14 @@ export const DEFAULT_TOOLS = [
   {
     id: '/nak-beli', to: '/nak-beli', title: 'Nak Beli', desc: 'Plan purchases & see true cost', Icon: ShoppingBag, category: 'Lifestyle',
     borderClass: 'hover:border-fuchsia-400/50 hover:shadow-fuchsia-400/20', iconBgClass: 'bg-fuchsia-500/20 text-fuchsia-400', arrowClass: 'group-hover:text-fuchsia-400'
+  },
+  {
+    id: '/important-numbers', to: '/important-numbers', title: 'Important Numbers', desc: 'Accounts, policies & IDs', Icon: Hash, category: 'Utilities',
+    borderClass: 'hover:border-fuchsia-400/50 hover:shadow-fuchsia-400/20', iconBgClass: 'bg-fuchsia-500/20 text-fuchsia-400', arrowClass: 'group-hover:text-fuchsia-400'
+  },
+  {
+    id: '/service-reminders', to: '/service-reminders', title: 'Service Reminders', desc: 'Track recurring maintenance', Icon: BellRing, category: 'Utilities',
+    borderClass: 'hover:border-amber-400/50 hover:shadow-amber-400/20', iconBgClass: 'bg-amber-500/20 text-amber-400', arrowClass: 'group-hover:text-amber-400'
   }
 ];
 
@@ -187,6 +195,8 @@ const NEW_TOOLS: Record<string, string> = {
   '/asset-warranty': '2026-06-08',
   '/book-tracker': '2026-06-08',
   '/nak-beli': '2026-06-08',
+  '/important-numbers': '2026-06-08',
+  '/service-reminders': '2026-06-08',
 };
 const NEW_DAYS = 7;
 const badgeFor = (id: string): 'new' | 'hot' | null => {
@@ -647,7 +657,7 @@ const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisab
 
 interface AlertItem {
   id: string;
-  type: 'document' | 'event' | 'commitment' | 'payday' | 'water' | 'debt' | 'expense' | 'habit' | 'warranty';
+  type: 'document' | 'event' | 'commitment' | 'payday' | 'water' | 'debt' | 'expense' | 'habit' | 'warranty' | 'service';
   subtitle?: string;
   title: string;
   daysLeft: number;
@@ -1075,6 +1085,28 @@ const Home: React.FC = () => {
         });
       } catch (e) {}
     }
+    // 10. Service Reminders — items due within 10 days or overdue
+    const serviceStr = localStorage.getItem('service_reminders_data');
+    if (serviceStr) {
+      try {
+        const p = JSON.parse(serviceStr);
+        const services = Array.isArray(p.items) ? p.items : [];
+        services.forEach((s: any) => {
+          if (s.nextServiceDate) {
+            const days = getDaysLeft(s.nextServiceDate);
+            if (days <= 10) {
+              newAlerts.push({
+                id: `service-${s.id}`,
+                type: 'service',
+                title: s.name,
+                daysLeft: days,
+                to: '/service-reminders'
+              });
+            }
+          }
+        });
+      } catch (e) {}
+    }
 
     newAlerts.sort((a, b) => a.daysLeft - b.daysLeft);
     setAlerts(newAlerts);
@@ -1216,14 +1248,18 @@ const Home: React.FC = () => {
                                 ? 'bg-violet-500/10 border-violet-500/30 shadow-[0_0_15px_rgba(139,92,246,0.15)]'
                                 : alert.type === 'warranty'
                                   ? 'bg-orange-500/10 border-orange-500/30 shadow-[0_0_15px_rgba(249,115,22,0.15)]'
-                                  : 'bg-pink-500/10 border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.15)]'
+                                  : alert.type === 'service'
+                                    ? alert.daysLeft < 0 
+                                      ? 'bg-red-500/10 border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.15)]' 
+                                      : 'bg-amber-500/10 border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.15)]'
+                                    : 'bg-pink-500/10 border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.15)]'
                 }`}
               >
-                {animationsEnabled && alert.type === 'document' && (
+                {animationsEnabled && (alert.type === 'document' || alert.type === 'service') && (
                   <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none">
                     <div 
                       className={`absolute left-0 right-0 h-[2px] blur-[1px] scan-line-anim ${
-                        alert.daysLeft < 0 ? 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,1)]' : 'bg-yellow-400 shadow-[0_0_12px_rgba(250,204,21,1)]'
+                        alert.daysLeft < 0 ? 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,1)]' : 'bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,1)]'
                       }`} 
                       style={{ top: '10%' }}
                     />
@@ -1293,7 +1329,7 @@ const Home: React.FC = () => {
                     ) : (
                       <Calendar size={20} className="text-pink-400" />
                     )}
-                    <span className="text-[10px] font-bold text-text/60 uppercase tracking-wider">{alert.type}</span>
+                    <span className="text-[10px] font-bold text-text/60 uppercase tracking-wider">{alert.type === 'service' && alert.daysLeft < 0 ? 'Overdue' : alert.type}</span>
                   </div>
                 </div>
                 <div className="flex-1 min-w-0 pr-4 relative z-10">
@@ -1313,7 +1349,7 @@ const Home: React.FC = () => {
                       : 'text-pink-400'
                   }`}>
                     {alert.type === 'water' ? 'Drink up!' : alert.type === 'debt' ? 'Action Required' : alert.type === 'expense' ? `${alert.percentage ?? 0}% of income spent` : alert.type === 'habit' ? `${alert.percentage ?? 0}% done` : alert.daysLeft < 0
-                      ? `Expired ${Math.abs(alert.daysLeft)} days ago` 
+                      ? (alert.type === 'service' ? `Overdue by ${Math.abs(alert.daysLeft)} days` : `Expired ${Math.abs(alert.daysLeft)} days ago`)
                       : alert.daysLeft === 0 
                         ? 'Today!'
                         : `${alert.daysLeft} Days Left`}
