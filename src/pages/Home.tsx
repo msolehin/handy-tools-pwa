@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   MapPin, ArrowRight, Shield, PieChart, Timer, Wallet,
-  Users, Calendar, Landmark, ShieldAlert, Wrench, Plane, Activity,
-  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, ShoppingBag, Briefcase, Fuel, Gift, ArrowRightLeft, Banknote, Dices, Repeat, Droplets, Layers, Search, HeartPulse, Car, ListChecks, HandCoins, Utensils, Gauge, ChevronDown, ChevronUp, Sparkles, Heart, ArrowDownAZ, IdCard, Box, BookOpen, Hash, BellRing, FileSignature
+  Calendar, ShieldAlert, Plane,
+  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, Gift, Banknote, Dices, Repeat, Droplets, Layers, Search, ListChecks, HandCoins, Utensils, ChevronDown, ChevronUp, Sparkles, Heart, ArrowDownAZ, IdCard, Box, BookOpen, Hash, BellRing, FileSignature
 } from 'lucide-react';
 import { 
   DndContext, 
@@ -42,59 +42,19 @@ export const DEFAULT_TOOLS = [
     id: '/pace-calculator', to: '/pace-calculator', title: 'Kira Pace', desc: 'Time, Distance & Pace', Icon: Timer, category: 'Health & Fitness',
     borderClass: 'hover:border-blue-400/50 hover:shadow-blue-400/20', iconBgClass: 'bg-blue-500/20 text-blue-400', arrowClass: 'group-hover:text-blue-400'
   },
-  // { 
-  //   id: '/affordability', to: '/affordability', title: 'Can I Afford It?', desc: 'Cost vs Income Calculator', Icon: Wallet, category: 'Finance',
-  //   borderClass: 'hover:border-green-400/50 hover:shadow-green-400/20', iconBgClass: 'bg-green-500/20 text-green-400', arrowClass: 'group-hover:text-green-400'
-  // },
-  { 
-    id: '/expense-splitter', to: '/expense-splitter', title: 'Expense Splitter', desc: 'Group Bills & Settle Up', Icon: Users, category: 'Finance',
-    borderClass: 'hover:border-purple-400/50 hover:shadow-purple-400/20', iconBgClass: 'bg-purple-500/20 text-purple-400', arrowClass: 'group-hover:text-purple-400'
-  },
-  { 
+  {
     id: '/countdown', to: '/countdown', title: 'Countdown Day', desc: 'Track Events & Holidays', Icon: Calendar, category: 'Utilities',
     borderClass: 'hover:border-pink-500/50 hover:shadow-pink-500/20', iconBgClass: 'bg-pink-500/20 text-pink-400', arrowClass: 'group-hover:text-pink-400'
   },
-  { 
-    id: '/financial-calculators', to: '/financial-calculators', title: 'Financial Hub', desc: 'Loans, savings, and salary tools', Icon: Landmark, category: 'Finance',
-    borderClass: 'hover:border-orange-500/50 hover:shadow-orange-500/20', iconBgClass: 'bg-orange-500/20 text-orange-400', arrowClass: 'group-hover:text-orange-400'
-  },
-  { 
+  {
     id: '/document-expiry', to: '/document-expiry', title: 'Document Expiry', desc: 'Track Passport, Roadtax, etc.', Icon: ShieldAlert, category: 'Utilities',
     borderClass: 'hover:border-red-500/50 hover:shadow-red-500/20', iconBgClass: 'bg-red-500/20 text-red-400', arrowClass: 'group-hover:text-red-400'
   },
-  { 
-    id: '/vehicle-tracker', to: '/vehicle-tracker', title: 'Vehicle Tracker', desc: 'Log Service & Maintenance', Icon: Wrench, category: 'Auto & Travel',
-    borderClass: 'hover:border-slate-400/50 hover:shadow-slate-400/20', iconBgClass: 'bg-slate-500/20 text-slate-400', arrowClass: 'group-hover:text-slate-400'
-  },
-  // { 
-  //   id: '/trip-budget', to: '/trip-budget', title: 'Trip Budget', desc: 'Plan Vacation Expenses', Icon: Plane, category: 'Auto & Travel',
-  //   borderClass: 'hover:border-cyan-400/50 hover:shadow-cyan-400/20', iconBgClass: 'bg-cyan-500/20 text-cyan-400', arrowClass: 'group-hover:text-cyan-400'
-  // },
-  { 
-    id: '/bmi-calculator', to: '/bmi-calculator', title: 'BMI Calculator', desc: 'Check Health Metrics', Icon: Activity, category: 'Health & Fitness',
-    borderClass: 'hover:border-emerald-400/50 hover:shadow-emerald-400/20', iconBgClass: 'bg-emerald-500/20 text-emerald-400', arrowClass: 'group-hover:text-emerald-400'
-  },
-  { 
+  {
     id: '/grocery-budget', to: '/grocery-budget', title: 'Grocery Budget', desc: 'Track cart total while shopping', Icon: ShoppingCart, category: 'Lifestyle',
     borderClass: 'hover:border-green-400/50 hover:shadow-green-400/20', iconBgClass: 'bg-green-500/20 text-green-400', arrowClass: 'group-hover:text-green-400'
   },
-  { 
-    id: '/packing-checklist', to: '/packing-checklist', title: 'Packing Checklist', desc: 'Never forget an item again', Icon: Briefcase, category: 'Lifestyle',
-    borderClass: 'hover:border-purple-400/50 hover:shadow-purple-400/20', iconBgClass: 'bg-purple-500/20 text-purple-400', arrowClass: 'group-hover:text-purple-400'
-  },
-  { 
-    id: '/fuel-calculator', to: '/fuel-calculator', title: 'Fuel & Tolls', desc: 'Calculate road trip costs', Icon: Fuel, category: 'Auto & Travel',
-    borderClass: 'hover:border-orange-400/50 hover:shadow-orange-400/20', iconBgClass: 'bg-orange-500/20 text-orange-400', arrowClass: 'group-hover:text-orange-400'
-  },
-  { 
-    id: '/unit-converter', to: '/unit-converter', title: 'Unit Converter', desc: 'Convert length, weight, temp', Icon: ArrowRightLeft, category: 'Utilities',
-    borderClass: 'hover:border-indigo-400/50 hover:shadow-indigo-400/20', iconBgClass: 'bg-indigo-500/20 text-indigo-400', arrowClass: 'group-hover:text-indigo-400'
-  },
-  { 
-    id: '/currency-converter', to: '/currency-converter', title: 'Currency Converter', desc: 'Live & Offline FX rates', Icon: Banknote, category: 'Finance',
-    borderClass: 'hover:border-emerald-400/50 hover:shadow-emerald-400/20', iconBgClass: 'bg-emerald-500/20 text-emerald-400', arrowClass: 'group-hover:text-emerald-400'
-  },
-  { 
+  {
     id: '/randomizer', to: '/randomizer', title: 'Randomizer', desc: 'Coin, Dice, Numbers and Bottle', Icon: Dices, category: 'Fun',
     borderClass: 'hover:border-rose-400/50 hover:shadow-rose-400/20', iconBgClass: 'bg-rose-500/20 text-rose-400', arrowClass: 'group-hover:text-rose-400'
   },
@@ -106,45 +66,17 @@ export const DEFAULT_TOOLS = [
     id: '/water-tracker', to: '/water-tracker', title: 'Minum', desc: 'Hydration with fluid animations', Icon: Droplets, category: 'Health & Fitness',
     borderClass: 'hover:border-blue-400/50 hover:shadow-blue-400/20', iconBgClass: 'bg-blue-500/20 text-blue-400', arrowClass: 'group-hover:text-blue-400'
   },
-  { 
-    id: '/paycheck-countdown', to: '/paycheck-countdown', title: 'Payday Countdown', desc: 'Live ticking clock to next salary', Icon: Wallet, category: 'Finance',
-    borderClass: 'hover:border-emerald-400/50 hover:shadow-emerald-400/20', iconBgClass: 'bg-emerald-500/20 text-emerald-400', arrowClass: 'group-hover:text-emerald-400'
-  },
-  { 
-    id: '/emergency-card', to: '/emergency-card', title: 'Medical ID', desc: 'Offline Emergency Info & QR', Icon: HeartPulse, category: 'Health & Fitness',
-    borderClass: 'hover:border-rose-500/50 hover:shadow-rose-500/20', iconBgClass: 'bg-rose-500/20 text-rose-500', arrowClass: 'group-hover:text-rose-500'
-  },
-  { 
-    id: '/carpool-splitter', to: '/carpool-splitter', title: 'Carpool Splitter', desc: 'Divide road trip fuel & tolls', Icon: Car, category: 'Auto & Travel',
-    borderClass: 'hover:border-cyan-400/50 hover:shadow-cyan-400/20', iconBgClass: 'bg-cyan-500/20 text-cyan-400', arrowClass: 'group-hover:text-cyan-400'
-  },
-  { 
-    id: '/checklists', to: '/checklists', title: 'Checklists', desc: 'Templates & To-Dos', Icon: ListChecks, category: 'Lifestyle',
-    borderClass: 'hover:border-violet-400/50 hover:shadow-violet-400/20', iconBgClass: 'bg-violet-500/20 text-violet-400', arrowClass: 'group-hover:text-violet-400'
-  },
-  { 
+  {
     id: '/debt-tracker', to: '/debt-tracker', title: 'Catat Hutang', desc: 'Track Simple IOUs', Icon: HandCoins, category: 'Finance',
     borderClass: 'hover:border-indigo-400/50 hover:shadow-indigo-400/20', iconBgClass: 'bg-indigo-500/20 text-indigo-400', arrowClass: 'group-hover:text-indigo-400'
   },
-  { 
-    id: '/group-split-bill', to: '/group-split-bill', title: 'Group Split Bill', desc: 'Split Group Expenses', Icon: Users, category: 'Finance',
-    borderClass: 'hover:border-emerald-400/50 hover:shadow-emerald-400/20', iconBgClass: 'bg-emerald-500/20 text-emerald-400', arrowClass: 'group-hover:text-emerald-400'
-  },
-  { 
+  {
     id: 'https://befday.com/', to: 'https://befday.com/', title: 'Birthday Claim', desc: 'Know where to claim birthday (credit dzulhelmynazri)', Icon: Gift, category: 'Fun',
     borderClass: 'hover:border-pink-400/50 hover:shadow-pink-400/20', iconBgClass: 'bg-pink-500/20 text-pink-400', arrowClass: 'group-hover:text-pink-400'
   },
   { 
     id: '/restaurant-splitter', to: '/restaurant-splitter', title: 'Restaurant Bill Splitter', desc: 'Split food & proportional tax', Icon: Utensils, category: 'Finance',
     borderClass: 'hover:border-rose-400/50 hover:shadow-rose-400/20', iconBgClass: 'bg-rose-500/20 text-rose-400', arrowClass: 'group-hover:text-rose-400'
-  },
-  {
-    id: '/speed-test', to: '/speed-test', title: 'Speed Test', desc: 'Check internet ping & speed', Icon: Activity, category: 'Utilities',
-    borderClass: 'hover:border-blue-400/50 hover:shadow-blue-400/20', iconBgClass: 'bg-blue-500/20 text-blue-400', arrowClass: 'group-hover:text-blue-400'
-  },
-  {
-    id: '/speedometer', to: '/speedometer', title: 'Speedometer', desc: 'GPS Live Speed Tracker', Icon: Gauge, category: 'Utilities',
-    borderClass: 'hover:border-cyan-400/50 hover:shadow-cyan-400/20', iconBgClass: 'bg-cyan-500/20 text-cyan-400', arrowClass: 'group-hover:text-cyan-400'
   },
   {
     id: '/duit-raya', to: '/duit-raya', title: 'Kira Duit Raya', desc: 'Plan & track Raya / Angpao money', Icon: Gift, category: 'Finance',
@@ -171,10 +103,6 @@ export const DEFAULT_TOOLS = [
     borderClass: 'hover:border-violet-400/50 hover:shadow-violet-400/20', iconBgClass: 'bg-violet-500/20 text-violet-400', arrowClass: 'group-hover:text-violet-400'
   },
   {
-    id: '/nak-beli', to: '/nak-beli', title: 'Nak Beli', desc: 'Plan purchases & see true cost', Icon: ShoppingBag, category: 'Lifestyle',
-    borderClass: 'hover:border-fuchsia-400/50 hover:shadow-fuchsia-400/20', iconBgClass: 'bg-fuchsia-500/20 text-fuchsia-400', arrowClass: 'group-hover:text-fuchsia-400'
-  },
-  {
     id: '/important-numbers', to: '/important-numbers', title: 'Important Numbers', desc: 'Accounts, policies & IDs', Icon: Hash, category: 'Utilities',
     borderClass: 'hover:border-fuchsia-400/50 hover:shadow-fuchsia-400/20', iconBgClass: 'bg-fuchsia-500/20 text-fuchsia-400', arrowClass: 'group-hover:text-fuchsia-400'
   },
@@ -189,7 +117,7 @@ export const DEFAULT_TOOLS = [
 ];
 
 // Tools flagged as "HOT" — shown with a badge and promoted to the top of the list
-export const HOT_IDS = ['/ic-scanner', '/decision-maker', '/duit-raya', '/habit-tracker', '/expense-manager', '/travel-history', '/restaurant-splitter', '/asset-warranty', '/book-tracker', '/nak-beli'];
+export const HOT_IDS = ['/ic-scanner', '/document-expiry', '/service-reminders', '/duit-raya', '/habit-tracker', '/expense-manager', '/travel-history', '/restaurant-splitter', '/asset-warranty'];
 
 // Newly launched tools — show a "NEW" badge for 7 days, then they roll over to "HOT"
 const NEW_TOOLS: Record<string, string> = {
@@ -197,8 +125,6 @@ const NEW_TOOLS: Record<string, string> = {
   '/expense-manager': '2026-06-08',
   '/travel-history': '2026-06-08',
   '/asset-warranty': '2026-06-08',
-  '/book-tracker': '2026-06-08',
-  '/nak-beli': '2026-06-08',
   '/important-numbers': '2026-06-08',
   '/service-reminders': '2026-06-08',
   '/pdf-editor': '2026-07-07',
@@ -305,43 +231,6 @@ const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisab
     }
   }
 
-  // Calculate payday percentage
-  let paydayPercentage = 0;
-  if (tool.id === '/paycheck-countdown') {
-    const paydayStr = localStorage.getItem('paycheck_config');
-    if (paydayStr) {
-      try {
-        const config = JSON.parse(paydayStr);
-        const t = new Date();
-        t.setHours(0, 0, 0, 0);
-        let nextDate;
-        let cycleDays = 30;
-        if (config.type === 'monthly') {
-          nextDate = new Date(t.getFullYear(), t.getMonth(), config.dayOfMonth);
-          if (t.getTime() >= nextDate.getTime()) {
-            nextDate.setMonth(nextDate.getMonth() + 1);
-          }
-        } else {
-          cycleDays = 14;
-          const ref = new Date(config.referenceDate);
-          ref.setHours(0, 0, 0, 0);
-          if (t.getTime() < ref.getTime()) {
-            nextDate = ref;
-          } else {
-            const msPer14Days = 14 * 24 * 60 * 60 * 1000;
-            const diff = t.getTime() - ref.getTime();
-            const periodsPassed = Math.floor(diff / msPer14Days);
-            nextDate = new Date(ref.getTime() + (periodsPassed + 1) * msPer14Days);
-          }
-        }
-        nextDate.setHours(0, 0, 0, 0);
-        const diffTime = nextDate.getTime() - t.getTime();
-        const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        paydayPercentage = Math.max(0, Math.min(100, 100 - (daysLeft / cycleDays) * 100));
-      } catch (e) {}
-    }
-  }
-
   // Calculate debt total
   let debtTotal = 0;
   if (tool.id === '/debt-tracker') {
@@ -374,15 +263,6 @@ const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisab
               >
                 <div className="absolute w-[200%] h-6 left-0 -top-[23px] bg-repeat-x wave-anim" style={{ backgroundImage: `url("${waveSvg1}")`, backgroundSize: '200px 100%' }} />
                 <div className="absolute w-[200%] h-6 left-0 -top-[23px] bg-repeat-x wave-anim-fast" style={{ backgroundImage: `url("${waveSvg2}")`, backgroundSize: '200px 100%' }} />
-              </div>
-            )}
-            {paydayPercentage > 0 && (
-              <div 
-                className="absolute top-0 left-0 bottom-0 bg-emerald-500/10 transition-all duration-1000 ease-out z-0 border-r border-emerald-500/30 overflow-hidden" 
-                style={{ width: `${paydayPercentage}%`, minWidth: '5%' }} 
-              >
-                <div className="absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-transparent via-emerald-400/20 to-transparent shimmer-anim" />
-                <div className="absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-r from-transparent to-emerald-500/20" />
               </div>
             )}
             {debtTotal > 0 && (
@@ -421,25 +301,6 @@ const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisab
                 <div className="absolute top-[30%] right-[20%] font-black text-2xl text-purple-200 tumble-anim-2 drop-shadow-md">7</div>
                 <div className="absolute top-[50%] left-[60%] text-2xl tumble-anim-3 drop-shadow-md">🍾</div>
                 <div className="absolute top-[60%] right-[40%] text-2xl tumble-anim-4 drop-shadow-md">🪙</div>
-              </div>
-            )}
-            {animationsEnabled && tool.id === '/trip-budget' && (
-              <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-50 text-cyan-400">
-                <div className="wind-line wind-1" />
-                <div className="wind-line wind-2" />
-                <div className="wind-line wind-3" />
-                <div className="absolute top-[30%] right-0 text-2xl flight-anim drop-shadow-md">✈️</div>
-              </div>
-            )}
-            {animationsEnabled && tool.id === '/speedometer' && (
-              <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-30">
-                <div className="absolute bottom-[20%] left-[50%] w-1 h-[40%] bg-rose-500 rounded-t-full needle-anim drop-shadow-sm -translate-x-1/2" />
-                <div className="absolute bottom-[18%] left-[50%] w-3 h-3 bg-rose-600 rounded-full -translate-x-1/2" />
-              </div>
-            )}
-            {animationsEnabled && tool.id === '/speed-test' && (
-              <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none text-blue-500">
-                <div className="absolute bottom-0 left-0 right-0 h-1/2 speed-graph-anim" />
               </div>
             )}
             {animationsEnabled && tool.id === '/grocery-budget' && (
@@ -538,15 +399,6 @@ const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisab
               <div className="absolute w-[200%] h-6 left-0 -top-[23px] bg-repeat-x wave-anim-fast" style={{ backgroundImage: `url("${waveSvg2}")`, backgroundSize: '200px 100%' }} />
             </div>
           )}
-          {paydayPercentage > 0 && (
-            <div 
-              className="absolute top-0 left-0 bottom-0 bg-emerald-500/10 transition-all duration-1000 ease-out z-0 border-r border-emerald-500/30 overflow-hidden" 
-              style={{ width: `${paydayPercentage}%`, minWidth: '5%' }} 
-            >
-              <div className="absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-transparent via-emerald-400/20 to-transparent shimmer-anim" />
-              <div className="absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-r from-transparent to-emerald-500/20" />
-            </div>
-          )}
           {debtTotal > 0 && (
             <div className="absolute inset-0 stripes-anim opacity-70 z-0" />
           )}
@@ -583,25 +435,6 @@ const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisab
               <div className="absolute top-[30%] right-[20%] font-black text-3xl text-purple-200 tumble-anim-2 drop-shadow-md">7</div>
               <div className="absolute top-[50%] left-[60%] text-3xl tumble-anim-3 drop-shadow-md">🍾</div>
               <div className="absolute top-[60%] right-[40%] text-3xl tumble-anim-4 drop-shadow-md">🪙</div>
-            </div>
-          )}
-          {animationsEnabled && tool.id === '/trip-budget' && (
-            <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-50 text-cyan-400">
-              <div className="wind-line wind-1" />
-              <div className="wind-line wind-2" />
-              <div className="wind-line wind-3" />
-              <div className="absolute top-[40%] right-0 text-3xl flight-anim drop-shadow-md">✈️</div>
-            </div>
-          )}
-          {animationsEnabled && tool.id === '/speedometer' && (
-            <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none opacity-30">
-              <div className="absolute bottom-[20%] left-[50%] w-1 h-[40%] bg-rose-500 rounded-t-full needle-anim drop-shadow-sm -translate-x-1/2" />
-              <div className="absolute bottom-[18%] left-[50%] w-3 h-3 bg-rose-600 rounded-full -translate-x-1/2" />
-            </div>
-          )}
-          {animationsEnabled && tool.id === '/speed-test' && (
-            <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none text-blue-500">
-              <div className="absolute bottom-0 left-0 right-0 h-1/2 speed-graph-anim" />
             </div>
           )}
           {animationsEnabled && tool.id === '/grocery-budget' && (
@@ -662,7 +495,7 @@ const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisab
 
 interface AlertItem {
   id: string;
-  type: 'document' | 'event' | 'commitment' | 'payday' | 'water' | 'debt' | 'expense' | 'habit' | 'warranty' | 'service';
+  type: 'document' | 'event' | 'commitment' | 'water' | 'debt' | 'expense' | 'habit' | 'warranty' | 'service';
   subtitle?: string;
   title: string;
   daysLeft: number;
@@ -899,47 +732,7 @@ const Home: React.FC = () => {
       } catch (e) {}
     }
 
-    // 4. Payday Countdown
-    const paydayStr = localStorage.getItem('paycheck_config');
-    if (paydayStr) {
-      try {
-        const config = JSON.parse(paydayStr);
-        const getNextPayday = (conf: any) => {
-          const t = new Date();
-          if (conf.type === 'monthly') {
-            const candidate = new Date(t.getFullYear(), t.getMonth(), conf.dayOfMonth);
-            if (t.getTime() >= candidate.getTime()) {
-              candidate.setMonth(candidate.getMonth() + 1);
-            }
-            return candidate;
-          } else {
-            const ref = new Date(conf.referenceDate);
-            ref.setHours(0, 0, 0, 0);
-            if (t.getTime() < ref.getTime()) return ref;
-            const msPer14Days = 14 * 24 * 60 * 60 * 1000;
-            const diff = t.getTime() - ref.getTime();
-            const periodsPassed = Math.floor(diff / msPer14Days);
-            return new Date(ref.getTime() + (periodsPassed + 1) * msPer14Days);
-          }
-        };
-        const nextDate = getNextPayday(config);
-        const days = getDaysLeft(nextDate.toISOString().split('T')[0]);
-        if (days >= 0 && days <= 7) {
-          const cycleDays = config.type === 'monthly' ? 30 : 14;
-          const percentage = Math.max(0, Math.min(100, 100 - (days / cycleDays) * 100));
-          newAlerts.push({
-            id: 'payday',
-            type: 'payday',
-            title: `Next in ${days} Days`,
-            daysLeft: days,
-            percentage,
-            to: '/paycheck-countdown'
-          });
-        }
-      } catch (e) {}
-    }
-
-    // 5. Water Tracker
+    // 4. Water Tracker
     const waterStr = localStorage.getItem('water_tracker_data');
     if (waterStr) {
       try {
@@ -1241,23 +1034,21 @@ const Home: React.FC = () => {
                       : 'bg-yellow-500/10 border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.1)]'
                     : alert.type === 'commitment'
                       ? 'bg-indigo-500/10 border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)]'
-                      : alert.type === 'payday'
-                        ? 'bg-emerald-500/10 border-emerald-500/30 shadow-[0_0_15px_rgba(52,211,153,0.15)]'
-                        : alert.type === 'water'
-                          ? 'bg-blue-500/10 border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.15)]'
-                          : alert.type === 'debt'
-                            ? 'bg-rose-500/10 border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.15)]'
-                            : alert.type === 'expense'
-                              ? 'bg-emerald-500/10 border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
-                              : alert.type === 'habit'
-                                ? 'bg-violet-500/10 border-violet-500/30 shadow-[0_0_15px_rgba(139,92,246,0.15)]'
-                                : alert.type === 'warranty'
-                                  ? 'bg-orange-500/10 border-orange-500/30 shadow-[0_0_15px_rgba(249,115,22,0.15)]'
-                                  : alert.type === 'service'
-                                    ? alert.daysLeft < 0 
-                                      ? 'bg-red-500/10 border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.15)]' 
-                                      : 'bg-amber-500/10 border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.15)]'
-                                    : 'bg-pink-500/10 border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.15)]'
+                      : alert.type === 'water'
+                        ? 'bg-blue-500/10 border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.15)]'
+                        : alert.type === 'debt'
+                          ? 'bg-rose-500/10 border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.15)]'
+                          : alert.type === 'expense'
+                            ? 'bg-emerald-500/10 border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
+                            : alert.type === 'habit'
+                              ? 'bg-violet-500/10 border-violet-500/30 shadow-[0_0_15px_rgba(139,92,246,0.15)]'
+                              : alert.type === 'warranty'
+                                ? 'bg-orange-500/10 border-orange-500/30 shadow-[0_0_15px_rgba(249,115,22,0.15)]'
+                                : alert.type === 'service'
+                                  ? alert.daysLeft < 0
+                                    ? 'bg-red-500/10 border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.15)]'
+                                    : 'bg-amber-500/10 border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.15)]'
+                                  : 'bg-pink-500/10 border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.15)]'
                 }`}
               >
                 {animationsEnabled && (alert.type === 'document' || alert.type === 'service') && (
@@ -1282,15 +1073,6 @@ const Home: React.FC = () => {
                   >
                     <div className="absolute w-[200%] h-6 left-0 -top-[23px] bg-repeat-x wave-anim" style={{ backgroundImage: `url("${waveSvg1}")`, backgroundSize: '200px 100%' }} />
                     <div className="absolute w-[200%] h-6 left-0 -top-[23px] bg-repeat-x wave-anim-fast" style={{ backgroundImage: `url("${waveSvg2}")`, backgroundSize: '200px 100%' }} />
-                  </div>
-                )}
-                {animationsEnabled && alert.type === 'payday' && alert.percentage !== undefined && alert.percentage > 0 && (
-                  <div 
-                    className="absolute top-0 left-0 bottom-0 bg-emerald-500/10 transition-all duration-1000 ease-out z-0 border-r border-emerald-500/30 overflow-hidden" 
-                    style={{ width: `${alert.percentage}%`, minWidth: '5%' }} 
-                  >
-                    <div className="absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-transparent via-emerald-400/20 to-transparent shimmer-anim" />
-                    <div className="absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-r from-transparent to-emerald-500/20" />
                   </div>
                 )}
                 {animationsEnabled && alert.type === 'debt' && (
@@ -1319,8 +1101,6 @@ const Home: React.FC = () => {
                       <ShieldAlert size={20} className={alert.daysLeft < 0 ? 'text-red-400' : 'text-yellow-400'} />
                     ) : alert.type === 'commitment' ? (
                       <Repeat size={20} className="text-indigo-400" />
-                    ) : alert.type === 'payday' ? (
-                      <Wallet size={20} className="text-emerald-400" />
                     ) : alert.type === 'water' ? (
                       <Droplets size={20} className="text-blue-400" />
                     ) : alert.type === 'debt' ? (
@@ -1339,13 +1119,12 @@ const Home: React.FC = () => {
                 </div>
                 <div className="flex-1 min-w-0 pr-4 relative z-10">
                   <p className="font-bold text-[13px] text-text truncate leading-tight mb-1">
-                    {alert.type === 'document' ? 'Renew: ' : alert.type === 'commitment' ? 'Due: ' : alert.type === 'payday' ? 'Payday: ' : alert.type === 'water' ? 'Water: ' : alert.type === 'debt' ? 'Owe: ' : alert.type === 'habit' ? 'Habits: ' : alert.type === 'warranty' ? 'Warranty: ' : ''}{alert.title}
+                    {alert.type === 'document' ? 'Renew: ' : alert.type === 'commitment' ? 'Due: ' : alert.type === 'water' ? 'Water: ' : alert.type === 'debt' ? 'Owe: ' : alert.type === 'habit' ? 'Habits: ' : alert.type === 'warranty' ? 'Warranty: ' : ''}{alert.title}
                   </p>
                   <p className={`text-[11px] font-medium leading-none ${
                     alert.type === 'document'
                       ? alert.daysLeft < 0 ? 'text-red-400' : 'text-yellow-400'
                       : alert.type === 'commitment' ? 'text-indigo-400'
-                      : alert.type === 'payday' ? 'text-emerald-400'
                       : alert.type === 'water' ? 'text-blue-400'
                       : alert.type === 'debt' ? 'text-rose-400'
                       : alert.type === 'expense' ? 'text-emerald-400'

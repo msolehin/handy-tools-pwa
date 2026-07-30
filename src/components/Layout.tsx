@@ -29,8 +29,8 @@ const NavAlertBg: React.FC<{ alert: NavAlert }> = ({ alert }) => {
       </div>
     );
   }
-  if ((alert.type === 'payday' || alert.type === 'habit' || alert.type === 'expense') && pct !== undefined && pct > 0) {
-    const c = alert.type === 'payday' ? 'emerald' : alert.type === 'habit' ? 'violet' : (pct >= 100 ? 'red' : 'emerald');
+  if ((alert.type === 'habit' || alert.type === 'expense') && pct !== undefined && pct > 0) {
+    const c = alert.type === 'habit' ? 'violet' : (pct >= 100 ? 'red' : 'emerald');
     const map: Record<string, string> = { emerald: 'bg-emerald-500/15 border-emerald-500/30 via-emerald-400/20', violet: 'bg-violet-500/15 border-violet-500/30 via-violet-400/20', red: 'bg-red-500/20 border-red-500/40 via-red-400/20' };
     const cls = map[c];
     return (
@@ -62,7 +62,6 @@ const ALERT_PREFIX: Record<string, string> = {
   document: 'Renew',
   event: 'Event',
   subscription: 'Due',
-  payday: 'Payday',
   water: 'Hydration',
   debt: 'Owe',
   expense: 'This month',
