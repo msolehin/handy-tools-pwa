@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   MapPin, ArrowRight, Shield, PieChart, Timer, Wallet,
   Users, Calendar, Landmark, ShieldAlert, Wrench, Plane, Activity,
-  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, ShoppingBag, Briefcase, Fuel, Gift, ArrowRightLeft, Banknote, Dices, Repeat, Droplets, Layers, Search, HeartPulse, Car, ListChecks, HandCoins, Utensils, Gauge, ChevronDown, ChevronUp, Sparkles, Heart, ArrowDownAZ, IdCard, Box, BookOpen, Hash, BellRing
+  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, ShoppingBag, Briefcase, Fuel, Gift, ArrowRightLeft, Banknote, Dices, Repeat, Droplets, Layers, Search, HeartPulse, Car, ListChecks, HandCoins, Utensils, Gauge, ChevronDown, ChevronUp, Sparkles, Heart, ArrowDownAZ, IdCard, Box, BookOpen, Hash, BellRing, FileSignature
 } from 'lucide-react';
 import { 
   DndContext, 
@@ -181,6 +181,10 @@ export const DEFAULT_TOOLS = [
   {
     id: '/service-reminders', to: '/service-reminders', title: 'Service Reminders', desc: 'Track recurring maintenance', Icon: BellRing, category: 'Utilities',
     borderClass: 'hover:border-amber-400/50 hover:shadow-amber-400/20', iconBgClass: 'bg-amber-500/20 text-amber-400', arrowClass: 'group-hover:text-amber-400'
+  },
+  {
+    id: '/pdf-editor', to: '/pdf-editor', title: 'PDF Editor', desc: 'Add text & signatures to PDFs', Icon: FileSignature, category: 'Utilities',
+    borderClass: 'hover:border-blue-500/50 hover:shadow-blue-500/20', iconBgClass: 'bg-blue-600/20 text-blue-500', arrowClass: 'group-hover:text-blue-500'
   }
 ];
 
@@ -197,6 +201,7 @@ const NEW_TOOLS: Record<string, string> = {
   '/nak-beli': '2026-06-08',
   '/important-numbers': '2026-06-08',
   '/service-reminders': '2026-06-08',
+  '/pdf-editor': '2026-07-07',
 };
 const NEW_DAYS = 7;
 const badgeFor = (id: string): 'new' | 'hot' | null => {

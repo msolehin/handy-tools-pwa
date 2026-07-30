@@ -42,6 +42,7 @@ import NakBeli from './pages/NakBeli';
 
 import ImportantNumbers from './pages/ImportantNumbers';
 import ServiceReminders from './pages/ServiceReminders';
+import PDFEditor from './pages/PDFEditor';
 
 function App() {
   return (
@@ -88,6 +89,7 @@ function App() {
           <Route path="nak-beli" element={<NakBeli />} />
           <Route path="important-numbers" element={<ImportantNumbers />} />
           <Route path="service-reminders" element={<ServiceReminders />} />
+          <Route path="pdf-editor" element={<PDFEditor />} />
         </Route>
       </Routes>
       <Analytics />
