@@ -43,7 +43,7 @@ const formatDate = (dateStr: string) => {
 };
 
 // Hook to handle clicking outside to close dropdowns
-function useOutsideClick(ref: React.RefObject<HTMLElement>, callback: () => void) {
+function useOutsideClick(ref: React.RefObject<HTMLElement | null>, callback: () => void) {
   useEffect(() => {
     function handleClickOutside(event: MouseEvent | TouchEvent) {
       if (ref.current && !ref.current.contains(event.target as Node)) {
