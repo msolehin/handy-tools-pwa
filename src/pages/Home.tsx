@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   MapPin, ArrowRight, Shield, PieChart, Timer, Wallet,
   Calendar, ShieldAlert, Plane,
-  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, Gift, Banknote, Cake, KeyRound, Dices, Repeat, Droplets, Layers, Search, ListChecks, HandCoins, Utensils, ChevronDown, ChevronUp, Sparkles, Heart, ArrowDownAZ, IdCard, Box, BookOpen, Hash, BellRing, FileSignature
+  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, Gift, Banknote, Cake, KeyRound, Dices, Repeat, Droplets, Layers, Search, ListChecks, HandCoins, Utensils, ChevronDown, ChevronUp, Sparkles, Heart, ArrowDownAZ, IdCard, Box, BookOpen, Hash, BellRing, FileSignature, CarFront, Home as HomeIcon
 } from 'lucide-react';
 import { 
   DndContext, 
@@ -116,8 +116,12 @@ export const DEFAULT_TOOLS = [
     borderClass: 'hover:border-fuchsia-400/50 hover:shadow-fuchsia-400/20', iconBgClass: 'bg-fuchsia-500/20 text-fuchsia-400', arrowClass: 'group-hover:text-fuchsia-400'
   },
   {
-    id: '/service-reminders', to: '/service-reminders', title: 'Service Reminders', desc: 'Track recurring maintenance', Icon: BellRing, category: 'Utilities',
-    borderClass: 'hover:border-amber-400/50 hover:shadow-amber-400/20', iconBgClass: 'bg-amber-500/20 text-amber-400', arrowClass: 'group-hover:text-amber-400'
+    id: '/vehicle-services', to: '/vehicle-services', title: 'Vehicle Services', desc: 'Track auto maintenance & cost', Icon: CarFront, category: 'Auto & Travel',
+    borderClass: 'hover:border-amber-400/50 hover:shadow-amber-400/20', iconBgClass: 'bg-amber-500/20 text-amber-500', arrowClass: 'group-hover:text-amber-500'
+  },
+  {
+    id: '/home-services', to: '/home-services', title: 'Home Services', desc: 'Track home repairs & cost', Icon: HomeIcon, category: 'Utilities',
+    borderClass: 'hover:border-teal-500/50 hover:shadow-teal-500/20', iconBgClass: 'bg-teal-600/20 text-teal-500', arrowClass: 'group-hover:text-teal-500'
   },
   {
     id: '/pdf-editor', to: '/pdf-editor', title: 'PDF Editor', desc: 'Add text & signatures to PDFs', Icon: FileSignature, category: 'Utilities',
@@ -126,7 +130,7 @@ export const DEFAULT_TOOLS = [
 ];
 
 // Tools flagged as "HOT" — shown with a badge and promoted to the top of the list
-export const HOT_IDS = ['/ic-scanner', '/document-expiry', '/service-reminders', '/duit-raya', '/habit-tracker', '/expense-manager', '/travel-history', '/restaurant-splitter', '/asset-warranty'];
+export const HOT_IDS = ['/ic-scanner', '/document-expiry', '/vehicle-services', '/home-services', '/duit-raya', '/habit-tracker', '/expense-manager', '/travel-history', '/restaurant-splitter', '/asset-warranty'];
 
 // Newly launched tools — show a "NEW" badge for 7 days, then they roll over to "HOT"
 const NEW_TOOLS: Record<string, string> = {
@@ -135,7 +139,8 @@ const NEW_TOOLS: Record<string, string> = {
   '/travel-history': '2026-06-08',
   '/asset-warranty': '2026-06-08',
   '/important-numbers': '2026-06-08',
-  '/service-reminders': '2026-06-08',
+  '/vehicle-services': '2026-08-05',
+  '/home-services': '2026-08-05',
   '/pdf-editor': '2026-07-07',
   '/birthdays': '2026-07-30',
   '/tenancy': '2026-07-30',
@@ -894,22 +899,45 @@ const Home: React.FC = () => {
         });
       } catch (e) {}
     }
-    // 10. Service Reminders — items due within 10 days or overdue
-    const serviceStr = localStorage.getItem('service_reminders_data');
-    if (serviceStr) {
+    // 10. Vehicle Services — next service due within 30 days or overdue
+    const vehicleStr = localStorage.getItem('vehicle_services_data');
+    if (vehicleStr) {
       try {
-        const p = JSON.parse(serviceStr);
-        const services = Array.isArray(p.items) ? p.items : [];
-        services.forEach((s: any) => {
+        const p = JSON.parse(vehicleStr);
+        const events = Array.isArray(p.events) ? p.events : [];
+        events.forEach((s: any) => {
           if (s.nextServiceDate) {
             const days = getDaysLeft(s.nextServiceDate);
-            if (days <= 10) {
+            if (days <= 30) {
               newAlerts.push({
-                id: `service-${s.id}`,
+                id: `v-service-${s.id}`,
                 type: 'service',
-                title: s.name,
+                title: `Vehicle: ${s.title}`,
                 daysLeft: days,
-                to: '/service-reminders'
+                to: '/vehicle-services'
+              });
+            }
+          }
+        });
+      } catch (e) {}
+    }
+
+    // 10b. Home Services — next service due within 30 days or overdue
+    const homeStr = localStorage.getItem('home_services_data');
+    if (homeStr) {
+      try {
+        const p = JSON.parse(homeStr);
+        const events = Array.isArray(p.events) ? p.events : [];
+        events.forEach((s: any) => {
+          if (s.nextServiceDate) {
+            const days = getDaysLeft(s.nextServiceDate);
+            if (days <= 30) {
+              newAlerts.push({
+                id: `h-service-${s.id}`,
+                type: 'service',
+                title: `Home: ${s.title}`,
+                daysLeft: days,
+                to: '/home-services'
               });
             }
           }

@@ -24,7 +24,8 @@ import BookTracker from './pages/BookTracker';
 import Birthdays from './pages/Birthdays';
 import Tenancy from './pages/Tenancy';
 import ImportantNumbers from './pages/ImportantNumbers';
-import ServiceReminders from './pages/ServiceReminders';
+import VehicleServices from './pages/VehicleServices';
+import HomeServices from './pages/HomeServices';
 import PDFEditor from './pages/PDFEditor';
 
 function App() {
@@ -55,7 +56,8 @@ function App() {
           <Route path="birthdays" element={<Birthdays />} />
           <Route path="tenancy" element={<Tenancy />} />
           <Route path="important-numbers" element={<ImportantNumbers />} />
-          <Route path="service-reminders" element={<ServiceReminders />} />
+          <Route path="vehicle-services" element={<VehicleServices />} />
+          <Route path="home-services" element={<HomeServices />} />
           <Route path="pdf-editor" element={<PDFEditor />} />
         </Route>
       </Routes>
