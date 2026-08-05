@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   MapPin, ArrowRight, Shield, PieChart, Timer, Wallet,
   Calendar, ShieldAlert, Plane,
-  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, Gift, Banknote, Dices, Repeat, Droplets, Layers, Search, ListChecks, HandCoins, Utensils, ChevronDown, ChevronUp, Sparkles, Heart, ArrowDownAZ, IdCard, Box, BookOpen, Hash, BellRing, FileSignature
+  List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, Gift, Banknote, Cake, KeyRound, Dices, Repeat, Droplets, Layers, Search, ListChecks, HandCoins, Utensils, ChevronDown, ChevronUp, Sparkles, Heart, ArrowDownAZ, IdCard, Box, BookOpen, Hash, BellRing, FileSignature
 } from 'lucide-react';
 import { 
   DndContext, 
@@ -24,6 +24,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { getDaysUntil } from './CommitmentTracker';
+import { nextDueDate } from './Tenancy';
 
 export const DEFAULT_TOOLS = [
   { 
@@ -103,6 +104,14 @@ export const DEFAULT_TOOLS = [
     borderClass: 'hover:border-violet-400/50 hover:shadow-violet-400/20', iconBgClass: 'bg-violet-500/20 text-violet-400', arrowClass: 'group-hover:text-violet-400'
   },
   {
+    id: '/birthdays', to: '/birthdays', title: 'Birthdays', desc: 'Birthdays & anniversaries', Icon: Cake, category: 'Lifestyle',
+    borderClass: 'hover:border-pink-400/50 hover:shadow-pink-400/20', iconBgClass: 'bg-pink-500/20 text-pink-400', arrowClass: 'group-hover:text-pink-400'
+  },
+  {
+    id: '/tenancy', to: '/tenancy', title: 'Sewa & Kontrak', desc: 'Rentals, contracts & renewals', Icon: KeyRound, category: 'Utilities',
+    borderClass: 'hover:border-teal-400/50 hover:shadow-teal-400/20', iconBgClass: 'bg-teal-500/20 text-teal-400', arrowClass: 'group-hover:text-teal-400'
+  },
+  {
     id: '/important-numbers', to: '/important-numbers', title: 'Important Numbers', desc: 'Accounts, policies & IDs', Icon: Hash, category: 'Utilities',
     borderClass: 'hover:border-fuchsia-400/50 hover:shadow-fuchsia-400/20', iconBgClass: 'bg-fuchsia-500/20 text-fuchsia-400', arrowClass: 'group-hover:text-fuchsia-400'
   },
@@ -128,6 +137,8 @@ const NEW_TOOLS: Record<string, string> = {
   '/important-numbers': '2026-06-08',
   '/service-reminders': '2026-06-08',
   '/pdf-editor': '2026-07-07',
+  '/birthdays': '2026-07-30',
+  '/tenancy': '2026-07-30',
 };
 const NEW_DAYS = 7;
 const badgeFor = (id: string): 'new' | 'hot' | null => {
@@ -900,6 +911,54 @@ const Home: React.FC = () => {
                 daysLeft: days,
                 to: '/service-reminders'
               });
+            }
+          }
+        });
+      } catch (e) {}
+    }
+
+    // 11. Birthdays & Anniversaries — the next occurrence within 14 days
+    const bdayStr = localStorage.getItem('birthdays_data');
+    if (bdayStr) {
+      try {
+        const p = JSON.parse(bdayStr);
+        const occasions = Array.isArray(p.items) ? p.items : [];
+        occasions.forEach((o: any) => {
+          if (!o.date) return;
+          const src = new Date(o.date);
+          let next = new Date(today.getFullYear(), src.getMonth(), src.getDate());
+          if (next.getTime() < today.getTime()) next = new Date(today.getFullYear() + 1, src.getMonth(), src.getDate());
+          const days = getDaysLeft(next.toISOString().split('T')[0]);
+          if (days >= 0 && days <= 14) {
+            newAlerts.push({
+              id: `bday-${o.id}`,
+              type: 'event',
+              title: o.type === 'anniversary' ? `${o.name} Anniversary` : `${o.name}'s Birthday`,
+              daysLeft: days,
+              to: '/birthdays'
+            });
+          }
+        });
+      } catch (e) {}
+    }
+
+    // 12. Sewa & Kontrak — contract ending within 60 days, and rent due within 3
+    const contractStr = localStorage.getItem('tenancy_data');
+    if (contractStr) {
+      try {
+        const p = JSON.parse(contractStr);
+        const contracts = Array.isArray(p.items) ? p.items : [];
+        contracts.forEach((c: any) => {
+          if (c.endDate) {
+            const days = getDaysLeft(c.endDate);
+            if (days <= 60) {
+              newAlerts.push({ id: `contract-${c.id}`, type: 'document', title: c.title, daysLeft: days, to: '/tenancy' });
+            }
+          }
+          if (c.amount > 0 && c.dueDay) {
+            const dueIn = getDaysLeft(nextDueDate(c.dueDay));
+            if (dueIn <= 3) {
+              newAlerts.push({ id: `rent-${c.id}`, type: 'commitment', title: c.title, daysLeft: dueIn, to: '/tenancy' });
             }
           }
         });

@@ -21,6 +21,8 @@ import ExpenseManager from './pages/ExpenseManager';
 import TravelHistory from './pages/TravelHistory';
 import AssetWarrantyTracker from './pages/AssetWarrantyTracker';
 import BookTracker from './pages/BookTracker';
+import Birthdays from './pages/Birthdays';
+import Tenancy from './pages/Tenancy';
 import ImportantNumbers from './pages/ImportantNumbers';
 import ServiceReminders from './pages/ServiceReminders';
 import PDFEditor from './pages/PDFEditor';
@@ -50,6 +52,8 @@ function App() {
           <Route path="travel-history" element={<TravelHistory />} />
           <Route path="asset-warranty" element={<AssetWarrantyTracker />} />
           <Route path="book-tracker" element={<BookTracker />} />
+          <Route path="birthdays" element={<Birthdays />} />
+          <Route path="tenancy" element={<Tenancy />} />
           <Route path="important-numbers" element={<ImportantNumbers />} />
           <Route path="service-reminders" element={<ServiceReminders />} />
           <Route path="pdf-editor" element={<PDFEditor />} />

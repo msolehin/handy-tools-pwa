@@ -9,7 +9,8 @@ Stateless calculators and anything the web or the OS already does well were remo
 2026-07-30 (15 tools: Financial Hub, Currency Converter, Fuel & Tolls, Can I Afford It, Trip
 Budget, Speed Test, Speedometer, Expense Splitter, Group Split Bill, Carpool Splitter, Packing
 Checklist, Payday Countdown, Vehicle Tracker, BMI Calculator, Unit Converter). Checklists,
-Nak Beli and Medical ID were dropped the same day — 18 removed in total, 40 entries down to 22.
+Nak Beli and Medical ID were dropped the same day — 18 removed in total, 40 entries down to 22,
+then Birthdays and Sewa & Kontrak were added, bringing it to 24.
 
 ## 1. Product rules
 
@@ -25,7 +26,7 @@ Nak Beli and Medical ID were dropped the same day — 18 removed in total, 40 en
 - **Bilingual by feel.** Titles mix English and colloquial Malay (`Lupa parking?`,
   `Catat Hutang`, `Kira Duit Raya`); body copy stays English.
 
-## 2. What's in the app (22 entries, 21 routes + 1 external link)
+## 2. What's in the app (24 entries, 23 routes + 1 external link)
 
 **Expiry & recurrence — the core**
 
@@ -37,6 +38,8 @@ Nak Beli and Medical ID were dropped the same day — 18 removed in total, 40 en
 | Commitments | `/commitments` | monthly commitments and due days |
 | Countdown Day | `/countdown` | dated events and holidays |
 | Catat Hutang | `/debt-tracker` | IOUs both directions, settled flag |
+| Birthdays | `/birthdays` | birthdays + anniversaries, annual recurrence, gift ideas |
+| Sewa & Kontrak | `/tenancy` | tenancy/contract end dates, monthly amount + due day, deposit |
 
 **Structured records**
 
@@ -131,6 +134,10 @@ Catalog + dashboard. Owns the registry `DEFAULT_TOOLS` (`id`, `to`, `title`, `de
 - **Alerts**: reads other tools' `localStorage` and emits alerts of type
   `document | event | commitment | water | debt | expense | habit | warranty | service`, each
   with `daysLeft` (and sometimes `percentage`) used for sorting and the progress fills.
+- New tools should reuse an existing alert type rather than add one: a type costs a branch in
+  the card colour ternary, the icon ternary, the prefix line, and `ALERT_PREFIX` in Layout.
+  Birthdays reuse `event`; Sewa & Kontrak reuses `document` (contract ending) and `commitment`
+  (rent due).
 - Animations are user-toggleable (`handy-animations`) — respect the flag in new tools.
 
 ## 7. Data
@@ -143,7 +150,8 @@ GPS), `pdfSignatures`, `pdfTexts`.
 `service_reminders_data`, `debt_tracker_data`, `debt_tracker_ious`, `expense_manager_data`,
 `duit_raya_manager_data`, `habit_tracker_data`, `water_tracker_data`, `book_tracker_data`,
 `book_tracker_custom_categories`, `gb_budget`, `gb_items`, `rs_people`, `rs_taxes`,
-`dm_options`, `dm_question`, `dm_isMultiSpin`, `dm_totalSpins`, `pc_*` (pace).
+`dm_options`, `dm_question`, `dm_isMultiSpin`, `dm_totalSpins`, `pc_*` (pace),
+`birthdays_data`, `tenancy_data`.
 
 Shell/dashboard keys: `theme`, `pinnedTools`, `handy-animations`, `handy-tools-favorites`,
 `handy-tools-recents`, `handy-tools-recents-minimized`, `home_view_mode`, `home_grid_cols`,
