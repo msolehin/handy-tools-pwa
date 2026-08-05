@@ -247,7 +247,7 @@ const HomeServices: React.FC = () => {
           <HomeIcon size={24} />
         </div>
         <div>
-          <h2 className="text-2xl font-bold">Home Services</h2>
+          <h2 className="text-2xl font-bold">Servis Rumah</h2>
           <p className="text-sm text-muted">Track home repairs & cost</p>
         </div>
       </div>

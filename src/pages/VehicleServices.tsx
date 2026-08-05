@@ -286,7 +286,7 @@ const VehicleServices: React.FC = () => {
           <CarFront size={24} />
         </div>
         <div>
-          <h2 className="text-2xl font-bold">Vehicle Services</h2>
+          <h2 className="text-2xl font-bold">Servis Kenderaan</h2>
           <p className="text-sm text-muted">Track auto maintenance & cost</p>
         </div>
       </div>

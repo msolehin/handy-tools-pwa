@@ -116,11 +116,11 @@ export const DEFAULT_TOOLS = [
     borderClass: 'hover:border-fuchsia-400/50 hover:shadow-fuchsia-400/20', iconBgClass: 'bg-fuchsia-500/20 text-fuchsia-400', arrowClass: 'group-hover:text-fuchsia-400'
   },
   {
-    id: '/vehicle-services', to: '/vehicle-services', title: 'Vehicle Services', desc: 'Track auto maintenance & cost', Icon: CarFront, category: 'Auto & Travel',
+    id: '/vehicle-services', to: '/vehicle-services', title: 'Servis Kenderaan', desc: 'Track auto maintenance & cost', Icon: CarFront, category: 'Auto & Travel',
     borderClass: 'hover:border-amber-400/50 hover:shadow-amber-400/20', iconBgClass: 'bg-amber-500/20 text-amber-500', arrowClass: 'group-hover:text-amber-500'
   },
   {
-    id: '/home-services', to: '/home-services', title: 'Home Services', desc: 'Track home repairs & cost', Icon: HomeIcon, category: 'Utilities',
+    id: '/home-services', to: '/home-services', title: 'Servis Rumah', desc: 'Track home repairs & cost', Icon: HomeIcon, category: 'Utilities',
     borderClass: 'hover:border-teal-500/50 hover:shadow-teal-500/20', iconBgClass: 'bg-teal-600/20 text-teal-500', arrowClass: 'group-hover:text-teal-500'
   },
   {
