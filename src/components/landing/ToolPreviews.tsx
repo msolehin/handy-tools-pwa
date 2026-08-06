@@ -208,10 +208,24 @@ const HABIT_HUES = [
   { on: 'bg-cyan-500', dim: 'bg-cyan-500/35', mid: 'bg-cyan-500/65', text: 'text-cyan-500' },
 ];
 
+/** Weeks shown on a phone. A full year at 52 columns leaves ~3px cells — unreadable. */
+const PHONE_WEEKS = 26;
+
 const HabitPreview: React.FC = () => {
   const { t } = useCopy();
   const [ref, seen] = useInView<HTMLDivElement>();
   const [ticked, setTicked] = useState<Record<string, boolean>>({});
+
+  // Half a year on phones, the whole year from sm up. The counts below read off whatever is
+  // drawn, so the strip and its caption always agree.
+  const [span, setSpan] = useState(YEAR_WEEKS);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 640px)');
+    const sync = () => setSpan(mq.matches ? YEAR_WEEKS : PHONE_WEEKS);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
 
   return (
     <div ref={ref} className="space-y-4">
@@ -220,9 +234,10 @@ const HabitPreview: React.FC = () => {
         // Only the current week is tickable, the way the tracker only lets you tick today. The
         // streak and active-week counts read off the same array, so they follow the tick.
         const done = ticked[habit.name] ?? raw[raw.length - 1] > 0;
-        const weeks = done === (raw[raw.length - 1] > 0)
+        const full = done === (raw[raw.length - 1] > 0)
           ? raw
           : [...raw.slice(0, -1), done ? 3 : 0];
+        const weeks = full.slice(-span);
         const hue = HABIT_HUES[h % HABIT_HUES.length];
         // Each level is a row, so a week's intensity reads as a column that grows upward —
         // three lines instead of one shaded square, same data, easier to skim.
@@ -260,12 +275,12 @@ const HabitPreview: React.FC = () => {
                 <div
                   key={level}
                   className="grid gap-[2px]"
-                  style={{ gridTemplateColumns: `repeat(${YEAR_WEEKS}, minmax(0, 1fr))` }}
+                  style={{ gridTemplateColumns: `repeat(${weeks.length}, minmax(0, 1fr))` }}
                 >
                   {weeks.map((value, i) => (
                     <span
                       key={i}
-                      className={`h-2 rounded-[2px] ${value >= level ? LEVEL_SHADE[level - 1] : 'bg-text/[0.07]'}`}
+                      className={`h-2.5 rounded-[2px] sm:h-2 ${value >= level ? LEVEL_SHADE[level - 1] : 'bg-text/[0.07]'}`}
                       style={{
                         opacity: seen ? 1 : 0,
                         transition: prefersReducedMotion() ? undefined : 'opacity 350ms ease-out',
