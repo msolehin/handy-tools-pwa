@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:server": "node --watch server/index.ts",
+    "dev:server": "node --watch --env-file-if-exists=.env.local server/index.ts",
     "build": "tsc -b && vite build",
     "start": "node server/index.ts",
     "lint": "eslint .",

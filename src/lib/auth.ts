@@ -106,13 +106,21 @@ export async function renderSignInButton(
           body: JSON.stringify({ credential }),
         });
         if (!res.ok) {
-          const { error } = await res.json().catch(() => ({ error: 'Sign-in failed' }));
+          // 502/504 means the API isn't reachable — in dev that is almost always the server
+          // on :3000 not running, which is worth saying rather than a generic failure.
+          if (res.status === 502 || res.status === 504) {
+            return onDone(false, "Can't reach the server. Is the API running?");
+          }
+          if (res.status === 503) {
+            return onDone(false, 'The server has no database configured yet.');
+          }
+          const { error } = await res.json().catch(() => ({ error: `Sign-in failed (${res.status})` }));
           return onDone(false, error);
         }
         setUser((await res.json()).user);
         onDone(true);
       } catch {
-        onDone(false, 'Sign-in failed. Try again.');
+        onDone(false, "Can't reach the server. Check your connection.");
       }
     },
   });

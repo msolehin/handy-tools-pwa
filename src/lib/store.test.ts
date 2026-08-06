@@ -65,6 +65,26 @@ describe('client and server agree on the tool list', () => {
     // visible as "my data didn't save on the other phone".
     assert.deepEqual(client, server);
   });
+
+  test('every record tool has a route that warns guests, and no route is stale', async () => {
+    const store = await freshStore();
+
+    for (const [route, key] of Object.entries(store.SYNCED_ROUTES)) {
+      assert.ok(store.SYNCED_KEYS.has(key), `${route} points at unsynced key ${key}`);
+    }
+
+    // Side tables ride along with their parent tool and have no page of their own.
+    const sideTables = new Set([
+      'asset_warranty_custom_categories', 'book_tracker_custom_categories',
+      'vehicle_custom_titles', 'home_custom_titles',
+    ]);
+    const routed = new Set(Object.values(store.SYNCED_ROUTES));
+    for (const key of store.SYNCED_KEYS) {
+      if (sideTables.has(key)) continue;
+      assert.ok(routed.has(key),
+        `${key} syncs but no route warns guests their entries won't be saved`);
+    }
+  });
 });
 
 describe('store: guest mode', () => {

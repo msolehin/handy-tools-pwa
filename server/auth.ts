@@ -82,14 +82,27 @@ export async function requireUser(c: Context, next: Next) {
   await next();
 }
 
+export function isAllowedOrigin(origin: string, requestUrl: string): boolean {
+  let sent: URL;
+  try { sent = new URL(origin); } catch { return false; }
+
+  if (sent.host === new URL(requestUrl).host) return true;
+
+  // In dev the browser sits on Vite's port and /api is proxied to the server's, so the hosts
+  // differ for a perfectly legitimate request. Loopback only, and never in production — where
+  // everything really is same-origin and this exemption must not exist.
+  return process.env.NODE_ENV !== 'production'
+    && (sent.hostname === 'localhost' || sent.hostname === '127.0.0.1');
+}
+
 /**
- * Reject cross-origin writes. Everything is same-origin and JSON-only, so this plus the Lax
- * cookie covers CSRF without a token table.
+ * Reject cross-origin writes. Everything is same-origin and JSON-only in production, so this
+ * plus the Lax cookie covers CSRF without a token table.
  */
 export async function sameOriginOnly(c: Context, next: Next) {
   if (c.req.method !== 'GET') {
     const origin = c.req.header('origin');
-    if (origin && new URL(origin).host !== new URL(c.req.url).host) {
+    if (origin && !isAllowedOrigin(origin, c.req.url)) {
       return c.json({ error: 'bad origin' }, 403);
     }
   }

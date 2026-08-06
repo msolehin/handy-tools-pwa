@@ -7,6 +7,7 @@ import {
 import { DEFAULT_TOOLS } from '../pages/Home';
 import AccountPanel from './AccountPanel';
 import ImportPrompt from './ImportPrompt';
+import GuestNotice from './GuestNotice';
 import { getUser, subscribe, type User } from '../lib/auth';
 import { store } from '../lib/store';
 
@@ -316,6 +317,13 @@ const Layout: React.FC = () => {
                 </button>
               )}
               <button
+                onClick={() => setIsLightMode(!isLightMode)}
+                className="p-2 rounded-xl bg-surface/50 text-muted hover:text-primary transition-colors border border-text/10"
+                aria-label="Toggle Theme"
+              >
+                {isLightMode ? <Moon size={18} /> : <Sun size={18} />}
+              </button>
+              <button
                 onClick={() => setShowSettings(true)}
                 className="p-2 rounded-xl bg-surface/50 text-muted hover:text-primary transition-colors border border-text/10 overflow-hidden"
                 aria-label={authUser ? 'Account' : 'Sign in'}
@@ -325,19 +333,13 @@ const Layout: React.FC = () => {
                   ? <img src={authUser.picture} alt="" className="w-[18px] h-[18px] rounded-full" />
                   : <UserRound size={18} />}
               </button>
-              <button
-                onClick={() => setIsLightMode(!isLightMode)}
-                className="p-2 rounded-xl bg-surface/50 text-muted hover:text-primary transition-colors border border-text/10"
-                aria-label="Toggle Theme"
-              >
-                {isLightMode ? <Moon size={18} /> : <Sun size={18} />}
-              </button>
             </div>
           </div>
         </header>
 
         {/* Main Content Area */}
         <main id="main-scroll-area" className="flex-1 max-w-md w-full mx-auto p-4 pb-24 overflow-x-hidden sm:overflow-y-auto relative z-0">
+          <GuestNotice onSignIn={() => setShowSettings(true)} />
           <Outlet />
         </main>
 
@@ -560,10 +562,10 @@ const Layout: React.FC = () => {
             />
             <div className="fixed bottom-0 sm:absolute sm:bottom-0 left-0 right-0 z-50 max-w-md mx-auto animate-slide-up">
               <div className="glass-panel border-x-0 border-b-0 rounded-t-3xl rounded-b-none shadow-2xl bg-background/95 max-h-[90vh] flex flex-col">
-                <div className="flex justify-between items-center p-6 pb-4 shrink-0 border-b border-text/5">
+                <div className="flex justify-between items-center px-6 pt-9 pb-4 shrink-0 border-b border-text/5">
                   <div>
-                    <h3 className="text-xl font-bold">Customize Menu</h3>
-                    <p className="text-xs text-muted mt-1">Select 3 to 4 tools for your quick access bar.</p>
+                    <h3 className="text-xl font-bold">Settings</h3>
+                    <p className="text-xs text-muted mt-1">Your account and quick access bar.</p>
                   </div>
                   <button
                     onClick={() => setShowSettings(false)}
@@ -575,9 +577,16 @@ const Layout: React.FC = () => {
 
                 <div className="flex-1 overflow-y-auto p-4 pb-28 space-y-2 overscroll-contain">
                   <AccountPanel />
-                  <p className="text-xs text-muted font-semibold uppercase tracking-wide pt-3 px-1">
-                    Quick access bar
-                  </p>
+
+                  {/* The old sheet heading lived up top and described only this list, so it
+                      moved down here once the account block took the first slot. */}
+                  <div className="pt-5 pb-1 px-1">
+                    <h4 className="text-sm font-bold text-text">Customize Menu</h4>
+                    <p className="text-xs text-muted mt-0.5">
+                      Select 3 to 4 tools for your quick access bar.
+                    </p>
+                  </div>
+
                   {moreTools.filter(t => t.to !== '#settings').map(tool => {
                     const isSelected = pinnedToolPaths.includes(tool.to);
                     const Icon = tool.icon;

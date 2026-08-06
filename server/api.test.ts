@@ -76,6 +76,31 @@ describe('api', { skip: !hasDb && 'DATABASE_URL not set' }, () => {
     assert.equal(res.status, 403);
   });
 
+  test('the dev proxy origin is allowed, and only outside production', async () => {
+    const { isAllowedOrigin } = await import('./auth.ts');
+    const api = 'http://localhost:3000/api/sync/birthdays_data';
+
+    // Vite serves the app on 5173 and proxies /api to 3000, so the hosts differ legitimately.
+    assert.equal(isAllowedOrigin('http://localhost:5173', api), true);
+    assert.equal(isAllowedOrigin('http://127.0.0.1:5173', api), true);
+    assert.equal(isAllowedOrigin('https://evil.example', api), false);
+    assert.equal(isAllowedOrigin('not-a-url', api), false);
+
+    // Same origin always passes, dev exemption or not.
+    assert.equal(isAllowedOrigin('http://localhost:3000', api), true);
+
+    const previous = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      assert.equal(isAllowedOrigin('http://localhost:5173', api), false,
+        'the loopback exemption must not exist in production');
+      assert.equal(isAllowedOrigin('https://senangkit.up.railway.app',
+        'https://senangkit.up.railway.app/api/sync/birthdays_data'), true);
+    } finally {
+      process.env.NODE_ENV = previous;
+    }
+  });
+
   test('push then pull returns the same blob and bumps the revision', async () => {
     const first = await call('/api/sync/birthdays_data', {
       method: 'PUT', body: JSON.stringify({ data: BLOB }),

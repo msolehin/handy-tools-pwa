@@ -35,6 +35,30 @@ export const SYNCED_KEYS = new Set<string>([
   'book_tracker_custom_categories',
 ]);
 
+/**
+ * Routes whose tool keeps records in an account. Used to warn guests that what they type
+ * here won't survive the tab. Kept next to SYNCED_KEYS so the two can't drift — there is a
+ * test asserting every route maps to a real synced key and every record tool has a route.
+ */
+export const SYNCED_ROUTES: Record<string, string> = {
+  '/birthdays': 'birthdays_data',
+  '/tenancy': 'tenancy_data',
+  '/document-expiry': 'de_documents',
+  '/countdown': 'cd_events',
+  '/debt-tracker': 'debt_tracker_ious',
+  '/habit-tracker': 'habit_tracker_data',
+  '/important-numbers': 'important_numbers_data',
+  '/expense-manager': 'expense_manager_data',
+  '/commitments': 'expense_manager_data',   // a second view over the same records
+  '/duit-raya': 'duit_raya_manager_data',
+  '/travel-history': 'travel_history_data',
+  '/water-tracker': 'water_tracker_data',
+  '/vehicle-services': 'vehicle_services_data',
+  '/home-services': 'home_services_data',
+  '/asset-warranty': 'asset_warranty_tracker_data',
+  '/book-tracker': 'book_tracker_data',
+};
+
 const P = 'acct:';
 const UID_KEY = `${P}__uid`;
 const DIRTY_KEY = `${P}__dirty`;
