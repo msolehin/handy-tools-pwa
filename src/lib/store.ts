@@ -10,7 +10,7 @@
 // completely unchanged: writes land locally and synchronously, the network is best-effort.
 
 // Explicit .ts extension so `node --test` can resolve this too (Vite handles it either way).
-import { setUser, type User } from './auth.ts';
+import { setUser, subscribe as subscribeToAuth, type User } from './auth.ts';
 
 /** Tool keys that belong to an account. Grows one phase at a time. */
 export const SYNCED_KEYS = new Set<string>([
@@ -203,6 +203,7 @@ function wipeAccountMirror() {
  */
 export async function bootstrap(): Promise<void> {
   const knownUid = localStorage.getItem(UID_KEY);
+  const wasGuest = !signedIn;
   signedIn = Boolean(knownUid);
 
   if (signedIn) {
@@ -268,8 +269,17 @@ export async function bootstrap(): Promise<void> {
     }
   }
 
-  if (changed) lateHydrate?.();
+  // Remount on any guest -> account transition, not just when values differ. Mounted pages
+  // read their state from the guest tier; once signedIn flips, getItem answers from the
+  // account mirror instead, and stale component state would disagree with the store.
+  if (changed || wasGuest) lateHydrate?.();
 }
+
+// Signing in happens long after main.tsx ran bootstrap() as a guest. Without this, the store
+// stays in guest mode until a manual page refresh: no pull, no remount, no data.
+subscribeToAuth((user) => {
+  if (user && !signedIn) void bootstrap();
+});
 
 // ---------------------------------------------------------------- first-login import
 

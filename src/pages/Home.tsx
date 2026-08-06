@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { store } from '../lib/store';
+import PrivacyNote from '../components/PrivacyNote';
 import { 
-  MapPin, ArrowRight, Shield, PieChart, Timer, Wallet,
+  MapPin, ArrowRight, PieChart, Timer, Wallet,
   Calendar, ShieldAlert, Plane,
   List, LayoutGrid, Bell, ArrowUpDown, ShoppingCart, Gift, Banknote, Cake, KeyRound, Dices, Repeat, Droplets, Layers, Search, ListChecks, HandCoins, Utensils, ChevronDown, ChevronUp, Sparkles, Heart, ArrowDownAZ, IdCard, Box, BookOpen, Hash, FileSignature, CarFront, Home as HomeIcon
 } from 'lucide-react';
@@ -1570,21 +1571,7 @@ const Home: React.FC = () => {
           )}
         </DndContext>
 
-      <div className="mt-8 p-5 bg-primary/5 border border-primary/10 rounded-2xl">
-        <div className="flex items-start space-x-4">
-          <div className="p-2.5 bg-primary/10 rounded-xl shrink-0">
-            <Shield className="text-primary" size={24} />
-          </div>
-          <div>
-            <h4 className="text-sm font-semibold text-text/90 mb-1.5">100% Private & Local</h4>
-            <p className="text-xs text-muted leading-relaxed">
-              Designed as a quick, zero-setup tool to solve your problem in under a minute, no login required. 
-              All processing happens entirely on your device, and no data is ever sent to a server. 
-              Everything is stored locally in your browser, meaning your data will be permanently removed if you clear your browser cache.
-            </p>
-          </div>
-        </div>
-      </div>
+      <PrivacyNote />
     </div>
   );
 };

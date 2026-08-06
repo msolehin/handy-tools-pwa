@@ -277,6 +277,27 @@ describe('store: signed in', () => {
       'the server copy wins; local legacy data is not offered to overwrite it');
   });
 
+  test('signing in AFTER boot pulls and remounts, with no manual refresh', async () => {
+    // The reported bug: main.tsx bootstraps as a guest, the user taps Sign in later, and the
+    // store stayed in guest mode until the page was reloaded by hand.
+    const store = await freshStore();
+    let remounts = 0;
+    store.onLateHydrate(() => { remounts++; });
+
+    await store.bootstrap();                       // boots as a guest (401)
+    assert.equal(store.store.getItem('birthdays_data'), null);
+
+    // Now the sign-in callback lands, exactly as auth.ts does it.
+    signedInBootstrap({ birthdays_data: { items: ['from account'] } }, { birthdays_data: 2 });
+    const { setUser } = await import('./auth.ts');
+    setUser({ email: 'a@b.c', name: 'A', picture: '' });
+    await new Promise((r) => setTimeout(r, 20));   // let the subscriber's bootstrap settle
+
+    assert.deepEqual(JSON.parse(store.store.getItem('birthdays_data')!), { items: ['from account'] },
+      'account data is readable immediately after sign-in');
+    assert.ok(remounts > 0, 'and the app remounts so mounted pages re-read it');
+  });
+
   test('a different account on the same device wipes the previous mirror', async () => {
     const store = await freshStore();
     localStorage.setItem('acct:__uid', 'someone@else.com');
