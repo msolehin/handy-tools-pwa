@@ -100,9 +100,11 @@ const Landing: React.FC = () => {
             >
               {isLight ? <Moon size={18} /> : <Sun size={18} />}
             </button>
+            {/* Hidden on phones: the logo, language toggle and theme button already fill a 360px
+                header, and the hero CTA sits right underneath. */}
             <Link
               to="/app"
-              className="rounded-xl border border-text/15 px-4 py-2 text-sm font-semibold transition-colors hover:border-text/40 hover:bg-text/5"
+              className="hidden rounded-xl border border-text/15 px-4 py-2 text-sm font-semibold transition-colors hover:border-text/40 hover:bg-text/5 sm:inline-block"
             >
               {t.nav.openApp}
             </Link>
@@ -110,19 +112,18 @@ const Landing: React.FC = () => {
         </header>
 
         {/* ---------------------------------------------------------------- hero */}
-        <section className="mx-auto w-full max-w-6xl px-5 pb-14 pt-6 sm:px-8 sm:pt-12 lg:pb-24 lg:pt-16">
+        <section className="mx-auto w-full max-w-6xl px-5 pb-14 pt-4 sm:px-8 sm:pt-10 lg:pb-24 lg:pt-16">
           <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)] lg:gap-16">
             <div>
-              {/* Load stagger: eyebrow, headline, body, then buttons. */}
-              <Reveal>
-                {/* Naming the actual records, so it stays sentence case and tightly tracked —
-                    uppercase at this length wraps to three ragged lines on a phone. */}
-                <p className="inline-flex max-w-full items-center rounded-full border border-text/12 bg-surface/50 px-4 py-2 text-[12px] font-semibold leading-snug text-muted backdrop-blur-sm sm:text-[13px]">
-                  {t.hero.eyebrow}
-                </p>
-              </Reveal>
+              {/* The headline takes the top of the page — nothing above it to read past. Load
+                  stagger runs headline, body, chips, then buttons.
 
-              <h1 className="mt-6 font-display text-[3.25rem] font-extrabold leading-[0.9] tracking-[-0.03em] sm:text-7xl lg:text-[5.25rem]">
+                  clamp() rather than a breakpoint step: the longest line is two words, and at a
+                  fixed 3.25rem it overflows a 360px phone in English. */}
+              <h1
+                className="font-display font-extrabold leading-[0.92] tracking-[-0.03em]"
+                style={{ fontSize: 'clamp(2.6rem, 1.2rem + 8vw, 5.25rem)' }}
+              >
                 {t.hero.headline.map((line, i) => (
                   <span key={line} className="block overflow-hidden pb-[0.06em]">
                     <span
@@ -149,8 +150,24 @@ const Landing: React.FC = () => {
                 </p>
               </Reveal>
 
-              <Reveal delay={240}>
-                <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
+              {/* One chip per record type. As a single dot-separated line this wrapped into a
+                  ragged three-line block on a phone; as chips it wraps into tidy rows. */}
+              <Reveal delay={220}>
+                <ul className="mt-7 flex flex-wrap gap-2">
+                  {t.hero.chips.map((chip) => (
+                    <li
+                      key={chip}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-text/12 bg-surface/50 py-1.5 pl-2.5 pr-3 text-[12px] font-semibold text-muted backdrop-blur-sm sm:text-[13px]"
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary/70" />
+                      {chip}
+                    </li>
+                  ))}
+                </ul>
+              </Reveal>
+
+              <Reveal delay={300}>
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
                   <Link
                     to="/app"
                     className={`group inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-7 py-4 text-base font-bold shadow-xl shadow-primary/25 transition-all hover:shadow-2xl hover:shadow-primary/35 active:scale-95 ${ON_PRIMARY}`}

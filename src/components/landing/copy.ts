@@ -12,8 +12,8 @@ const ms = {
   nav: { openApp: 'Buka app', theme: (light: boolean): string => (light ? 'Mod gelap' : 'Mod cerah') },
 
   hero: {
-    eyebrow: 'Roadtax/lesen · Servis Kereta/Rumah · Warranty · Sewa · Hutang',
-    headline: ['Jangan', 'lupa', 'lagi.'],
+    chips: ['Roadtax / lesen', 'Kira Duit Raya', 'Servis Kereta / Rumah', 'Warranty','Sejarah Travel', 'Sewa', 'Hutang','Bahan Bacaan'],
+    headline: ['Jangan lupa', 'lagi.'],
     bodyBefore: 'App nota bagi you tulis apa-apa sahaja — sebab itulah you tak pernah buka balik, dan terlepas renewal, warranty, servis, hutang. SenangKit bagi setiap jenis rekod satu bentuk tetap: laju nak isi, dan ia datang cari you ',
     bodyEmphasis: 'sebelum',
     bodyAfter: ' tarikh.',
@@ -94,8 +94,17 @@ const ms = {
   previews: {
     heading: 'Macam ni rupanya',
     body: 'Bukan screenshot — ini surface sebenar dari app. Rekod masuk ikut bentuk yang tetap, jadi sekali pandang you dah tahu status dia.',
+    moduleLabel: 'Alat',
+    open: 'Buka alat',
     doc: {
       title: 'Document Expiry',
+      lede: 'Tahu berapa hari lagi tinggal',
+      blurb: 'Masuk tarikh luput sekali sahaja — roadtax, pasport, lesen, insurans. Lepas tu senarai ni yang ingat, bukan you.',
+      points: [
+        'Kiraan hari, bukan tarikh yang you kena kira sendiri',
+        'Warna tukar bila makin dekat: hijau → kuning → merah',
+        'Semua dokumen rumah dalam satu senarai',
+      ],
       items: [
         { label: 'Roadtax Myvi', date: 'Luput 19 Ogos 2026', days: 12 },
         { label: 'Pasport', date: 'Luput 24 Sept 2026', days: 48 },
@@ -104,6 +113,13 @@ const ms = {
     },
     raya: {
       title: 'Kira Duit Raya',
+      lede: 'Bajet raya yang tak terlajak',
+      blurb: 'Letak bajet, senarai siapa dapat berapa, tanda siapa dah dapat. Baki kira sendiri sepanjang raya.',
+      points: [
+        'Bar bajet yang bergerak setiap kali you bagi',
+        'Tanda "dah bagi" supaya tak terbagi dua kali',
+        'Baki dan jumlah teragih dikira automatik',
+      ],
       budget: 1500,
       remainingLabel: 'Baki bajet:',
       recipients: [
@@ -115,6 +131,13 @@ const ms = {
     },
     service: {
       title: 'Servis Kenderaan',
+      lede: 'Sejarah servis yang tak hilang',
+      blurb: 'Setiap servis, tayar, dan repair jadi satu garis masa berserta kos. Bila nak jual kereta, rekod dah siap.',
+      points: [
+        'Servis lepas dan servis akan datang dalam satu garis masa',
+        'Kos setiap kali, jadi nampak jumlah belanja setahun',
+        'Sama caranya untuk rumah: aircond, paip, cat',
+      ],
       events: [
         { title: 'Servis akan datang', meta: '14 Nov 2026 · 92,000 km', cost: '', upcoming: true },
         { title: 'Servis minor', meta: '14 Mei 2026 · Bengkel Pak Din', cost: '268', upcoming: false },
@@ -123,22 +146,119 @@ const ms = {
     },
     habit: {
       title: 'Habit Tracker',
+      lede: 'Setahun habit dalam satu pandangan',
+      blurb: 'Tick setiap hari. Grid setahun tunjuk minggu mana you konsisten, dan minggu mana tergelincir.',
+      points: [
+        'Grid 52 minggu untuk setiap habit',
+        'Streak minggu berturut dikira sendiri',
+        'Beberapa habit serentak, warna berlainan',
+      ],
       streakLabel: 'minggu berturut',
+      tickLabel: 'Tick minggu ni',
       weeksLabel: 'minggu aktif',
       habits: [
         { name: 'Solat subuh', emoji: '🌅', seed: 11, strength: 0.9 },
-        { name: 'Baca 10 muka', emoji: '📖', seed: 27, strength: 0.62 },
-        { name: 'Jalan kaki', emoji: '👟', seed: 43, strength: 0.45 },
+        { name: 'Baca Buku', emoji: '📖', seed: 27, strength: 0.62 },
+        { name: 'Lari', emoji: '👟', seed: 43, strength: 0.45 },
       ],
     },
     travel: {
       title: 'My Travel History',
+      lede: 'Peta negara yang you dah jejak',
+      blurb: 'Setiap trip masuk dengan tarikh, tempat, dan belanja — dan you boleh susun itinerari hari demi hari serta senarai barang nak bawa dalam trip yang sama. Peta dunia menyala ikut mana you pergi.',
+      points: [
+        'Peta dunia sebenar, negara dilawati menyala',
+        'Belanja setiap trip dan jumlah keseluruhan',
+        'Itinerari hari demi hari untuk setiap trip',
+        'Senarai barang nak bawa, ada senarai lalai untuk mula',
+      ],
+      map: { in: 'Zum masuk', out: 'Zum keluar', reset: 'Kembali ke paparan asal' },
       statCountries: 'negara',
       statSpent: 'jumlah belanja',
       trips: [
         { flag: '🇯🇵', country: 'Japan', meta: 'Nov 2025 · 11 hari', note: 'Tokyo · Kyoto · Osaka', budget: 9800 },
         { flag: '🇹🇭', country: 'Thailand', meta: 'Feb 2024 · 4 hari', note: 'Bangkok', budget: 1200 },
         { flag: '🇮🇩', country: 'Indonesia', meta: 'Ogos 2023 · 6 hari', note: 'Bandung', budget: 2400 },
+      ],
+    },
+    book: {
+      title: 'My Books',
+      lede: 'Apa you tengah baca, dan berhenti di mana',
+      blurb: 'Setiap buku bawa status dan nombor muka surat sendiri. Buka balik dua minggu lepas, tak payah belek cari tempat berhenti.',
+      points: [
+        'Progress muka surat — tahu tinggal berapa lagi nak habis',
+        'Status: nak baca, tengah baca, dah habis, wishlist',
+        'Quote dan nota disimpan terus bawah bukunya',
+      ],
+      statBooks: 'buku tahun ni',
+      statPages: 'muka surat',
+      yearBooks: 12,
+      yearPages: 3480,
+      statusLabels: { reading: 'Tengah baca', completed: 'Dah habis', wishlist: 'Wishlist' },
+      books: [
+        { emoji: '📗', title: 'Atomic Habits', author: 'James Clear', status: 'reading', page: 184, total: 320 },
+        { emoji: '📕', title: 'Rentung', author: 'Khairulnizam Bakeri', status: 'reading', page: 62, total: 240 },
+        { emoji: '📘', title: 'Sapiens', author: 'Yuval Noah Harari', status: 'completed', page: 498, total: 498 },
+      ],
+      quoteLabel: 'Quote disimpan',
+      quote: 'Habits are the compound interest of self-improvement.',
+      quoteMeta: 'Atomic Habits · hlm. 27',
+    },
+    warranty: {
+      title: 'Asset & Warranty',
+      lede: 'Warranty yang masih boleh dituntut',
+      blurb: 'Simpan tarikh beli, harga, dan tempoh warranty. Tarikh tamat dikira sendiri, dan bar tunjuk berapa banyak tempoh dah lesap.',
+      points: [
+        'Tarikh tamat = tarikh beli + tempoh warranty, tak payah kira',
+        'Nilai barang yang masih bawah warranty, dijumlahkan',
+        'Resit dan nombor siri disimpan sekali dengan barangnya',
+      ],
+      statCovered: 'masih bawah warranty',
+      covered: 8420,
+      items: [
+        { icon: 'electronics', name: 'MacBook Air M2', category: 'Electronics', price: 5199, status: 'Tinggal 214 hari', tone: 'emerald', elapsed: 41 },
+        { icon: 'appliances', name: 'Aircond Daikin 1.5hp', category: 'Appliances', price: 2280, status: 'Tinggal 21 hari', tone: 'orange', elapsed: 94 },
+        { icon: 'furniture', name: 'Sofa L-shape', category: 'Furniture', price: 1890, status: 'Tamat 38 hari lalu', tone: 'rose', elapsed: 100 },
+      ],
+    },
+    debt: {
+      title: 'Catat Hutang',
+      lede: 'Siapa hutang siapa',
+      blurb: 'Dua arah, dua lajur: orang hutang you sebelah, you hutang orang sebelah lagi. Tanda settle bila dah selesai — jumlah setiap belah kira sendiri.',
+      points: [
+        'Hijau untuk orang hutang you, merah untuk you hutang orang',
+        'Tanda settle — rekod kekal, cuma tak dikira dalam baki',
+        'Nama dan sebab sekali, supaya tak jadi hal enam bulan lepas',
+      ],
+      owedToMeLabel: 'Orang hutang you',
+      iOweLabel: 'You hutang orang',
+      ious: [
+        { name: 'Faiz', note: 'Tiket bola', amount: 120, owedToMe: true, settled: false },
+        { name: 'Kak Nurul', note: 'Duit makan katering', amount: 350, owedToMe: false, settled: false },
+        { name: 'Hafiz', note: 'Tambang teksi', amount: 45, owedToMe: true, settled: false },
+        { name: 'Abang', note: 'Tolong bayar servis', amount: 180, owedToMe: false, settled: false },
+        { name: 'Adik', note: 'Topup', amount: 30, owedToMe: true, settled: true },
+        { name: 'Mama', note: 'Duit pasar', amount: 60, owedToMe: false, settled: true },
+      ],
+    },
+    alerts: {
+      title: 'Action Needed',
+      label: 'Skrin utama',
+      open: 'Buka app',
+      lede: 'Semua yang mendesak, atas satu skrin',
+      blurb: 'You tak payah ingat nak buka alat yang mana. Setiap alat hantar apa yang mendesak ke skrin utama app — jadi benda yang perlu tindakan dah tunggu you di situ setiap kali you buka.',
+      points: [
+        'Ditarik automatik dari semua alat — tiada apa nak di-set',
+        'Dokumen 30 hari terakhir, servis kereta dah dekat, warranty nak tamat',
+        'Tekan kad, terus masuk ke alat yang berkenaan',
+        'Pasang di home screen telefon — buka macam app biasa',
+      ],
+      stripTitle: 'Action Needed',
+      items: [
+        { kind: 'document', label: 'document', title: 'Renew: Roadtax Myvi', status: '12 hari lagi' },
+        { kind: 'service', label: 'service', title: 'Vehicle: Servis Myvi', status: '5 hari lagi' },
+        { kind: 'habit', label: 'habit', title: 'Habits: 2 lagi hari ini', status: '60% siap', percent: 60 },
+        { kind: 'warranty', label: 'warranty', title: 'Warranty: Aircond Daikin', status: '21 hari lagi' },
       ],
     },
   },
@@ -150,8 +270,8 @@ const en: typeof ms = {
   nav: { openApp: 'Open app', theme: (light: boolean) => (light ? 'Dark mode' : 'Light mode') },
 
   hero: {
-    eyebrow: 'Roadtax/licence · Car/Home service · Warranty · Rent · Debts',
-    headline: ['Never', 'miss it', 'again.'],
+    chips: ['Roadtax / licence', 'Car service', 'Home service', 'Warranty', 'Rent', 'Debts'],
+    headline: ['Never miss it', 'again.'],
     bodyBefore: 'Notes apps let you write anything, which is exactly why you never look again — and you miss the renewal, the warranty, the service, the debt. SenangKit gives every kind of record a fixed shape, so it goes in fast and comes back at you ',
     bodyEmphasis: 'before',
     bodyAfter: ' the date.',
@@ -232,8 +352,17 @@ const en: typeof ms = {
   previews: {
     heading: 'This is what it looks like',
     body: 'Not screenshots — these are the real surfaces from the app. Records go in with a fixed shape, so one glance tells you where each one stands.',
+    moduleLabel: 'Tool',
+    open: 'Open tool',
     doc: {
       title: 'Document Expiry',
+      lede: 'Know how many days are left',
+      blurb: 'Enter the expiry date once — roadtax, passport, licence, insurance. After that the list remembers, not you.',
+      points: [
+        'A day count, not a date you have to work out yourself',
+        'Colour shifts as it closes in: green → amber → red',
+        'Every document in the house on one list',
+      ],
       items: [
         { label: 'Roadtax Myvi', date: 'Expires 19 Aug 2026', days: 12 },
         { label: 'Passport', date: 'Expires 24 Sep 2026', days: 48 },
@@ -242,6 +371,13 @@ const en: typeof ms = {
     },
     raya: {
       title: 'Kira Duit Raya',
+      lede: 'A raya budget that holds',
+      blurb: 'Set the budget, list who gets how much, tick off who has been given. The balance keeps itself current.',
+      points: [
+        'A budget bar that moves every time you hand one out',
+        'A "given" tick, so nobody gets paid twice',
+        'Balance and total allocated worked out for you',
+      ],
       budget: 1500,
       remainingLabel: 'Budget left:',
       recipients: [
@@ -253,6 +389,13 @@ const en: typeof ms = {
     },
     service: {
       title: 'Car & Home Service',
+      lede: 'A service history that survives',
+      blurb: 'Every service, tyre change and repair becomes one timeline with its cost. When you sell the car, the record is already there.',
+      points: [
+        'Past services and the next one due on one timeline',
+        'Cost per visit, so the yearly total is visible',
+        'Same shape for the house: aircon, plumbing, paint',
+      ],
       events: [
         { title: 'Next service due', meta: '14 Nov 2026 · 92,000 km', cost: '', upcoming: true },
         { title: 'Minor service', meta: '14 May 2026 · Pak Din workshop', cost: '268', upcoming: false },
@@ -261,7 +404,15 @@ const en: typeof ms = {
     },
     habit: {
       title: 'Habit Tracker',
+      lede: 'A year of a habit at a glance',
+      blurb: 'Tick it each day. The year grid shows the weeks you held it, and the weeks it slipped.',
+      points: [
+        'A 52-week grid for each habit',
+        'Consecutive-week streak counted for you',
+        'Several habits at once, each its own colour',
+      ],
       streakLabel: 'week streak',
+      tickLabel: 'Tick this week',
       weeksLabel: 'active weeks',
       habits: [
         { name: 'Morning prayer', emoji: '🌅', seed: 11, strength: 0.9 },
@@ -271,12 +422,101 @@ const en: typeof ms = {
     },
     travel: {
       title: 'My Travel History',
+      lede: 'The map of where you have been',
+      blurb: 'Each trip goes in with its dates, places and spend — and the same trip holds a day-by-day itinerary and a packing list. The world map lights up wherever you went.',
+      points: [
+        'A real world map, visited countries lit',
+        'Spend per trip and the running total',
+        'A day-by-day itinerary on every trip',
+        'A packing list, with a default one to start from',
+      ],
+      map: { in: 'Zoom in', out: 'Zoom out', reset: 'Back to the default view' },
       statCountries: 'countries',
       statSpent: 'total spent',
       trips: [
         { flag: '🇯🇵', country: 'Japan', meta: 'Nov 2025 · 11 days', note: 'Tokyo · Kyoto · Osaka', budget: 9800 },
         { flag: '🇹🇭', country: 'Thailand', meta: 'Feb 2024 · 4 days', note: 'Bangkok', budget: 1200 },
         { flag: '🇮🇩', country: 'Indonesia', meta: 'Aug 2023 · 6 days', note: 'Bandung', budget: 2400 },
+      ],
+    },
+    book: {
+      title: 'My Books',
+      lede: 'What you are reading, and where you stopped',
+      blurb: 'Every book carries its own status and page number. Come back to it two weeks later and you are not thumbing around for your place.',
+      points: [
+        'Page progress — you can see how much of it is left',
+        'Status: to read, reading, finished, wishlist',
+        'Quotes and notes saved under the book they came from',
+      ],
+      statBooks: 'books this year',
+      statPages: 'pages',
+      yearBooks: 12,
+      yearPages: 3480,
+      statusLabels: { reading: 'Reading', completed: 'Finished', wishlist: 'Wishlist' },
+      books: [
+        { emoji: '📗', title: 'Atomic Habits', author: 'James Clear', status: 'reading', page: 184, total: 320 },
+        { emoji: '📕', title: 'Rentung', author: 'Khairulnizam Bakeri', status: 'reading', page: 62, total: 240 },
+        { emoji: '📘', title: 'Sapiens', author: 'Yuval Noah Harari', status: 'completed', page: 498, total: 498 },
+      ],
+      quoteLabel: 'Saved quote',
+      quote: 'Habits are the compound interest of self-improvement.',
+      quoteMeta: 'Atomic Habits · p. 27',
+    },
+    warranty: {
+      title: 'Asset & Warranty',
+      lede: 'The warranties you can still claim on',
+      blurb: 'Keep the purchase date, the price and the warranty length. The expiry works itself out, and the bar shows how much of the cover is already gone.',
+      points: [
+        'Expiry = purchase date + warranty length, nothing to work out',
+        'The value of everything still under cover, totalled',
+        'Receipt and serial number filed with the item itself',
+      ],
+      statCovered: 'still under warranty',
+      covered: 8420,
+      items: [
+        { icon: 'electronics', name: 'MacBook Air M2', category: 'Electronics', price: 5199, status: '214 days left', tone: 'emerald', elapsed: 41 },
+        { icon: 'appliances', name: 'Daikin aircon 1.5hp', category: 'Appliances', price: 2280, status: '21 days left', tone: 'orange', elapsed: 94 },
+        { icon: 'furniture', name: 'L-shape sofa', category: 'Furniture', price: 1890, status: 'Expired 38d ago', tone: 'rose', elapsed: 100 },
+      ],
+    },
+    debt: {
+      title: 'Catat Hutang',
+      lede: 'Who owes who, in writing',
+      blurb: 'Two directions, two columns: what people owe you on one side, what you owe them on the other. Tick one settled when it is done — each side\'s total keeps itself.',
+      points: [
+        'Green for what is owed to you, red for what you owe',
+        'Tick settled — the record stays, it just stops counting',
+        'Name and reason together, so it is not a mystery six months on',
+      ],
+      owedToMeLabel: 'Owed to you',
+      iOweLabel: 'You owe',
+      ious: [
+        { name: 'Faiz', note: 'Match tickets', amount: 120, owedToMe: true, settled: false },
+        { name: 'Kak Nurul', note: 'Catering money', amount: 350, owedToMe: false, settled: false },
+        { name: 'Hafiz', note: 'Taxi fare', amount: 45, owedToMe: true, settled: false },
+        { name: 'Abang', note: 'Covered a service', amount: 180, owedToMe: false, settled: false },
+        { name: 'Adik', note: 'Phone top-up', amount: 30, owedToMe: true, settled: true },
+        { name: 'Mama', note: 'Market money', amount: 60, owedToMe: false, settled: true },
+      ],
+    },
+    alerts: {
+      title: 'Action Needed',
+      label: 'Home screen',
+      open: 'Open the app',
+      lede: 'Everything pressing, on one screen',
+      blurb: 'You never have to remember which tool to open. Every tool pushes whatever is pressing to the app\'s home screen — so what needs doing is already waiting there each time you open it.',
+      points: [
+        'Pulled from every tool automatically — nothing to configure',
+        'Documents in their last 30 days, a service coming up, warranties about to lapse',
+        'Tap a card to land straight in the tool it came from',
+        'Install it to your phone\'s home screen — it opens like any other app',
+      ],
+      stripTitle: 'Action Needed',
+      items: [
+        { kind: 'document', label: 'document', title: 'Renew: Roadtax Myvi', status: '12 Days Left' },
+        { kind: 'service', label: 'service', title: 'Vehicle: Myvi service', status: '5 Days Left' },
+        { kind: 'habit', label: 'habit', title: 'Habits: 2 left today', status: '60% done', percent: 60 },
+        { kind: 'warranty', label: 'warranty', title: 'Warranty: Daikin aircon', status: '21 Days Left' },
       ],
     },
   },
