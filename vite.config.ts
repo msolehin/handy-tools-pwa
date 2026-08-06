@@ -27,7 +27,10 @@ export default defineConfig({
         theme_color: '#0f172a',
         background_color: '#0f172a',
         display: 'standalone',
-        start_url: '/',
+        // Installed users go straight to the tools; `/` is the marketing page and would be a
+        // pointless ad for an app they already have. Landing.tsx also redirects out of
+        // standalone, for installs whose manifest hasn't been refetched yet.
+        start_url: '/app',
         icons: [
           {
             src: 'pwa-192x192.png',

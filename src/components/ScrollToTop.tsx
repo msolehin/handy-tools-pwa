@@ -42,8 +42,8 @@ export default function ScrollToTop() {
   useEffect(() => {
     const scrollContainer = document.getElementById('main-scroll-area');
 
-    if (pathname === '/') {
-      const target = positions.current['/'] || 0;
+    if (pathname === '/app') {
+      const target = positions.current['/app'] || 0;
       if (target <= 0) return;
 
       let frame = 0;

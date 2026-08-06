@@ -5,6 +5,14 @@ import './index.css'
 import { registerSW } from 'virtual:pwa-register'
 import { bootstrap, onLateHydrate } from './lib/store'
 
+// Apply the saved theme before anything renders. This used to live only in Layout, which the
+// landing page deliberately renders outside of — without it a light-mode user gets a dark
+// landing page, and everyone gets a flash of dark before Layout mounts. Layout still owns the
+// toggle; this only sets the initial class.
+if (localStorage.getItem('theme') === 'light') {
+  document.documentElement.classList.add('light');
+}
+
 // Capture the PWA install prompt as early as possible (it can fire before React mounts)
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();

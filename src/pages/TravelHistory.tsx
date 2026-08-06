@@ -5,24 +5,8 @@ import {
   Globe, Plus, Trash2, Pencil, X, Calendar, MapPin, Plane, Star,
   Clock, Search, ArrowUpDown, Layers, TrendingUp, ZoomIn, ZoomOut, Maximize, Wallet, Map as MapIcon, ChevronUp, ChevronDown, Check, Backpack
 } from 'lucide-react';
-import { geoEqualEarth, geoPath } from 'd3-geo';
-import { feature } from 'topojson-client';
-import worldTopo from 'world-atlas/countries-110m.json';
+import { COUNTRY_PATHS, COUNTRY_BOX, MAP_ALIAS, MAP_W, MAP_H } from '../lib/worldMap';
 
-// Precompute the world map paths once (offline, no network needed)
-const WORLD_FC: any = feature(worldTopo as any, (worldTopo as any).objects.countries);
-const MAP_W = 800, MAP_H = 388;
-const _mapPath = geoPath(geoEqualEarth().fitSize([MAP_W, MAP_H], WORLD_FC));
-const COUNTRY_PATHS: { name: string; d: string }[] = WORLD_FC.features.map((f: any) => ({ name: f.properties.name, d: _mapPath(f) || '' }));
-// Per-country path + bounding box, for drawing a single-country silhouette
-const COUNTRY_BOX: Record<string, { d: string; box: [number, number, number, number] }> = {};
-WORLD_FC.features.forEach((f: any) => {
-  const d = _mapPath(f) || '';
-  const b = _mapPath.bounds(f);
-  COUNTRY_BOX[f.properties.name] = { d, box: [b[0][0], b[0][1], b[1][0] - b[0][0], b[1][1] - b[0][1]] };
-});
-// Map our country names to the world-atlas naming where they differ
-const MAP_ALIAS: Record<string, string> = { 'United States': 'United States of America', 'Czech Republic': 'Czechia' };
 
 // Faint silhouette of a country, used as a card background watermark
 const CountryBg: React.FC<{ country: string }> = ({ country }) => {

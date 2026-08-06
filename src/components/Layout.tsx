@@ -10,6 +10,7 @@ import ImportPrompt from './ImportPrompt';
 import GuestNotice from './GuestNotice';
 import { getUser, subscribe, type User } from '../lib/auth';
 import { store } from '../lib/store';
+import { useTheme } from '../lib/theme';
 
 interface NavAlert {
   id: string;
@@ -98,9 +99,8 @@ const Layout: React.FC = () => {
     localStorage.setItem('pinnedTools', JSON.stringify(pinnedToolPaths));
   }, [pinnedToolPaths]);
 
-  const [isLightMode, setIsLightMode] = useState(() => {
-    return localStorage.getItem('theme') === 'light';
-  });
+  // Shared with the landing page's toggle, which renders outside this component.
+  const [isLightMode, toggleTheme] = useTheme();
 
   // Duit Raya / Angpao manager swaps its name + colour based on the saved theme
   const readDuitRayaTheme = (): 'raya' | 'angpao' => {
@@ -120,16 +120,6 @@ const Layout: React.FC = () => {
       window.removeEventListener('storage', update);
     };
   }, []);
-
-  useEffect(() => {
-    if (isLightMode) {
-      document.documentElement.classList.add('light');
-      localStorage.setItem('theme', 'light');
-    } else {
-      document.documentElement.classList.remove('light');
-      localStorage.setItem('theme', 'dark');
-    }
-  }, [isLightMode]);
 
   // --- PWA install prompt ---
   const [installPrompt, setInstallPrompt] = useState<any>(null);
@@ -192,7 +182,7 @@ const Layout: React.FC = () => {
     const applyState = (hidden: boolean) => {
       hiddenRef.current = hidden;
       setHeaderHidden(hidden);
-      setNotifMode(hidden && location.pathname === '/');
+      setNotifMode(hidden && location.pathname === '/app');
       // Lock briefly so the reflow caused by the header animation can't flip the state.
       lockRef.current = true;
       if (lockTimer.current) clearTimeout(lockTimer.current);
@@ -252,7 +242,7 @@ const Layout: React.FC = () => {
     touchStartY.current = null;
   };
 
-  const showNotif = notifMode && location.pathname === '/';
+  const showNotif = notifMode && location.pathname === '/app';
   const currentAlert = alerts[notifIndex] || alerts[0];
   const hasAlerts = alerts.length > 0;
   const animOn = (() => { try { const s = localStorage.getItem('handy-animations'); return s ? JSON.parse(s) : true; } catch (e) { return true; } })();
@@ -317,7 +307,7 @@ const Layout: React.FC = () => {
                 </button>
               )}
               <button
-                onClick={() => setIsLightMode(!isLightMode)}
+                onClick={toggleTheme}
                 className="p-2 rounded-xl bg-surface/50 text-muted hover:text-primary transition-colors border border-text/10"
                 aria-label="Toggle Theme"
               >
@@ -344,10 +334,10 @@ const Layout: React.FC = () => {
         </main>
 
         {/* Bottom Navigation */}
-        {(() => { const navIsHidden = navHidden && location.pathname !== '/'; return (
+        {(() => { const navIsHidden = navHidden && location.pathname !== '/app'; return (
         <nav className={`fixed bottom-0 sm:absolute sm:bottom-0 left-0 right-0 mx-auto w-full max-w-md z-40 transition-transform duration-300 ${navIsHidden ? 'translate-y-[130%]' : 'translate-y-0'}`}>
           <div className="max-w-md mx-auto mb-4 px-4">
-            {location.pathname !== '/' && (
+            {location.pathname !== '/app' && (
               <div className="flex justify-center mb-1.5">
                 <button onClick={() => setNavHidden(true)} className="px-4 py-0.5 rounded-full bg-surface/90 border border-text/10 text-muted hover:text-text shadow-sm" aria-label="Hide menu" title="Hide menu">
                   <ChevronDown size={16} />
@@ -402,7 +392,7 @@ const Layout: React.FC = () => {
             ) : (
             <div className="glass-panel flex justify-between items-center p-2 animate-fade-in" key="menu">
               <NavLink
-                to="/"
+                to="/app"
                 onClick={() => setShowMoreMenu(false)}
                 className={({ isActive }) =>
                   `flex flex-col items-center p-2 rounded-xl transition-all duration-200 shrink-0 w-[16%] ${isActive ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'
@@ -466,7 +456,7 @@ const Layout: React.FC = () => {
         ); })()}
 
         {/* Floating "show menu" button when the nav is hidden */}
-        {navHidden && location.pathname !== '/' && (
+        {navHidden && location.pathname !== '/app' && (
           <button
             onClick={() => setNavHidden(false)}
             className="fixed bottom-3 sm:absolute sm:bottom-3 left-1/2 -translate-x-1/2 z-40 px-4 py-1.5 rounded-full bg-surface/95 border border-text/10 text-muted hover:text-text shadow-lg flex items-center gap-1.5 animate-fade-in"

@@ -19,7 +19,30 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
-      }
+        display: ['"Bricolage Grotesque"', 'Inter', 'sans-serif'],
+      },
+      // `animate-fade-in` and `animate-slide-up` were already used in 28 files and 101 places,
+      // but the keyframes never existed — every one of those animations was silently a no-op.
+      keyframes: {
+        'fade-in': {
+          from: { opacity: '0', transform: 'translateY(4px)' },
+          to: { opacity: '1', transform: 'none' },
+        },
+        'slide-up': {
+          from: { transform: 'translateY(100%)' },
+          to: { transform: 'translateY(0)' },
+        },
+        // Each headline line rises out of its own overflow-hidden mask, so the words arrive
+        // from behind the line above rather than simply fading in.
+        'headline-rise': {
+          from: { transform: 'translateY(105%)' },
+          to: { transform: 'translateY(0)' },
+        },
+      },
+      animation: {
+        'fade-in': 'fade-in 0.25s ease-out both',
+        'slide-up': 'slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) both',
+      },
     },
   },
   plugins: [

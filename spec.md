@@ -23,8 +23,12 @@ Service Reminders tool was split into Servis Kenderaan and Servis Rumah — 25 e
   allowed to weaken this: the boot pull is behind a 1.5s timeout and can never delay or block
   the first paint, and every write lands locally and synchronously before the network is
   considered.
-- **Two runtime network calls, both opt-in.** `/api/bootstrap` on start when signed in, and
-  Google's `gsi/client` script when the user taps Sign in. There is no analytics.
+- **Network calls are few and named.** `/api/bootstrap` on start when signed in, Google's
+  `gsi/client` script when the user taps Sign in, and the Google Fonts stylesheet in
+  `index.css:1` (which has always been there, contrary to what this line used to claim).
+  Leaflet also fetches OSM tiles inside `/parking`. There is no analytics.
+- **`/` is a landing page; the app lives at `/app`.** Marketing renders outside the app shell;
+  the PWA's `start_url` is `/app` so installed users never see it.
 - **Structure over free text.** A tool exists to impose fields on something you'd otherwise
   scribble in Notes. If a feature doesn't store a record or drive a reminder, it doesn't belong.
 - **No calculators.** If Google, the OS, or a bank app answers it in one query, it's out.
@@ -120,8 +124,11 @@ server/
   tools.ts        per-tool blob <-> rows mappers. Adding a tool = one entry + one migration
   migrations/     001_auth, 002_sync, 003_simple_tools, 004_remaining_tools
 src/
-  main.tsx        entry; awaits store bootstrap before first paint, remounts on late pull
-  App.tsx         router — one <Route> per tool under a shared <Layout>
+  main.tsx        entry; applies the saved theme, awaits store bootstrap before first paint
+  App.tsx         router — landing at /, then a PATHLESS <Layout> route so every tool keeps
+                  its original URL while the catalog sits at /app. Catch-all redirects to /.
+  lib/tools.ts    DEFAULT_TOOLS registry + the derived MAIN_TOOLS / SIDE_TOOLS split
+  components/landing/  Landing, ExpiryWall (the hero signature), ToolSections
   db.ts           Dexie schema (v2) — device-local blobs, never synced
   index.css       theme variables + ~30 keyframe animations shared by tools
   lib/

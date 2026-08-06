@@ -66,6 +66,76 @@ describe('client and server agree on the tool list', () => {
     assert.deepEqual(client, server);
   });
 
+  test('the landing page sorts every catalog tool into exactly one section', async () => {
+    const store = await freshStore();
+    const { DEFAULT_TOOLS } = await import('./tools.ts');
+
+    const main = DEFAULT_TOOLS.filter((t) => Boolean(store.SYNCED_ROUTES[t.to]));
+    const side = DEFAULT_TOOLS.filter((t) => !store.SYNCED_ROUTES[t.to]);
+
+    assert.equal(main.length + side.length, DEFAULT_TOOLS.length,
+      'a new tool must land in one section or the other, never neither');
+    assert.ok(main.length, 'the landing page has record tools to promote');
+    assert.ok(side.length, 'and side tools to offer as a quick try');
+
+    // Every promoted tool must genuinely save, or the page is claiming something untrue.
+    for (const tool of main) {
+      assert.ok(store.SYNCED_KEYS.has(store.SYNCED_ROUTES[tool.to]),
+        `${tool.to} is promoted as saving data but its key is not synced`);
+    }
+    // And nothing in the side strip may quietly be a record tool.
+    for (const tool of side) {
+      assert.equal(store.SYNCED_ROUTES[tool.to], undefined,
+        `${tool.to} saves records but is listed as a throwaway side tool`);
+    }
+  });
+
+  test('both landing languages describe every promoted tool', async () => {
+    const store = await freshStore();
+    const { DEFAULT_TOOLS } = await import('./tools.ts');
+    const { COPY } = await import('../components/landing/copy.ts');
+
+    const main = DEFAULT_TOOLS.filter((t) => Boolean(store.SYNCED_ROUTES[t.to]));
+
+    // `reminds` is a Record<string, string>, so TypeScript can't check it for completeness —
+    // a tool added later would silently fall back to its short catalog blurb, in one language
+    // and not the other.
+    for (const lang of ['ms', 'en'] as const) {
+      for (const tool of main) {
+        assert.ok(COPY[lang].reminds[tool.to],
+          `${tool.to} has no ${lang} description on the landing page`);
+      }
+    }
+
+    assert.equal(COPY.ms.hero.headline.length, COPY.en.hero.headline.length,
+      'the headline is rendered line by line, so both languages need the same line count');
+    assert.equal(COPY.ms.wall.records.length, COPY.en.wall.records.length,
+      'the expiry wall pairs each record with a fixed day count by index');
+    assert.equal(COPY.ms.scale.length, COPY.en.scale.length);
+    assert.equal(COPY.ms.promises.length, COPY.en.promises.length);
+
+    // The previews render real totals, so a language showing a different set of recipients
+    // would quote a different amount given for the same screenshot.
+    assert.equal(COPY.ms.previews.doc.items.length, COPY.en.previews.doc.items.length);
+    assert.equal(COPY.ms.previews.service.events.length, COPY.en.previews.service.events.length);
+    assert.equal(COPY.ms.previews.raya.budget, COPY.en.previews.raya.budget);
+    assert.deepEqual(
+      COPY.ms.previews.raya.recipients.map((r) => [r.amount, r.given]),
+      COPY.en.previews.raya.recipients.map((r) => [r.amount, r.given]),
+      'only the names should differ between languages, never the money',
+    );
+    assert.deepEqual(
+      COPY.ms.previews.doc.items.map((d) => d.days),
+      COPY.en.previews.doc.items.map((d) => d.days),
+      'the same document should be the same number of days away in both languages',
+    );
+    assert.deepEqual(
+      COPY.ms.previews.travel.trips.map((trip) => [trip.country, trip.budget]),
+      COPY.en.previews.travel.trips.map((trip) => [trip.country, trip.budget]),
+      'the same trip cost the same money, and lights the same country on the map',
+    );
+  });
+
   test('every record tool has a route that warns guests, and no route is stale', async () => {
     const store = await freshStore();
 
