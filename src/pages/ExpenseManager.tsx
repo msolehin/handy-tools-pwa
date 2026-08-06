@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { store } from '../lib/store';
 import {
   Wallet, Plus, Trash2, Check, X, ChevronLeft, ChevronRight, Pencil, Archive, RotateCcw,
   TrendingUp, TrendingDown, PieChart, ListChecks, CreditCard, Coins, ArchiveRestore, CalendarDays
@@ -105,7 +106,7 @@ const ExpenseManager: React.FC = () => {
   const isPastView = viewMonth < currentMonth;
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = store.getItem(STORAGE_KEY);
     if (saved) {
       try {
         const p = JSON.parse(saved);
@@ -120,7 +121,7 @@ const ExpenseManager: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (isLoaded) localStorage.setItem(STORAGE_KEY, JSON.stringify({ expenses, incomes, commitments, expenseCats, commitCats }));
+    if (isLoaded) store.setItem(STORAGE_KEY, JSON.stringify({ expenses, incomes, commitments, expenseCats, commitCats }));
   }, [expenses, incomes, commitments, expenseCats, commitCats, isLoaded]);
 
   // --- Derived for the viewed month ---

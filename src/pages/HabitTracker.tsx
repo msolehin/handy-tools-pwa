@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Check, CalendarDays, LayoutGrid, ListChecks, ChevronLeft, ChevronRight, X, Pencil, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
+import { store } from '../lib/store';
 
 interface Habit {
   id: string;
@@ -83,7 +84,7 @@ const HabitTracker: React.FC = () => {
   const [isReordering, setIsReordering] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = store.getItem(STORAGE_KEY);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -94,7 +95,7 @@ const HabitTracker: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (isLoaded) localStorage.setItem(STORAGE_KEY, JSON.stringify(habits));
+    if (isLoaded) store.setItem(STORAGE_KEY, JSON.stringify(habits));
   }, [habits, isLoaded]);
 
   const todayKey = toKey(new Date());

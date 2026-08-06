@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { HandCoins, Trash2, CheckSquare, Square, Plus } from 'lucide-react';
+import { store } from '../lib/store';
 
 interface IOU {
   id: string;
@@ -22,7 +23,7 @@ const DebtTracker: React.FC = () => {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = store.getItem(STORAGE_KEY);
     if (saved) {
       try {
         setIous(JSON.parse(saved));
@@ -42,7 +43,7 @@ const DebtTracker: React.FC = () => {
 
   useEffect(() => {
     if (isLoaded) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(ious));
+      store.setItem(STORAGE_KEY, JSON.stringify(ious));
     }
   }, [ious, isLoaded]);
 

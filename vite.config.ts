@@ -4,13 +4,22 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   server: {
-    allowedHosts: true
+    allowedHosts: true,
+    // Same-origin in dev too, or the httpOnly session cookie is silently dropped and auth
+    // works in production but mysteriously not locally.
+    proxy: { '/api': 'http://localhost:3000' }
   },
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.png', 'apple-touch-icon.png'],
+      workbox: {
+        // Without this the SW answers /api/* navigations out of the precache with index.html,
+        // and the client parses HTML as JSON. Only bites once the API is same-origin.
+        navigateFallbackDenylist: [/^\/api\//],
+        cleanupOutdatedCaches: true
+      },
       manifest: {
         name: 'SenangKit',
         short_name: 'SenangKit',

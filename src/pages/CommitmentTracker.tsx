@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, Calendar, AlertCircle, RefreshCw, ExternalLink, Filter, CheckCircle2 } from 'lucide-react';
+import { store } from '../lib/store';
 import { Link } from 'react-router-dom';
 
 const EXPENSE_STORAGE_KEY = 'expense_manager_data';
@@ -34,7 +35,7 @@ const CommitmentTracker: React.FC = () => {
   const [selectedCat, setSelectedCat] = useState<string>('All');
 
   useEffect(() => {
-    const saved = localStorage.getItem(EXPENSE_STORAGE_KEY);
+    const saved = store.getItem(EXPENSE_STORAGE_KEY);
     if (saved) {
       try {
         const data = JSON.parse(saved);

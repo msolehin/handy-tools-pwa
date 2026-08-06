@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { store } from '../lib/store';
 import { 
   MapPin, ArrowRight, Shield, PieChart, Timer, Wallet,
   Calendar, ShieldAlert, Plane,
@@ -214,7 +215,7 @@ const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisab
   if (tool.id === '/duit-raya') {
     let drTheme = 'raya';
     try {
-      const drStr = localStorage.getItem('duit_raya_manager_data');
+      const drStr = store.getItem('duit_raya_manager_data');
       if (drStr) drTheme = JSON.parse(drStr).theme || 'raya';
     } catch (e) {}
     if (drTheme === 'angpao') {
@@ -233,7 +234,7 @@ const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisab
   // Calculate water percentage if this is the water tracker tool
   let waterPercentage = 0;
   if (tool.id === '/water-tracker') {
-    const waterStr = localStorage.getItem('water_tracker_data');
+    const waterStr = store.getItem('water_tracker_data');
     if (waterStr) {
       try {
         const water = JSON.parse(waterStr);
@@ -250,7 +251,7 @@ const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisab
   // Calculate debt total
   let debtTotal = 0;
   if (tool.id === '/debt-tracker') {
-    const debtStr = localStorage.getItem('debt_tracker_ious');
+    const debtStr = store.getItem('debt_tracker_ious');
     if (debtStr) {
       try {
         const ious = JSON.parse(debtStr);
@@ -678,7 +679,7 @@ const Home: React.FC = () => {
     };
 
     // 1. Document Expiry Alerts (<= 30 days or expired)
-    const docsStr = localStorage.getItem('de_documents');
+    const docsStr = store.getItem('de_documents');
     if (docsStr) {
       try {
         const docs = JSON.parse(docsStr);
@@ -698,7 +699,7 @@ const Home: React.FC = () => {
     }
 
     // 2. Countdown Events (Upcoming in next 7 days, or today)
-    const eventsStr = localStorage.getItem('cd_events');
+    const eventsStr = store.getItem('cd_events');
     if (eventsStr) {
       try {
         const events = JSON.parse(eventsStr);
@@ -718,7 +719,7 @@ const Home: React.FC = () => {
     }
 
     // 3. Commitments (Upcoming in next 3 days)
-    const subExpStr = localStorage.getItem('expense_manager_data');
+    const subExpStr = store.getItem('expense_manager_data');
     if (subExpStr) {
       try {
         const data = JSON.parse(subExpStr);
@@ -749,7 +750,7 @@ const Home: React.FC = () => {
     }
 
     // 4. Water Tracker
-    const waterStr = localStorage.getItem('water_tracker_data');
+    const waterStr = store.getItem('water_tracker_data');
     if (waterStr) {
       try {
         const water = JSON.parse(waterStr);
@@ -778,7 +779,7 @@ const Home: React.FC = () => {
     }
 
     // 6. Debt Tracker
-    const debtStr = localStorage.getItem('debt_tracker_ious');
+    const debtStr = store.getItem('debt_tracker_ious');
     if (debtStr) {
       try {
         const ious = JSON.parse(debtStr);
@@ -796,7 +797,7 @@ const Home: React.FC = () => {
     }
 
     // 7. Expense Manager — this month's spending vs income
-    const expStr = localStorage.getItem('expense_manager_data');
+    const expStr = store.getItem('expense_manager_data');
     if (expStr) {
       try {
         const data = JSON.parse(expStr);
@@ -854,7 +855,7 @@ const Home: React.FC = () => {
     }
 
     // 8. Habit Tracker — habits still to do today
-    const habitStr = localStorage.getItem('habit_tracker_data');
+    const habitStr = store.getItem('habit_tracker_data');
     if (habitStr) {
       try {
         const habits = JSON.parse(habitStr);
@@ -879,7 +880,7 @@ const Home: React.FC = () => {
     }
 
     // 9. Asset & Warranty Tracker — items expiring within 30 days
-    const warrantyStr = localStorage.getItem('asset_warranty_tracker_data');
+    const warrantyStr = store.getItem('asset_warranty_tracker_data');
     if (warrantyStr) {
       try {
         const assets = JSON.parse(warrantyStr);
@@ -900,7 +901,7 @@ const Home: React.FC = () => {
       } catch (e) {}
     }
     // 10. Vehicle Services — next service due within 30 days or overdue
-    const vehicleStr = localStorage.getItem('vehicle_services_data');
+    const vehicleStr = store.getItem('vehicle_services_data');
     if (vehicleStr) {
       try {
         const p = JSON.parse(vehicleStr);
@@ -923,7 +924,7 @@ const Home: React.FC = () => {
     }
 
     // 10b. Home Services — next service due within 30 days or overdue
-    const homeStr = localStorage.getItem('home_services_data');
+    const homeStr = store.getItem('home_services_data');
     if (homeStr) {
       try {
         const p = JSON.parse(homeStr);
@@ -946,7 +947,7 @@ const Home: React.FC = () => {
     }
 
     // 11. Birthdays & Anniversaries — the next occurrence within 14 days
-    const bdayStr = localStorage.getItem('birthdays_data');
+    const bdayStr = store.getItem('birthdays_data');
     if (bdayStr) {
       try {
         const p = JSON.parse(bdayStr);
@@ -971,7 +972,7 @@ const Home: React.FC = () => {
     }
 
     // 12. Sewa & Kontrak — contract ending within 60 days, and rent due within 3
-    const contractStr = localStorage.getItem('tenancy_data');
+    const contractStr = store.getItem('tenancy_data');
     if (contractStr) {
       try {
         const p = JSON.parse(contractStr);
@@ -1045,7 +1046,7 @@ const Home: React.FC = () => {
   // Theme-aware title for the Duit Raya / Angpao tool (used for alphabet sort & search)
   const duitRayaTitle = (() => {
     try {
-      const s = localStorage.getItem('duit_raya_manager_data');
+      const s = store.getItem('duit_raya_manager_data');
       if (s && JSON.parse(s).theme === 'angpao') return 'Kira Angpao';
     } catch (e) {}
     return 'Kira Duit Raya';

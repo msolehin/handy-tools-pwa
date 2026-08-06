@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Droplets, Undo2, Settings, X, RotateCcw, Smartphone } from 'lucide-react';
+import { store } from '../lib/store';
 
 interface WaterData {
   date: string;
@@ -69,7 +70,7 @@ const WaterTracker: React.FC = () => {
   }, [handleOrientation]);
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = store.getItem(STORAGE_KEY);
     if (saved) {
       try {
         const parsed = JSON.parse(saved) as WaterData;
@@ -86,7 +87,7 @@ const WaterTracker: React.FC = () => {
           };
           setData(newData);
           setTempGoal(newData.goal.toString());
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
+          store.setItem(STORAGE_KEY, JSON.stringify(newData));
         }
       } catch (e) {}
     }
@@ -94,7 +95,7 @@ const WaterTracker: React.FC = () => {
 
   const save = (newData: WaterData) => {
     setData(newData);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
+    store.setItem(STORAGE_KEY, JSON.stringify(newData));
   };
 
   const addWater = (amount: number) => {

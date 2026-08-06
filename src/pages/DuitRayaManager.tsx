@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Users, Coins, Check, ChevronDown, ChevronRight, Wallet, Trophy, Wallet2, Search, X, RotateCcw } from 'lucide-react';
+import { store } from '../lib/store';
 
 interface Recipient {
   id: string;
@@ -113,7 +114,7 @@ const DuitRayaManager: React.FC = () => {
   const [recipAmount, setRecipAmount] = useState('');
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = store.getItem(STORAGE_KEY);
     if (saved) {
       try {
         const parsed: SavedState = JSON.parse(saved);
@@ -129,7 +130,7 @@ const DuitRayaManager: React.FC = () => {
   useEffect(() => {
     if (isLoaded) {
       const data: SavedState = { theme, budget, families, disabledDenoms };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      store.setItem(STORAGE_KEY, JSON.stringify(data));
     }
   }, [theme, budget, families, disabledDenoms, isLoaded]);
 

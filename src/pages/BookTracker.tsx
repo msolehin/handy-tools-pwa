@@ -4,6 +4,8 @@ import {
   Tag, FileText, CheckCircle, Hash, Library, Quote,
   BarChart3, Bookmark, BookMarked, LayoutDashboard, Star, Target
 } from 'lucide-react';
+import { downscaleFile, shrinkExisting } from '../lib/downscale';
+import { store } from '../lib/store';
 
 type BookStatus = 'wishlist' | 'to-read' | 'reading' | 'completed';
 
@@ -53,11 +55,11 @@ const todayISO = () => new Date().toISOString().split('T')[0];
 export default function BookTracker() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [books, setBooks] = useState<Book[]>(() => {
-    const saved = localStorage.getItem('book_tracker_data');
+    const saved = store.getItem('book_tracker_data');
     return saved ? JSON.parse(saved) : [];
   });
   const [customCategories, setCustomCategories] = useState<string[]>(() => {
-    const saved = localStorage.getItem('book_tracker_custom_categories');
+    const saved = store.getItem('book_tracker_custom_categories');
     return saved ? JSON.parse(saved) : [];
   });
 
@@ -82,12 +84,22 @@ export default function BookTracker() {
   const [noteType, setNoteType] = useState<'quote' | 'note'>('quote');
 
   useEffect(() => {
-    localStorage.setItem('book_tracker_data', JSON.stringify(books));
+    store.setItem('book_tracker_data', JSON.stringify(books));
   }, [books]);
 
   useEffect(() => {
-    localStorage.setItem('book_tracker_custom_categories', JSON.stringify(customCategories));
+    store.setItem('book_tracker_custom_categories', JSON.stringify(customCategories));
   }, [customCategories]);
+
+  // One-shot: covers saved before downscaling existed are multi-MB. Runs once per device.
+  useEffect(() => {
+    if (localStorage.getItem('sk_img_v2_books')) return;
+    shrinkExisting(books, 'cover', 300).then(({ items: next, changed }) => {
+      if (changed) setBooks(next);
+      localStorage.setItem('sk_img_v2_books', '1');
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const resetForm = () => {
     setTitle('');
@@ -174,9 +186,8 @@ export default function BookTracker() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setCover(reader.result as string);
-      reader.readAsDataURL(file);
+      // 300px: covers only ever render as thumbnails.
+      downscaleFile(file, 300).then(setCover).catch(() => {});
     }
   };
 

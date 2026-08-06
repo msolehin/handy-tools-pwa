@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { store } from '../lib/store';
 import {
   Globe, Plus, Trash2, Pencil, X, Calendar, MapPin, Plane, Star,
   Clock, Search, ArrowUpDown, Layers, TrendingUp, ZoomIn, ZoomOut, Maximize, Wallet, Map as MapIcon, ChevronUp, ChevronDown, Check, Backpack
@@ -312,7 +313,7 @@ const TravelHistory: React.FC = () => {
   };
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = store.getItem(STORAGE_KEY);
     if (saved) {
       try {
         const p = JSON.parse(saved);
@@ -321,7 +322,7 @@ const TravelHistory: React.FC = () => {
     }
     setIsLoaded(true);
   }, []);
-  useEffect(() => { if (isLoaded) localStorage.setItem(STORAGE_KEY, JSON.stringify(trips)); }, [trips, isLoaded]);
+  useEffect(() => { if (isLoaded) store.setItem(STORAGE_KEY, JSON.stringify(trips)); }, [trips, isLoaded]);
 
   // --- Trip form (basic info only) ---
   const [showForm, setShowForm] = useState(false);

@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Home, MoreHorizontal, X, Sun, Moon, Settings, Check, Bell, ChevronUp, ChevronDown, Download
+  Home, MoreHorizontal, X, Sun, Moon, Settings, Check, Bell, ChevronUp, ChevronDown, Download,
+  UserRound
 } from 'lucide-react';
 import { DEFAULT_TOOLS } from '../pages/Home';
+import AccountPanel from './AccountPanel';
+import ImportPrompt from './ImportPrompt';
+import { getUser, subscribe, type User } from '../lib/auth';
+import { store } from '../lib/store';
 
 interface NavAlert {
   id: string;
@@ -72,6 +77,8 @@ const ALERT_PREFIX: Record<string, string> = {
 const Layout: React.FC = () => {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [authUser, setAuthUser] = useState<User | null>(getUser());
+  useEffect(() => subscribe(setAuthUser), []);
   const [navHidden, setNavHidden] = useState(false);
   const location = useLocation();
 
@@ -97,7 +104,7 @@ const Layout: React.FC = () => {
   // Duit Raya / Angpao manager swaps its name + colour based on the saved theme
   const readDuitRayaTheme = (): 'raya' | 'angpao' => {
     try {
-      const s = localStorage.getItem('duit_raya_manager_data');
+      const s = store.getItem('duit_raya_manager_data');
       if (s && JSON.parse(s).theme === 'angpao') return 'angpao';
     } catch (e) { }
     return 'raya';
@@ -308,6 +315,16 @@ const Layout: React.FC = () => {
                   <span>Install</span>
                 </button>
               )}
+              <button
+                onClick={() => setShowSettings(true)}
+                className="p-2 rounded-xl bg-surface/50 text-muted hover:text-primary transition-colors border border-text/10 overflow-hidden"
+                aria-label={authUser ? 'Account' : 'Sign in'}
+                title={authUser ? authUser.email : 'Sign in to save'}
+              >
+                {authUser?.picture
+                  ? <img src={authUser.picture} alt="" className="w-[18px] h-[18px] rounded-full" />
+                  : <UserRound size={18} />}
+              </button>
               <button
                 onClick={() => setIsLightMode(!isLightMode)}
                 className="p-2 rounded-xl bg-surface/50 text-muted hover:text-primary transition-colors border border-text/10"
@@ -532,6 +549,8 @@ const Layout: React.FC = () => {
           </>
         )}
 
+        <ImportPrompt />
+
         {/* Settings Bottom Sheet Modal */}
         {showSettings && (
           <>
@@ -555,6 +574,10 @@ const Layout: React.FC = () => {
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 pb-28 space-y-2 overscroll-contain">
+                  <AccountPanel />
+                  <p className="text-xs text-muted font-semibold uppercase tracking-wide pt-3 px-1">
+                    Quick access bar
+                  </p>
                   {moreTools.filter(t => t.to !== '#settings').map(tool => {
                     const isSelected = pinnedToolPaths.includes(tool.to);
                     const Icon = tool.icon;

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { store } from '../lib/store';
 import { 
   Hash, Plus, Trash2, Pencil, Search, Copy, Check, Eye, EyeOff, X, BookOpen
 } from 'lucide-react';
@@ -30,7 +31,7 @@ const ImportantNumbers: React.FC = () => {
   useEffect(() => { setFrameEl(document.getElementById('app-frame')); }, []);
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = store.getItem(STORAGE_KEY);
     if (saved) {
       try {
         const p = JSON.parse(saved);
@@ -43,7 +44,7 @@ const ImportantNumbers: React.FC = () => {
 
   useEffect(() => {
     if (isLoaded) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ items, categories }));
+      store.setItem(STORAGE_KEY, JSON.stringify({ items, categories }));
     }
   }, [items, categories, isLoaded]);
 

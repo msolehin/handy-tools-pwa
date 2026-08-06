@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { KeyRound, Plus, Trash2, Pencil, X, FileText, Phone } from 'lucide-react';
+import { store } from '../lib/store';
 import CategoryChips from '../components/CategoryChips';
 
 interface Contract {
@@ -58,7 +59,7 @@ const Tenancy: React.FC = () => {
   useEffect(() => { setFrameEl(document.getElementById('app-frame')); }, []);
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = store.getItem(STORAGE_KEY);
     if (saved) {
       try {
         const p = JSON.parse(saved);
@@ -70,7 +71,7 @@ const Tenancy: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (isLoaded) localStorage.setItem(STORAGE_KEY, JSON.stringify({ items, categories }));
+    if (isLoaded) store.setItem(STORAGE_KEY, JSON.stringify({ items, categories }));
   }, [items, categories, isLoaded]);
 
   // Form State

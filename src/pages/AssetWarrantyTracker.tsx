@@ -5,6 +5,8 @@ import {
   ShieldCheck, ShieldAlert, ShieldX, Activity, LayoutDashboard, List,
   Laptop, Car, Sofa, Wrench, Package, Zap, Search, Pencil
 } from 'lucide-react';
+import { downscaleFile, shrinkExisting } from '../lib/downscale';
+import { store as syncStore } from '../lib/store';
 
 export interface AssetItem {
   id: string;
@@ -46,12 +48,12 @@ const getCategoryIcon = (category: string): React.ElementType => CATEGORY_ICONS[
 export default function AssetWarrantyTracker() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'assets' | 'expired'>('dashboard');
   const [items, setItems] = useState<AssetItem[]>(() => {
-    const saved = localStorage.getItem('asset_warranty_tracker_data');
+    const saved = syncStore.getItem('asset_warranty_tracker_data');
     return saved ? JSON.parse(saved) : [];
   });
 
   const [customCategories, setCustomCategories] = useState<string[]>(() => {
-    const saved = localStorage.getItem('asset_warranty_custom_categories');
+    const saved = syncStore.getItem('asset_warranty_custom_categories');
     return saved ? JSON.parse(saved) : [];
   });
 
@@ -74,12 +76,23 @@ export default function AssetWarrantyTracker() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    localStorage.setItem('asset_warranty_tracker_data', JSON.stringify(items));
+    syncStore.setItem('asset_warranty_tracker_data', JSON.stringify(items));
   }, [items]);
 
   useEffect(() => {
-    localStorage.setItem('asset_warranty_custom_categories', JSON.stringify(customCategories));
+    syncStore.setItem('asset_warranty_custom_categories', JSON.stringify(customCategories));
   }, [customCategories]);
+
+  // One-shot: receipts saved before downscaling existed are multi-MB and can push the whole
+  // key past the localStorage quota. Runs once per device, then never again.
+  useEffect(() => {
+    if (localStorage.getItem('sk_img_v2_assets')) return;
+    shrinkExisting(items, 'receiptPhoto', 900).then(({ items: next, changed }) => {
+      if (changed) setItems(next);
+      localStorage.setItem('sk_img_v2_assets', '1');
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Recalculate expiry date when purchase date or warranty duration changes
   useEffect(() => {
@@ -155,11 +168,8 @@ export default function AssetWarrantyTracker() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setReceiptPhoto(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      // 900px: a receipt has to stay legible for a warranty claim.
+      downscaleFile(file, 900).then(setReceiptPhoto).catch(() => {});
     }
   };
 

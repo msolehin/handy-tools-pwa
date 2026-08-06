@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { store } from '../lib/store';
 import { 
   CarFront, Plus, Trash2, Pencil, X, CalendarClock, ChevronDown, ChevronUp, MapPin, Search, Check, Trash
 } from 'lucide-react';
@@ -75,14 +76,14 @@ const VehicleServices: React.FC = () => {
   const [frameEl, setFrameEl] = useState<HTMLElement | null>(null);
 
   const [customTitles, setCustomTitles] = useState<string[]>(() => {
-    const saved = localStorage.getItem(TITLES_KEY);
+    const saved = store.getItem(TITLES_KEY);
     return saved ? JSON.parse(saved) : [];
   });
 
   useEffect(() => { setFrameEl(document.getElementById('app-frame')); }, []);
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = store.getItem(STORAGE_KEY);
     if (saved) {
       try {
         const p = JSON.parse(saved);
@@ -97,8 +98,8 @@ const VehicleServices: React.FC = () => {
 
   useEffect(() => {
     if (isLoaded) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      localStorage.setItem(TITLES_KEY, JSON.stringify(customTitles));
+      store.setItem(STORAGE_KEY, JSON.stringify(data));
+      store.setItem(TITLES_KEY, JSON.stringify(customTitles));
     }
   }, [data, customTitles, isLoaded]);
 

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, Plus, X, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { downscaleFile } from '../lib/downscale';
+import { store } from '../lib/store';
 
 interface CountdownEvent {
   id: string;
@@ -10,7 +12,7 @@ interface CountdownEvent {
 
 const Countdown: React.FC = () => {
   const [events, setEvents] = useState<CountdownEvent[]>(() => {
-    const saved = localStorage.getItem('cd_events');
+    const saved = store.getItem('cd_events');
     return saved ? JSON.parse(saved) : [];
   });
 
@@ -20,45 +22,13 @@ const Countdown: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    localStorage.setItem('cd_events', JSON.stringify(events));
+    store.setItem('cd_events', JSON.stringify(events));
   }, [events]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 600;
-        const MAX_HEIGHT = 600;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
-          }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
-          }
-        }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          setNewImage(canvas.toDataURL('image/jpeg', 0.7)); // compress to 70% quality JPEG
-        }
-      };
-      img.src = event.target?.result as string;
-    };
-    reader.readAsDataURL(file);
+    downscaleFile(file, 600).then(setNewImage).catch(() => {});
   };
 
   const addEvent = (e: React.FormEvent) => {

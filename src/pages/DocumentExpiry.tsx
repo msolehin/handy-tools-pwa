@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldAlert, Plus, Trash2, FileWarning, FileCheck, AlertTriangle } from 'lucide-react';
+import { store } from '../lib/store';
 
 interface ExpiryDocument {
   id: string;
@@ -20,7 +21,7 @@ const DOCUMENT_TYPES = [
 
 const DocumentExpiry: React.FC = () => {
   const [documents, setDocuments] = useState<ExpiryDocument[]>(() => {
-    const saved = localStorage.getItem('de_documents');
+    const saved = store.getItem('de_documents');
     return saved ? JSON.parse(saved) : [];
   });
 
@@ -29,7 +30,7 @@ const DocumentExpiry: React.FC = () => {
   const [newDate, setNewDate] = useState('');
 
   useEffect(() => {
-    localStorage.setItem('de_documents', JSON.stringify(documents));
+    store.setItem('de_documents', JSON.stringify(documents));
   }, [documents]);
 
   const addDocument = (e: React.FormEvent) => {

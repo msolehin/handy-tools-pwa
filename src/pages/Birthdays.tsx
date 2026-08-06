@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Cake, Plus, Trash2, Pencil, X, Heart, Gift } from 'lucide-react';
 import CategoryChips from '../components/CategoryChips';
+import { store } from '../lib/store';
 
 interface Occasion {
   id: string;
@@ -53,7 +54,7 @@ const Birthdays: React.FC = () => {
   useEffect(() => { setFrameEl(document.getElementById('app-frame')); }, []);
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = store.getItem(STORAGE_KEY);
     if (saved) {
       try {
         const p = JSON.parse(saved);
@@ -65,7 +66,7 @@ const Birthdays: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (isLoaded) localStorage.setItem(STORAGE_KEY, JSON.stringify({ items, categories }));
+    if (isLoaded) store.setItem(STORAGE_KEY, JSON.stringify({ items, categories }));
   }, [items, categories, isLoaded]);
 
   // Form State
