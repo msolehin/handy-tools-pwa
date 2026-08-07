@@ -173,6 +173,24 @@ const Layout: React.FC = () => {
     return () => window.removeEventListener('home:alerts', onAlerts as EventListener);
   }, []);
 
+  // The frame is drawn at its design height of 850px. A laptop viewport is shorter than that, and
+  // capping the height there just crops the screen — a laptop ends up showing less of the app than
+  // a tall monitor does. Zoom the whole frame down to fit instead, so both show the same screen.
+  // `zoom` rather than `transform: scale` because it reflows: hit targets, scrolling and the
+  // modals portalled into this element all keep working without correcting for the scale.
+  useEffect(() => {
+    const frame = document.getElementById('app-frame');
+    if (!frame) return;
+    const fit = () => {
+      // Phones use the real full-height layout; the frame only exists from sm up.
+      const framed = window.matchMedia('(min-width: 640px)').matches;
+      frame.style.zoom = framed ? String(Math.min(1, (window.innerHeight - 64) / 850)) : '';
+    };
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  }, []);
+
   // Hide the header on scroll-down and swap the bottom bar to notifications.
   useEffect(() => {
     const container = document.getElementById('main-scroll-area');
@@ -278,7 +296,7 @@ const Layout: React.FC = () => {
 
   return (
     <div className="sm:flex sm:items-center sm:justify-center sm:min-h-screen sm:py-8 sm:w-full">
-      <div id="app-frame" className="flex flex-col min-h-screen sm:min-h-0 sm:h-[min(850px,calc(100vh-4rem))] max-w-md mx-auto w-full bg-background text-text shadow-[0_0_40px_rgba(0,0,0,0.15)] dark:shadow-[0_0_40px_rgba(0,0,0,0.5)] relative sm:rounded-[2.5rem] sm:border-[8px] sm:border-slate-800 dark:sm:border-slate-900 sm:overflow-hidden">
+      <div id="app-frame" className="flex flex-col min-h-screen sm:min-h-0 sm:h-[850px] max-w-md mx-auto w-full bg-background text-text shadow-[0_0_40px_rgba(0,0,0,0.15)] dark:shadow-[0_0_40px_rgba(0,0,0,0.5)] relative sm:rounded-[2.5rem] sm:border-[8px] sm:border-slate-800 dark:sm:border-slate-900 sm:overflow-hidden">
         {/* Top Navbar */}
         <header className={`sticky top-0 z-40 glass-panel rounded-none border-x-0 border-t-0 rounded-b-2xl overflow-hidden transition-all duration-300 ${headerHidden ? 'max-h-0 opacity-0' : 'max-h-24 opacity-100'}`}>
           <div className="max-w-md mx-auto px-6 py-4 flex items-center justify-between">
