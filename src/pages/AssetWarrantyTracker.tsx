@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { downscaleFile, shrinkExisting } from '../lib/downscale';
 import { store as syncStore } from '../lib/store';
+import { addMonths } from '../lib/horizon';
 
 export interface AssetItem {
   id: string;
@@ -67,7 +68,8 @@ export default function AssetWarrantyTracker() {
   const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().split('T')[0]);
   const [purchasePrice, setPurchasePrice] = useState('');
   const [warrantyDuration, setWarrantyDuration] = useState<number>(12);
-  const [expiryDate, setExpiryDate] = useState('');
+  // Only the "Custom Date" option owns a date of its own; every preset term is derived below.
+  const [customExpiry, setCustomExpiry] = useState('');
   const [serialNumber, setSerialNumber] = useState('');
   const [store, setStore] = useState('');
   const [notes, setNotes] = useState('');
@@ -94,14 +96,13 @@ export default function AssetWarrantyTracker() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Recalculate expiry date when purchase date or warranty duration changes
-  useEffect(() => {
-    if (warrantyDuration > 0 && purchaseDate) {
-      const pDate = new Date(purchaseDate);
-      pDate.setMonth(pDate.getMonth() + warrantyDuration);
-      setExpiryDate(pDate.toISOString().split('T')[0]);
-    }
-  }, [purchaseDate, warrantyDuration]);
+  // Derived during render, never stored. Keeping this in state and syncing it from an effect meant
+  // resetForm() could blank it without changing [purchaseDate, warrantyDuration] — so the effect
+  // never re-fired, the disabled field stayed empty (skipping `required`), and every save after the
+  // first hit the guard in handleSave and silently did nothing.
+  const expiryDate = warrantyDuration > 0
+    ? (purchaseDate ? addMonths(purchaseDate, warrantyDuration) : '')
+    : customExpiry;
 
   const resetForm = () => {
     setName('');
@@ -109,7 +110,7 @@ export default function AssetWarrantyTracker() {
     setPurchaseDate(new Date().toISOString().split('T')[0]);
     setPurchasePrice('');
     setWarrantyDuration(12);
-    setExpiryDate('');
+    setCustomExpiry('');
     setSerialNumber('');
     setStore('');
     setNotes('');
@@ -124,7 +125,7 @@ export default function AssetWarrantyTracker() {
     setPurchaseDate(item.purchaseDate);
     setPurchasePrice(item.purchasePrice.toString());
     setWarrantyDuration(item.warrantyDuration);
-    setExpiryDate(item.expiryDate);
+    setCustomExpiry(item.expiryDate);
     setSerialNumber(item.serialNumber || '');
     setStore(item.store || '');
     setNotes(item.notes || '');
@@ -510,7 +511,7 @@ export default function AssetWarrantyTracker() {
                   type="date"
                   required
                   value={expiryDate}
-                  onChange={(e) => setExpiryDate(e.target.value)}
+                  onChange={(e) => setCustomExpiry(e.target.value)}
                   disabled={warrantyDuration > 0}
                   className="w-full pl-10 pr-4 py-3 bg-surface border border-text/10 rounded-xl text-text focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-all disabled:opacity-50 disabled:bg-text/5"
                 />

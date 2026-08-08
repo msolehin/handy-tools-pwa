@@ -183,7 +183,7 @@ const HabitTracker: React.FC = () => {
   );
 
   // --- Weekly helpers ---
-  const baseWeekStart = addDays(new Date(), -new Date().getDay() + weekOffset * 7);
+  const baseWeekStart = addDays(new Date(), -((new Date().getDay() + 6) % 7) + weekOffset * 7);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(baseWeekStart, i));
   const weekLabel = `${MONTHS[weekDays[0].getMonth()]} ${weekDays[0].getDate()} – ${MONTHS[weekDays[6].getMonth()]} ${weekDays[6].getDate()}, ${weekDays[6].getFullYear()}`;
 
@@ -443,14 +443,14 @@ const HabitTracker: React.FC = () => {
                   </div>
                   <StreakRow habit={habit} />
                   <div className="grid grid-cols-7 gap-1.5">
-                    {weekDays.map((d, i) => {
+                    {weekDays.map((d) => {
                       const key = toKey(d);
                       const done = habit.completedDates.includes(key);
                       const isToday = key === todayKey;
                       const future = d > new Date();
                       return (
                         <div key={key} className="flex flex-col items-center gap-1">
-                          <span className={`text-[10px] ${isToday ? 'text-text font-bold' : 'text-muted'}`}>{WEEKDAYS[i]}</span>
+                          <span className={`text-[10px] ${isToday ? 'text-text font-bold' : 'text-muted'}`}>{WEEKDAYS[d.getDay()]}</span>
                           <button
                             onClick={() => !future && toggleDate(habit.id, key)}
                             disabled={future}

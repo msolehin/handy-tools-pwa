@@ -163,30 +163,30 @@ describe('store: guest mode', () => {
   test('a guest write goes to sessionStorage, never localStorage', async () => {
     const store = await freshStore();
     await store.bootstrap();
-    store.store.setItem('birthdays_data', '{"items":[1]}');
+    store.store.setItem('tenancy_data', '{"items":[1]}');
 
-    assert.equal(sessionStorage.getItem('birthdays_data'), '{"items":[1]}');
-    assert.equal(localStorage.getItem('birthdays_data'), null,
+    assert.equal(sessionStorage.getItem('tenancy_data'), '{"items":[1]}');
+    assert.equal(localStorage.getItem('tenancy_data'), null,
       'nothing a guest types may persist past the tab');
   });
 
   test('a guest still sees data an existing install already had', async () => {
     const store = await freshStore();
-    localStorage.setItem('birthdays_data', '{"items":["legacy"]}');
+    localStorage.setItem('tenancy_data', '{"items":["legacy"]}');
     await store.bootstrap();
 
-    assert.equal(store.store.getItem('birthdays_data'), '{"items":["legacy"]}',
+    assert.equal(store.store.getItem('tenancy_data'), '{"items":["legacy"]}',
       'without this, every existing user opens to an empty app on deploy day');
   });
 
   test('this-tab edits win over the legacy value', async () => {
     const store = await freshStore();
-    localStorage.setItem('birthdays_data', '{"items":["legacy"]}');
+    localStorage.setItem('tenancy_data', '{"items":["legacy"]}');
     await store.bootstrap();
-    store.store.setItem('birthdays_data', '{"items":["fresh"]}');
+    store.store.setItem('tenancy_data', '{"items":["fresh"]}');
 
-    assert.equal(store.store.getItem('birthdays_data'), '{"items":["fresh"]}');
-    assert.equal(localStorage.getItem('birthdays_data'), '{"items":["legacy"]}',
+    assert.equal(store.store.getItem('tenancy_data'), '{"items":["fresh"]}');
+    assert.equal(localStorage.getItem('tenancy_data'), '{"items":["legacy"]}',
       'the legacy value is read-only and must survive untouched');
   });
 
@@ -204,7 +204,7 @@ describe('store: guest mode', () => {
   test('a guest never calls the sync API', async () => {
     const store = await freshStore();
     await store.bootstrap();
-    store.store.setItem('birthdays_data', '{"items":[1]}');
+    store.store.setItem('tenancy_data', '{"items":[1]}');
     await store.flush();
 
     assert.equal(calls.filter((c) => c.url.includes('/api/sync')).length, 0);
@@ -222,23 +222,23 @@ describe('store: signed in', () => {
 
   test('pulled data lands in the mirror and is readable', async () => {
     const store = await freshStore();
-    signedInBootstrap({ birthdays_data: { items: ['server'] } }, { birthdays_data: 4 });
+    signedInBootstrap({ tenancy_data: { items: ['server'] } }, { tenancy_data: 4 });
     await store.bootstrap();
 
-    assert.deepEqual(JSON.parse(store.store.getItem('birthdays_data')!), { items: ['server'] });
-    assert.ok(localStorage.getItem('acct:birthdays_data'), 'mirrored for the next cold start');
+    assert.deepEqual(JSON.parse(store.store.getItem('tenancy_data')!), { items: ['server'] });
+    assert.ok(localStorage.getItem('acct:tenancy_data'), 'mirrored for the next cold start');
   });
 
   test('a write pushes and clears the pending count', async () => {
     const store = await freshStore();
-    signedInBootstrap({ birthdays_data: { items: [] } }, { birthdays_data: 1 });
+    signedInBootstrap({ tenancy_data: { items: [] } }, { tenancy_data: 1 });
     await store.bootstrap();
 
-    store.store.setItem('birthdays_data', '{"items":["mine"]}');
+    store.store.setItem('tenancy_data', '{"items":["mine"]}');
     assert.equal(store.pendingCount(), 1);
 
     await store.flush();
-    const put = calls.find((c) => c.url.includes('/api/sync/birthdays_data'));
+    const put = calls.find((c) => c.url.includes('/api/sync/tenancy_data'));
     assert.ok(put, 'the edit was pushed');
     assert.deepEqual(put.body.data, { items: ['mine'] });
     assert.equal(store.pendingCount(), 0);
@@ -253,7 +253,7 @@ describe('store: signed in', () => {
     handler = () => { throw new Error('network down'); };
     await store.bootstrap();
 
-    store.store.setItem('birthdays_data', '{"items":[]}');
+    store.store.setItem('tenancy_data', '{"items":[]}');
     await store.flush();
 
     assert.equal(calls.filter((c) => c.url.includes('/api/sync')).length, 0,
@@ -263,104 +263,104 @@ describe('store: signed in', () => {
 
   test('offline writes are queued, not lost', async () => {
     const store = await freshStore();
-    signedInBootstrap({ birthdays_data: { items: [] } }, { birthdays_data: 1 });
+    signedInBootstrap({ tenancy_data: { items: [] } }, { tenancy_data: 1 });
     await store.bootstrap();
 
     online = false;
-    store.store.setItem('birthdays_data', '{"items":["offline edit"]}');
+    store.store.setItem('tenancy_data', '{"items":["offline edit"]}');
     await store.flush();
 
     assert.equal(store.pendingCount(), 1, 'still pending while offline');
-    assert.deepEqual(JSON.parse(localStorage.getItem('acct:__dirty')!), ['birthdays_data']);
-    assert.equal(store.store.getItem('birthdays_data'), '{"items":["offline edit"]}',
+    assert.deepEqual(JSON.parse(localStorage.getItem('acct:__dirty')!), ['tenancy_data']);
+    assert.equal(store.store.getItem('tenancy_data'), '{"items":["offline edit"]}',
       'and readable immediately — offline behaviour is unchanged');
   });
 
   test('a 409 keeps the local edit rather than discarding it', async () => {
     const store = await freshStore();
-    signedInBootstrap({ birthdays_data: { items: ['server'] } }, { birthdays_data: 7 });
+    signedInBootstrap({ tenancy_data: { items: ['server'] } }, { tenancy_data: 7 });
     await store.bootstrap();
 
     handler = (url) => url.includes('/api/sync')
       ? { status: 409, body: { rev: 9, data: { items: ['theirs'] } } }
       : { status: 200, body: {} };
 
-    store.store.setItem('birthdays_data', '{"items":["mine"]}');
+    store.store.setItem('tenancy_data', '{"items":["mine"]}');
     await store.flush();
 
     assert.equal(store.pendingCount(), 1, 'the local edit stays queued, never dropped');
-    assert.equal(store.store.getItem('birthdays_data'), '{"items":["mine"]}');
+    assert.equal(store.store.getItem('tenancy_data'), '{"items":["mine"]}');
   });
 
   test('resolving a conflict as theirs adopts the server copy', async () => {
     const store = await freshStore();
-    signedInBootstrap({ birthdays_data: { items: ['server'] } }, { birthdays_data: 7 });
+    signedInBootstrap({ tenancy_data: { items: ['server'] } }, { tenancy_data: 7 });
     await store.bootstrap();
-    store.store.setItem('birthdays_data', '{"items":["mine"]}');
+    store.store.setItem('tenancy_data', '{"items":["mine"]}');
 
-    store.resolveConflict('birthdays_data', 'theirs', 9, { items: ['theirs'] });
+    store.resolveConflict('tenancy_data', 'theirs', 9, { items: ['theirs'] });
 
-    assert.deepEqual(JSON.parse(store.store.getItem('birthdays_data')!), { items: ['theirs'] });
+    assert.deepEqual(JSON.parse(store.store.getItem('tenancy_data')!), { items: ['theirs'] });
     assert.equal(store.pendingCount(), 0);
   });
 
   test('legacy device data is offered for import, not uploaded behind your back', async () => {
     const store = await freshStore();
-    localStorage.setItem('birthdays_data', '{"items":["legacy"]}');
+    localStorage.setItem('tenancy_data', '{"items":["legacy"]}');
     signedInBootstrap({}, {});          // account has never seen this tool
     await store.bootstrap();
 
-    assert.deepEqual(store.pendingImport(), ['birthdays_data']);
+    assert.deepEqual(store.pendingImport(), ['tenancy_data']);
     assert.equal(calls.filter((c) => c.url.includes('/api/sync')).length, 0,
       'nothing is sent until the user says so');
   });
 
   test('declining the import leaves the device data untouched', async () => {
     const store = await freshStore();
-    localStorage.setItem('birthdays_data', '{"items":["legacy"]}');
+    localStorage.setItem('tenancy_data', '{"items":["legacy"]}');
     signedInBootstrap({}, {});
     await store.bootstrap();
 
     store.skipImport();
 
     assert.deepEqual(store.pendingImport(), []);
-    assert.equal(localStorage.getItem('birthdays_data'), '{"items":["legacy"]}',
+    assert.equal(localStorage.getItem('tenancy_data'), '{"items":["legacy"]}',
       'declining must never delete anything');
     assert.equal(calls.filter((c) => c.url.includes('/api/sync')).length, 0);
   });
 
   test('accepting the import uploads once and adopts the data', async () => {
     const store = await freshStore();
-    localStorage.setItem('birthdays_data', '{"items":["legacy"]}');
+    localStorage.setItem('tenancy_data', '{"items":["legacy"]}');
     signedInBootstrap({}, {});
     await store.bootstrap();
 
     handler = (url) => url.includes('/api/sync/import')
-      ? { status: 200, body: { imported: ['birthdays_data'] } }
+      ? { status: 200, body: { imported: ['tenancy_data'] } }
       : { status: 200, body: { rev: 1 } };
 
     assert.equal(await store.runImport(), true);
     const post = calls.find((c) => c.url.includes('/api/sync/import'));
-    assert.deepEqual(post.body.birthdays_data, { items: ['legacy'] });
+    assert.deepEqual(post.body.tenancy_data, { items: ['legacy'] });
     assert.deepEqual(store.pendingImport(), []);
   });
 
   test('a failed import keeps the data pending rather than claiming success', async () => {
     const store = await freshStore();
-    localStorage.setItem('birthdays_data', '{"items":["legacy"]}');
+    localStorage.setItem('tenancy_data', '{"items":["legacy"]}');
     signedInBootstrap({}, {});
     await store.bootstrap();
 
     handler = () => ({ status: 500, body: { error: 'boom' } });
 
     assert.equal(await store.runImport(), false);
-    assert.equal(localStorage.getItem('birthdays_data'), '{"items":["legacy"]}');
+    assert.equal(localStorage.getItem('tenancy_data'), '{"items":["legacy"]}');
   });
 
   test('a tool the account already holds is not offered for import', async () => {
     const store = await freshStore();
-    localStorage.setItem('birthdays_data', '{"items":["legacy"]}');
-    signedInBootstrap({ birthdays_data: { items: ['server'] } }, { birthdays_data: 3 });
+    localStorage.setItem('tenancy_data', '{"items":["legacy"]}');
+    signedInBootstrap({ tenancy_data: { items: ['server'] } }, { tenancy_data: 3 });
     await store.bootstrap();
 
     assert.deepEqual(store.pendingImport(), [],
@@ -375,15 +375,15 @@ describe('store: signed in', () => {
     store.onLateHydrate(() => { remounts++; });
 
     await store.bootstrap();                       // boots as a guest (401)
-    assert.equal(store.store.getItem('birthdays_data'), null);
+    assert.equal(store.store.getItem('tenancy_data'), null);
 
     // Now the sign-in callback lands, exactly as auth.ts does it.
-    signedInBootstrap({ birthdays_data: { items: ['from account'] } }, { birthdays_data: 2 });
+    signedInBootstrap({ tenancy_data: { items: ['from account'] } }, { tenancy_data: 2 });
     const { setUser } = await import('./auth.ts');
     setUser({ email: 'a@b.c', name: 'A', picture: '' });
     await new Promise((r) => setTimeout(r, 20));   // let the subscriber's bootstrap settle
 
-    assert.deepEqual(JSON.parse(store.store.getItem('birthdays_data')!), { items: ['from account'] },
+    assert.deepEqual(JSON.parse(store.store.getItem('tenancy_data')!), { items: ['from account'] },
       'account data is readable immediately after sign-in');
     assert.ok(remounts > 0, 'and the app remounts so mounted pages re-read it');
   });
@@ -391,12 +391,12 @@ describe('store: signed in', () => {
   test('a different account on the same device wipes the previous mirror', async () => {
     const store = await freshStore();
     localStorage.setItem('acct:__uid', 'someone@else.com');
-    localStorage.setItem('acct:birthdays_data', '{"items":["theirs"]}');
+    localStorage.setItem('acct:tenancy_data', '{"items":["theirs"]}');
 
     signedInBootstrap({}, {});
     await store.bootstrap();
 
-    assert.equal(localStorage.getItem('acct:birthdays_data'), null,
+    assert.equal(localStorage.getItem('acct:tenancy_data'), null,
       'user B must never see user A cached blobs');
   });
 });

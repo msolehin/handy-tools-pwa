@@ -71,31 +71,15 @@ const dropNulls = <T extends Record<string, unknown>>(rows: T[]): T[] =>
     return out;
   });
 
+// The Birthdays tool was removed from the app. Its `occasions` table and `birthday_cat` list are
+// deliberately left in the schema rather than dropped — the rows are user data, and a migration
+// that deletes them cannot be undone. With no descriptor here the key no longer syncs, so the
+// table simply stops being written to.
 export const TOOLS: Record<string, Descriptor> = {
-  birthdays_data: {
-    async read(q, uid) {
-      const { rows } = await q(
-        `select id, name, date::text as date, type, category, note
-           from occasions where user_id = $1 order by pos`, [uid]);
-      return { items: rows, categories: await readList(q, uid, 'birthday_cat') };
-    },
-    async write(q, uid, blob) {
-      await q('delete from occasions where user_id = $1', [uid]);
-      await insertMany(q, 'occasions',
-        ['user_id', 'id', 'name', 'date', 'type', 'category', 'note', 'pos'],
-        arr(blob?.items).map((o, i) => [
-          uid, String(o.id), String(o.name ?? ''), o.date,
-          o.type === 'anniversary' ? 'anniversary' : 'birthday',
-          String(o.category ?? ''), String(o.note ?? ''), i,
-        ]));
-      await writeList(q, uid, 'birthday_cat', blob?.categories);
-    },
-  },
-
   tenancy_data: {
     async read(q, uid) {
       const { rows } = await q(
-        `select id, title, category, party, phone,
+        `select id, title, category, party, phone, address,
                 start_date::text as "startDate", end_date::text as "endDate",
                 amount::float8 as amount, due_day as "dueDay",
                 deposit::float8 as deposit, notes
@@ -105,11 +89,12 @@ export const TOOLS: Record<string, Descriptor> = {
     async write(q, uid, blob) {
       await q('delete from contracts where user_id = $1', [uid]);
       await insertMany(q, 'contracts',
-        ['user_id', 'id', 'title', 'category', 'party', 'phone', 'start_date', 'end_date',
-          'amount', 'due_day', 'deposit', 'notes', 'pos'],
+        ['user_id', 'id', 'title', 'category', 'party', 'phone', 'address', 'start_date',
+          'end_date', 'amount', 'due_day', 'deposit', 'notes', 'pos'],
         arr(blob?.items).map((c, i) => [
           uid, String(c.id), String(c.title ?? ''), String(c.category ?? ''),
-          String(c.party ?? ''), String(c.phone ?? ''), c.startDate, c.endDate,
+          String(c.party ?? ''), String(c.phone ?? ''), String(c.address ?? ''),
+          c.startDate, c.endDate,
           num(c.amount), Math.min(31, Math.max(1, num(c.dueDay) || 1)),
           num(c.deposit), String(c.notes ?? ''), i,
         ]));

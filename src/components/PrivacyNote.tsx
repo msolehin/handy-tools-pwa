@@ -30,7 +30,7 @@ const PrivacyNote: React.FC = () => {
             {user ? (
               <>
                 Your records are saved to your Google account, so you can reach them from any
-                device — including the account and ID numbers you keep in Important Numbers.
+                device — including the account and ID numbers you keep in Important Number / Date.
                 {' '}{LOCAL_ONLY} never upload anything: they run entirely on this device.
                 Everything keeps working offline; changes sync when you're back online.
               </>

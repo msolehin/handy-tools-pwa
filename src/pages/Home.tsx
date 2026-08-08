@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { store } from '../lib/store';
+import { openServices } from '../lib/horizon';
 import PrivacyNote from '../components/PrivacyNote';
 import { 
   ArrowRight,
@@ -29,11 +30,11 @@ import { getDaysUntil } from './CommitmentTracker';
 import { nextDueDate } from './Tenancy';
 
 // The registry now lives in lib; re-exported so existing importers keep working.
-import { DEFAULT_TOOLS, HOT_IDS } from '../lib/tools';
+import { DEFAULT_TOOLS, HOT_IDS, CORE_TOOLS, EXTRA_TOOLS, duitRayaLook } from '../lib/tools';
 export { DEFAULT_TOOLS, HOT_IDS };
 
 
-// Newly launched tools — show a "NEW" badge for 7 days, then they roll over to "HOT"
+// Newly launched tools — show a "NEW" badge for 7 days, then HOT_IDS alone decides the badge
 const NEW_TOOLS: Record<string, string> = {
   '/habit-tracker': '2026-06-08',
   '/expense-manager': '2026-06-08',
@@ -43,16 +44,12 @@ const NEW_TOOLS: Record<string, string> = {
   '/vehicle-services': '2026-08-05',
   '/home-services': '2026-08-05',
   '/pdf-editor': '2026-07-07',
-  '/birthdays': '2026-07-30',
   '/tenancy': '2026-07-30',
 };
 const NEW_DAYS = 7;
 const badgeFor = (id: string): 'new' | 'hot' | null => {
   const launch = NEW_TOOLS[id];
-  if (launch) {
-    const days = (Date.now() - new Date(launch).getTime()) / 86400000;
-    return days < NEW_DAYS ? 'new' : 'hot';
-  }
+  if (launch && (Date.now() - new Date(launch).getTime()) / 86400000 < NEW_DAYS) return 'new';
   return HOT_IDS.includes(id) ? 'hot' : null;
 };
 
@@ -108,28 +105,11 @@ const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisab
   const badge = badgeFor(tool.id);
 
   // Duit Raya / Angpao card swaps its look based on the saved theme
-  let displayTitle = tool.title;
-  let displayDesc = tool.desc;
-  let displayIconBg = tool.iconBgClass;
-  let festiveEmoji: string | null = null;
-  if (tool.id === '/duit-raya') {
-    let drTheme = 'raya';
-    try {
-      const drStr = store.getItem('duit_raya_manager_data');
-      if (drStr) drTheme = JSON.parse(drStr).theme || 'raya';
-    } catch (e) {}
-    if (drTheme === 'angpao') {
-      displayTitle = 'Kira Angpao';
-      displayDesc = 'Plan & track CNY packets';
-      displayIconBg = 'bg-red-500/20 text-red-400';
-      festiveEmoji = '🧧';
-    } else {
-      displayTitle = 'Kira Duit Raya';
-      displayDesc = 'Plan & track Raya money';
-      displayIconBg = 'bg-emerald-500/20 text-emerald-400';
-      festiveEmoji = '🌙';
-    }
-  }
+  const raya = tool.id === '/duit-raya' ? duitRayaLook() : null;
+  const displayTitle = raya?.title ?? tool.title;
+  const displayDesc = raya?.desc ?? tool.desc;
+  const displayIconBg = raya?.iconBgClass ?? tool.iconBgClass;
+  const festiveEmoji = raya?.emoji ?? null;
 
   // Calculate water percentage if this is the water tracker tool
   let waterPercentage = 0;
@@ -532,38 +512,16 @@ const Home: React.FC = () => {
     localStorage.setItem('handy-animations', JSON.stringify(animationsEnabled));
   }, [animationsEnabled]);
 
-  const [tools, setTools] = useState(() => {
-    const savedOrder = localStorage.getItem('home_tool_order');
-    let base = DEFAULT_TOOLS as typeof DEFAULT_TOOLS;
-    if (savedOrder) {
-      const orderIds = JSON.parse(savedOrder);
-      // Reconstruct the array based on saved IDs
-      const orderedTools = orderIds
-        .map((id: string) => DEFAULT_TOOLS.find(t => t.id === id))
-        .filter(Boolean);
-
-      // Append any new tools that aren't in the saved order yet
-      const newTools = DEFAULT_TOOLS.filter(t => !orderIds.includes(t.id));
-      base = [...orderedTools, ...newTools];
-    }
-
-    // One-time promotion: move HOT tools to the top (respects manual reordering afterwards)
-    if (!localStorage.getItem('hot_tools_promoted_v3')) {
-      const hot = HOT_IDS.map(id => base.find(t => t.id === id)).filter(Boolean) as typeof DEFAULT_TOOLS;
-      const rest = base.filter(t => !HOT_IDS.includes(t.id));
-      base = [...hot, ...rest];
-      localStorage.setItem('hot_tools_promoted_v3', '1');
-    }
-    return base;
-  });
-
   useEffect(() => {
     localStorage.setItem('home_view_mode', viewMode);
   }, [viewMode]);
 
+  // The catalog order is fixed (spec §2 priority, see lib/tools.ts) — only Favorites reorder.
+  // Drop the old per-device order so an existing user's stale shuffle doesn't linger unused.
   useEffect(() => {
-    localStorage.setItem('home_tool_order', JSON.stringify(tools.map(t => t.id)));
-  }, [tools]);
+    localStorage.removeItem('home_tool_order');
+    localStorage.removeItem('hot_tools_promoted_v3');
+  }, []);
 
   // Load Alerts
   useEffect(() => {
@@ -805,7 +763,8 @@ const Home: React.FC = () => {
     if (vehicleStr) {
       try {
         const p = JSON.parse(vehicleStr);
-        const events = Array.isArray(p.events) ? p.events : [];
+        // Superseded visits keep a stale nextServiceDate; only the newest per service is still owed.
+        const events = openServices(Array.isArray(p.events) ? p.events : []);
         events.forEach((s: any) => {
           if (s.nextServiceDate) {
             const days = getDaysLeft(s.nextServiceDate);
@@ -828,7 +787,7 @@ const Home: React.FC = () => {
     if (homeStr) {
       try {
         const p = JSON.parse(homeStr);
-        const events = Array.isArray(p.events) ? p.events : [];
+        const events = openServices(Array.isArray(p.events) ? p.events : []);
         events.forEach((s: any) => {
           if (s.nextServiceDate) {
             const days = getDaysLeft(s.nextServiceDate);
@@ -846,32 +805,7 @@ const Home: React.FC = () => {
       } catch (e) {}
     }
 
-    // 11. Birthdays & Anniversaries — the next occurrence within 14 days
-    const bdayStr = store.getItem('birthdays_data');
-    if (bdayStr) {
-      try {
-        const p = JSON.parse(bdayStr);
-        const occasions = Array.isArray(p.items) ? p.items : [];
-        occasions.forEach((o: any) => {
-          if (!o.date) return;
-          const src = new Date(o.date);
-          let next = new Date(today.getFullYear(), src.getMonth(), src.getDate());
-          if (next.getTime() < today.getTime()) next = new Date(today.getFullYear() + 1, src.getMonth(), src.getDate());
-          const days = getDaysLeft(next.toISOString().split('T')[0]);
-          if (days >= 0 && days <= 14) {
-            newAlerts.push({
-              id: `bday-${o.id}`,
-              type: 'event',
-              title: o.type === 'anniversary' ? `${o.name} Anniversary` : `${o.name}'s Birthday`,
-              daysLeft: days,
-              to: '/birthdays'
-            });
-          }
-        });
-      } catch (e) {}
-    }
-
-    // 12. Sewa & Kontrak — contract ending within 60 days, and rent due within 3
+    // 11. Sewa & Kontrak — contract ending within 60 days, and rent due within 3
     const contractStr = store.getItem('tenancy_data');
     if (contractStr) {
       try {
@@ -915,43 +849,28 @@ const Home: React.FC = () => {
     })
   );
 
+  // Only the Favorites section reorders (ids are prefixed with "fav-")
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const activeId = String(active.id);
-    const overId = String(over.id);
-
-    // Reordering within the Favorites section (ids are prefixed with "fav-")
-    if (activeId.startsWith('fav-') && overId.startsWith('fav-')) {
-      const aId = activeId.slice(4);
-      const oId = overId.slice(4);
-      setFavorites((items) => {
-        const oldIndex = items.indexOf(aId);
-        const newIndex = items.indexOf(oId);
-        if (oldIndex === -1 || newIndex === -1) return items;
-        return arrayMove(items, oldIndex, newIndex);
-      });
-      return;
-    }
-
-    setTools((items) => {
-      const oldIndex = items.findIndex(t => t.id === activeId);
-      const newIndex = items.findIndex(t => t.id === overId);
+    const aId = String(active.id).slice(4);
+    const oId = String(over.id).slice(4);
+    setFavorites((items) => {
+      const oldIndex = items.indexOf(aId);
+      const newIndex = items.indexOf(oId);
       if (oldIndex === -1 || newIndex === -1) return items;
       return arrayMove(items, oldIndex, newIndex);
     });
   };
 
   // Theme-aware title for the Duit Raya / Angpao tool (used for alphabet sort & search)
-  const duitRayaTitle = (() => {
-    try {
-      const s = store.getItem('duit_raya_manager_data');
-      if (s && JSON.parse(s).theme === 'angpao') return 'Kira Angpao';
-    } catch (e) {}
-    return 'Kira Duit Raya';
-  })();
-  const titleOf = (tool: typeof DEFAULT_TOOLS[0]) => (tool.id === '/duit-raya' ? duitRayaTitle : tool.title);
+  const duitRaya = duitRayaLook();
+  const titleOf = (tool: typeof DEFAULT_TOOLS[0]) => (tool.id === '/duit-raya' ? duitRaya.title : tool.title);
+  const matchesSearch = (tool: typeof DEFAULT_TOOLS[0]) => {
+    const q = searchQuery.toLowerCase();
+    return titleOf(tool).toLowerCase().includes(q) || tool.desc.toLowerCase().includes(q);
+  };
 
   // Column count for grid-based views (not list)
   const gridColClass = gridCols === 4 ? 'grid-cols-4' : gridCols === 3 ? 'grid-cols-3' : 'grid-cols-2';
@@ -1164,7 +1083,7 @@ const Home: React.FC = () => {
                   <Sparkles size={20} className={animationsEnabled ? 'animate-pulse' : ''} />
                 </button>
               )}
-              {viewMode !== 'category' && viewMode !== 'alphabet' && !searchQuery && (
+              {favorites.length > 1 && viewMode !== 'category' && viewMode !== 'alphabet' && !searchQuery && (
                 <button
                   onClick={() => setIsReordering(!isReordering)}
                   className={`p-2 rounded-xl transition-all border flex items-center justify-center ${
@@ -1172,7 +1091,7 @@ const Home: React.FC = () => {
                       ? 'bg-rose-500/20 border-rose-500/50 text-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.3)]' 
                       : 'bg-surface border-text/10 text-muted hover:bg-text/5 hover:text-text'
                   }`}
-                  title="Reorder Tools"
+                  title="Reorder Favorites"
                 >
                   <ArrowUpDown size={20} className={isReordering ? 'animate-pulse' : ''} />
                 </button>
@@ -1258,7 +1177,7 @@ const Home: React.FC = () => {
         {isReordering && (
           <div className="mb-4 flex items-center gap-2 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm font-medium animate-fade-in">
             <ArrowUpDown size={16} className="shrink-0 animate-pulse" />
-            <span>Drag &amp; drop tools to reorder them. Tap the button again when you're done.</span>
+            <span>Drag &amp; drop your favorites to reorder them. Tap the button again when you're done.</span>
           </div>
         )}
 
@@ -1269,13 +1188,9 @@ const Home: React.FC = () => {
         >
           {viewMode === 'category' ? (
             <div className="space-y-8 animate-fade-in">
-              {Array.from(new Set(tools.map(t => t.category))).map(cat => {
-                const catTools = tools.filter(t => 
-                  t.category === cat && 
-                  (t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                   t.desc.toLowerCase().includes(searchQuery.toLowerCase()))
-                );
-                
+              {Array.from(new Set(DEFAULT_TOOLS.map(t => t.category))).map(cat => {
+                const catTools = DEFAULT_TOOLS.filter(t => t.category === cat && matchesSearch(t));
+
                 if (catTools.length === 0) return null;
 
                 return (
@@ -1307,8 +1222,8 @@ const Home: React.FC = () => {
                 <div className="h-px bg-text/10 flex-1"></div>
               </div>
               <div className={`grid ${gridColClass} gap-4`}>
-                {[...tools]
-                  .filter(t => titleOf(t).toLowerCase().includes(searchQuery.toLowerCase()) || t.desc.toLowerCase().includes(searchQuery.toLowerCase()))
+                {[...DEFAULT_TOOLS]
+                  .filter(matchesSearch)
                   .sort((a, b) => titleOf(a).localeCompare(titleOf(b)))
                   .map(tool => (
                     <SortableToolCard
@@ -1340,7 +1255,7 @@ const Home: React.FC = () => {
                       strategy={rectSortingStrategy}
                     >
                     {favorites.map(id => {
-                      const tool = tools.find(t => t.id === id) || DEFAULT_TOOLS.find(t => t.id === id);
+                      const tool = DEFAULT_TOOLS.find(t => t.id === id);
                       if (!tool) return null;
                       return (
                         <SortableToolCard
@@ -1387,14 +1302,12 @@ const Home: React.FC = () => {
                   {!recentMinimized && (
                   <div className="grid grid-cols-2 gap-2">
                     {recentTools.map(id => {
-                      const tool = tools.find(t => t.id === id) || DEFAULT_TOOLS.find(t => t.id === id);
+                      const tool = DEFAULT_TOOLS.find(t => t.id === id);
                       if (!tool) return null;
                       const RecentIcon = tool.Icon;
                       const isDuitRaya = tool.id === '/duit-raya';
-                      const recentEmoji = isDuitRaya ? (duitRayaTitle === 'Kira Angpao' ? '🧧' : '🌙') : null;
-                      const recentIconBg = isDuitRaya
-                        ? (duitRayaTitle === 'Kira Angpao' ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400')
-                        : tool.iconBgClass;
+                      const recentEmoji = isDuitRaya ? duitRaya.emoji : null;
+                      const recentIconBg = isDuitRaya ? duitRaya.iconBgClass : tool.iconBgClass;
                       const goTo = () => {
                         handleToolClick(tool.id);
                         if (tool.to.startsWith('http')) window.open(tool.to, '_blank', 'noopener,noreferrer');
@@ -1419,7 +1332,7 @@ const Home: React.FC = () => {
               )}
 
               <div className="space-y-4">
-                {!searchQuery && (favorites.length > 0 || recentTools.length > 0) && (
+                {!searchQuery && (
                   <div className="flex items-center space-x-3 px-1">
                     <div className="h-px bg-text/10 flex-1"></div>
                     <h3 className="text-sm font-bold text-muted uppercase tracking-widest">All Tools</h3>
@@ -1427,45 +1340,47 @@ const Home: React.FC = () => {
                   </div>
                 )}
                 <div className={viewMode === 'list' ? "grid gap-4" : `grid ${gridColClass} gap-4`}>
-              <SortableContext 
-                items={tools
-                  .filter(t => t.id !== 'https://befday.com/' && (t.title.toLowerCase().includes(searchQuery.toLowerCase()) || t.desc.toLowerCase().includes(searchQuery.toLowerCase())))
-                  .map(t => t.id)}
-                strategy={rectSortingStrategy}
-              >
-                {tools
-                  .filter(t => t.id !== 'https://befday.com/' && (t.title.toLowerCase().includes(searchQuery.toLowerCase()) || t.desc.toLowerCase().includes(searchQuery.toLowerCase())))
-                  .map(tool => (
-                    <SortableToolCard 
-                      key={tool.id} 
-                      tool={tool} 
-                      viewMode={viewMode} 
-                      isReordering={isReordering} 
-                      animationsEnabled={animationsEnabled} 
+                  {CORE_TOOLS.filter(matchesSearch).map(tool => (
+                    <SortableToolCard
+                      key={tool.id}
+                      tool={tool}
+                      viewMode={viewMode}
+                      isReordering={false}
+                      forceDisableDrag={true}
+                      animationsEnabled={animationsEnabled}
                       isFavorite={favorites.includes(tool.id)}
                       onToggleFavorite={toggleFavorite}
                       onToolClick={handleToolClick}
                     />
                   ))}
-              </SortableContext>
-              
-              {/* Birthday Claim at the end if it matches search */}
-              {(tools.find(t => t.id === 'https://befday.com/') || DEFAULT_TOOLS.find(t => t.id === 'https://befday.com/')) && 
-               DEFAULT_TOOLS.find(t => t.id === 'https://befday.com/')?.title.toLowerCase().includes(searchQuery.toLowerCase()) && (
-                <SortableToolCard 
-                  key="https://befday.com/" 
-                  tool={DEFAULT_TOOLS.find(t => t.id === 'https://befday.com/')!} 
-                  viewMode={viewMode} 
-                  isReordering={false} 
-                  forceDisableDrag={true}
-                  animationsEnabled={animationsEnabled} 
-                  isFavorite={favorites.includes('https://befday.com/')}
-                  onToggleFavorite={toggleFavorite}
-                  onToolClick={handleToolClick}
-                />
-              )}
                 </div>
               </div>
+
+              {/* Lain-lain — the small convenience tools that support the record tools */}
+              {EXTRA_TOOLS.some(matchesSearch) && (
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-3 px-1">
+                    <div className="h-px bg-text/10 flex-1"></div>
+                    <h3 className="text-sm font-bold text-muted uppercase tracking-widest">Lain-lain</h3>
+                    <div className="h-px bg-text/10 flex-1"></div>
+                  </div>
+                  <div className={viewMode === 'list' ? "grid gap-4" : `grid ${gridColClass} gap-4`}>
+                    {EXTRA_TOOLS.filter(matchesSearch).map(tool => (
+                      <SortableToolCard
+                        key={tool.id}
+                        tool={tool}
+                        viewMode={viewMode}
+                        isReordering={false}
+                        forceDisableDrag={true}
+                        animationsEnabled={animationsEnabled}
+                        isFavorite={favorites.includes(tool.id)}
+                        onToggleFavorite={toggleFavorite}
+                        onToolClick={handleToolClick}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </DndContext>

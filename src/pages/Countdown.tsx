@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Calendar, Plus, X, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Calendar, Plus, X, Image as ImageIcon, Trash2, Pencil, Check } from 'lucide-react';
 import { downscaleFile } from '../lib/downscale';
 import { store } from '../lib/store';
+import { daysUntil } from '../lib/horizon';
 
 interface CountdownEvent {
   id: string;
@@ -10,231 +12,282 @@ interface CountdownEvent {
   imageUrl?: string;
 }
 
+/**
+ * A stable colour per event, so a countdown with no photo still has an identity you recognise
+ * in the list instead of being the fifth pink card.
+ */
+const hueOf = (title: string) => [...title].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
+
+const formatDate = (iso: string) =>
+  new Date(iso).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+
 const Countdown: React.FC = () => {
   const [events, setEvents] = useState<CountdownEvent[]>(() => {
     const saved = store.getItem('cd_events');
     return saved ? JSON.parse(saved) : [];
   });
 
-  const [newTitle, setNewTitle] = useState('');
-  const [newDate, setNewDate] = useState('');
-  const [newImage, setNewImage] = useState<string | undefined>();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   useEffect(() => {
     store.setItem('cd_events', JSON.stringify(events));
   }, [events]);
 
+  const [showForm, setShowForm] = useState(false);
+  const [fId, setFId] = useState<string | null>(null);
+  const [fTitle, setFTitle] = useState('');
+  const [fDate, setFDate] = useState('');
+  const [fImage, setFImage] = useState<string | undefined>();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!showForm) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowForm(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showForm]);
+
+  const openForm = (event?: CountdownEvent) => {
+    setFId(event?.id ?? null);
+    setFTitle(event?.title ?? '');
+    setFDate(event?.targetDate ?? '');
+    setFImage(event?.imageUrl);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    setShowForm(true);
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    downscaleFile(file, 600).then(setNewImage).catch(() => {});
+    downscaleFile(file, 600).then(setFImage).catch(() => {});
   };
 
-  const addEvent = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTitle.trim() || !newDate) return;
-
-    setEvents([
-      ...events,
-      {
-        id: Math.random().toString(),
-        title: newTitle.trim(),
-        targetDate: newDate,
-        imageUrl: newImage,
-      }
-    ]);
-
-    setNewTitle('');
-    setNewDate('');
-    setNewImage(undefined);
+  const clearImage = () => {
+    setFImage(undefined);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const removeEvent = (id: string) => {
-    setEvents(events.filter(ev => ev.id !== id));
+  const canSave = Boolean(fTitle.trim() && fDate);
+
+  const saveForm = () => {
+    if (!canSave) return;
+    const fields = { title: fTitle.trim(), targetDate: fDate, imageUrl: fImage };
+    setEvents(prev => fId
+      ? prev.map(ev => ev.id === fId ? { ...ev, ...fields } : ev)
+      : [...prev, { id: Math.random().toString(36).slice(2, 9), ...fields }]);
+    setShowForm(false);
   };
 
-  const getDaysLeft = (targetDate: string) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const target = new Date(targetDate);
-    target.setHours(0, 0, 0, 0);
-    const diffTime = target.getTime() - today.getTime();
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  };
-
-  // Sort events so nearest upcoming is first, then later dates, then past dates.
-  const sortedEvents = [...events].sort((a, b) => {
-    const daysA = getDaysLeft(a.targetDate);
-    const daysB = getDaysLeft(b.targetDate);
-    
-    // Both future or both past
-    if ((daysA >= 0 && daysB >= 0) || (daysA < 0 && daysB < 0)) {
-      return daysA - daysB;
+  const removeEvent = (event: CountdownEvent) => {
+    if (window.confirm(`Delete the countdown to ${event.title}?`)) {
+      setEvents(prev => prev.filter(ev => ev.id !== event.id));
     }
-    // A is future, B is past -> A comes first
-    if (daysA >= 0 && daysB < 0) return -1;
-    // B is future, A is past -> B comes first
-    return 1;
-  });
+  };
+
+  const dated = events.map(event => ({ event, days: daysUntil(event.targetDate) }));
+  const upcoming = dated.filter(d => d.days >= 0).sort((a, b) => a.days - b.days);
+  const passed = dated.filter(d => d.days < 0).sort((a, b) => b.days - a.days);
+
+  const subtitle = events.length === 0
+    ? 'The trip, the wedding, the last day of work'
+    : upcoming.length === 0
+      ? 'Nothing ahead — add the next one'
+      : `Next up in ${upcoming[0].days === 0 ? 'no time' : `${upcoming[0].days} days`}`;
+
+  const actions = (event: CountdownEvent, onDark: boolean) => (
+    // z-10: the poster's text block is `relative` and comes later in the DOM, so without this it
+    // paints over these buttons — its top padding is transparent but still eats the clicks.
+    <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
+      <button
+        onClick={() => openForm(event)}
+        aria-label={`Edit ${event.title}`}
+        className={`p-2 rounded-lg backdrop-blur-md transition-colors ${
+          onDark ? 'bg-[#000]/55 text-[#fff] hover:bg-[#000]/75'
+            : 'bg-text/5 text-muted hover:text-text hover:bg-text/10'
+        }`}
+      >
+        <Pencil size={15} />
+      </button>
+      <button
+        onClick={() => removeEvent(event)}
+        aria-label={`Delete ${event.title}`}
+        className={`p-2 rounded-lg backdrop-blur-md transition-colors ${
+          onDark ? 'bg-[#000]/55 text-[#fff] hover:text-rose-300 hover:bg-[#000]/75'
+            : 'bg-text/5 text-muted hover:text-rose-500 hover:bg-rose-500/10'
+        }`}
+      >
+        <Trash2 size={15} />
+      </button>
+    </div>
+  );
 
   return (
-    <div className="space-y-6 animate-fade-in pb-12">
-      <div className="flex items-center space-x-3">
-        <div className="p-2 bg-pink-500/20 text-pink-400 rounded-xl">
+    <div className="space-y-5 animate-fade-in pb-12">
+      <div className="flex items-center gap-3 px-1">
+        <div className="p-2.5 bg-pink-500/15 text-pink-500 light:text-pink-700 rounded-xl shrink-0">
           <Calendar size={24} />
         </div>
-        <h2 className="text-2xl font-bold">Countdown Day</h2>
+        <div className="min-w-0">
+          <h2 className="text-2xl font-bold leading-tight">Countdown Day</h2>
+          <p className="text-sm text-muted truncate">{subtitle}</p>
+        </div>
       </div>
 
-      {/* Add Event Form */}
-      <div className="glass-panel p-5 border-text/10">
-        <h3 className="font-semibold mb-4 text-sm text-muted">Add New Event</h3>
-        <form onSubmit={addEvent} className="space-y-4">
-          <div>
-            <input 
-              type="text" 
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              placeholder="Event Title (e.g. Vacation, Birthday)"
-              className="input-field w-full"
-              required
-            />
-          </div>
-          <div className="flex space-x-3">
-            <input 
-              type="date" 
-              value={newDate}
-              onChange={(e) => setNewDate(e.target.value)}
-              className="input-field flex-1"
-              required
-            />
-            
-            <div className="relative">
-              <input 
-                type="file" 
-                accept="image/*"
-                onChange={handleImageUpload}
-                ref={fileInputRef}
-                className="hidden"
-                id="cd-image-upload"
-              />
-              <label 
-                htmlFor="cd-image-upload"
-                className={`flex items-center justify-center h-full px-4 rounded-xl border cursor-pointer transition-colors ${
-                  newImage 
-                    ? 'bg-pink-500/20 border-pink-500/50 text-pink-400' 
-                    : 'bg-text/5 border-text/10 text-muted hover:bg-text/10 hover:text-text'
-                }`}
-              >
-                {newImage ? <Check size={20} /> : <ImageIcon size={20} />}
-              </label>
-              {newImage && (
-                <button 
-                  type="button"
-                  onClick={() => {
-                    setNewImage(undefined);
-                    if (fileInputRef.current) fileInputRef.current.value = '';
-                  }}
-                  className="absolute -top-2 -right-2 bg-red-500 text-text rounded-full p-0.5 shadow-lg"
-                >
-                  <X size={12} />
-                </button>
-              )}
-            </div>
-          </div>
-          
-          <button 
-            type="submit" 
-            disabled={!newTitle || !newDate}
-            className="w-full py-3 bg-pink-500 hover:bg-pink-600 text-text font-bold rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
-          >
-            <Plus size={18} />
-            <span>Add to Countdown</span>
-          </button>
-        </form>
-      </div>
+      <button
+        onClick={() => openForm()}
+        className="w-full py-4 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-pink-500/50 hover:text-pink-500 light:hover:text-pink-700 transition-all flex items-center justify-center"
+      >
+        <Plus size={20} className="mr-2" /> Add Countdown
+      </button>
 
-      {/* Events List */}
       <div className="space-y-4">
-        {sortedEvents.map(event => {
-          const daysLeft = getDaysLeft(event.targetDate);
-          const isPast = daysLeft < 0;
-          const displayDays = Math.abs(daysLeft);
-          
+        {upcoming.map(({ event, days }) => {
+          const hue = hueOf(event.title);
           return (
-            <div 
+            <div
               key={event.id}
-              className={`relative overflow-hidden rounded-2xl border transition-all ${
-                isPast ? 'border-text/5 opacity-70' : 'border-text/10 shadow-lg'
-              }`}
+              className="relative overflow-hidden rounded-2xl border border-text/10 shadow-lg min-h-[168px] flex flex-col justify-end"
             >
+              {/* A poster stays dark in both themes, so every colour on it is literal. `text-white`
+                  and `bg-black` are theme tokens here that INVERT in light mode (see index.css), which
+                  would paint dark slate text onto this dark card. Same reason .btn-primary writes
+                  text-[#ffffff]. */}
               {event.imageUrl ? (
                 <>
-                  <div 
-                    className="absolute inset-0 bg-cover bg-center z-0"
-                    style={{ backgroundImage: `url(${event.imageUrl})` }}
-                  />
-                  <div className="absolute inset-0 bg-black/60 z-0 backdrop-blur-[2px]" />
+                  <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${event.imageUrl})` }} />
+                  {/* The photo is whatever the user picked — a snow shot is as likely as a night
+                      shot — so the text never relies on it. This scrim alone carries the contrast. */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#000]/90 via-[#000]/65 to-[#000]/25" />
                 </>
               ) : (
-                <div className={`absolute inset-0 z-0 bg-gradient-to-br ${
-                  isPast ? 'from-surface to-surface/80' : 'from-pink-500/20 to-purple-500/20'
-                }`} />
+                <div
+                  className="absolute inset-0"
+                  style={{ background: `linear-gradient(135deg, hsl(${hue} 60% 34%), hsl(${(hue + 55) % 360} 58% 20%))` }}
+                />
               )}
-              
-              <div className="relative z-10 p-5 flex justify-between items-center">
-                <div className="flex-1 pr-4">
-                  <h3 className={`font-bold text-xl mb-1 ${isPast ? 'text-text/70' : 'text-text'}`}>
-                    {event.title}
-                  </h3>
-                  <p className="text-sm text-text/60">
-                    {new Date(event.targetDate).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                  </p>
-                </div>
-                
-                <div className={`flex flex-col items-center justify-center px-4 py-3 rounded-xl backdrop-blur-md border ${
-                  isPast 
-                    ? 'bg-black/30 border-text/10' 
-                    : 'bg-pink-500/30 border-pink-500/50 shadow-[0_0_15px_rgba(236,72,153,0.3)]'
-                }`}>
-                  <span className={`text-3xl font-black ${isPast ? 'text-text/70' : 'text-pink-400'}`}>
-                    {displayDays}
-                  </span>
-                  <span className={`text-[10px] uppercase tracking-wider font-bold ${isPast ? 'text-text/50' : 'text-pink-300/80'}`}>
-                    {daysLeft === 0 ? 'Today!' : (isPast ? 'Days Ago' : 'Days Left')}
-                  </span>
-                </div>
 
-                <button 
-                  onClick={() => removeEvent(event.id)}
-                  className="absolute top-2 right-2 p-1.5 bg-black/40 text-text/50 hover:text-red-400 hover:bg-black/60 rounded-lg transition-colors backdrop-blur-md"
-                >
-                  <Trash2 size={16} />
-                </button>
+              {actions(event, true)}
+
+              <div className="relative p-5 pt-10 [text-shadow:0_1px_6px_rgba(0,0,0,0.7)]">
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#fff]/90 truncate">
+                  {event.title}
+                </p>
+                <p className="font-display font-extrabold leading-[0.85] tracking-tight text-[#fff] text-6xl mt-1">
+                  {days === 0 ? 'Today' : days}
+                </p>
+                <p className="text-xs text-[#fff]/90 mt-2">
+                  {days === 0 ? formatDate(event.targetDate) : `days · ${formatDate(event.targetDate)}`}
+                </p>
               </div>
             </div>
           );
         })}
 
         {events.length === 0 && (
-          <div className="glass-panel p-8 text-center text-muted border-dashed">
-            <Calendar size={48} className="mx-auto mb-3 opacity-20" />
-            <p>No countdowns added yet.<br/>Add a future event to start tracking!</p>
+          <div className="text-center p-8 text-muted text-sm border border-dashed border-text/10 rounded-2xl">
+            Nothing to count down to yet. Add the trip, the wedding, the last day of work.
           </div>
         )}
       </div>
-      
+
+      {passed.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted px-1">
+            Passed · {passed.length}
+          </h3>
+          {passed.map(({ event, days }) => (
+            <div key={event.id} className="glass-panel relative p-3 pr-24 flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-text/5 flex flex-col items-center justify-center shrink-0">
+                <span className="font-mono text-sm font-bold text-muted leading-none">{Math.abs(days)}</span>
+                <span className="text-[8px] uppercase tracking-wider text-muted">days</span>
+              </div>
+              <div className="min-w-0">
+                <p className="font-bold text-text/70 truncate">{event.title}</p>
+                <p className="text-xs text-muted truncate">{formatDate(event.targetDate)}</p>
+              </div>
+              {actions(event, false)}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showForm && createPortal((
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in"
+          onClick={() => setShowForm(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={fId ? 'Edit countdown' : 'Add countdown'}
+        >
+          <div
+            className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up motion-reduce:animate-none"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-lg">{fId ? 'Edit countdown' : 'Add countdown'}</h3>
+              <button onClick={() => setShowForm(false)} aria-label="Close" className="p-1 text-muted hover:text-text"><X size={20} /></button>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="cd-title">Event</label>
+              <input
+                id="cd-title"
+                autoFocus
+                value={fTitle}
+                onChange={e => setFTitle(e.target.value)}
+                placeholder="e.g. Balik kampung, Wedding, Exam"
+                className="input-field w-full"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="cd-date">Happens on</label>
+              <input
+                id="cd-date"
+                type="date"
+                value={fDate}
+                onChange={e => setFDate(e.target.value)}
+                className="input-field w-full"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">Photo (optional)</label>
+              <input type="file" accept="image/*" onChange={handleImageUpload} ref={fileInputRef} className="hidden" id="cd-image-upload" />
+              {fImage ? (
+                <div className="relative h-28 rounded-xl overflow-hidden border border-text/10">
+                  <img src={fImage} alt="" className="w-full h-full object-cover" />
+                  <button
+                    onClick={clearImage}
+                    aria-label="Remove photo"
+                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-[#000]/50 text-[#fff]/80 hover:text-[#fff] backdrop-blur-md"
+                  >
+                    <X size={14} />
+                  </button>
+                  <span className="absolute bottom-2 left-2 flex items-center gap-1 text-[11px] font-bold text-[#fff]/90 bg-[#000]/50 px-2 py-1 rounded-lg backdrop-blur-md">
+                    <Check size={12} /> Photo added
+                  </span>
+                </div>
+              ) : (
+                <label
+                  htmlFor="cd-image-upload"
+                  className="flex items-center justify-center gap-2 h-16 rounded-xl border border-dashed border-text/15 bg-text/5 text-muted text-sm cursor-pointer hover:text-text hover:bg-text/10 transition-colors"
+                >
+                  <ImageIcon size={18} /> Choose a photo
+                </label>
+              )}
+            </div>
+
+            <button
+              onClick={saveForm}
+              disabled={!canSave}
+              className="w-full py-3 rounded-xl bg-pink-600 text-[#fff] font-bold hover:bg-pink-700 disabled:opacity-50 disabled:pointer-events-none"
+            >
+              {fId ? 'Save changes' : 'Start counting down'}
+            </button>
+          </div>
+        </div>
+      ), document.body)}
     </div>
   );
 };
-
-// Simple Check icon component for internal use since it's not imported globally
-const Check = ({ size }: { size: number }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="20 6 9 17 4 12"></polyline>
-  </svg>
-);
 
 export default Countdown;

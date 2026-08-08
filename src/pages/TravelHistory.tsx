@@ -5,7 +5,8 @@ import {
   Globe, Plus, Trash2, Pencil, X, Calendar, MapPin, Plane, Star,
   Clock, Search, ArrowUpDown, Layers, TrendingUp, ZoomIn, ZoomOut, Maximize, Wallet, Map as MapIcon, ChevronUp, ChevronDown, Check, Backpack
 } from 'lucide-react';
-import { COUNTRY_PATHS, COUNTRY_BOX, MAP_ALIAS, MAP_W, MAP_H } from '../lib/worldMap';
+import { COUNTRY_PATHS, COUNTRY_BOX, MAP_ALIAS, MAP_W, MAP_H, mapTarget, countryPath } from '../lib/worldMap';
+import { COUNTRIES, flagOf } from '../lib/countries';
 
 
 // Faint silhouette of a country, used as a card background watermark
@@ -26,7 +27,7 @@ const CountryBg: React.FC<{ country: string }> = ({ country }) => {
   );
 };
 
-const WorldMap: React.FC<{ counts: Record<string, number>; focus?: { name: string; n: number } | null; highlight?: string | null }> = ({ counts, focus, highlight }) => {
+const WorldMap: React.FC<{ counts: Record<string, number>; pins: string[]; focus?: { name: string; n: number } | null; highlight?: string | null }> = ({ counts, pins, focus, highlight }) => {
   const maxCount = Object.values(counts).reduce((m, v) => Math.max(m, v), 1);
   const [t, setT] = useState({ k: 1, x: 0, y: 0 });
   const [smooth, setSmooth] = useState(false);
@@ -37,9 +38,16 @@ const WorldMap: React.FC<{ counts: Record<string, number>; focus?: { name: strin
   // Animate-zoom to a country when asked
   useEffect(() => {
     if (!focus) return;
-    const c = COUNTRY_BOX[focus.name];
-    if (!c || !c.d) return;
-    const [x, y, w, h] = c.box;
+    // An empty name means "unselected" — zoom back out to the whole world.
+    if (!focus.name) {
+      setSmooth(true);
+      setT({ k: 1, x: 0, y: 0 });
+      const id = setTimeout(() => setSmooth(false), 550);
+      return () => clearTimeout(id);
+    }
+    const target = mapTarget(focus.name);
+    if (!target) return;
+    const [x, y, w, h] = target.box;
     const k = Math.min(10, Math.max(1.5, Math.min(MAP_W / (w * 2.4), MAP_H / (h * 2.4))));
     const cx = x + w / 2, cy = y + h / 2;
     setSmooth(true);
@@ -139,9 +147,25 @@ const WorldMap: React.FC<{ counts: Record<string, number>; focus?: { name: strin
               </path>
             );
           })}
-          {highlight && COUNTRY_BOX[highlight]?.d && (
+          {/* Countries the outline map is too coarse to draw (Singapore, Maldives, Malta…) get a dot */}
+          {pins.map(name => {
+            const p = mapTarget(name)?.point;
+            if (!p) return null;
+            const on = highlight === name;
+            return (
+              <circle
+                key={name}
+                cx={p[0]} cy={p[1]} r={(on ? 4.5 : 3) / t.k}
+                fill={on ? 'rgb(34 211 238)' : 'rgb(16 185 129)'}
+                stroke="rgba(255,255,255,0.85)" strokeWidth={1} vectorEffect="non-scaling-stroke"
+              >
+                <title>{name}{counts[name] > 0 ? ` · ${counts[name]} trip${counts[name] > 1 ? 's' : ''}` : ''}</title>
+              </circle>
+            );
+          })}
+          {highlight && countryPath(highlight) && (
             <path
-              d={COUNTRY_BOX[highlight].d}
+              d={countryPath(highlight)!}
               fill="rgb(34 211 238)"
               fillOpacity={0.35}
               stroke="rgb(34 211 238)"
@@ -203,26 +227,6 @@ const STORAGE_KEY = 'travel_history_data';
 const DEFAULT_CATS = ['Transport', 'Hotel', 'Food', 'Shopping', 'Entertainment', 'Others'];
 const TOTAL_COUNTRIES = 195; // recognised countries in the world
 
-const COUNTRIES: { name: string; code: string }[] = [
-  { name: 'Malaysia', code: 'MY' }, { name: 'Singapore', code: 'SG' }, { name: 'Thailand', code: 'TH' }, { name: 'Indonesia', code: 'ID' },
-  { name: 'Vietnam', code: 'VN' }, { name: 'Philippines', code: 'PH' }, { name: 'Cambodia', code: 'KH' }, { name: 'Laos', code: 'LA' },
-  { name: 'Myanmar', code: 'MM' }, { name: 'Brunei', code: 'BN' }, { name: 'Japan', code: 'JP' }, { name: 'South Korea', code: 'KR' },
-  { name: 'China', code: 'CN' }, { name: 'Hong Kong', code: 'HK' }, { name: 'Taiwan', code: 'TW' }, { name: 'Macau', code: 'MO' },
-  { name: 'India', code: 'IN' }, { name: 'Sri Lanka', code: 'LK' }, { name: 'Nepal', code: 'NP' }, { name: 'Bangladesh', code: 'BD' },
-  { name: 'Pakistan', code: 'PK' }, { name: 'Maldives', code: 'MV' }, { name: 'Bhutan', code: 'BT' }, { name: 'United Arab Emirates', code: 'AE' },
-  { name: 'Saudi Arabia', code: 'SA' }, { name: 'Qatar', code: 'QA' }, { name: 'Oman', code: 'OM' }, { name: 'Turkey', code: 'TR' },
-  { name: 'Egypt', code: 'EG' }, { name: 'Morocco', code: 'MA' }, { name: 'South Africa', code: 'ZA' }, { name: 'Kenya', code: 'KE' },
-  { name: 'Mauritius', code: 'MU' }, { name: 'Australia', code: 'AU' }, { name: 'New Zealand', code: 'NZ' }, { name: 'Fiji', code: 'FJ' },
-  { name: 'United States', code: 'US' }, { name: 'Canada', code: 'CA' }, { name: 'Mexico', code: 'MX' }, { name: 'Brazil', code: 'BR' },
-  { name: 'Argentina', code: 'AR' }, { name: 'Peru', code: 'PE' }, { name: 'United Kingdom', code: 'GB' }, { name: 'Ireland', code: 'IE' },
-  { name: 'France', code: 'FR' }, { name: 'Germany', code: 'DE' }, { name: 'Spain', code: 'ES' }, { name: 'Portugal', code: 'PT' },
-  { name: 'Italy', code: 'IT' }, { name: 'Switzerland', code: 'CH' }, { name: 'Netherlands', code: 'NL' }, { name: 'Belgium', code: 'BE' },
-  { name: 'Austria', code: 'AT' }, { name: 'Greece', code: 'GR' }, { name: 'Czech Republic', code: 'CZ' }, { name: 'Poland', code: 'PL' },
-  { name: 'Hungary', code: 'HU' }, { name: 'Sweden', code: 'SE' }, { name: 'Norway', code: 'NO' }, { name: 'Denmark', code: 'DK' },
-  { name: 'Finland', code: 'FI' }, { name: 'Iceland', code: 'IS' }, { name: 'Croatia', code: 'HR' }, { name: 'Russia', code: 'RU' },
-];
-
-const flagOf = (code: string) => code.toUpperCase().replace(/./g, c => String.fromCodePoint(127397 + c.charCodeAt(0)));
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const pad2 = (n: number) => String(n).padStart(2, '0');
 const dateKey = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
@@ -286,14 +290,26 @@ const TravelHistory: React.FC = () => {
   const showToast = (m: string) => { setToast(m); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 2400); };
   const mapPanelRef = useRef<HTMLDivElement>(null);
   const focusOnMap = (country: string) => {
-    const mapName = MAP_ALIAS[country] || country;
-    setFocusedCountry(country);
-    if (!COUNTRY_BOX[mapName] || !COUNTRY_BOX[mapName].d) {
-      showToast(`📍 ${country} is too small to show on the map`);
+    if (focusedCountry === country) { // tap the selected country again to clear it
+      setFocusedCountry(null);
+      setMapFocus(prev => ({ name: '', n: (prev?.n || 0) + 1 }));
       return;
     }
-    setMapFocus(prev => ({ name: mapName, n: (prev?.n || 0) + 1 }));
-    mapPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setFocusedCountry(country);
+    if (!mapTarget(country)) {
+      showToast(`📍 “${country}” isn’t on the map`);
+      return;
+    }
+    setTab('dashboard'); // the map lives on the dashboard — a chip tapped elsewhere still lands there
+    setMapFocus(prev => ({ name: country, n: (prev?.n || 0) + 1 }));
+    // Wait a frame so the dashboard is mounted before scrolling to the map panel.
+    // Only scroll when the map is actually off-screen — the chips sit right under it, so
+    // scrolling on every tap just yanks the page away from the country you're clicking.
+    requestAnimationFrame(() => {
+      const el = mapPanelRef.current;
+      const r = el?.getBoundingClientRect();
+      if (r && (r.top < 0 || r.bottom > window.innerHeight)) el!.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
   };
 
   useEffect(() => {
@@ -317,20 +333,28 @@ const TravelHistory: React.FC = () => {
   const [fStart, setFStart] = useState('');
   const [fEnd, setFEnd] = useState('');
   const [fBest, setFBest] = useState('');
-  const [fCities, setFCities] = useState('');
+  const [fCities, setFCities] = useState<string[]>([]);
+  const [cityDraft, setCityDraft] = useState('');
   const [fNotes, setFNotes] = useState('');
   const [countrySearch, setCountrySearch] = useState('');
   const [error, setError] = useState('');
 
   const resetForm = () => {
     setEditId(null); setFCountry(''); setFFlag(''); setFTitle(''); setFStart(''); setFEnd('');
-    setFBest(''); setFCities(''); setFNotes(''); setCountrySearch(''); setError('');
+    setFBest(''); setFCities([]); setCityDraft(''); setFNotes(''); setCountrySearch(''); setError('');
+  };
+  // Accepts a pasted "Tokyo, Osaka" just as happily as one city at a time.
+  const addCity = (raw: string) => {
+    const add = raw.split(',').map(s => s.trim()).filter(Boolean);
+    if (!add.length) return;
+    setFCities(prev => [...prev, ...add.filter(c => !prev.some(p => p.toLowerCase() === c.toLowerCase()))]);
+    setCityDraft('');
   };
   const openAdd = () => { resetForm(); setShowForm(true); };
   const openEdit = (t: Trip) => {
     setEditId(t.id); setFCountry(t.country); setFFlag(t.flag); setFTitle(t.title);
     setFStart(t.startDate); setFEnd(t.endDate);
-    setFBest(t.bestLocation || ''); setFCities((t.cities || []).join(', ')); setFNotes(t.notes || '');
+    setFBest(t.bestLocation || ''); setFCities(t.cities || []); setCityDraft(''); setFNotes(t.notes || '');
     setCountrySearch(''); setError(''); setShowForm(true);
   };
 
@@ -341,7 +365,9 @@ const TravelHistory: React.FC = () => {
     if (!fStart || !fEnd) { setError('Add the date range'); return; }
     if (fEnd < fStart) { setError('End date is before start date'); return; }
     const title = fTitle.trim() || `${fCountry} ${yearOf(fStart)}`;
-    const cities = fCities.split(',').map(s => s.trim()).filter(Boolean);
+    // A city typed but not yet "added" still counts — losing it on save would be a nasty surprise.
+    const typed = cityDraft.split(',').map(s => s.trim()).filter(Boolean);
+    const cities = [...fCities, ...typed.filter(c => !fCities.some(p => p.toLowerCase() === c.toLowerCase()))];
     const existing = editId ? trips.find(t => t.id === editId) : undefined;
     const trip: Trip = {
       id: editId || generateId(),
@@ -588,7 +614,7 @@ const TravelHistory: React.FC = () => {
           </div>
 
           {/* Visited countries */}
-          <div ref={mapPanelRef} className="glass-panel p-4 space-y-3 scroll-mt-4">
+          <div className="glass-panel p-4 space-y-3 scroll-mt-4">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-sm flex items-center gap-2"><MapPin size={16} className="text-cyan-400" /> Countries Visited</h3>
               <span className="text-xs font-bold text-cyan-400">{uniqueCountries.length} <span className="text-muted font-normal">/ {TOTAL_COUNTRIES}</span></span>
@@ -597,8 +623,13 @@ const TravelHistory: React.FC = () => {
               <div className="h-full bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-full" style={{ width: `${Math.min(100, (uniqueCountries.length / TOTAL_COUNTRIES) * 100)}%` }} />
             </div>
             <p className="text-[10px] text-muted text-right">{((uniqueCountries.length / TOTAL_COUNTRIES) * 100).toFixed(1)}% of the world explored</p>
-            <div className="-mx-1">
-              <WorldMap counts={Object.fromEntries(countryCounts.map(c => [MAP_ALIAS[c.country] || c.country, c.count]))} focus={mapFocus} highlight={focusedCountry ? (MAP_ALIAS[focusedCountry] || focusedCountry) : null} />
+            <div ref={mapPanelRef} className="-mx-1 scroll-mt-4">
+              <WorldMap
+                counts={Object.fromEntries(countryCounts.map(c => [MAP_ALIAS[c.country] || c.country, c.count]))}
+                pins={uniqueCountries.filter(c => mapTarget(c)?.point)}
+                focus={mapFocus}
+                highlight={focusedCountry}
+              />
             </div>
             <div className="flex flex-wrap gap-2">
               {(() => {
@@ -609,17 +640,18 @@ const TravelHistory: React.FC = () => {
                     <button
                       key={c.country}
                       onClick={() => focusOnMap(c.country)}
-                      title={`Show ${c.country} on the map`}
+                      title={focusedCountry === c.country ? `Unselect ${c.country}` : `Show ${c.country} on the map`}
                       className={`px-2.5 py-1.5 rounded-xl border text-xs font-medium flex items-center gap-1.5 transition-transform active:scale-95 hover:brightness-110 ${focusedCountry === c.country ? 'ring-2 ring-cyan-400 ring-offset-1 ring-offset-surface' : ''}`}
                       style={{ backgroundColor: `rgba(16,185,129,${0.1 + f * 0.5})`, borderColor: `rgba(16,185,129,${0.25 + f * 0.45})` }}
                     >
                       <span className="text-base leading-none">{c.flag}</span> {c.country}{c.count > 1 && <span className="font-black text-text">×{c.count}</span>}
+                      {focusedCountry === c.country && <X size={12} className="text-cyan-400" />}
                     </button>
                   );
                 });
               })()}
             </div>
-            <p className="text-[10px] text-muted">Very small countries may not show on the map — see the list above.</p>
+            <p className="text-[10px] text-muted">Tap a country to zoom the map to it. Countries too small to outline (Singapore, Maldives…) show as a dot.</p>
           </div>
 
           {/* Highlights */}
@@ -782,7 +814,29 @@ const TravelHistory: React.FC = () => {
             </div>
 
             <div className="space-y-1"><label className="text-[10px] font-bold text-muted uppercase">Best place visited (optional)</label><input value={fBest} onChange={e => setFBest(e.target.value)} placeholder="e.g. Osaka Castle" className="input-field w-full text-sm" /></div>
-            <div className="space-y-1"><label className="text-[10px] font-bold text-muted uppercase">Cities / places visited (optional, comma separated)</label><input value={fCities} onChange={e => setFCities(e.target.value)} placeholder="Tokyo, Osaka, Kyoto" className="input-field w-full text-sm" /></div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-muted uppercase">Cities / places visited (optional)</label>
+              <div className="flex gap-2">
+                <input
+                  value={cityDraft}
+                  onChange={e => setCityDraft(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCity(cityDraft); } }}
+                  placeholder="e.g. Tokyo"
+                  className="input-field flex-1 text-sm"
+                />
+                <button type="button" onClick={() => addCity(cityDraft)} disabled={!cityDraft.trim()} className="px-4 rounded-xl bg-cyan-500 text-white font-bold text-sm disabled:opacity-40">Add</button>
+              </div>
+              {fCities.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {fCities.map(c => (
+                    <span key={c} className="flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-xs font-medium">
+                      <MapPin size={11} className="text-cyan-400" /> {c}
+                      <button type="button" onClick={() => setFCities(prev => prev.filter(x => x !== c))} className="text-muted hover:text-rose-400" aria-label={`Remove ${c}`}><X size={13} /></button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="space-y-1"><label className="text-[10px] font-bold text-muted uppercase">Notes (optional)</label><input value={fNotes} onChange={e => setFNotes(e.target.value)} placeholder="e.g. Sakura season" className="input-field w-full text-sm" /></div>
 
             <p className="text-[10px] text-muted">Add expenses and itinerary from the trip card on the Trips tab.</p>

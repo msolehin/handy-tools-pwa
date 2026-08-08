@@ -10,24 +10,16 @@ import { TOOLS } from './tools.ts';
 
 // Fixtures must exercise every column, including the optional ones.
 const FIXTURES: Record<string, unknown> = {
-  birthdays_data: {
-    items: [
-      { id: 'a1b2c3d', name: 'Mak', date: '1968-04-12', type: 'birthday', category: 'Family', note: 'likes batik' },
-      { id: 'e4f5g6h', name: 'Kahwin', date: '2015-11-03', type: 'anniversary', category: 'Family', note: '' },
-      { id: 'i7j8k9l', name: 'Aiman', date: '1994-01-30', type: 'birthday', category: 'Friend', note: 'size L' },
-    ],
-    categories: ['Family', 'Friend', 'Work', 'Other'],
-  },
-
   tenancy_data: {
     items: [
       {
         id: 'ten0001', title: 'Rumah Setapak', category: 'Tenancy', party: 'Encik Rahim',
-        phone: '0123456789', startDate: '2025-01-01', endDate: '2026-12-31',
+        phone: '0123456789', address: 'No 12, Jalan Setapak 3, 53000 Kuala Lumpur',
+        startDate: '2025-01-01', endDate: '2026-12-31',
         amount: 1450.5, dueDay: 5, deposit: 2900, notes: 'ada parking',
       },
       {
-        id: 'ten0002', title: 'Unifi', category: 'Internet', party: 'TM', phone: '',
+        id: 'ten0002', title: 'Unifi', category: 'Internet', party: 'TM', phone: '', address: '',
         startDate: '2024-06-15', endDate: '2026-06-14',
         amount: 139, dueDay: 20, deposit: 0, notes: '',
       },

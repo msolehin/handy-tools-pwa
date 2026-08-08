@@ -20,6 +20,8 @@ interface ServiceEvent {
   totalCost: number;
   notes: string;
   nextServiceDate?: string;
+  /** The next service was done, but no record logged yet. Stops the reminder without inventing one. */
+  nextDone?: boolean;
 }
 
 interface HomeData {
@@ -29,7 +31,7 @@ interface HomeData {
 
 const STORAGE_KEY = 'home_services_data';
 const TITLES_KEY = 'home_custom_titles';
-const DEFAULT_TITLES = ['Aircond Chemical Wash', 'Water Filter Replacement', 'Plumbing Repair', 'Pest Control', 'General Cleaning', 'Roof Repair'];
+const DEFAULT_TITLES = ['Cuci Aircond', 'Tukar Penapis Air', 'Baiki Paip', 'Kawalan Serangga', 'Cuci Am', 'Baiki Bumbung'];
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -97,6 +99,11 @@ const HomeServices: React.FC = () => {
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [showAssetSelector, setShowAssetSelector] = useState(false);
   const [assetSearchQuery, setAssetSearchQuery] = useState('');
+  const [serviceFilter, setServiceFilter] = useState('all');
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [filterQuery, setFilterQuery] = useState('');
+  const filterRef = useRef<HTMLDivElement>(null);
+  useOutsideClick(filterRef, () => setShowFilterDropdown(false));
 
   useEffect(() => {
     if (data.assets.length > 0 && !selectedAssetId) {
@@ -140,7 +147,7 @@ const HomeServices: React.FC = () => {
   };
 
   const deleteAsset = (id: string) => {
-    if (window.confirm('Delete this home and all its service history?')) {
+    if (window.confirm('Padam rumah ni dan semua sejarah servisnya?')) {
       setData(prev => ({
         assets: prev.assets.filter(a => a.id !== id),
         events: prev.events.filter(e => e.assetId !== id)
@@ -200,7 +207,11 @@ const HomeServices: React.FC = () => {
       title: trimmedTitle,
       totalCost: parseFloat(fTotalCost) || 0,
       notes: fNotes.trim(),
-      nextServiceDate: fNextDate || undefined
+      nextServiceDate: fNextDate || undefined,
+      // Editing keeps the "dah buat" tick; setting a different next date is a new job to do.
+      nextDone: fId && data.events.find(e => e.id === fId)?.nextServiceDate === (fNextDate || undefined)
+        ? data.events.find(e => e.id === fId)?.nextDone
+        : undefined
     };
 
     setData(prev => {
@@ -214,15 +225,30 @@ const HomeServices: React.FC = () => {
   };
 
   const deleteEvent = (id: string) => {
-    if (window.confirm("Delete this service record?")) {
+    if (window.confirm("Padam rekod servis ni?")) {
       setData(prev => ({ ...prev, events: prev.events.filter(e => e.id !== id) }));
     }
   };
 
+  const toggleNextDone = (id: string) => {
+    setData(prev => ({
+      ...prev,
+      events: prev.events.map(e => e.id === id ? { ...e, nextDone: !e.nextDone } : e)
+    }));
+  };
+
   const currentAsset = data.assets.find(a => a.id === selectedAssetId);
-  const currentEvents = data.events
+  const assetEvents = data.events
     .filter(e => e.assetId === selectedAssetId)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  // Only the services this home actually has. Derived rather than stored, so switching to a home
+  // that has never had an aircond service falls back to "all" instead of an empty list.
+  const serviceTitles = [...new Set(assetEvents.map(e => e.title))].sort();
+  const activeFilter = serviceTitles.includes(serviceFilter) ? serviceFilter : 'all';
+  const currentEvents = activeFilter === 'all'
+    ? assetEvents
+    : assetEvents.filter(e => e.title === activeFilter);
 
   const filteredAssets = data.assets.filter(a => a.name.toLowerCase().includes(assetSearchQuery.toLowerCase()) || a.location.toLowerCase().includes(assetSearchQuery.toLowerCase()));
 
@@ -236,7 +262,7 @@ const HomeServices: React.FC = () => {
 
   const removeCustomTitle = (e: React.MouseEvent, title: string) => {
     e.stopPropagation();
-    if (window.confirm(`Delete the custom service name "${title}"?`)) {
+    if (window.confirm(`Padam nama servis "${title}"?`)) {
       setCustomTitles(prev => prev.filter(t => t !== title));
     }
   };
@@ -249,7 +275,7 @@ const HomeServices: React.FC = () => {
         </div>
         <div>
           <h2 className="text-2xl font-bold">Servis Rumah</h2>
-          <p className="text-sm text-muted">Track home repairs & cost</p>
+          <p className="text-sm text-muted">Rekod baiki & kos rumah</p>
         </div>
       </div>
 
@@ -262,12 +288,12 @@ const HomeServices: React.FC = () => {
           >
             {currentAsset ? (
               <div className="text-left">
-                <p className="text-xs font-bold text-muted uppercase tracking-wider mb-0.5">Current Home</p>
+                <p className="text-xs font-bold text-muted uppercase tracking-wider mb-0.5">Rumah sekarang</p>
                 <p className="font-bold text-lg text-teal-400">{currentAsset.name}</p>
                 {currentAsset.location && <p className="text-xs text-text/80">{currentAsset.location}</p>}
               </div>
             ) : (
-              <p className="font-bold text-muted">Select a Home...</p>
+              <p className="font-bold text-muted">Pilih rumah...</p>
             )}
             <ChevronDown className="text-muted" />
           </button>
@@ -281,7 +307,7 @@ const HomeServices: React.FC = () => {
             className="w-full py-4 rounded-xl border-2 border-dashed border-white/20 text-muted hover:text-teal-400 hover:border-teal-400/50 transition-colors flex flex-col items-center gap-2"
           >
             <Plus size={24} /> 
-            <span className="font-bold">Add Your First Home</span>
+            <span className="font-bold">Tambah rumah pertama</span>
           </button>
         )}
       </div>
@@ -290,17 +316,75 @@ const HomeServices: React.FC = () => {
         data.assets.length > 0 && (
           <div className="glass-panel p-8 text-center flex flex-col items-center">
             <HomeIcon size={32} className="text-muted mb-3 opacity-50" />
-            <p className="text-muted text-sm">Please select a home to view its service history.</p>
+            <p className="text-muted text-sm">Pilih rumah untuk lihat sejarah servis.</p>
           </div>
         )
       ) : (
         <div className="space-y-4">
-          {currentEvents.length === 0 ? (
+          {serviceTitles.length > 0 && (
+            <div className="relative px-1" ref={filterRef}>
+              <button
+                onClick={() => { setShowFilterDropdown(o => !o); setFilterQuery(''); }}
+                aria-expanded={showFilterDropdown}
+                className={`w-full glass-panel px-4 py-2.5 flex items-center justify-between gap-2 transition-colors ${
+                  activeFilter === 'all' ? 'hover:border-teal-500/50' : 'border-teal-500/40'
+                }`}
+              >
+                <span className="flex items-center gap-2 min-w-0">
+                  <Search size={14} className="text-muted shrink-0" />
+                  <span className={`truncate text-sm font-bold ${
+                    activeFilter === 'all' ? 'text-muted' : 'text-teal-500 light:text-teal-700'
+                  }`}>
+                    {activeFilter === 'all' ? 'Semua servis' : activeFilter}
+                  </span>
+                </span>
+                <span className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs font-bold text-muted">{currentEvents.length}</span>
+                  <ChevronDown size={16} className="text-muted" />
+                </span>
+              </button>
+
+              {showFilterDropdown && (
+                <div className="absolute top-full left-1 right-1 mt-1 bg-surface border border-text/10 rounded-xl shadow-2xl z-50 p-1">
+                  <input
+                    autoFocus
+                    value={filterQuery}
+                    onChange={e => setFilterQuery(e.target.value)}
+                    placeholder="Cari servis..."
+                    className="w-full px-3 py-2 mb-1 bg-background/50 border border-text/10 rounded-lg text-sm text-text placeholder-muted focus:outline-none focus:border-teal-500/50"
+                  />
+                  <div className="max-h-48 overflow-y-auto">
+                    {['all', ...serviceTitles]
+                      .filter(t => t === 'all' || t.toLowerCase().includes(filterQuery.toLowerCase()))
+                      .map(title => (
+                        <button
+                          key={title}
+                          onClick={() => { setServiceFilter(title); setShowFilterDropdown(false); }}
+                          className={`w-full px-3 py-2 text-sm rounded-lg flex items-center justify-between gap-2 hover:bg-text/5 transition-colors ${
+                            activeFilter === title ? 'text-teal-500 light:text-teal-700 font-bold' : 'text-text'
+                          }`}
+                        >
+                          <span className="truncate">{title === 'all' ? 'Semua servis' : title}</span>
+                          <span className="text-xs text-muted shrink-0">
+                            {title === 'all' ? assetEvents.length : assetEvents.filter(e => e.title === title).length}
+                          </span>
+                        </button>
+                      ))}
+                    {filterQuery.trim() && !serviceTitles.some(t => t.toLowerCase().includes(filterQuery.toLowerCase())) && (
+                      <p className="px-3 py-3 text-xs text-muted">Takde servis sepadan “{filterQuery.trim()}”.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {assetEvents.length === 0 ? (
             <div className="glass-panel p-8 text-center flex flex-col items-center">
               <CalendarClock size={32} className="text-muted mb-3 opacity-50" />
-              <p className="text-muted text-sm mb-4">No service history for this home.</p>
-              <button onClick={() => openEventForm()} className="px-4 py-2 bg-teal-500/20 text-teal-400 rounded-lg font-bold hover:bg-teal-500/30 transition-colors text-sm">
-                Add First Service
+              <p className="text-muted text-sm mb-4">Takde sejarah servis untuk rumah ni.</p>
+              <button onClick={() => openEventForm()} className="px-4 py-2 bg-teal-500/20 text-teal-500 light:text-teal-700 rounded-lg font-bold hover:bg-teal-500/30 transition-colors text-sm">
+                Tambah servis pertama
               </button>
             </div>
           ) : (
@@ -316,9 +400,26 @@ const HomeServices: React.FC = () => {
                           <p className="text-xs text-teal-400 font-bold mb-1">{formatDate(event.date)}</p>
                           <h4 className="font-bold text-lg">{event.title}</h4>
                           {event.nextServiceDate && (
-                            <p className="text-xs mt-0.5 font-bold flex items-center gap-1 text-rose-400">
-                              <CalendarClock size={12} /> Next: {formatDate(event.nextServiceDate)}
-                            </p>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              <p className={`text-xs font-bold flex items-center gap-1 ${
+                                event.nextDone ? 'text-muted line-through' : 'text-rose-500 light:text-rose-700'
+                              }`}>
+                                <CalendarClock size={12} /> Seterusnya: {formatDate(event.nextServiceDate)}
+                              </p>
+                              <button
+                                onClick={() => toggleNextDone(event.id)}
+                                aria-pressed={!!event.nextDone}
+                                title={event.nextDone ? 'Tap kalau belum buat lagi' : 'Tap kalau dah buat servis ni'}
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors flex items-center gap-1 ${
+                                  event.nextDone
+                                    ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-500 light:text-emerald-700'
+                                    : 'border-text/20 text-muted hover:text-text hover:border-text/40'
+                                }`}
+                              >
+                                {event.nextDone && <Check size={11} strokeWidth={3} />}
+                                {event.nextDone ? 'Dah buat' : 'Dah buat?'}
+                              </button>
+                            </div>
                           )}
                         </div>
                         <div className="text-right">
@@ -334,13 +435,13 @@ const HomeServices: React.FC = () => {
                         <div>
                           <button onClick={() => toggleExpand(event.id)} className="text-xs flex items-center gap-1 text-muted hover:text-text transition-colors py-1">
                             {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                            {isExpanded ? 'Hide Details' : 'View Details'}
+                            {isExpanded ? 'Tutup butiran' : 'Lihat butiran'}
                           </button>
                           
                           {isExpanded && (
                             <div className="mt-3 pt-3 border-t border-white/5 space-y-3 animate-slide-up">
                               <div>
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">Notes</p>
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">Nota</p>
                                 <p className="text-sm text-text/80 bg-black/20 p-2.5 rounded-lg border border-white/5 whitespace-pre-wrap">{event.notes}</p>
                               </div>
                             </div>
@@ -357,7 +458,7 @@ const HomeServices: React.FC = () => {
       )}
 
       {currentAsset && frameEl && createPortal((
-        <button onClick={() => openEventForm()} className="fixed bottom-24 right-4 sm:absolute z-30 w-14 h-14 rounded-full bg-teal-500 hover:bg-teal-600 text-white shadow-xl shadow-teal-500/30 flex items-center justify-center active:scale-90 transition-transform" title="Add Service">
+        <button onClick={() => openEventForm()} className="fixed bottom-24 right-4 sm:absolute z-30 w-14 h-14 rounded-full bg-teal-500 hover:bg-teal-600 text-white shadow-xl shadow-teal-500/30 flex items-center justify-center active:scale-90 transition-transform" title="Tambah servis">
           <Plus size={26} />
         </button>
       ), frameEl)}
@@ -367,7 +468,7 @@ const HomeServices: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowAssetSelector(false)}>
           <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 flex flex-col max-h-[80vh] shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4 shrink-0">
-              <h3 className="font-bold text-lg">Select Home</h3>
+              <h3 className="font-bold text-lg">Pilih rumah</h3>
               <button onClick={() => setShowAssetSelector(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button>
             </div>
             
@@ -377,14 +478,14 @@ const HomeServices: React.FC = () => {
                 autoFocus
                 value={assetSearchQuery} 
                 onChange={e => setAssetSearchQuery(e.target.value)} 
-                placeholder="Search homes..." 
+                placeholder="Cari rumah..." 
                 className="input-field w-full pl-10" 
               />
             </div>
 
             <div className="overflow-y-auto space-y-2 custom-scrollbar pb-2">
               {filteredAssets.length === 0 ? (
-                <p className="text-center text-muted text-sm py-4">No homes found.</p>
+                <p className="text-center text-muted text-sm py-4">Takde rumah dijumpai.</p>
               ) : (
                 filteredAssets.map(asset => (
                   <div key={asset.id} className={`flex items-center justify-between p-3 rounded-xl border ${selectedAssetId === asset.id ? 'border-teal-500 bg-teal-500/10' : 'border-white/5 bg-black/20 hover:border-white/10'} transition-colors cursor-pointer`} onClick={() => { setSelectedAssetId(asset.id); setShowAssetSelector(false); }}>
@@ -404,7 +505,7 @@ const HomeServices: React.FC = () => {
 
             <div className="shrink-0 pt-4 border-t border-white/5 mt-auto">
               <button onClick={() => { setShowAssetSelector(false); setEditAssetId(null); setAssetName(''); setAssetLocation(''); setShowAssetForm(true); }} className="w-full py-3 rounded-xl border border-dashed border-white/20 text-teal-400 font-bold hover:bg-teal-500/10 transition-colors flex items-center justify-center gap-2">
-                <Plus size={18} /> Add New Home
+                <Plus size={18} /> Tambah rumah baru
               </button>
             </div>
           </div>
@@ -421,17 +522,17 @@ const HomeServices: React.FC = () => {
             </div>
             
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Home Name</label>
-              <input autoFocus value={assetName} onChange={e => setAssetName(e.target.value)} placeholder="e.g. My Apartment" className="input-field w-full" />
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">Nama rumah</label>
+              <input autoFocus value={assetName} onChange={e => setAssetName(e.target.value)} placeholder="cth. Rumah Setapak" className="input-field w-full" />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Location/Unit (Optional)</label>
-              <input value={assetLocation} onChange={e => setAssetLocation(e.target.value)} placeholder="e.g. Block A, Unit 12" className="input-field w-full" />
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">Lokasi/Unit (pilihan)</label>
+              <input value={assetLocation} onChange={e => setAssetLocation(e.target.value)} placeholder="cth. Blok A, Unit 12" className="input-field w-full" />
             </div>
 
             <button onClick={saveAsset} disabled={!assetName.trim()} className="w-full py-3 rounded-xl bg-teal-500 text-white font-bold hover:bg-teal-600 disabled:opacity-50 mt-2">
-              Save Home
+              Simpan rumah
             </button>
           </div>
         </div>
@@ -448,13 +549,13 @@ const HomeServices: React.FC = () => {
             
             <div className="overflow-y-auto pr-1 space-y-4 custom-scrollbar pb-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Date</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">Tarikh</label>
                 <input type="date" value={fDate} onChange={e => setFDate(e.target.value)} className="input-field w-full" />
               </div>
 
               {/* Dynamic Service Title Dropdown */}
               <div className="space-y-1.5 relative" ref={dropdownRef}>
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Service Title</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">Jenis servis</label>
                 <div className="relative">
                   <input 
                     value={fTitle} 
@@ -463,7 +564,7 @@ const HomeServices: React.FC = () => {
                       setShowTitleDropdown(true);
                     }} 
                     onFocus={() => setShowTitleDropdown(true)}
-                    placeholder="Search or type custom service..." 
+                    placeholder="Cari atau taip servis sendiri..." 
                     className="input-field w-full pr-8" 
                   />
                   <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-muted pointer-events-none" size={16} />
@@ -484,7 +585,7 @@ const HomeServices: React.FC = () => {
                             <button 
                               onClick={(e) => removeCustomTitle(e, title)} 
                               className="text-muted hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                              title="Delete custom service"
+                              title="Padam servis sendiri"
                             >
                               <Trash size={14} />
                             </button>
@@ -505,25 +606,25 @@ const HomeServices: React.FC = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Total Cost (RM)</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">Jumlah kos (RM)</label>
                 <input type="number" min="0" step="0.01" value={fTotalCost} onChange={e => setFTotalCost(e.target.value)} placeholder="0.00" className="input-field w-full text-xl font-bold" />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Next Service Date (Optional)</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">Tarikh servis seterusnya (pilihan)</label>
                 <input type="date" value={fNextDate} onChange={e => setFNextDate(e.target.value)} className="input-field w-full text-rose-400" />
-                <p className="text-[10px] text-muted">Set a date to get reminded on the Home screen.</p>
+                <p className="text-[10px] text-muted">Set tarikh untuk dapat peringatan di skrin Utama.</p>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Notes (Optional)</label>
-                <textarea value={fNotes} onChange={e => setFNotes(e.target.value)} placeholder="Contractor said to check piping in 2 years" className="input-field w-full h-16 resize-none py-2" />
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">Nota (pilihan)</label>
+                <textarea value={fNotes} onChange={e => setFNotes(e.target.value)} placeholder="Kontraktor kata check paip 2 tahun lagi" className="input-field w-full h-16 resize-none py-2" />
               </div>
             </div>
 
             <div className="shrink-0 pt-4 border-t border-white/5">
               <button onClick={saveEvent} disabled={!fTitle.trim() || !fDate} className="w-full py-3 rounded-xl bg-teal-500 text-white font-bold hover:bg-teal-600 disabled:opacity-50">
-                Save Service Record
+                Simpan rekod servis
               </button>
             </div>
           </div>

@@ -2,15 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { store } from '../lib/store';
 import { 
-  Hash, Plus, Trash2, Pencil, Search, Copy, Check, Eye, EyeOff, X, BookOpen
+  Hash, Plus, Trash2, Pencil, Search, Copy, Check, Eye, EyeOff, X, BookOpen, CalendarDays
 } from 'lucide-react';
 import CategoryChips from '../components/CategoryChips';
+import { daysUntil } from '../lib/horizon';
 
 interface ImportantNumber {
   id: string;
   category: string;
   name: string;
   value: string;
+  /** Optional. A policy's renewal day, an account's opening date — or the whole point of the
+      entry, when there is no number to keep at all. */
+  date?: string;
   notes: string;
   isHidden: boolean;
 }
@@ -20,6 +24,14 @@ const DEFAULT_CATS = ['Utilities', 'Internet', 'Insurance', 'Memberships', 'Bank
 const CAT_COLORS = ['#3b82f6', '#22c55e', '#f97316', '#ec4899', '#8b5cf6', '#14b8a6', '#eab308', '#ef4444', '#06b6d4', '#a855f7'];
 const catColor = (cat: string, all: string[]) => CAT_COLORS[Math.max(0, all.indexOf(cat)) % CAT_COLORS.length];
 const generateId = () => Math.random().toString(36).substring(2, 9);
+
+const formatDate = (iso: string) =>
+  new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+
+const relativeDay = (iso: string) => {
+  const days = daysUntil(iso);
+  return days === 0 ? 'Today' : days > 0 ? `in ${days} days` : `${-days} days ago`;
+};
 
 const ImportantNumbers: React.FC = () => {
   const [items, setItems] = useState<ImportantNumber[]>([]);
@@ -54,6 +66,9 @@ const ImportantNumbers: React.FC = () => {
   const [fCat, setFCat] = useState(DEFAULT_CATS[0]);
   const [fName, setFName] = useState('');
   const [fValue, setFValue] = useState('');
+  const [fDate, setFDate] = useState('');
+  // An entry is one kind or the other. The tab picks it; only the active field is saved.
+  const [fKind, setFKind] = useState<'number' | 'date'>('number');
   const [fNotes, setFNotes] = useState('');
   const [fHidden, setFHidden] = useState(false);
 
@@ -63,6 +78,8 @@ const ImportantNumbers: React.FC = () => {
       setFCat(item.category);
       setFName(item.name);
       setFValue(item.value);
+      setFDate(item.date || '');
+      setFKind(item.value ? 'number' : 'date');
       setFNotes(item.notes || '');
       setFHidden(item.isHidden || false);
     } else {
@@ -70,24 +87,39 @@ const ImportantNumbers: React.FC = () => {
       setFCat(categories[0] || 'Other');
       setFName('');
       setFValue('');
+      setFDate('');
+      setFKind('number');
       setFNotes('');
       setFHidden(false);
     }
     setShowForm(true);
   };
 
+  const canSave = Boolean(fName.trim()) && Boolean(fKind === 'number' ? fValue.trim() : fDate);
+
   const saveForm = () => {
-    if (!fName.trim() || !fValue.trim()) return;
+    if (!canSave) return;
+    // Only the chosen kind is written, so switching the tab genuinely changes what the entry is
+    // rather than leaving the other field lying around invisibly.
+    const isNumber = fKind === 'number';
+    const fields = {
+      category: fCat,
+      name: fName.trim(),
+      value: isNumber ? fValue.trim() : '',
+      date: isNumber ? undefined : fDate,
+      notes: fNotes.trim(),
+      isHidden: isNumber && fHidden,
+    };
     if (fId) {
-      setItems(prev => prev.map(i => i.id === fId ? { ...i, category: fCat, name: fName.trim(), value: fValue.trim(), notes: fNotes.trim(), isHidden: fHidden } : i));
+      setItems(prev => prev.map(i => i.id === fId ? { ...i, ...fields } : i));
     } else {
-      setItems(prev => [...prev, { id: generateId(), category: fCat, name: fName.trim(), value: fValue.trim(), notes: fNotes.trim(), isHidden: fHidden }]);
+      setItems(prev => [...prev, { id: generateId(), ...fields }]);
     }
     setShowForm(false);
   };
 
   const deleteItem = (id: string) => {
-    if (window.confirm("Delete this number?")) {
+    if (window.confirm("Delete this entry?")) {
       setItems(prev => prev.filter(i => i.id !== id));
     }
   };
@@ -123,6 +155,7 @@ const ImportantNumbers: React.FC = () => {
   const filtered = items.filter(i => 
     i.name.toLowerCase().includes(search.toLowerCase()) || 
     i.value.toLowerCase().includes(search.toLowerCase()) ||
+    (i.date || '').includes(search) ||
     i.category.toLowerCase().includes(search.toLowerCase()) ||
     (i.notes || '').toLowerCase().includes(search.toLowerCase())
   );
@@ -142,8 +175,8 @@ const ImportantNumbers: React.FC = () => {
           <Hash size={24} />
         </div>
         <div>
-          <h2 className="text-2xl font-bold">Important Numbers</h2>
-          <p className="text-sm text-muted">Accounts, Policies & IDs</p>
+          <h2 className="text-2xl font-bold">Important Number / Date</h2>
+          <p className="text-sm text-muted">Accounts, policies, IDs & dates</p>
         </div>
       </div>
 
@@ -153,7 +186,7 @@ const ImportantNumbers: React.FC = () => {
           type="text" 
           value={search} 
           onChange={e => setSearch(e.target.value)} 
-          placeholder="Search by name, number, or category..." 
+          placeholder="Search by name, number, date, or category..." 
           className="input-field pl-10 w-full"
         />
       </div>
@@ -162,10 +195,10 @@ const ImportantNumbers: React.FC = () => {
         {items.length === 0 ? (
           <div className="glass-panel p-8 text-center flex flex-col items-center">
             <BookOpen size={32} className="text-muted mb-3" />
-            <p className="text-muted text-sm">You haven't saved any important numbers yet.</p>
+            <p className="text-muted text-sm">You haven't saved any numbers or dates yet.</p>
           </div>
         ) : filtered.length === 0 ? (
-          <p className="text-muted text-center py-4 text-sm">No numbers match your search.</p>
+          <p className="text-muted text-center py-4 text-sm">Nothing matches your search.</p>
         ) : (
           sortedCategories.map(cat => (
             <div key={cat} className="space-y-2">
@@ -187,19 +220,30 @@ const ImportantNumbers: React.FC = () => {
                       </div>
                     </div>
                     
-                    <div className="flex items-center justify-between bg-black/20 rounded-xl p-2 mt-1 border border-white/5">
-                      <div className="font-mono font-bold text-fuchsia-400 text-lg tracking-wider pl-2 truncate select-all">
-                        {item.isHidden ? '••••••••••••' : item.value}
+                    {/* Only drawn when there is a number. An entry can now be a date on its own. */}
+                    {item.value && (
+                      <div className="flex items-center justify-between bg-text/5 rounded-xl p-2 mt-1 border border-text/5">
+                        <div className="font-mono font-bold text-fuchsia-500 light:text-fuchsia-700 text-lg tracking-wider pl-2 truncate select-all">
+                          {item.isHidden ? '••••••••••••' : item.value}
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0 pl-2 border-l border-text/10 ml-2">
+                          <button onClick={() => toggleVisibility(item.id)} className="p-2 text-muted hover:text-text rounded-lg" title={item.isHidden ? "Show" : "Hide"}>
+                            {item.isHidden ? <Eye size={16} /> : <EyeOff size={16} />}
+                          </button>
+                          <button onClick={() => copyToClipboard(item.id, item.value)} aria-label={`Copy ${item.name}`} className="p-2 text-fuchsia-500 light:text-fuchsia-700 bg-fuchsia-500/10 hover:bg-fuchsia-500/20 rounded-lg transition-colors flex items-center justify-center w-9 h-9">
+                            {copiedId === item.id ? <Check size={16} /> : <Copy size={16} />}
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1 shrink-0 pl-2 border-l border-white/10 ml-2">
-                        <button onClick={() => toggleVisibility(item.id)} className="p-2 text-muted hover:text-text rounded-lg" title={item.isHidden ? "Show" : "Hide"}>
-                          {item.isHidden ? <Eye size={16} /> : <EyeOff size={16} />}
-                        </button>
-                        <button onClick={() => copyToClipboard(item.id, item.value)} className="p-2 text-fuchsia-400 bg-fuchsia-500/10 hover:bg-fuchsia-500/20 rounded-lg transition-colors flex items-center justify-center w-9 h-9">
-                          {copiedId === item.id ? <Check size={16} /> : <Copy size={16} />}
-                        </button>
+                    )}
+
+                    {item.date && (
+                      <div className="flex items-center gap-2 bg-text/5 rounded-xl px-3 py-2.5 border border-text/5">
+                        <CalendarDays size={16} className="text-fuchsia-500 light:text-fuchsia-700 shrink-0" />
+                        <span className="font-mono text-sm text-text">{formatDate(item.date)}</span>
+                        <span className="ml-auto text-[11px] font-bold text-muted shrink-0">{relativeDay(item.date)}</span>
                       </div>
-                    </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -209,7 +253,7 @@ const ImportantNumbers: React.FC = () => {
       </div>
 
       {frameEl && createPortal((
-        <button onClick={() => openForm()} className="fixed bottom-24 right-4 sm:absolute z-30 w-14 h-14 rounded-full bg-fuchsia-500 hover:bg-fuchsia-600 text-white shadow-xl shadow-fuchsia-500/30 flex items-center justify-center active:scale-90 transition-transform" title="Add Number">
+        <button onClick={() => openForm()} className="fixed bottom-24 right-4 sm:absolute z-30 w-14 h-14 rounded-full bg-fuchsia-500 hover:bg-fuchsia-600 text-white shadow-xl shadow-fuchsia-500/30 flex items-center justify-center active:scale-90 transition-transform" title="Add entry">
           <Plus size={26} />
         </button>
       ), frameEl)}
@@ -218,7 +262,7 @@ const ImportantNumbers: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowForm(false)}>
           <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-lg">{fId ? 'Edit' : 'Add'} Number</h3>
+              <h3 className="font-bold text-lg">{fId ? 'Edit' : 'Add'} {fKind === 'number' ? 'number' : 'date'}</h3>
               <button onClick={() => setShowForm(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button>
             </div>
             
@@ -227,15 +271,39 @@ const ImportantNumbers: React.FC = () => {
               <input autoFocus value={fName} onChange={e => setFName(e.target.value)} placeholder="e.g. TNB, Unifi, AIA Insurance" className="input-field w-full" />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Number / ID</label>
-              <input value={fValue} onChange={e => setFValue(e.target.value)} placeholder="e.g. 1234567890" className="input-field w-full font-mono" />
+            <div className="flex p-1 bg-text/5 rounded-xl gap-1">
+              {([['number', 'Number', Hash], ['date', 'Date', CalendarDays]] as const).map(([kind, label, Icon]) => (
+                <button
+                  key={kind}
+                  onClick={() => setFKind(kind)}
+                  aria-pressed={fKind === kind}
+                  className={`flex-1 py-2 text-sm font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors ${
+                    fKind === kind ? 'bg-fuchsia-600 text-[#fff]' : 'text-muted hover:text-text'
+                  }`}
+                >
+                  <Icon size={15} /> {label}
+                </button>
+              ))}
             </div>
 
-            <div className="flex items-center gap-2 pt-1 pb-1">
-              <input type="checkbox" id="hideNumber" checked={fHidden} onChange={e => setFHidden(e.target.checked)} className="rounded bg-black/20 border-white/10 text-fuchsia-500 focus:ring-fuchsia-500 focus:ring-offset-surface" />
-              <label htmlFor="hideNumber" className="text-sm text-text/80 select-none">Hide number by default (like a password)</label>
-            </div>
+            {fKind === 'number' ? (
+              <>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="in-value">Number / ID</label>
+                  <input id="in-value" value={fValue} onChange={e => setFValue(e.target.value)} placeholder="e.g. 1234567890" className="input-field w-full font-mono" />
+                </div>
+
+                <div className="flex items-center gap-2 pt-1 pb-1">
+                  <input type="checkbox" id="hideNumber" checked={fHidden} onChange={e => setFHidden(e.target.checked)} className="rounded bg-text/10 border-text/10 text-fuchsia-500 focus:ring-fuchsia-500 focus:ring-offset-surface" />
+                  <label htmlFor="hideNumber" className="text-sm text-text/80 select-none">Hide number by default (like a password)</label>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="in-date">Date</label>
+                <input id="in-date" type="date" value={fDate} onChange={e => setFDate(e.target.value)} className="input-field w-full" />
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-muted uppercase tracking-wider">Category</label>
@@ -247,7 +315,7 @@ const ImportantNumbers: React.FC = () => {
               <textarea value={fNotes} onChange={e => setFNotes(e.target.value)} placeholder="e.g. Registered under wife's name" className="input-field w-full h-20 resize-none py-2" />
             </div>
 
-            <button onClick={saveForm} disabled={!fName.trim() || !fValue.trim()} className="w-full py-3 rounded-xl bg-fuchsia-500 text-white font-bold hover:bg-fuchsia-600 disabled:opacity-50 disabled:pointer-events-none">
+            <button onClick={saveForm} disabled={!canSave} className="w-full py-3 rounded-xl bg-fuchsia-600 text-[#fff] font-bold hover:bg-fuchsia-700 disabled:opacity-50 disabled:pointer-events-none">
               Save
             </button>
           </div>

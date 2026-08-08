@@ -11,9 +11,14 @@ import { hasDb, migrate, pool } from './db.ts';
 
 const BLOB = {
   items: [
-    { id: 'aaa1111', name: 'Mak', date: '1968-04-12', type: 'birthday', category: 'Family', note: 'batik' },
+    {
+      id: 'aaa1111', title: 'Rumah Setapak', category: 'Tenancy', party: 'Encik Rahim',
+      phone: '0123456789', address: 'No 12, Jalan Setapak 3',
+      startDate: '2025-01-01', endDate: '2026-12-31',
+      amount: 1450.5, dueDay: 5, deposit: 2900, notes: 'ada parking',
+    },
   ],
-  categories: ['Family', 'Friend'],
+  categories: ['Tenancy', 'Internet'],
 };
 
 let sid: string;
@@ -55,7 +60,7 @@ describe('api', { skip: !hasDb && 'DATABASE_URL not set' }, () => {
   });
 
   test('no cookie means 401 on every data route', async () => {
-    for (const path of ['/api/me', '/api/bootstrap', '/api/sync/birthdays_data']) {
+    for (const path of ['/api/me', '/api/bootstrap', '/api/sync/tenancy_data']) {
       assert.equal((await call(path, {}, false)).status, 401, path);
     }
   });
@@ -68,7 +73,7 @@ describe('api', { skip: !hasDb && 'DATABASE_URL not set' }, () => {
   });
 
   test('cross-origin writes are rejected', async () => {
-    const res = await call('/api/sync/birthdays_data', {
+    const res = await call('/api/sync/tenancy_data', {
       method: 'PUT',
       headers: { origin: 'https://evil.example' },
       body: JSON.stringify({ data: BLOB }),
@@ -78,7 +83,7 @@ describe('api', { skip: !hasDb && 'DATABASE_URL not set' }, () => {
 
   test('the dev proxy origin is allowed, and only outside production', async () => {
     const { isAllowedOrigin } = await import('./auth.ts');
-    const api = 'http://localhost:3000/api/sync/birthdays_data';
+    const api = 'http://localhost:3000/api/sync/tenancy_data';
 
     // Vite serves the app on 5173 and proxies /api to 3000, so the hosts differ legitimately.
     assert.equal(isAllowedOrigin('http://localhost:5173', api), true);
@@ -95,34 +100,34 @@ describe('api', { skip: !hasDb && 'DATABASE_URL not set' }, () => {
       assert.equal(isAllowedOrigin('http://localhost:5173', api), false,
         'the loopback exemption must not exist in production');
       assert.equal(isAllowedOrigin('https://senangkit.up.railway.app',
-        'https://senangkit.up.railway.app/api/sync/birthdays_data'), true);
+        'https://senangkit.up.railway.app/api/sync/tenancy_data'), true);
     } finally {
       process.env.NODE_ENV = previous;
     }
   });
 
   test('push then pull returns the same blob and bumps the revision', async () => {
-    const first = await call('/api/sync/birthdays_data', {
+    const first = await call('/api/sync/tenancy_data', {
       method: 'PUT', body: JSON.stringify({ data: BLOB }),
     });
     assert.equal(first.status, 200);
     const { rev } = await first.json();
     assert.ok(rev >= 1);
 
-    const pulled = await (await call('/api/sync/birthdays_data')).json();
+    const pulled = await (await call('/api/sync/tenancy_data')).json();
     assert.deepEqual(pulled.data, BLOB);
     assert.equal(pulled.rev, rev);
 
-    const second = await call('/api/sync/birthdays_data', {
+    const second = await call('/api/sync/tenancy_data', {
       method: 'PUT', body: JSON.stringify({ rev, data: BLOB }),
     });
     assert.equal((await second.json()).rev, rev + 1, 'each write bumps rev');
   });
 
   test('a stale revision gets 409 with the server copy, not a silent overwrite', async () => {
-    const { rev } = await (await call('/api/sync/birthdays_data')).json();
+    const { rev } = await (await call('/api/sync/tenancy_data')).json();
 
-    const stale = await call('/api/sync/birthdays_data', {
+    const stale = await call('/api/sync/tenancy_data', {
       method: 'PUT',
       body: JSON.stringify({ rev: rev - 1, data: { items: [], categories: [] } }),
     });
@@ -132,24 +137,44 @@ describe('api', { skip: !hasDb && 'DATABASE_URL not set' }, () => {
     assert.equal(body.rev, rev, 'the client is told the current revision');
     assert.deepEqual(body.data, BLOB, 'and handed the server copy to choose from');
 
-    const after = await (await call('/api/sync/birthdays_data')).json();
+    const after = await (await call('/api/sync/tenancy_data')).json();
     assert.deepEqual(after.data, BLOB, 'the rejected write must not have landed');
   });
 
   test('bootstrap returns the user and every written tool', async () => {
     const body = await (await call('/api/bootstrap')).json();
     assert.equal(body.user.email, 'api@test.local');
-    assert.deepEqual(body.data.birthdays_data, BLOB);
-    assert.ok(body.revisions.birthdays_data >= 1);
+    assert.deepEqual(body.data.tenancy_data, BLOB);
+    assert.ok(body.revisions.tenancy_data >= 1);
   });
 
   test('import writes several tools at once', async () => {
     const res = await call('/api/sync/import', {
       method: 'POST',
-      body: JSON.stringify({ birthdays_data: BLOB, not_a_tool: { junk: true } }),
+      body: JSON.stringify({ tenancy_data: BLOB, not_a_tool: { junk: true } }),
     });
     const { imported } = await res.json();
-    assert.deepEqual(imported, ['birthdays_data'], 'unknown keys are ignored, not written');
+    assert.deepEqual(imported, ['tenancy_data'], 'unknown keys are ignored, not written');
+  });
+
+  test('feedback needs an account, a message, and lands with its target', async () => {
+    assert.equal((await call('/api/feedback', {
+      method: 'POST', body: JSON.stringify({ message: 'hi' }),
+    }, false)).status, 401, 'guests cannot post');
+
+    assert.equal((await call('/api/feedback', {
+      method: 'POST', body: JSON.stringify({ message: '   ' }),
+    })).status, 400);
+
+    const res = await call('/api/feedback', {
+      method: 'POST',
+      body: JSON.stringify({ kind: 'bug', target: '/document-expiry', message: 'tarikh salah' }),
+    });
+    assert.equal(res.status, 200);
+
+    const { rows } = await pool!.query(
+      'select kind, target, message from feedback where user_id = $1', [userId]);
+    assert.deepEqual(rows, [{ kind: 'bug', target: '/document-expiry', message: 'tarikh salah' }]);
   });
 
   test('logout revokes the session', async () => {

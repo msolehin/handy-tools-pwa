@@ -14,7 +14,6 @@ import { setUser, subscribe as subscribeToAuth, type User } from './auth.ts';
 
 /** Tool keys that belong to an account. Grows one phase at a time. */
 export const SYNCED_KEYS = new Set<string>([
-  'birthdays_data',
   'tenancy_data',
   'de_documents',
   'cd_events',
@@ -41,7 +40,6 @@ export const SYNCED_KEYS = new Set<string>([
  * test asserting every route maps to a real synced key and every record tool has a route.
  */
 export const SYNCED_ROUTES: Record<string, string> = {
-  '/birthdays': 'birthdays_data',
   '/tenancy': 'tenancy_data',
   '/document-expiry': 'de_documents',
   '/countdown': 'cd_events',
@@ -311,13 +309,12 @@ const importCandidates = new Map<string, string>();
 
 /** Tool labels for the import prompt. Keyed by storage key. */
 export const TOOL_LABELS: Record<string, string> = {
-  birthdays_data: 'Birthdays',
   tenancy_data: 'Sewa & Kontrak',
   de_documents: 'Document Expiry',
   cd_events: 'Countdown Day',
   debt_tracker_ious: 'Catat Hutang',
   habit_tracker_data: 'Habit Tracker',
-  important_numbers_data: 'Important Numbers',
+  important_numbers_data: 'Important Number / Date',
   expense_manager_data: 'Expense Manager',
   duit_raya_manager_data: 'Kira Duit Raya',
   travel_history_data: 'My Travel History',

@@ -8,7 +8,7 @@ import { useCopy } from './copy';
 // look things up in. Ordered by which bites you soonest.
 const DEADLINE_DRIVEN = new Set([
   '/document-expiry', '/tenancy', '/commitments', '/asset-warranty',
-  '/vehicle-services', '/home-services', '/birthdays', '/countdown', '/debt-tracker',
+  '/vehicle-services', '/home-services', '/countdown', '/debt-tracker',
 ]);
 
 const ToolCard: React.FC<{ tool: typeof DEFAULT_TOOLS[number] }> = ({ tool }) => {

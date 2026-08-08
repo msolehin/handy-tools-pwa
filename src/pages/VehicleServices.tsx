@@ -30,6 +30,8 @@ interface ServiceEvent {
   address: string; // Workshop address
   notes: string;
   nextServiceDate?: string;
+  /** The next service was done, but no record logged yet. Stops the reminder without inventing one. */
+  nextDone?: boolean;
 }
 
 interface VehicleData {
@@ -39,7 +41,7 @@ interface VehicleData {
 
 const STORAGE_KEY = 'vehicle_services_data';
 const TITLES_KEY = 'vehicle_custom_titles';
-const DEFAULT_TITLES = ['Engine Oil Change', 'Brake Pad Replacement', 'Aircond Service', 'Tyre Change', 'Battery Replacement', 'Full Servicing'];
+const DEFAULT_TITLES = ['Tukar Minyak Hitam', 'Tukar Brek', 'Servis Aircond', 'Tukar Tayar', 'Tukar Bateri', 'Servis Penuh'];
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -107,6 +109,11 @@ const VehicleServices: React.FC = () => {
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [showAssetSelector, setShowAssetSelector] = useState(false);
   const [assetSearchQuery, setAssetSearchQuery] = useState('');
+  const [serviceFilter, setServiceFilter] = useState('all');
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [filterQuery, setFilterQuery] = useState('');
+  const filterRef = useRef<HTMLDivElement>(null);
+  useOutsideClick(filterRef, () => setShowFilterDropdown(false));
 
   useEffect(() => {
     if (data.assets.length > 0 && !selectedAssetId) {
@@ -156,7 +163,7 @@ const VehicleServices: React.FC = () => {
   };
 
   const deleteAsset = (id: string) => {
-    if (window.confirm('Delete this vehicle and all its service history?')) {
+    if (window.confirm('Padam kenderaan ni dan semua sejarah servisnya?')) {
       setData(prev => ({
         assets: prev.assets.filter(a => a.id !== id),
         events: prev.events.filter(e => e.assetId !== id)
@@ -239,7 +246,11 @@ const VehicleServices: React.FC = () => {
       mileage: fMileage.trim(),
       address: fAddress.trim(),
       notes: fNotes.trim(),
-      nextServiceDate: fNextDate || undefined
+      nextServiceDate: fNextDate || undefined,
+      // Editing keeps the "dah buat" tick; setting a different next date is a new job to do.
+      nextDone: fId && data.events.find(e => e.id === fId)?.nextServiceDate === (fNextDate || undefined)
+        ? data.events.find(e => e.id === fId)?.nextDone
+        : undefined
     };
 
     setData(prev => {
@@ -253,15 +264,30 @@ const VehicleServices: React.FC = () => {
   };
 
   const deleteEvent = (id: string) => {
-    if (window.confirm("Delete this service record?")) {
+    if (window.confirm("Padam rekod servis ni?")) {
       setData(prev => ({ ...prev, events: prev.events.filter(e => e.id !== id) }));
     }
   };
 
+  const toggleNextDone = (id: string) => {
+    setData(prev => ({
+      ...prev,
+      events: prev.events.map(e => e.id === id ? { ...e, nextDone: !e.nextDone } : e)
+    }));
+  };
+
   const currentAsset = data.assets.find(a => a.id === selectedAssetId);
-  const currentEvents = data.events
+  const assetEvents = data.events
     .filter(e => e.assetId === selectedAssetId)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  // Only the services this vehicle actually has. Derived rather than stored, so switching to a
+  // vehicle that has never had an aircond service falls back to "all" instead of an empty list.
+  const serviceTitles = [...new Set(assetEvents.map(e => e.title))].sort();
+  const activeFilter = serviceTitles.includes(serviceFilter) ? serviceFilter : 'all';
+  const currentEvents = activeFilter === 'all'
+    ? assetEvents
+    : assetEvents.filter(e => e.title === activeFilter);
 
   const filteredAssets = data.assets.filter(a => a.name.toLowerCase().includes(assetSearchQuery.toLowerCase()) || a.plate.toLowerCase().includes(assetSearchQuery.toLowerCase()));
 
@@ -275,7 +301,7 @@ const VehicleServices: React.FC = () => {
 
   const removeCustomTitle = (e: React.MouseEvent, title: string) => {
     e.stopPropagation();
-    if (window.confirm(`Delete the custom service name "${title}"?`)) {
+    if (window.confirm(`Padam nama servis "${title}"?`)) {
       setCustomTitles(prev => prev.filter(t => t !== title));
     }
   };
@@ -288,7 +314,7 @@ const VehicleServices: React.FC = () => {
         </div>
         <div>
           <h2 className="text-2xl font-bold">Servis Kenderaan</h2>
-          <p className="text-sm text-muted">Track auto maintenance & cost</p>
+          <p className="text-sm text-muted">Rekod servis & kos kenderaan</p>
         </div>
       </div>
 
@@ -301,12 +327,12 @@ const VehicleServices: React.FC = () => {
           >
             {currentAsset ? (
               <div className="text-left">
-                <p className="text-xs font-bold text-muted uppercase tracking-wider mb-0.5">Current Vehicle</p>
+                <p className="text-xs font-bold text-muted uppercase tracking-wider mb-0.5">Kenderaan sekarang</p>
                 <p className="font-bold text-lg text-amber-400">{currentAsset.name}</p>
                 <p className="text-xs text-text/80">{currentAsset.plate || 'No plate'}</p>
               </div>
             ) : (
-              <p className="font-bold text-muted">Select a Vehicle...</p>
+              <p className="font-bold text-muted">Pilih kenderaan...</p>
             )}
             <ChevronDown className="text-muted" />
           </button>
@@ -320,7 +346,7 @@ const VehicleServices: React.FC = () => {
             className="w-full py-4 rounded-xl border-2 border-dashed border-white/20 text-muted hover:text-amber-400 hover:border-amber-400/50 transition-colors flex flex-col items-center gap-2"
           >
             <Plus size={24} /> 
-            <span className="font-bold">Add Your First Vehicle</span>
+            <span className="font-bold">Tambah kenderaan pertama</span>
           </button>
         )}
       </div>
@@ -329,17 +355,75 @@ const VehicleServices: React.FC = () => {
         data.assets.length > 0 && (
           <div className="glass-panel p-8 text-center flex flex-col items-center">
             <CarFront size={32} className="text-muted mb-3 opacity-50" />
-            <p className="text-muted text-sm">Please select a vehicle to view its service history.</p>
+            <p className="text-muted text-sm">Pilih kenderaan untuk lihat sejarah servis.</p>
           </div>
         )
       ) : (
         <div className="space-y-4">
-          {currentEvents.length === 0 ? (
+          {serviceTitles.length > 0 && (
+            <div className="relative px-1" ref={filterRef}>
+              <button
+                onClick={() => { setShowFilterDropdown(o => !o); setFilterQuery(''); }}
+                aria-expanded={showFilterDropdown}
+                className={`w-full glass-panel px-4 py-2.5 flex items-center justify-between gap-2 transition-colors ${
+                  activeFilter === 'all' ? 'hover:border-amber-500/50' : 'border-amber-500/40'
+                }`}
+              >
+                <span className="flex items-center gap-2 min-w-0">
+                  <Search size={14} className="text-muted shrink-0" />
+                  <span className={`truncate text-sm font-bold ${
+                    activeFilter === 'all' ? 'text-muted' : 'text-amber-500 light:text-amber-700'
+                  }`}>
+                    {activeFilter === 'all' ? 'Semua servis' : activeFilter}
+                  </span>
+                </span>
+                <span className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs font-bold text-muted">{currentEvents.length}</span>
+                  <ChevronDown size={16} className="text-muted" />
+                </span>
+              </button>
+
+              {showFilterDropdown && (
+                <div className="absolute top-full left-1 right-1 mt-1 bg-surface border border-text/10 rounded-xl shadow-2xl z-50 p-1">
+                  <input
+                    autoFocus
+                    value={filterQuery}
+                    onChange={e => setFilterQuery(e.target.value)}
+                    placeholder="Cari servis..."
+                    className="w-full px-3 py-2 mb-1 bg-background/50 border border-text/10 rounded-lg text-sm text-text placeholder-muted focus:outline-none focus:border-amber-500/50"
+                  />
+                  <div className="max-h-48 overflow-y-auto">
+                    {['all', ...serviceTitles]
+                      .filter(t => t === 'all' || t.toLowerCase().includes(filterQuery.toLowerCase()))
+                      .map(title => (
+                        <button
+                          key={title}
+                          onClick={() => { setServiceFilter(title); setShowFilterDropdown(false); }}
+                          className={`w-full px-3 py-2 text-sm rounded-lg flex items-center justify-between gap-2 hover:bg-text/5 transition-colors ${
+                            activeFilter === title ? 'text-amber-500 light:text-amber-700 font-bold' : 'text-text'
+                          }`}
+                        >
+                          <span className="truncate">{title === 'all' ? 'Semua servis' : title}</span>
+                          <span className="text-xs text-muted shrink-0">
+                            {title === 'all' ? assetEvents.length : assetEvents.filter(e => e.title === title).length}
+                          </span>
+                        </button>
+                      ))}
+                    {filterQuery.trim() && !serviceTitles.some(t => t.toLowerCase().includes(filterQuery.toLowerCase())) && (
+                      <p className="px-3 py-3 text-xs text-muted">Takde servis sepadan “{filterQuery.trim()}”.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {assetEvents.length === 0 ? (
             <div className="glass-panel p-8 text-center flex flex-col items-center">
               <CalendarClock size={32} className="text-muted mb-3 opacity-50" />
-              <p className="text-muted text-sm mb-4">No service history for this vehicle.</p>
-              <button onClick={() => openEventForm()} className="px-4 py-2 bg-amber-500/20 text-amber-400 rounded-lg font-bold hover:bg-amber-500/30 transition-colors text-sm">
-                Add First Service
+              <p className="text-muted text-sm mb-4">Takde sejarah servis untuk kenderaan ni.</p>
+              <button onClick={() => openEventForm()} className="px-4 py-2 bg-amber-500/20 text-amber-500 light:text-amber-700 rounded-lg font-bold hover:bg-amber-500/30 transition-colors text-sm">
+                Tambah servis pertama
               </button>
             </div>
           ) : (
@@ -358,9 +442,26 @@ const VehicleServices: React.FC = () => {
                             <p className="text-xs text-muted mt-0.5">Mileage: <span className="font-mono text-text/80">{event.mileage}</span></p>
                           )}
                           {event.nextServiceDate && (
-                            <p className="text-xs mt-0.5 font-bold flex items-center gap-1 text-rose-400">
-                              <CalendarClock size={12} /> Next: {formatDate(event.nextServiceDate)}
-                            </p>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              <p className={`text-xs font-bold flex items-center gap-1 ${
+                                event.nextDone ? 'text-muted line-through' : 'text-rose-500 light:text-rose-700'
+                              }`}>
+                                <CalendarClock size={12} /> Seterusnya: {formatDate(event.nextServiceDate)}
+                              </p>
+                              <button
+                                onClick={() => toggleNextDone(event.id)}
+                                aria-pressed={!!event.nextDone}
+                                title={event.nextDone ? 'Tap kalau belum buat lagi' : 'Tap kalau dah buat servis ni'}
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors flex items-center gap-1 ${
+                                  event.nextDone
+                                    ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-500 light:text-emerald-700'
+                                    : 'border-text/20 text-muted hover:text-text hover:border-text/40'
+                                }`}
+                              >
+                                {event.nextDone && <Check size={11} strokeWidth={3} />}
+                                {event.nextDone ? 'Dah buat' : 'Dah buat?'}
+                              </button>
+                            </div>
                           )}
                         </div>
                         <div className="text-right">
@@ -376,14 +477,14 @@ const VehicleServices: React.FC = () => {
                         <div>
                           <button onClick={() => toggleExpand(event.id)} className="text-xs flex items-center gap-1 text-muted hover:text-text transition-colors py-1">
                             {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                            {isExpanded ? 'Hide Details' : 'View Details'}
+                            {isExpanded ? 'Tutup butiran' : 'Lihat butiran'}
                           </button>
                           
                           {isExpanded && (
                             <div className="mt-3 pt-3 border-t border-white/5 space-y-3 animate-slide-up">
                               {event.address && (
                                 <div>
-                                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">Workshop Address</p>
+                                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">Alamat bengkel</p>
                                   <p className="text-sm text-text/80 bg-black/20 p-2.5 rounded-lg border border-white/5 whitespace-pre-wrap flex items-start gap-2">
                                     <MapPin size={16} className="text-amber-400 shrink-0 mt-0.5" />
                                     {event.address}
@@ -392,7 +493,7 @@ const VehicleServices: React.FC = () => {
                               )}
                               {!event.isLumpsum && event.items.length > 0 && (
                                 <div>
-                                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-2">Itemized Bill</p>
+                                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-2">Senarai item</p>
                                   <div className="space-y-1.5 bg-black/20 p-2.5 rounded-lg border border-white/5">
                                     {event.items.map(item => (
                                       <div key={item.id} className="flex justify-between text-sm">
@@ -405,7 +506,7 @@ const VehicleServices: React.FC = () => {
                               )}
                               {event.notes && (
                                 <div>
-                                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">Notes</p>
+                                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">Nota</p>
                                   <p className="text-sm text-text/80 bg-black/20 p-2.5 rounded-lg border border-white/5 whitespace-pre-wrap">{event.notes}</p>
                                 </div>
                               )}
@@ -423,7 +524,7 @@ const VehicleServices: React.FC = () => {
       )}
 
       {currentAsset && frameEl && createPortal((
-        <button onClick={() => openEventForm()} className="fixed bottom-24 right-4 sm:absolute z-30 w-14 h-14 rounded-full bg-amber-500 hover:bg-amber-600 text-white shadow-xl shadow-amber-500/30 flex items-center justify-center active:scale-90 transition-transform" title="Add Service">
+        <button onClick={() => openEventForm()} className="fixed bottom-24 right-4 sm:absolute z-30 w-14 h-14 rounded-full bg-amber-500 hover:bg-amber-600 text-white shadow-xl shadow-amber-500/30 flex items-center justify-center active:scale-90 transition-transform" title="Tambah servis">
           <Plus size={26} />
         </button>
       ), frameEl)}
@@ -433,7 +534,7 @@ const VehicleServices: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowAssetSelector(false)}>
           <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 flex flex-col max-h-[80vh] shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4 shrink-0">
-              <h3 className="font-bold text-lg">Select Vehicle</h3>
+              <h3 className="font-bold text-lg">Pilih kenderaan</h3>
               <button onClick={() => setShowAssetSelector(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button>
             </div>
             
@@ -443,14 +544,14 @@ const VehicleServices: React.FC = () => {
                 autoFocus
                 value={assetSearchQuery} 
                 onChange={e => setAssetSearchQuery(e.target.value)} 
-                placeholder="Search vehicles..." 
+                placeholder="Cari kenderaan..." 
                 className="input-field w-full pl-10" 
               />
             </div>
 
             <div className="overflow-y-auto space-y-2 custom-scrollbar pb-2">
               {filteredAssets.length === 0 ? (
-                <p className="text-center text-muted text-sm py-4">No vehicles found.</p>
+                <p className="text-center text-muted text-sm py-4">Takde kenderaan dijumpai.</p>
               ) : (
                 filteredAssets.map(asset => (
                   <div key={asset.id} className={`flex items-center justify-between p-3 rounded-xl border ${selectedAssetId === asset.id ? 'border-amber-500 bg-amber-500/10' : 'border-white/5 bg-black/20 hover:border-white/10'} transition-colors cursor-pointer`} onClick={() => { setSelectedAssetId(asset.id); setShowAssetSelector(false); }}>
@@ -470,7 +571,7 @@ const VehicleServices: React.FC = () => {
 
             <div className="shrink-0 pt-4 border-t border-white/5 mt-auto">
               <button onClick={() => { setShowAssetSelector(false); setEditAssetId(null); setAssetName(''); setAssetPlate(''); setShowAssetForm(true); }} className="w-full py-3 rounded-xl border border-dashed border-white/20 text-amber-400 font-bold hover:bg-amber-500/10 transition-colors flex items-center justify-center gap-2">
-                <Plus size={18} /> Add New Vehicle
+                <Plus size={18} /> Tambah kenderaan baru
               </button>
             </div>
           </div>
@@ -487,17 +588,17 @@ const VehicleServices: React.FC = () => {
             </div>
             
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Vehicle Name</label>
-              <input autoFocus value={assetName} onChange={e => setAssetName(e.target.value)} placeholder="e.g. Honda Civic" className="input-field w-full" />
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">Nama kenderaan</label>
+              <input autoFocus value={assetName} onChange={e => setAssetName(e.target.value)} placeholder="cth. Honda Civic" className="input-field w-full" />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Plate Number (Optional)</label>
-              <input value={assetPlate} onChange={e => setAssetPlate(e.target.value)} placeholder="e.g. VHA 1234" className="input-field w-full uppercase" />
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">Nombor plat (pilihan)</label>
+              <input value={assetPlate} onChange={e => setAssetPlate(e.target.value)} placeholder="cth. VHA 1234" className="input-field w-full uppercase" />
             </div>
 
             <button onClick={saveAsset} disabled={!assetName.trim()} className="w-full py-3 rounded-xl bg-amber-500 text-white font-bold hover:bg-amber-600 disabled:opacity-50 mt-2">
-              Save Vehicle
+              Simpan kenderaan
             </button>
           </div>
         </div>
@@ -515,18 +616,18 @@ const VehicleServices: React.FC = () => {
             <div className="overflow-y-auto pr-1 space-y-4 custom-scrollbar pb-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-muted uppercase tracking-wider">Date</label>
+                  <label className="text-xs font-bold text-muted uppercase tracking-wider">Tarikh</label>
                   <input type="date" value={fDate} onChange={e => setFDate(e.target.value)} className="input-field w-full" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-muted uppercase tracking-wider">Mileage (Optional)</label>
-                  <input type="text" value={fMileage} onChange={e => setFMileage(e.target.value)} placeholder="e.g. 50,000 km" className="input-field w-full" />
+                  <label className="text-xs font-bold text-muted uppercase tracking-wider">Perbatuan (pilihan)</label>
+                  <input type="text" value={fMileage} onChange={e => setFMileage(e.target.value)} placeholder="cth. 50,000 km" className="input-field w-full" />
                 </div>
               </div>
 
               {/* Dynamic Service Title Dropdown */}
               <div className="space-y-1.5 relative" ref={dropdownRef}>
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Service Title</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">Jenis servis</label>
                 <div className="relative">
                   <input 
                     value={fTitle} 
@@ -535,7 +636,7 @@ const VehicleServices: React.FC = () => {
                       setShowTitleDropdown(true);
                     }} 
                     onFocus={() => setShowTitleDropdown(true)}
-                    placeholder="Search or type custom service..." 
+                    placeholder="Cari atau taip servis sendiri..." 
                     className="input-field w-full pr-8" 
                   />
                   <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-muted pointer-events-none" size={16} />
@@ -556,7 +657,7 @@ const VehicleServices: React.FC = () => {
                             <button 
                               onClick={(e) => removeCustomTitle(e, title)} 
                               className="text-muted hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                              title="Delete custom service"
+                              title="Padam servis sendiri"
                             >
                               <Trash size={14} />
                             </button>
@@ -577,31 +678,31 @@ const VehicleServices: React.FC = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Workshop Address (Optional)</label>
-                <textarea value={fAddress} onChange={e => setFAddress(e.target.value)} placeholder="Workshop name or address..." className="input-field w-full h-16 resize-none py-2" />
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">Alamat bengkel (pilihan)</label>
+                <textarea value={fAddress} onChange={e => setFAddress(e.target.value)} placeholder="Nama atau alamat bengkel..." className="input-field w-full h-16 resize-none py-2" />
               </div>
 
               <div className="pt-2 border-t border-white/5 space-y-3">
                 <div className="flex bg-black/20 p-1 rounded-xl">
                   <button type="button" onClick={() => setFIsLumpsum(true)} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors ${fIsLumpsum ? 'bg-amber-500 text-white shadow' : 'text-muted hover:text-text'}`}>
-                    Lumpsum Cost
+                    Kos sekaligus
                   </button>
                   <button type="button" onClick={() => setFIsLumpsum(false)} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors ${!fIsLumpsum ? 'bg-amber-500 text-white shadow' : 'text-muted hover:text-text'}`}>
-                    Itemized Bill
+                    Senarai item
                   </button>
                 </div>
 
                 {fIsLumpsum ? (
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-muted uppercase tracking-wider">Total Cost (RM)</label>
+                    <label className="text-xs font-bold text-muted uppercase tracking-wider">Jumlah kos (RM)</label>
                     <input type="number" min="0" step="0.01" value={fTotalCost} onChange={e => setFTotalCost(e.target.value)} placeholder="0.00" className="input-field w-full text-xl font-bold" />
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-muted uppercase tracking-wider">Service Items</label>
+                    <label className="text-xs font-bold text-muted uppercase tracking-wider">Item servis</label>
                     {fItems.map((item, idx) => (
                       <div key={item.id} className="flex items-center gap-2">
-                        <input value={item.name} onChange={e => updateItem(item.id, 'name', e.target.value)} placeholder="Item name" className="input-field flex-1" />
+                        <input value={item.name} onChange={e => updateItem(item.id, 'name', e.target.value)} placeholder="Nama item" className="input-field flex-1" />
                         <div className="relative w-24 shrink-0">
                           <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted text-xs">RM</span>
                           <input type="number" min="0" step="0.01" value={item.cost === 0 && idx === fItems.length - 1 ? '' : item.cost} onChange={e => updateItem(item.id, 'cost', parseFloat(e.target.value) || 0)} className="input-field w-full pl-7 pr-2" />
@@ -610,7 +711,7 @@ const VehicleServices: React.FC = () => {
                       </div>
                     ))}
                     <button onClick={addItem} className="w-full py-2 border border-dashed border-white/20 rounded-xl text-amber-400 font-bold hover:bg-amber-500/10 text-sm flex items-center justify-center gap-1">
-                      <Plus size={16} /> Add Item
+                      <Plus size={16} /> Tambah item
                     </button>
                     
                     <div className="flex justify-between items-center p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl mt-2">
@@ -622,20 +723,20 @@ const VehicleServices: React.FC = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Next Service Date (Optional)</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">Tarikh servis seterusnya (pilihan)</label>
                 <input type="date" value={fNextDate} onChange={e => setFNextDate(e.target.value)} className="input-field w-full text-rose-400" />
-                <p className="text-[10px] text-muted">Set a date to get reminded on the Home screen.</p>
+                <p className="text-[10px] text-muted">Set tarikh untuk dapat peringatan di skrin Utama.</p>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Notes (Optional)</label>
-                <textarea value={fNotes} onChange={e => setFNotes(e.target.value)} placeholder="Mechanic advised to check brakes next time" className="input-field w-full h-16 resize-none py-2" />
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">Nota (pilihan)</label>
+                <textarea value={fNotes} onChange={e => setFNotes(e.target.value)} placeholder="Mekanik kata check brek lain kali" className="input-field w-full h-16 resize-none py-2" />
               </div>
             </div>
 
             <div className="shrink-0 pt-4 border-t border-white/5">
               <button onClick={saveEvent} disabled={!fTitle.trim() || !fDate} className="w-full py-3 rounded-xl bg-amber-500 text-white font-bold hover:bg-amber-600 disabled:opacity-50">
-                Save Service Record
+                Simpan rekod servis
               </button>
             </div>
           </div>

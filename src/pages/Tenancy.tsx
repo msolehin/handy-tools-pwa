@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { KeyRound, Plus, Trash2, Pencil, X, FileText, Phone } from 'lucide-react';
+import { KeyRound, Plus, Trash2, Pencil, X, FileText, Phone, MessageCircle, MapPin } from 'lucide-react';
 import { store } from '../lib/store';
+import { waNumber } from '../lib/phone';
 import CategoryChips from '../components/CategoryChips';
 
 interface Contract {
@@ -10,6 +11,7 @@ interface Contract {
   category: string;
   party: string; // landlord / provider
   phone: string;
+  address: string;
   startDate: string; // YYYY-MM-DD
   endDate: string;   // YYYY-MM-DD
   amount: number;    // monthly payment
@@ -81,12 +83,17 @@ const Tenancy: React.FC = () => {
   const [fCat, setFCat] = useState(DEFAULT_CATS[0]);
   const [fParty, setFParty] = useState('');
   const [fPhone, setFPhone] = useState('');
+  const [fAddress, setFAddress] = useState('');
   const [fStart, setFStart] = useState(todayStr());
   const [fEnd, setFEnd] = useState(addYearToDate(todayStr()));
   const [fAmount, setFAmount] = useState('');
   const [fDueDay, setFDueDay] = useState('1');
   const [fDeposit, setFDeposit] = useState('');
   const [fNotes, setFNotes] = useState('');
+
+  // The country-coded number, or null when what's typed can't be dialled. Doubles as the
+  // validation flag for the field below.
+  const phoneOk = waNumber(fPhone);
 
   // Default the end date to a year after the start — most tenancies run 12 months
   useEffect(() => {
@@ -100,6 +107,7 @@ const Tenancy: React.FC = () => {
       setFCat(item.category);
       setFParty(item.party || '');
       setFPhone(item.phone || '');
+      setFAddress(item.address || '');
       setFStart(item.startDate);
       setFEnd(item.endDate);
       setFAmount(item.amount ? String(item.amount) : '');
@@ -112,6 +120,7 @@ const Tenancy: React.FC = () => {
       setFCat(categories[0] || 'Other');
       setFParty('');
       setFPhone('');
+      setFAddress('');
       setFStart(todayStr());
       setFEnd(addYearToDate(todayStr()));
       setFAmount('');
@@ -130,6 +139,7 @@ const Tenancy: React.FC = () => {
       category: fCat,
       party: fParty.trim(),
       phone: fPhone.trim(),
+      address: fAddress.trim(),
       startDate: fStart,
       endDate: fEnd,
       amount: parseFloat(fAmount) || 0,
@@ -229,11 +239,22 @@ const Tenancy: React.FC = () => {
                     </div>
                     <p className="font-bold text-text/90 truncate text-lg">{item.title}</p>
                     {item.party && (
-                      <p className="text-xs text-muted truncate flex items-center gap-1.5">
-                        {item.party}
+                      <p className="text-xs text-muted flex items-center gap-1.5 flex-wrap">
+                        <span className="truncate">{item.party}</span>
                         {item.phone && (
-                          <a href={`tel:${item.phone}`} className="inline-flex items-center gap-1 text-teal-400 hover:underline">
+                          <a href={`tel:${item.phone}`} className="inline-flex items-center gap-1 text-teal-500 light:text-teal-700 hover:underline">
                             <Phone size={11} /> {item.phone}
+                          </a>
+                        )}
+                        {waNumber(item.phone || '') && (
+                          <a
+                            href={`https://wa.me/${waNumber(item.phone)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={`WhatsApp ${item.party || item.title}`}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-bold bg-emerald-500/15 text-emerald-500 light:text-emerald-700 hover:bg-emerald-500/25 transition-colors"
+                          >
+                            <MessageCircle size={11} /> WhatsApp
                           </a>
                         )}
                       </p>
@@ -269,6 +290,12 @@ const Tenancy: React.FC = () => {
                   )}
                   {item.deposit > 0 && (
                     <p className="text-xs text-muted mt-1 px-1">Deposit held: <span className="font-bold text-text/80">{money(item.deposit)}</span></p>
+                  )}
+                  {item.address && (
+                    <p className="text-xs text-muted mt-2 pl-1 flex items-start gap-1.5">
+                      <MapPin size={12} className="text-teal-500 light:text-teal-700 shrink-0 mt-0.5" />
+                      <span className="whitespace-pre-wrap">{item.address}</span>
+                    </p>
                   )}
                   {item.notes && <p className="text-xs text-muted mt-2 pl-1"><span className="font-bold">Notes:</span> {item.notes}</p>}
                 </div>
@@ -339,9 +366,39 @@ const Tenancy: React.FC = () => {
                 <input value={fParty} onChange={e => setFParty(e.target.value)} placeholder="Name" className="input-field w-full" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Phone</label>
-                <input type="tel" value={fPhone} onChange={e => setFPhone(e.target.value)} placeholder="01x-xxx xxxx" className="input-field w-full" />
+                <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="tn-phone">Phone</label>
+                <input
+                  id="tn-phone"
+                  type="tel"
+                  inputMode="tel"
+                  value={fPhone}
+                  onChange={e => setFPhone(e.target.value)}
+                  placeholder="01x-xxx xxxx"
+                  aria-invalid={Boolean(fPhone.trim()) && !phoneOk}
+                  className={`input-field w-full ${fPhone.trim() && !phoneOk ? 'border-rose-500/60' : ''}`}
+                />
               </div>
+            </div>
+
+            {/* Say what the number will actually do before it is saved, rather than leaving a dead
+                WhatsApp button to be discovered later. */}
+            {fPhone.trim() && (
+              <p className={`text-[11px] -mt-2 ${phoneOk ? 'text-muted' : 'text-rose-500 light:text-rose-700'}`}>
+                {phoneOk
+                  ? <>WhatsApp will open <span className="font-mono">+{phoneOk}</span></>
+                  : 'Nombor tak lengkap — WhatsApp tak boleh dibuka. Contoh: 012-345 6789'}
+              </p>
+            )}
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="tn-address">Address (Optional)</label>
+              <textarea
+                id="tn-address"
+                value={fAddress}
+                onChange={e => setFAddress(e.target.value)}
+                placeholder="e.g. No 12, Jalan Setapak 3, 53000 Kuala Lumpur"
+                className="input-field w-full h-16 resize-none py-2"
+              />
             </div>
 
             <div className="space-y-1.5">

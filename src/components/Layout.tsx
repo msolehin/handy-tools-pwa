@@ -2,10 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, MoreHorizontal, X, Sun, Moon, Settings, Check, Bell, ChevronUp, ChevronDown, Download,
-  UserRound
+  UserRound, CalendarClock
 } from 'lucide-react';
 import { DEFAULT_TOOLS } from '../pages/Home';
 import AccountPanel from './AccountPanel';
+import FeedbackForm from './FeedbackForm';
+import { ToolRail, HorizonPanel } from './DesktopShell';
+import { HorizonList } from './HorizonList';
+import { useHorizon } from '../lib/useHorizon';
 import ImportPrompt from './ImportPrompt';
 import GuestNotice from './GuestNotice';
 import { getUser, subscribe, type User } from '../lib/auth';
@@ -82,6 +86,11 @@ const Layout: React.FC = () => {
   const [authUser, setAuthUser] = useState<User | null>(getUser());
   useEffect(() => subscribe(setAuthUser), []);
   const [navHidden, setNavHidden] = useState(false);
+  // The desktop keeps the whole horizon in a side panel. A phone has no room for one, so the same
+  // list opens as a sheet from the bell — the one piece of chrome that is already about what's
+  // coming, and is present on every page rather than only on Home.
+  const [showHorizon, setShowHorizon] = useState(false);
+  const horizon = useHorizon();
   const location = useLocation();
 
   const [pinnedToolPaths, setPinnedToolPaths] = useState<string[]>(() => {
@@ -182,8 +191,9 @@ const Layout: React.FC = () => {
     const frame = document.getElementById('app-frame');
     if (!frame) return;
     const fit = () => {
-      // Phones use the real full-height layout; the frame only exists from sm up.
-      const framed = window.matchMedia('(min-width: 640px)').matches;
+      // Phones use the full-height layout and desktops get the shell, which is already
+      // viewport-height — only the framed range in between needs scaling to fit.
+      const framed = window.matchMedia('(min-width: 640px) and (max-width: 1023px)').matches;
       frame.style.zoom = framed ? String(Math.min(1, (window.innerHeight - 64) / 850)) : '';
     };
     fit();
@@ -295,8 +305,11 @@ const Layout: React.FC = () => {
   const isMoreActive = moreTools.some(t => location.pathname === t.to);
 
   return (
-    <div className="sm:flex sm:items-center sm:justify-center sm:min-h-screen sm:py-8 sm:w-full">
-      <div id="app-frame" className="flex flex-col min-h-screen sm:min-h-0 sm:h-[850px] max-w-md mx-auto w-full bg-background text-text shadow-[0_0_40px_rgba(0,0,0,0.15)] dark:shadow-[0_0_40px_rgba(0,0,0,0.5)] relative sm:rounded-[2.5rem] sm:border-[8px] sm:border-slate-800 dark:sm:border-slate-900 sm:overflow-hidden">
+    <div className="sm:flex sm:items-center sm:justify-center sm:min-h-screen sm:py-8 sm:w-full lg:h-screen lg:min-h-0 lg:items-stretch lg:gap-5 lg:px-6 lg:py-6 lg:max-w-[1400px] lg:mx-auto">
+      <ToolRail />
+      {/* The phone bezel is a mockup — right on a landing page, wrong inside the app itself. From
+          lg the frame becomes a plain sheet between the rail and the horizon. */}
+      <div id="app-frame" className="flex flex-col min-h-screen sm:min-h-0 sm:h-[850px] max-w-md mx-auto w-full bg-background text-text shadow-[0_0_40px_rgba(0,0,0,0.15)] dark:shadow-[0_0_40px_rgba(0,0,0,0.5)] relative sm:rounded-[2.5rem] sm:border-[8px] sm:border-slate-800 dark:sm:border-slate-900 sm:overflow-hidden lg:h-auto lg:mx-0 lg:rounded-3xl lg:border lg:border-text/10 lg:shadow-none">
         {/* Top Navbar */}
         <header className={`sticky top-0 z-40 glass-panel rounded-none border-x-0 border-t-0 rounded-b-2xl overflow-hidden transition-all duration-300 ${headerHidden ? 'max-h-0 opacity-0' : 'max-h-24 opacity-100'}`}>
           <div className="max-w-md mx-auto px-6 py-4 flex items-center justify-between">
@@ -353,7 +366,7 @@ const Layout: React.FC = () => {
 
         {/* Bottom Navigation */}
         {(() => { const navIsHidden = navHidden && location.pathname !== '/app'; return (
-        <nav className={`fixed bottom-0 sm:absolute sm:bottom-0 left-0 right-0 mx-auto w-full max-w-md z-40 transition-transform duration-300 ${navIsHidden ? 'translate-y-[130%]' : 'translate-y-0'}`}>
+        <nav className={`fixed bottom-0 sm:absolute sm:bottom-0 left-0 right-0 mx-auto w-full max-w-md z-40 transition-transform duration-300 lg:hidden ${navIsHidden ? 'translate-y-[130%]' : 'translate-y-0'}`}>
           <div className="max-w-md mx-auto mb-4 px-4">
             {location.pathname !== '/app' && (
               <div className="flex justify-center mb-1.5">
@@ -370,14 +383,19 @@ const Layout: React.FC = () => {
                 className="glass-panel flex items-center gap-3 p-3 animate-fade-in select-none relative overflow-hidden"
               >
                 {animOn && hasAlerts && currentAlert && <NavAlertBg alert={currentAlert} />}
-                <div className="relative shrink-0 z-10">
+                <button
+                  onClick={() => setShowHorizon(true)}
+                  aria-label="Buka semua tarikh akan datang"
+                  title="Yang tengah kejar"
+                  className="relative shrink-0 z-10 active:scale-95 transition-transform"
+                >
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${hasAlerts ? 'bg-yellow-500/15 text-yellow-400' : 'bg-text/10 text-muted'}`}>
                     <Bell size={20} className={hasAlerts ? 'animate-pulse' : ''} />
                   </div>
                   {hasAlerts && (
-                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">{alerts.length}</span>
+                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-[#fff] text-[10px] font-bold flex items-center justify-center">{alerts.length}</span>
                   )}
-                </div>
+                </button>
                 {hasAlerts ? (
                   <button onClick={() => currentAlert && navigate(currentAlert.to)} className="flex-1 min-w-0 text-left overflow-hidden relative z-10">
                     <div key={notifIndex} className={notifDir === 'up' ? 'notif-up-anim' : 'notif-down-anim'}>
@@ -472,6 +490,45 @@ const Layout: React.FC = () => {
           </div>
         </nav>
         ); })()}
+
+        {/* Yang tengah kejar — the desktop side panel's mobile equivalent, opened from the bell. */}
+        {showHorizon && (
+          <div
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm animate-fade-in lg:hidden"
+            onClick={() => setShowHorizon(false)}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Yang tengah kejar"
+          >
+            <div
+              className="w-full max-w-md rounded-t-3xl border border-text/10 bg-surface animate-slide-up motion-reduce:animate-none flex flex-col max-h-[75vh]"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2 border-b border-text/10 px-4 py-3.5 shrink-0">
+                <CalendarClock size={16} className="text-primary" />
+                <h2 className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted">
+                  Yang tengah kejar
+                </h2>
+                {horizon.length > 0 && (
+                  <span className="rounded-full bg-text/[0.07] px-2 py-0.5 text-[11px] font-bold text-text"
+                        style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {horizon.length}
+                  </span>
+                )}
+                <button
+                  onClick={() => setShowHorizon(false)}
+                  aria-label="Tutup"
+                  className="ml-auto p-1 text-muted hover:text-text"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-2 py-2">
+                <HorizonList items={horizon} onPick={() => setShowHorizon(false)} />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Floating "show menu" button when the nav is hidden */}
         {navHidden && location.pathname !== '/app' && (
@@ -585,6 +642,7 @@ const Layout: React.FC = () => {
 
                 <div className="flex-1 overflow-y-auto p-4 pb-28 space-y-2 overscroll-contain">
                   <AccountPanel />
+                  <FeedbackForm />
 
                   {/* The old sheet heading lived up top and described only this list, so it
                       moved down here once the account block took the first slot. */}
@@ -641,6 +699,8 @@ const Layout: React.FC = () => {
           </>
         )}
       </div>
+
+      <HorizonPanel />
     </div>
   );
 };

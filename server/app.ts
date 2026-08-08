@@ -150,6 +150,30 @@ api.post('/sync/import', needsDb, requireUser, async (c) => {
   return c.json({ imported });
 });
 
+const FEEDBACK_KINDS = ['feedback', 'bug', 'complaint', 'idea'];
+const FLOOD_LIMIT = 10; // per account per hour
+
+/** Feedback about any tool, the home page, or the app itself. Signed-in accounts only. */
+api.post('/feedback', needsDb, requireUser, async (c) => {
+  const uid = c.get('userId');
+  const body = await c.req.json().catch(() => null) as Record<string, unknown> | null;
+  const message = String(body?.message ?? '').trim();
+  if (!message) return c.json({ error: 'missing message' }, 400);
+  if (message.length > 2000) return c.json({ error: 'message too long' }, 400);
+
+  const kind = FEEDBACK_KINDS.includes(String(body?.kind)) ? String(body?.kind) : 'feedback';
+  const target = String(body?.target ?? 'other').slice(0, 80);
+
+  const { rows } = await q(
+    `select count(*)::int as n from feedback
+     where user_id = $1 and created_at > now() - interval '1 hour'`, [uid]);
+  if (rows[0].n >= FLOOD_LIMIT) return c.json({ error: 'too many messages' }, 429);
+
+  await q('insert into feedback (user_id, kind, target, message) values ($1,$2,$3,$4)',
+    [uid, kind, target, message]);
+  return c.json({ ok: true });
+});
+
 // Anything under /api that we don't recognise must answer as JSON. If it fell through to the
 // SPA fallback below, the client would JSON.parse('<!doctype html>...') and the real error
 // would be invisible.

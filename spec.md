@@ -164,10 +164,13 @@ Catalog + dashboard. Owns the registry `DEFAULT_TOOLS` (`id`, `to`, `title`, `de
 `category`, hover classes).
 
 - View modes: `list` | `grid` (2/3/4 cols) | `category` | `alphabet`, persisted.
-- Favorites, last-5 recents, manual drag reorder (dnd-kit), search, NEW/HOT badges.
-- Badges come from two lists: `NEW_TOOLS` (a launch date — `new` for 7 days, then it rolls over
-  to `hot` forever) and `HOT_IDS`. So clearing a tool's HOT badge means removing it from **both**;
-  dropping it from `HOT_IDS` alone leaves a stale `NEW_TOOLS` date still rendering `hot`.
+- Favorites (drag-reorderable, dnd-kit), last-5 recents, search, NEW/HOT badges.
+- The catalog itself has a **fixed order and is not reorderable** — `DEFAULT_TOOLS` is laid out in
+  §2 priority order (expiry & recurrence, then structured records, then privacy utilities), and
+  `EXTRA_IDS` splits the "kept for convenience" tools (plus Minum) out into a **Lain-lain**
+  section at the bottom. Reordering a tool means moving it in the registry, not shuffling it per device.
+- Badges: `NEW_TOOLS` (a launch date — `new` for 7 days) then `HOT_IDS`, which alone decides
+  `hot`. An expired `NEW_TOOLS` date no longer implies `hot`.
 - **Alerts**: reads other tools' `localStorage` and emits alerts of type
   `document | event | commitment | water | debt | expense | habit | warranty | service`, each
   with `daysLeft` (and sometimes `percentage`) used for sorting and the progress fills.
@@ -205,7 +208,7 @@ to a 404 forever, silently. There is a test asserting it.
 Bill Splitter, Spin the wheel, Randomizer. Their keys (`gb_*`, `rs_*`, `dm_*`, `pc_*`) and all
 shell prefs (`theme`, `pinnedTools`, `handy-animations`, `handy-tools-favorites`,
 `handy-tools-recents`, `handy-tools-recents-minimized`, `home_view_mode`, `home_grid_cols`,
-`home_tool_order`, `home_alert_order`, `hot_tools_promoted_v3`, `sk_img_v2_*`) stay per-device
+`home_alert_order`, `sk_img_v2_*`) stay per-device
 on purpose.
 
 **Dexie (`HandyToolsDB`, v2)** — Blobs only, device-local, never synced: `parkingLocations`
