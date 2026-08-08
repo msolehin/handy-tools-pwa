@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 (globalThis as any).document = { visibilityState: 'visible' };
 (globalThis as any).Event = class { type: string; constructor(type: string) { this.type = type; } };
 
-const { daysUntil, horizonTone, byMonth, renewedDate, addMonths, openServices } = await import('./horizon.ts');
+const { daysUntil, horizonTone, byMonth, renewedDate, addMonths, openServices, nextDueDate } = await import('./horizon.ts');
 type HorizonItem = Awaited<ReturnType<typeof import('./horizon.ts').readHorizon>>[number];
 
 const NOW = new Date('2026-08-07T09:00:00');
@@ -44,6 +44,25 @@ test('renewing an already-lapsed document runs from today', () => {
 test('renewing from a month end lands on a month end, never overflowing', () => {
   assert.equal(renewedDate('2026-08-31', 1, NOW), '2026-09-30');
   assert.equal(renewedDate('2027-01-31', 1, NOW), '2027-02-28');
+});
+
+test('the next due date is this month while the day is still ahead', () => {
+  assert.equal(nextDueDate(20, NOW), '2026-08-20');
+});
+
+test('a payment due today is due today, not next month', () => {
+  // The old page-local version built today from its own ISO string, which parses as UTC midnight —
+  // 08:00 local in Malaysia, ahead of the candidate — and rolled the payment forward a month.
+  assert.equal(nextDueDate(7, NOW), '2026-08-07');
+});
+
+test('the next due date rolls forward once the day has passed', () => {
+  assert.equal(nextDueDate(3, NOW), '2026-09-03');
+});
+
+test('day 31 lands on the last day of a short month', () => {
+  assert.equal(nextDueDate(31, new Date('2026-09-15T09:00:00')), '2026-09-30');
+  assert.equal(nextDueDate(31, new Date('2027-02-01T09:00:00')), '2027-02-28');
 });
 
 test('a newer visit closes the previous reminder for the same service', () => {

@@ -2,18 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { CreditCard, Calendar, AlertCircle, RefreshCw, ExternalLink, Filter, CheckCircle2 } from 'lucide-react';
 import { store } from '../lib/store';
 import { Link } from 'react-router-dom';
+import { daysUntil } from '../lib/horizon';
 
 const EXPENSE_STORAGE_KEY = 'expense_manager_data';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const daysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
-
-export const getDaysUntil = (target: Date): number => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const diffTime = target.getTime() - today.getTime();
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-};
 
 interface Commitment {
   id: string; title: string; amount: number; paymentDay: number; category: string;
@@ -199,7 +193,7 @@ const CommitmentTracker: React.FC = () => {
             </div>
           ) : (
             displayedPending.map(sub => {
-              const daysLeft = getDaysUntil(sub.renewalDate);
+              const daysLeft = daysUntil(sub.renewalDate);
               const isUrgent = daysLeft <= 3 && daysLeft >= 0;
               const isOverdue = daysLeft < 0;
 

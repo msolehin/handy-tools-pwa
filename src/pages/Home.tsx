@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { store } from '../lib/store';
-import { openServices } from '../lib/horizon';
+// Date helpers come from lib, never from the tool pages themselves — importing a page here would
+// pin its whole chunk, and its libraries, into the first load every visitor pays for.
+import { openServices, daysUntil, nextDueDate } from '../lib/horizon';
 import PrivacyNote from '../components/PrivacyNote';
 import { 
   ArrowRight,
@@ -26,8 +28,6 @@ import {
   SortableContext
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { getDaysUntil } from './CommitmentTracker';
-import { nextDueDate } from './Tenancy';
 
 // The registry now lives in lib; re-exported so existing importers keep working.
 import { DEFAULT_TOOLS, HOT_IDS, CORE_TOOLS, EXTRA_TOOLS, duitRayaLook } from '../lib/tools';
@@ -594,7 +594,7 @@ const Home: React.FC = () => {
             if (!c.archived && (!c.payments || !c.payments[currentMonth])) {
               const day = Math.min(c.paymentDay, maxDay);
               const renewalDate = new Date(today.getFullYear(), today.getMonth(), day);
-              const days = getDaysUntil(renewalDate);
+              const days = daysUntil(renewalDate);
               
               if (days >= 0 && days <= 3) {
                 newAlerts.push({

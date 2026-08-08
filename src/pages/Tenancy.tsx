@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { KeyRound, Plus, Trash2, Pencil, X, FileText, Phone, MessageCircle, MapPin } from 'lucide-react';
+import { KeyRound, Plus, Trash2, Pencil, X, Phone, MessageCircle, MapPin, RotateCw, StickyNote } from 'lucide-react';
 import { store } from '../lib/store';
 import { waNumber } from '../lib/phone';
+import { addMonths, daysUntil, nextDueDate } from '../lib/horizon';
 import CategoryChips from '../components/CategoryChips';
 
 interface Contract {
@@ -29,36 +30,54 @@ const pad = (n: number) => String(n).padStart(2, '0');
 const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const todayStr = () => fmt(new Date());
 
-const addYearToDate = (dateStr: string): string => {
-  const d = new Date(dateStr);
-  d.setFullYear(d.getFullYear() + 1);
-  return fmt(d);
-};
+const addYearToDate = (dateStr: string): string => addMonths(dateStr, 12);
 
-const getDaysDiff = (targetDateStr: string): number => {
-  const today = new Date(todayStr());
-  const target = new Date(targetDateStr);
-  return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-};
-
-// Next time the monthly payment falls due. Day 31 in a short month lands on the last day.
-export const nextDueDate = (dueDay: number): string => {
-  const today = new Date(todayStr());
-  const build = (y: number, m: number) => new Date(y, m, Math.min(dueDay, new Date(y, m + 1, 0).getDate()));
-  let next = build(today.getFullYear(), today.getMonth());
-  if (next.getTime() < today.getTime()) next = build(today.getFullYear(), today.getMonth() + 1);
-  return fmt(next);
+/** How far through the term we are, 0–100. Drives the bar that makes "nearly up" visible. */
+const termProgress = (start: string, end: string): number => {
+  const total = daysUntil(end, new Date(`${start}T00:00:00`));
+  if (total <= 0) return 100;
+  return Math.min(100, Math.max(0, ((total - daysUntil(end)) / total) * 100));
 };
 
 const money = (n: number) => `RM ${n.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+/** Hero figures drop the sen — RM 1,200 scans in one glance where RM 1,200.00 does not. */
+const moneyShort = (n: number) => n.toLocaleString('en-MY', { maximumFractionDigits: 0 });
+
+/**
+ * One tone per card, decided by how much of the term is left, and worn by everything on it —
+ * countdown pill, progress bar, end date, renew button. A card is read as a single coloured
+ * object, not as four independently coloured details.
+ */
+type Tone = 'expired' | 'due' | 'valid';
+const TONE: Record<Tone, { ink: string; pill: string; bar: string; btn: string }> = {
+  expired: {
+    ink: 'text-rose-500 light:text-rose-700',
+    pill: 'bg-rose-500/15 text-rose-500 light:text-rose-700',
+    bar: 'bg-rose-500',
+    btn: 'bg-rose-500 text-[#fff] hover:bg-rose-600',
+  },
+  due: {
+    ink: 'text-amber-500 light:text-amber-700',
+    pill: 'bg-amber-500/15 text-amber-500 light:text-amber-700',
+    bar: 'bg-amber-500',
+    btn: 'bg-amber-500 text-[#fff] hover:bg-amber-600',
+  },
+  valid: {
+    ink: 'text-teal-500 light:text-teal-700',
+    pill: 'bg-teal-500/15 text-teal-500 light:text-teal-700',
+    bar: 'bg-teal-500',
+    btn: 'bg-text/5 text-muted hover:text-text hover:bg-text/10',
+  },
+};
+
+// 60 days is the notice period most Malaysian tenancies ask for — the point where it stops being
+// a date and starts being a decision.
+const toneOf = (days: number): Tone => (days < 0 ? 'expired' : days <= 60 ? 'due' : 'valid');
 
 const Tenancy: React.FC = () => {
   const [items, setItems] = useState<Contract[]>([]);
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATS);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [frameEl, setFrameEl] = useState<HTMLElement | null>(null);
-
-  useEffect(() => { setFrameEl(document.getElementById('app-frame')); }, []);
 
   useEffect(() => {
     const saved = store.getItem(STORAGE_KEY);
@@ -94,6 +113,13 @@ const Tenancy: React.FC = () => {
   // The country-coded number, or null when what's typed can't be dialled. Doubles as the
   // validation flag for the field below.
   const phoneOk = waNumber(fPhone);
+
+  useEffect(() => {
+    if (!showForm) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowForm(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showForm]);
 
   // Default the end date to a year after the start — most tenancies run 12 months
   useEffect(() => {
@@ -185,147 +211,194 @@ const Tenancy: React.FC = () => {
   const formatDate = (dateStr: string) =>
     new Date(dateStr).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' });
 
-  const sorted = [...items].sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime());
-  const monthlyTotal = items.reduce((sum, i) => sum + (i.amount || 0), 0);
+  const sorted = [...items]
+    .map(item => ({ item, days: daysUntil(item.endDate) }))
+    .sort((a, b) => a.days - b.days);
 
-  const getStatus = (daysLeft: number) => {
-    if (daysLeft < 0) return { text: 'Tamat', color: 'text-red-400 bg-red-500/10 border-red-500/30', dot: 'bg-red-400' };
-    if (daysLeft <= 60) return { text: 'Hampir Tamat', color: 'text-amber-400 bg-amber-500/10 border-amber-500/30', dot: 'bg-amber-400' };
-    return { text: 'Aktif', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30', dot: 'bg-emerald-400' };
-  };
+  const monthlyTotal = items.reduce((sum, i) => sum + (i.amount || 0), 0);
+  const depositTotal = items.reduce((sum, i) => sum + (i.deposit || 0), 0);
+  const endingCount = sorted.filter(s => toneOf(s.days) !== 'valid').length;
+
+  const subtitle = items.length === 0
+    ? 'Sewaan, kontrak & pembaharuan'
+    : endingCount
+      ? `${endingCount} perlu diperbaharui`
+      : `${items.length} kontrak, semua aktif`;
 
   return (
-    <div className="space-y-6 animate-fade-in pb-12">
-      <div className="flex items-center space-x-3 mb-2 px-1">
-        <div className="p-3 bg-teal-500/20 text-teal-400 rounded-xl shrink-0">
+    <div className="space-y-5 animate-fade-in pb-12">
+      <div className="flex items-center gap-3 px-1">
+        <div className="p-2.5 bg-teal-500/15 text-teal-500 light:text-teal-700 rounded-xl shrink-0">
           <KeyRound size={24} />
         </div>
-        <div>
-          <h2 className="text-2xl font-bold">Sewa & Kontrak</h2>
-          <p className="text-sm text-muted">
-            {monthlyTotal > 0 ? `${money(monthlyTotal)} / bulan dikomit` : 'Sewaan, kontrak & pembaharuan'}
-          </p>
+        <div className="min-w-0">
+          <h2 className="text-2xl font-bold leading-tight">Sewa & Kontrak</h2>
+          <p className={`text-sm ${endingCount ? 'text-amber-500 light:text-amber-700 font-semibold' : 'text-muted'}`}>{subtitle}</p>
         </div>
       </div>
 
-      <div className="space-y-3">
-        {items.length === 0 ? (
-          <div className="glass-panel p-8 text-center flex flex-col items-center">
-            <FileText size={32} className="text-muted mb-3" />
-            <p className="text-muted text-sm">Belum ada kontrak disimpan.</p>
-            <button onClick={() => openForm()} className="mt-4 px-4 py-2 bg-teal-500/20 text-teal-400 rounded-lg font-bold hover:bg-teal-500/30 transition-colors text-sm">
-              Tambah kontrak pertama anda
-            </button>
+      {/* What the whole list costs, before any single card. The commitment is the headline number
+          of this tool, so it gets the display face rather than a line of caption text. */}
+      {monthlyTotal > 0 && (
+        <div className="glass-panel flex items-stretch divide-x divide-text/10 overflow-hidden">
+          <div className="flex-1 p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted">Komitmen bulanan</p>
+            <p className="font-display text-3xl font-extrabold leading-none mt-1.5 text-teal-500 light:text-teal-700" style={{ fontVariantNumeric: 'tabular-nums' }}>
+              <span className="text-base align-top mr-0.5 opacity-70">RM</span>{moneyShort(monthlyTotal)}
+            </p>
           </div>
-        ) : (
-          sorted.map(item => {
-            const daysLeft = getDaysDiff(item.endDate);
-            const status = getStatus(daysLeft);
-            const due = nextDueDate(item.dueDay);
-            const dueIn = getDaysDiff(due);
+          {depositTotal > 0 && (
+            <div className="flex-1 p-4">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted">Deposit dipegang</p>
+              <p className="font-display text-3xl font-extrabold leading-none mt-1.5 text-text/80" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                <span className="text-base align-top mr-0.5 opacity-70">RM</span>{moneyShort(depositTotal)}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
-            return (
-              <div key={item.id} className="glass-panel p-4 flex flex-col gap-3 relative overflow-hidden">
-                <div className={`absolute top-0 left-0 w-1 h-full ${status.dot}`} />
-                <div className="flex justify-between items-start pl-2">
-                  <div className="min-w-0 pr-2">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-[10px] uppercase tracking-wider font-bold" style={{ color: catColor(item.category, categories) }}>
-                        {item.category}
-                      </span>
-                      <span className={`text-[9px] px-1.5 py-0.5 rounded border font-bold ${status.color}`}>
-                        {status.text} {daysLeft > 0 ? `${daysLeft}h lagi` : daysLeft < 0 ? `${Math.abs(daysLeft)}h lepas` : 'Hari ini'}
-                      </span>
-                    </div>
-                    <p className="font-bold text-text/90 truncate text-lg">{item.title}</p>
-                    {item.party && (
-                      <p className="text-xs text-muted flex items-center gap-1.5 flex-wrap">
-                        <span className="truncate">{item.party}</span>
-                        {item.phone && (
-                          <a href={`tel:${item.phone}`} className="inline-flex items-center gap-1 text-teal-500 light:text-teal-700 hover:underline">
-                            <Phone size={11} /> {item.phone}
-                          </a>
-                        )}
-                        {waNumber(item.phone || '') && (
-                          <a
-                            href={`https://wa.me/${waNumber(item.phone)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            aria-label={`WhatsApp ${item.party || item.title}`}
-                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-bold bg-emerald-500/15 text-emerald-500 light:text-emerald-700 hover:bg-emerald-500/25 transition-colors"
-                          >
-                            <MessageCircle size={11} /> WhatsApp
-                          </a>
-                        )}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button onClick={() => openForm(item)} className="p-1.5 text-muted hover:text-emerald-400 rounded-lg bg-text/5"><Pencil size={14} /></button>
-                    <button onClick={() => deleteItem(item.id)} className="p-1.5 text-muted hover:text-rose-400 rounded-lg bg-text/5"><Trash2 size={14} /></button>
-                  </div>
+      <button
+        onClick={() => openForm()}
+        className="w-full py-4 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-teal-500/50 hover:text-teal-500 light:hover:text-teal-700 transition-all flex items-center justify-center"
+      >
+        <Plus size={20} className="mr-2" /> Tambah Kontrak
+      </button>
+
+      <div className="space-y-3">
+        {sorted.map(({ item, days }) => {
+          const tone = TONE[toneOf(days)];
+          const dueIn = daysUntil(nextDueDate(item.dueDay));
+          const wa = waNumber(item.phone || '');
+
+          return (
+            <div key={item.id} className="glass-panel overflow-hidden p-4">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <span className="block text-[10px] font-bold uppercase tracking-[0.18em] truncate" style={{ color: catColor(item.category, categories) }}>
+                    {item.category}
+                  </span>
+                  <h3 className="font-bold text-lg leading-tight truncate">{item.title}</h3>
                 </div>
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${tone.pill}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {days < 0 ? `Tamat ${Math.abs(days)}h lepas` : days === 0 ? 'Tamat hari ni' : `${days} hari lagi`}
+                </span>
+              </div>
 
-                <div className="pl-2">
-                  <div className="flex bg-black/20 rounded-xl overflow-hidden border border-white/5 divide-x divide-white/5">
-                    <div className="flex-1 p-2 text-center">
-                      <p className="text-[10px] text-muted uppercase font-bold tracking-wider mb-1">Mula</p>
-                      <p className="text-sm font-mono text-text/80">{formatDate(item.startDate)}</p>
-                    </div>
-                    <div className="flex-1 p-2 text-center bg-white/5">
-                      <p className="text-[10px] text-muted uppercase font-bold tracking-wider mb-1">Tamat</p>
-                      <p className={`text-sm font-mono font-bold ${daysLeft <= 60 ? 'text-amber-400' : 'text-emerald-400'}`}>{formatDate(item.endDate)}</p>
-                    </div>
-                  </div>
-
-                  {item.amount > 0 && (
-                    <div className="flex items-center justify-between mt-2 px-1 text-xs">
-                      <span className="text-muted">
-                        <span className="font-bold text-text/80">{money(item.amount)}</span> pada hari {item.dueDay}
-                      </span>
-                      <span className={dueIn <= 3 ? 'text-amber-400 font-bold' : 'text-muted'}>
-                        {dueIn === 0 ? 'Perlu bayar hari ini' : `Bayar dalam ${dueIn}h`}
-                      </span>
-                    </div>
+              {item.party && (
+                <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+                  <span className="truncate">{item.party}</span>
+                  {item.phone && (
+                    <a href={`tel:${item.phone}`} className="inline-flex items-center gap-1 font-medium text-teal-500 light:text-teal-700 hover:underline">
+                      <Phone size={11} /> {item.phone}
+                    </a>
                   )}
+                  {wa && (
+                    <a
+                      href={`https://wa.me/${wa}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`WhatsApp ${item.party || item.title}`}
+                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-bold bg-emerald-500/15 text-emerald-500 light:text-emerald-700 hover:bg-emerald-500/25 transition-colors"
+                    >
+                      <MessageCircle size={11} /> WhatsApp
+                    </a>
+                  )}
+                </p>
+              )}
+
+              {item.amount > 0 && (
+                <div className="mt-3 flex items-end justify-between gap-3">
+                  <p className="font-display text-3xl font-extrabold leading-none" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    <span className="text-base align-top mr-0.5 text-muted">RM</span>{moneyShort(item.amount)}
+                    <span className="ml-1 text-xs font-bold text-muted">/bulan</span>
+                  </p>
+                  <span
+                    className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${dueIn <= 3 ? 'bg-amber-500/15 text-amber-500 light:text-amber-700' : 'bg-text/5 text-muted'}`}
+                    style={{ fontVariantNumeric: 'tabular-nums' }}
+                  >
+                    {dueIn === 0 ? `Bayar hari ni` : `${item.dueDay}hb · ${dueIn} hari`}
+                  </span>
+                </div>
+              )}
+
+              {/* The term as a bar, not two dates to subtract in your head. */}
+              <div className="mt-3">
+                <div className="h-1.5 rounded-full bg-text/10 overflow-hidden">
+                  <div className={`h-full rounded-full ${tone.bar}`} style={{ width: `${termProgress(item.startDate, item.endDate)}%` }} />
+                </div>
+                <div className="mt-1.5 flex justify-between font-mono text-[11px] text-muted">
+                  <span>{formatDate(item.startDate)}</span>
+                  <span className={`font-bold ${tone.ink}`}>{formatDate(item.endDate)}</span>
+                </div>
+              </div>
+
+              {(item.deposit > 0 || item.address || item.notes) && (
+                <div className="mt-3 space-y-1 border-t border-text/10 pt-3 text-xs text-muted">
                   {item.deposit > 0 && (
-                    <p className="text-xs text-muted mt-1 px-1">Deposit dipegang: <span className="font-bold text-text/80">{money(item.deposit)}</span></p>
+                    <p>Deposit dipegang <span className="font-bold text-text/80">{money(item.deposit)}</span></p>
                   )}
                   {item.address && (
-                    <p className="text-xs text-muted mt-2 pl-1 flex items-start gap-1.5">
+                    <p className="flex items-start gap-1.5">
                       <MapPin size={12} className="text-teal-500 light:text-teal-700 shrink-0 mt-0.5" />
                       <span className="whitespace-pre-wrap">{item.address}</span>
                     </p>
                   )}
-                  {item.notes && <p className="text-xs text-muted mt-2 pl-1"><span className="font-bold">Nota:</span> {item.notes}</p>}
+                  {item.notes && (
+                    <p className="flex items-start gap-1.5">
+                      <StickyNote size={12} className="shrink-0 mt-0.5" />
+                      <span className="whitespace-pre-wrap">{item.notes}</span>
+                    </p>
+                  )}
                 </div>
+              )}
 
-                <div className="pl-2 pt-1">
-                  <button
-                    onClick={() => renewYear(item)}
-                    className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold bg-teal-500 hover:bg-teal-600 text-white shadow-lg shadow-teal-500/20 active:scale-[0.98] transition-all"
-                  >
-                    Dah renew — lanjut 1 tahun
-                  </button>
-                </div>
+              <div className="mt-3 flex items-center gap-1.5">
+                <button
+                  onClick={() => renewYear(item)}
+                  className={`flex flex-1 items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-colors ${tone.btn}`}
+                >
+                  <RotateCw size={14} /> Dah renew — lanjut 1 tahun
+                </button>
+                <button
+                  onClick={() => openForm(item)}
+                  aria-label={`Sunting ${item.title}`}
+                  className="p-2 text-muted hover:text-text bg-text/5 hover:bg-text/10 rounded-lg transition-colors"
+                >
+                  <Pencil size={16} />
+                </button>
+                <button
+                  onClick={() => deleteItem(item.id)}
+                  aria-label={`Padam ${item.title}`}
+                  className="p-2 text-muted hover:text-rose-500 bg-text/5 hover:bg-rose-500/10 rounded-lg transition-colors"
+                >
+                  <Trash2 size={16} />
+                </button>
               </div>
-            );
-          })
+            </div>
+          );
+        })}
+
+        {items.length === 0 && (
+          <div className="text-center p-8 text-muted text-sm border border-dashed border-text/10 rounded-2xl">
+            Takde kontrak lagi. Simpan sewa rumah, plan internet atau kontrak perkhidmatan — dapat
+            amaran sebelum ia tamat.
+          </div>
         )}
       </div>
 
-      {frameEl && createPortal((
-        <button onClick={() => openForm()} className="fixed bottom-24 right-4 sm:absolute z-30 w-14 h-14 rounded-full bg-teal-500 hover:bg-teal-600 text-white shadow-xl shadow-teal-500/30 flex items-center justify-center active:scale-90 transition-transform" title="Tambah Kontrak">
-          <Plus size={26} />
-        </button>
-      ), frameEl)}
-
       {showForm && createPortal((
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowForm(false)}>
-          <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in"
+          onClick={() => setShowForm(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${fId ? 'Sunting' : 'Tambah'} kontrak`}
+        >
+          <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up motion-reduce:animate-none max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-lg">{fId ? 'Sunting' : 'Tambah'} Kontrak</h3>
-              <button onClick={() => setShowForm(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button>
+              <button onClick={() => setShowForm(false)} aria-label="Tutup" className="p-1 text-muted hover:text-text"><X size={20} /></button>
             </div>
 
             <div className="space-y-1.5">

@@ -1,31 +1,44 @@
+import { lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import ScrollToTop from './components/ScrollToTop';
 import Layout from './components/Layout';
 import Home from './pages/Home';
 import Landing from './components/landing/Landing';
-import ICScanner from './pages/ICScanner';
-import ParkingLocator from './pages/ParkingLocator';
-import DecisionMaker from './pages/DecisionMaker';
-import PaceCalculator from './pages/PaceCalculator';
-import Countdown from './pages/Countdown';
-import DocumentExpiry from './pages/DocumentExpiry';
-import GroceryBudget from './pages/GroceryBudget';
-import Randomizer from './pages/Randomizer';
-import CommitmentTracker from './pages/CommitmentTracker';
-import WaterTracker from './pages/WaterTracker';
-import DebtTracker from './pages/DebtTracker';
-import RestaurantSplitter from './pages/RestaurantSplitter';
-import DuitRayaManager from './pages/DuitRayaManager';
-import HabitTracker from './pages/HabitTracker';
-import ExpenseManager from './pages/ExpenseManager';
-import TravelHistory from './pages/TravelHistory';
-import AssetWarrantyTracker from './pages/AssetWarrantyTracker';
-import BookTracker from './pages/BookTracker';
-import Tenancy from './pages/Tenancy';
-import ImportantNumbers from './pages/ImportantNumbers';
-import VehicleServices from './pages/VehicleServices';
-import HomeServices from './pages/HomeServices';
-import PDFEditor from './pages/PDFEditor';
+
+/**
+ * One chunk per tool, fetched when its route is first opened.
+ *
+ * Statically imported, the whole catalog was a single 2.1 MB bundle: everyone downloaded pdf-lib,
+ * react-pdf, cropperjs, leaflet and the world atlas before the home screen could paint, however few
+ * of those tools they ever used. It also overran the 2 MiB service-worker precache ceiling, so the
+ * one file the app most needs offline was the one file workbox refused to cache.
+ *
+ * Home stays eager — it is the first screen, and Layout reads DEFAULT_TOOLS from it anyway.
+ * Suspense lives around Layout's <Outlet>, so the shell holds still while a tool arrives.
+ */
+const ICScanner = lazy(() => import('./pages/ICScanner'));
+const ParkingLocator = lazy(() => import('./pages/ParkingLocator'));
+const DecisionMaker = lazy(() => import('./pages/DecisionMaker'));
+const PaceCalculator = lazy(() => import('./pages/PaceCalculator'));
+const Countdown = lazy(() => import('./pages/Countdown'));
+const DocumentExpiry = lazy(() => import('./pages/DocumentExpiry'));
+const GroceryBudget = lazy(() => import('./pages/GroceryBudget'));
+const Randomizer = lazy(() => import('./pages/Randomizer'));
+const CommitmentTracker = lazy(() => import('./pages/CommitmentTracker'));
+const WaterTracker = lazy(() => import('./pages/WaterTracker'));
+const DebtTracker = lazy(() => import('./pages/DebtTracker'));
+const RestaurantSplitter = lazy(() => import('./pages/RestaurantSplitter'));
+const DuitRayaManager = lazy(() => import('./pages/DuitRayaManager'));
+const HabitTracker = lazy(() => import('./pages/HabitTracker'));
+const ExpenseManager = lazy(() => import('./pages/ExpenseManager'));
+const TravelHistory = lazy(() => import('./pages/TravelHistory'));
+const AssetWarrantyTracker = lazy(() => import('./pages/AssetWarrantyTracker'));
+const BookTracker = lazy(() => import('./pages/BookTracker'));
+const Tenancy = lazy(() => import('./pages/Tenancy'));
+const ImportantNumbers = lazy(() => import('./pages/ImportantNumbers'));
+const VehicleServices = lazy(() => import('./pages/VehicleServices'));
+const HomeServices = lazy(() => import('./pages/HomeServices'));
+const PDFEditor = lazy(() => import('./pages/PDFEditor'));
 
 function App() {
   return (

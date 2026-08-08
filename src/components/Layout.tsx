@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, MoreHorizontal, X, Sun, Moon, Settings, Check, Bell, ChevronUp, ChevronDown, Download,
@@ -361,7 +361,14 @@ const Layout: React.FC = () => {
         {/* Main Content Area */}
         <main id="main-scroll-area" className="flex-1 max-w-md w-full mx-auto p-4 pb-24 overflow-x-hidden sm:overflow-y-auto relative z-0">
           <GuestNotice onSignIn={() => setShowSettings(true)} />
-          <Outlet />
+          {/* Each tool is its own chunk now. The header and the nav stay put while one loads. */}
+          <Suspense fallback={
+            <div className="flex justify-center py-20" role="status" aria-label="Memuatkan">
+              <div className="w-6 h-6 rounded-full border-2 border-text/15 border-t-text/50 animate-spin motion-reduce:animate-none" />
+            </div>
+          }>
+            <Outlet />
+          </Suspense>
         </main>
 
         {/* Bottom Navigation */}
