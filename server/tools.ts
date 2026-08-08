@@ -197,17 +197,19 @@ export const TOOLS: Record<string, Descriptor> = {
   important_numbers_data: {
     async read(q, uid) {
       const { rows } = await q(
-        `select id, category, name, value, notes, is_hidden as "isHidden"
+        `select id, category, name, value, notes, is_hidden as "isHidden",
+                date::text as date
            from important_numbers where user_id = $1 order by pos`, [uid]);
-      return { items: rows, categories: await readList(q, uid, 'impnum_cat') };
+      // dropNulls: an entry with no date must come back without the key, not with date: null.
+      return { items: dropNulls(rows), categories: await readList(q, uid, 'impnum_cat') };
     },
     async write(q, uid, blob) {
       await q('delete from important_numbers where user_id = $1', [uid]);
       await insertMany(q, 'important_numbers',
-        ['user_id', 'id', 'category', 'name', 'value', 'notes', 'is_hidden', 'pos'],
+        ['user_id', 'id', 'category', 'name', 'value', 'notes', 'is_hidden', 'date', 'pos'],
         arr(blob?.items).map((n, i) => [
           uid, String(n.id), String(n.category ?? ''), String(n.name ?? ''),
-          String(n.value ?? ''), String(n.notes ?? ''), Boolean(n.isHidden), i,
+          String(n.value ?? ''), String(n.notes ?? ''), Boolean(n.isHidden), n.date ?? null, i,
         ]));
       await writeList(q, uid, 'impnum_cat', blob?.categories);
     },
@@ -414,30 +416,34 @@ export const TOOLS: Record<string, Descriptor> = {
   vehicle_services_data: {
     async read(q, uid) {
       const { rows: assets } = await q(
-        `select id, name, plate, created_at::float8 as "createdAt"
+        `select id, name, plate, photo, created_at::float8 as "createdAt"
            from vehicle_assets where user_id = $1 order by pos`, [uid]);
       const { rows: events } = await q(
         `select id, asset_id as "assetId", date::text as date, title,
                 is_lumpsum as "isLumpsum", total_cost::float8 as "totalCost", items,
-                mileage, address, notes, next_service_date::text as "nextServiceDate"
+                mileage, address, notes, next_service_date::text as "nextServiceDate",
+                case when next_done then true end as "nextDone"
            from vehicle_service_events where user_id = $1 order by pos`, [uid]);
-      return { assets, events: dropNulls(events) };
+      // dropNulls on the assets too: an asset with no photo must come back without the key, not
+      // with photo: null, or the blob changes shape on every round trip.
+      return { assets: dropNulls(assets), events: dropNulls(events) };
     },
     async write(q, uid, blob) {
       await q('delete from vehicle_assets where user_id = $1', [uid]); // events cascade
       await insertMany(q, 'vehicle_assets',
-        ['user_id', 'id', 'name', 'plate', 'created_at', 'pos'],
+        ['user_id', 'id', 'name', 'plate', 'photo', 'created_at', 'pos'],
         arr(blob?.assets).map((a, i) => [
-          uid, String(a.id), String(a.name ?? ''), String(a.plate ?? ''), num(a.createdAt), i,
+          uid, String(a.id), String(a.name ?? ''), String(a.plate ?? ''),
+          a.photo ?? null, num(a.createdAt), i,
         ]));
       await insertMany(q, 'vehicle_service_events',
         ['user_id', 'id', 'asset_id', 'date', 'title', 'is_lumpsum', 'total_cost', 'items',
-          'mileage', 'address', 'notes', 'next_service_date', 'pos'],
+          'mileage', 'address', 'notes', 'next_service_date', 'next_done', 'pos'],
         arr(blob?.events).map((e, i) => [
           uid, String(e.id), String(e.assetId), e.date, String(e.title ?? ''),
           Boolean(e.isLumpsum), num(e.totalCost), JSON.stringify(arr(e.items)),
           String(e.mileage ?? ''), String(e.address ?? ''), String(e.notes ?? ''),
-          e.nextServiceDate ?? null, i,
+          e.nextServiceDate ?? null, Boolean(e.nextDone), i,
         ]));
     },
   },
@@ -445,28 +451,31 @@ export const TOOLS: Record<string, Descriptor> = {
   home_services_data: {
     async read(q, uid) {
       const { rows: assets } = await q(
-        `select id, name, location, created_at::float8 as "createdAt"
+        `select id, name, location, photo, created_at::float8 as "createdAt"
            from home_assets where user_id = $1 order by pos`, [uid]);
       const { rows: events } = await q(
         `select id, asset_id as "assetId", date::text as date, title,
                 total_cost::float8 as "totalCost", notes,
-                next_service_date::text as "nextServiceDate"
+                next_service_date::text as "nextServiceDate",
+                case when next_done then true end as "nextDone"
            from home_service_events where user_id = $1 order by pos`, [uid]);
-      return { assets, events: dropNulls(events) };
+      return { assets: dropNulls(assets), events: dropNulls(events) };
     },
     async write(q, uid, blob) {
       await q('delete from home_assets where user_id = $1', [uid]);
       await insertMany(q, 'home_assets',
-        ['user_id', 'id', 'name', 'location', 'created_at', 'pos'],
+        ['user_id', 'id', 'name', 'location', 'photo', 'created_at', 'pos'],
         arr(blob?.assets).map((a, i) => [
-          uid, String(a.id), String(a.name ?? ''), String(a.location ?? ''), num(a.createdAt), i,
+          uid, String(a.id), String(a.name ?? ''), String(a.location ?? ''),
+          a.photo ?? null, num(a.createdAt), i,
         ]));
       await insertMany(q, 'home_service_events',
         ['user_id', 'id', 'asset_id', 'date', 'title', 'total_cost', 'notes',
-          'next_service_date', 'pos'],
+          'next_service_date', 'next_done', 'pos'],
         arr(blob?.events).map((e, i) => [
           uid, String(e.id), String(e.assetId), e.date, String(e.title ?? ''),
-          num(e.totalCost), String(e.notes ?? ''), e.nextServiceDate ?? null, i,
+          num(e.totalCost), String(e.notes ?? ''), e.nextServiceDate ?? null,
+          Boolean(e.nextDone), i,
         ]));
     },
   },

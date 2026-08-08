@@ -51,7 +51,7 @@ const FIXTURES: Record<string, unknown> = {
 
   important_numbers_data: {
     items: [
-      { id: 'num0001', category: 'Insurance', name: 'Polisi Prudential', value: 'P-889231', notes: 'agent Aziz', isHidden: false },
+      { id: 'num0001', category: 'Insurance', name: 'Polisi Prudential', value: 'P-889231', notes: 'agent Aziz', isHidden: false, date: '2027-02-01' },
       { id: 'num0002', category: 'Bank', name: 'Maybank', value: '5140xxxx1234', notes: '', isHidden: true },
     ],
     categories: ['Insurance', 'Bank', 'Utility', 'Other'],
@@ -115,7 +115,7 @@ const FIXTURES: Record<string, unknown> = {
 
   vehicle_services_data: {
     assets: [
-      { id: 'veh0001', name: 'Myvi', plate: 'WXY 1234', createdAt: 1767225600000 },
+      { id: 'veh0001', name: 'Myvi', plate: 'WXY 1234', photo: 'data:image/jpeg;base64,VVVV', createdAt: 1767225600000 },
     ],
     events: [
       {
@@ -126,6 +126,7 @@ const FIXTURES: Record<string, unknown> = {
           { id: 'itm0002', name: 'Filter', cost: 88.5 },
         ],
         mileage: '84210', address: 'Bengkel Pak Din', notes: '', nextServiceDate: '2026-11-14',
+        nextDone: true,
       },
       {
         id: 'vse0002', assetId: 'veh0001', date: '2026-01-08', title: 'Tayar',
@@ -137,7 +138,7 @@ const FIXTURES: Record<string, unknown> = {
   home_services_data: {
     assets: [{ id: 'hom0001', name: 'Aircond bilik', location: 'Bilik tidur', createdAt: 1767225600000 }],
     events: [
-      { id: 'hse0001', assetId: 'hom0001', date: '2026-04-20', title: 'Cuci aircond', totalCost: 80, notes: '', nextServiceDate: '2026-10-20' },
+      { id: 'hse0001', assetId: 'hom0001', date: '2026-04-20', title: 'Cuci aircond', totalCost: 80, notes: '', nextServiceDate: '2026-10-20', nextDone: true },
       { id: 'hse0002', assetId: 'hom0001', date: '2025-10-18', title: 'Tambah gas', totalCost: 150, notes: 'bocor sikit' },
     ],
   },
