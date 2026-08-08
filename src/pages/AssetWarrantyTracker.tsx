@@ -46,6 +46,27 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
 
 const getCategoryIcon = (category: string): React.ElementType => CATEGORY_ICONS[category] || Package;
 
+// Every icon tile used to be the same orange, so a list of 20 assets read as one texture.
+// A tint per category makes the list scannable by colour before a single word is read.
+const CATEGORY_TONE: Record<string, string> = {
+  Elektronik: 'bg-sky-500/15 text-sky-500 light:text-sky-700',
+  'Perkakas Rumah': 'bg-amber-500/15 text-amber-500 light:text-amber-700',
+  Kenderaan: 'bg-violet-500/15 text-violet-500 light:text-violet-700',
+  Perabot: 'bg-teal-500/15 text-teal-500 light:text-teal-700',
+  Peralatan: 'bg-blue-500/15 text-blue-500 light:text-blue-700',
+  'Lain-lain': 'bg-slate-500/15 text-slate-400 light:text-slate-600',
+};
+const getCategoryTone = (c: string) => CATEGORY_TONE[c] || CATEGORY_TONE['Lain-lain'];
+
+// One source of truth for the three warranty states — card rail, bar, number and chips all read it.
+const STATUS_TONE = {
+  active: { text: 'text-emerald-500 light:text-emerald-700', bar: 'bg-emerald-500', soft: 'bg-emerald-500/15 text-emerald-500 light:text-emerald-700', unit: 'hari lagi' },
+  'expiring-soon': { text: 'text-orange-500 light:text-orange-700', bar: 'bg-orange-500', soft: 'bg-orange-500/15 text-orange-500 light:text-orange-700', unit: 'hari lagi' },
+  expired: { text: 'text-rose-500 light:text-rose-700', bar: 'bg-rose-500', soft: 'bg-rose-500/15 text-rose-500 light:text-rose-700', unit: 'hari lewat' },
+} as const;
+
+const NUM = { fontVariantNumeric: 'tabular-nums' } as const;
+
 export default function AssetWarrantyTracker() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'assets' | 'expired'>('dashboard');
   const [items, setItems] = useState<AssetItem[]>(() => {
@@ -245,84 +266,82 @@ export default function AssetWarrantyTracker() {
     { key: 'expired', label: 'Tamat', Icon: Clock, count: expiredItems.length },
   ] as const;
 
-  // Status pill shown on each asset card
-  const StatusBadge = ({ date }: { date: string }) => {
-    const status = getWarrantyStatus(date);
-    const days = getDaysLeft(date);
-    const map = {
-      active: { cls: 'bg-emerald-500/15 text-emerald-500', Icon: ShieldCheck, text: `${days} hari lagi` },
-      'expiring-soon': { cls: 'bg-orange-500/15 text-orange-500', Icon: ShieldAlert, text: `${days} hari lagi` },
-      expired: { cls: 'bg-rose-500/15 text-rose-500', Icon: ShieldX, text: `Tamat ${Math.abs(days)}h lepas` },
-    } as const;
-    const { cls, Icon, text } = map[status];
-    return (
-      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${cls}`}>
-        <Icon size={12} /> {text}
-      </span>
-    );
-  };
-
-  // Reusable asset row used in Assets / Expired tabs
+  // Reusable asset row used in Assets / Expired tabs.
+  // Days-left is the only reason anyone opens this list, so it gets the display face and the size —
+  // everything else is support text sized to be skipped.
   const AssetCard = ({ item }: { item: AssetItem }) => {
     const Icon = getCategoryIcon(item.category);
     const status = getWarrantyStatus(item.expiryDate);
+    const tone = STATUS_TONE[status];
+    const days = getDaysLeft(item.expiryDate);
     const progress = getWarrantyProgress(item);
-    const barColor = status === 'expired' ? 'bg-rose-500' : status === 'expiring-soon' ? 'bg-orange-500' : 'bg-emerald-500';
-    const iconWrap = status === 'expired' ? 'bg-rose-500/10 text-rose-500' : 'bg-orange-500/10 text-orange-500';
 
     return (
-      <div className={`glass-panel p-4 group transition-all hover:border-orange-500/30 ${status === 'expired' ? 'opacity-80' : ''}`}>
+      <div className="glass-panel overflow-hidden p-4 transition-colors hover:border-text/25">
         <div className="flex items-start gap-3">
-          <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${iconWrap}`}>
+          <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${getCategoryTone(item.category)}`}>
             <Icon size={22} />
           </div>
-          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleEdit(item)}>
-            <div className="flex items-center gap-2">
-              <h3 className="font-bold text-text truncate">{item.name}</h3>
+
+          {/* Tap-anywhere to edit, as before; keyboard users get the labelled Pencil button below. */}
+          <div className="min-w-0 flex-1 cursor-pointer" onClick={() => handleEdit(item)}>
+            <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-muted truncate">{item.category}</span>
+            <h3 className="font-bold text-text truncate leading-tight">{item.name}</h3>
+            <p className="text-xs text-muted truncate mt-0.5" style={NUM}>
+              {formatRM(item.purchasePrice)}{item.store ? ` · ${item.store}` : ''}
+            </p>
+          </div>
+
+          <div className="text-right shrink-0">
+            <span className={`font-display text-4xl font-extrabold leading-none ${tone.text}`} style={NUM}>
+              {Math.abs(days)}
+            </span>
+            <span className={`block text-[10px] font-bold uppercase tracking-[0.16em] mt-1.5 ${tone.text}`}>
+              {days === 0 ? 'tamat hari ni' : tone.unit}
+            </span>
+          </div>
+        </div>
+
+        {/* Warranty timeline */}
+        <div className="mt-3 pt-3 border-t border-text/5 flex items-end gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="h-1.5 w-full bg-text/10 rounded-full overflow-hidden">
+              <div className={`h-full rounded-full ${tone.bar} transition-[width] duration-700`} style={{ width: `${progress}%` }} />
             </div>
-            <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs text-muted mt-1">
-              <span className="px-2 py-0.5 rounded-md bg-text/5 font-medium text-text/70">{item.category}</span>
-              <span className="flex items-center gap-1 font-semibold text-text/80">
-                <DollarSign size={12} />{formatRM(item.purchasePrice)}
-              </span>
-              {item.store && (
-                <span className="flex items-center gap-1 truncate">
-                  <Store size={12} />{item.store}
-                </span>
-              )}
-            </div>
+            <p className="text-[11px] text-muted mt-1.5 truncate" style={NUM}>
+              {formatDate(item.purchaseDate)} <span className="text-text/30">→</span>{' '}
+              <span className={`font-semibold ${tone.text}`}>{formatDate(item.expiryDate)}</span>
+            </p>
           </div>
           <div className="flex items-center gap-1 shrink-0">
             <button
               onClick={() => handleEdit(item)}
-              aria-label="Sunting aset"
+              aria-label={`Sunting ${item.name}`}
               className="p-2 text-muted hover:text-orange-500 bg-text/5 hover:bg-orange-500/10 rounded-lg transition-colors"
             >
               <Pencil size={16} />
             </button>
             <button
-              onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
-              aria-label="Padam aset"
+              onClick={() => handleDelete(item.id)}
+              aria-label={`Padam ${item.name}`}
               className="p-2 text-muted hover:text-rose-500 bg-text/5 hover:bg-rose-500/10 rounded-lg transition-colors"
             >
               <Trash2 size={16} />
             </button>
           </div>
         </div>
-
-        {/* Warranty timeline */}
-        <div className="mt-3 pt-3 border-t border-text/5">
-          <div className="flex items-center justify-between mb-2">
-            <StatusBadge date={item.expiryDate} />
-            <span className="text-[11px] text-muted">Tamat {formatDate(item.expiryDate)}</span>
-          </div>
-          <div className="h-1.5 w-full bg-text/10 rounded-full overflow-hidden">
-            <div className={`h-full rounded-full ${barColor} transition-all`} style={{ width: `${progress}%` }} />
-          </div>
-        </div>
       </div>
     );
   };
+
+  // Divides a long list into scannable buckets instead of one uniform wall of cards.
+  const SectionHeader = ({ label, count, tone }: { label: string; count: number; tone: string }) => (
+    <div className="flex items-center gap-2.5 pt-1">
+      <span className={`text-[11px] font-bold uppercase tracking-[0.18em] ${tone}`}>{label}</span>
+      <span className="text-[11px] font-bold text-muted" style={NUM}>{count}</span>
+      <div className="h-px flex-1 bg-text/10" />
+    </div>
+  );
 
   return (
     <div className="space-y-6 animate-fade-in pb-20">
@@ -331,12 +350,38 @@ export default function AssetWarrantyTracker() {
           <div className="p-2.5 bg-orange-500/15 text-orange-500 rounded-xl">
             <Box size={24} />
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-text leading-tight">Asset & Warranty</h1>
-            <p className="text-sm text-muted">Rekod barang berharga & waranti</p>
+          <div className="min-w-0">
+            <h1 className="font-display text-2xl font-extrabold text-text leading-tight tracking-tight">Asset & Warranty</h1>
+            <p className={`text-sm ${expiringSoonItems.length ? 'font-semibold text-orange-500 light:text-orange-700' : 'text-muted'}`}>
+              {expiringSoonItems.length
+                ? `${expiringSoonItems.length} waranti hampir tamat`
+                : 'Rekod barang berharga & waranti'}
+            </p>
           </div>
         </div>
       </div>
+
+      {!isAdding && (
+        <div className="grid grid-cols-3 gap-1 p-1 bg-text/5 rounded-xl">
+          {TABS.map(({ key, label, Icon, count }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`py-2.5 rounded-lg transition-colors flex flex-col items-center gap-1 ${
+                activeTab === key ? 'bg-surface text-orange-500 light:text-orange-700 shadow-sm' : 'text-muted hover:text-text'
+              }`}
+            >
+              <Icon size={16} />
+              <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em]">
+                {label}
+                {typeof count === 'number' && count > 0 && (
+                  <span className="px-1.5 rounded-full bg-text/10 text-text/70 text-[10px]" style={NUM}>{count}</span>
+                )}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {!isAdding && (
         <button
@@ -345,23 +390,6 @@ export default function AssetWarrantyTracker() {
         >
           <Plus size={20} className="mr-2" /> Tambah Aset
         </button>
-      )}
-
-      {!isAdding && (
-        <div className="grid grid-cols-3 gap-1 p-1 bg-text/5 rounded-xl">
-          {TABS.map(({ key, label, Icon, count }) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`py-2 text-xs font-bold rounded-lg transition-all flex flex-col items-center gap-1 ${
-                activeTab === key ? 'bg-surface text-orange-400 shadow-sm' : 'text-muted hover:text-text'
-              }`}
-            >
-              <Icon size={16} />
-              <span>{label}{typeof count === 'number' ? ` (${count})` : ''}</span>
-            </button>
-          ))}
-        </div>
       )}
 
       {isAdding ? (
@@ -616,25 +644,29 @@ export default function AssetWarrantyTracker() {
               <div className="glass-panel p-6 relative overflow-hidden">
                 <div className="absolute -right-8 -top-8 w-40 h-40 bg-orange-500/15 rounded-full blur-2xl" />
                 <div className="relative z-10">
-                  <div className="flex items-center gap-2 text-muted mb-1">
-                    <DollarSign size={16} className="text-orange-500" />
-                    <span className="text-xs font-bold uppercase tracking-wider">Jumlah Nilai Portfolio</span>
+                  <div className="flex items-center gap-2 text-muted mb-2">
+                    <DollarSign size={14} className="text-orange-500" />
+                    <span className="text-[10px] font-bold uppercase tracking-[0.18em]">Jumlah Nilai Portfolio</span>
                   </div>
-                  <div className="text-4xl font-black text-text">{formatRM(totalAssetsValue)}</div>
-                  <div className="text-xs text-muted mt-1">{items.length} item direkod</div>
+                  <div className="font-display text-5xl font-extrabold text-text leading-none tracking-tight" style={NUM}>
+                    {formatRM(totalAssetsValue)}
+                  </div>
+                  <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted mt-2.5" style={NUM}>
+                    {items.length} item direkod
+                  </div>
 
                   {totalAssetsValue > 0 && (
-                    <div className="mt-4">
+                    <div className="mt-5">
                       <div className="h-2 w-full rounded-full overflow-hidden flex bg-text/10">
-                        <div className="h-full bg-emerald-500" style={{ width: `${(underWarrantyValue / totalAssetsValue) * 100}%` }} />
-                        <div className="h-full bg-rose-500" style={{ width: `${(expiredWarrantyValue / totalAssetsValue) * 100}%` }} />
+                        <div className="h-full bg-emerald-500 transition-[width] duration-700" style={{ width: `${(underWarrantyValue / totalAssetsValue) * 100}%` }} />
+                        <div className="h-full bg-rose-500 transition-[width] duration-700" style={{ width: `${(expiredWarrantyValue / totalAssetsValue) * 100}%` }} />
                       </div>
-                      <div className="flex items-center justify-between mt-2 text-[11px] font-medium">
-                        <span className="flex items-center gap-1.5 text-emerald-500">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500" /> Dilindungi {formatRM(underWarrantyValue)}
+                      <div className="flex items-center justify-between gap-3 mt-2.5 text-[11px] font-bold" style={NUM}>
+                        <span className="flex items-center gap-1.5 text-emerald-500 light:text-emerald-700 truncate">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" /> Dilindungi {formatRM(underWarrantyValue)}
                         </span>
-                        <span className="flex items-center gap-1.5 text-rose-500">
-                          <span className="w-2 h-2 rounded-full bg-rose-500" /> Tamat {formatRM(expiredWarrantyValue)}
+                        <span className="flex items-center gap-1.5 text-rose-500 light:text-rose-700 truncate">
+                          <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" /> Tamat {formatRM(expiredWarrantyValue)}
                         </span>
                       </div>
                     </div>
@@ -642,35 +674,37 @@ export default function AssetWarrantyTracker() {
                 </div>
               </div>
 
-              {/* Stat chips */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="glass-panel p-4 flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-emerald-500/15 text-emerald-500 shrink-0">
-                    <ShieldCheck size={22} />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-2xl font-black text-text leading-none">{activeItems.length}</div>
-                    <div className="text-xs text-muted mt-1">Dalam waranti</div>
-                  </div>
-                </div>
-                <div className="glass-panel p-4 flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-rose-500/15 text-rose-500 shrink-0">
-                    <ShieldX size={22} />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-2xl font-black text-text leading-none">{expiredItems.length}</div>
-                    <div className="text-xs text-muted mt-1">Tamat</div>
-                  </div>
-                </div>
+              {/* Stat chips — three states at a glance, each a shortcut into its list */}
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { n: activeItems.length - expiringSoonItems.length, label: 'Selamat', Icon: ShieldCheck, tone: STATUS_TONE.active, tab: 'assets' as const },
+                  { n: expiringSoonItems.length, label: 'Hampir tamat', Icon: ShieldAlert, tone: STATUS_TONE['expiring-soon'], tab: 'assets' as const },
+                  { n: expiredItems.length, label: 'Tamat', Icon: ShieldX, tone: STATUS_TONE.expired, tab: 'expired' as const },
+                ].map(({ n, label, Icon, tone, tab }) => (
+                  <button
+                    key={label}
+                    onClick={() => setActiveTab(tab)}
+                    className="glass-panel p-3.5 text-left transition-colors hover:border-text/25"
+                  >
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-2.5 ${tone.soft}`}>
+                      <Icon size={18} />
+                    </div>
+                    <div className={`font-display text-3xl font-extrabold leading-none ${n > 0 ? tone.text : 'text-text/25'}`} style={NUM}>
+                      {n}
+                    </div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted mt-1.5 truncate">{label}</div>
+                  </button>
+                ))}
               </div>
 
               {/* Expiring Soon Section */}
               <div className="glass-panel p-5">
-                <div className="flex items-center gap-2 mb-4 text-orange-500">
+                <div className="flex items-center gap-2 mb-4 text-orange-500 light:text-orange-700">
                   <AlertTriangle size={20} className={expiringSoonItems.length > 0 ? 'animate-pulse' : ''} />
-                  <h3 className="font-bold text-lg text-text">Hampir Tamat</h3>
+                  <h3 className="font-display font-extrabold text-lg text-text tracking-tight">Hampir Tamat</h3>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted">30 hari</span>
                   {expiringSoonItems.length > 0 && (
-                    <span className="ml-auto px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-500 text-xs font-bold">
+                    <span className="ml-auto px-2 py-0.5 rounded-full bg-orange-500/15 text-xs font-bold" style={NUM}>
                       {expiringSoonItems.length}
                     </span>
                   )}
@@ -690,15 +724,17 @@ export default function AssetWarrantyTracker() {
                             <Icon size={20} />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <div className="font-bold text-text truncate">{item.name}</div>
-                            <div className="text-xs text-muted flex items-center gap-1 mt-0.5">
-                              <Store size={12} />
+                            <div className="font-bold text-text truncate leading-tight">{item.name}</div>
+                            <div className="text-xs text-muted flex items-center gap-1 mt-0.5 truncate">
+                              <Store size={12} className="shrink-0" />
                               {item.store || 'Kedai tidak diketahui'}
                             </div>
                           </div>
                           <div className="text-right shrink-0">
-                            <div className="font-bold text-orange-500">{getDaysLeft(item.expiryDate)}h lagi</div>
-                            <div className="text-[11px] text-muted mt-0.5">{formatDate(item.expiryDate)}</div>
+                            <div className="font-display text-2xl font-extrabold leading-none text-orange-500 light:text-orange-700" style={NUM}>
+                              {getDaysLeft(item.expiryDate)}
+                            </div>
+                            <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted mt-1" style={NUM}>{formatDate(item.expiryDate)}</div>
                           </div>
                         </div>
                       );
@@ -733,7 +769,19 @@ export default function AssetWarrantyTracker() {
               )}
 
               {filteredActive.length > 0 ? (
-                filteredActive.map(item => <AssetCard key={item.id} item={item} />)
+                ([
+                  { key: 'expiring-soon', label: 'Perlu perhatian' },
+                  { key: 'active', label: 'Selamat' },
+                ] as const).map(({ key, label }) => {
+                  const group = filteredActive.filter(i => getWarrantyStatus(i.expiryDate) === key);
+                  if (group.length === 0) return null;
+                  return (
+                    <div key={key} className="space-y-3">
+                      <SectionHeader label={label} count={group.length} tone={STATUS_TONE[key].text} />
+                      {group.map(item => <AssetCard key={item.id} item={item} />)}
+                    </div>
+                  );
+                })
               ) : activeItems.length > 0 ? (
                 <div className="glass-panel p-8 text-center text-muted">
                   <Search size={28} className="mx-auto mb-2 opacity-50" />
