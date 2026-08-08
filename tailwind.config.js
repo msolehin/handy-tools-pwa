@@ -20,6 +20,7 @@ export default {
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
         display: ['"Bricolage Grotesque"', 'Inter', 'sans-serif'],
+        mono: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'],
       },
       // `animate-fade-in` and `animate-slide-up` were already used in 28 files and 101 places,
       // but the keyframes never existed — every one of those animations was silently a no-op.

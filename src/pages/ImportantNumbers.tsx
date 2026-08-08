@@ -5,7 +5,8 @@ import {
   Hash, Plus, Trash2, Pencil, Search, Copy, Check, Eye, EyeOff, X, BookOpen, CalendarDays
 } from 'lucide-react';
 import CategoryChips from '../components/CategoryChips';
-import { daysUntil } from '../lib/horizon';
+import { daysUntil, horizonTone } from '../lib/horizon';
+import { groupDigits, maskDigits, relativeDay } from '../lib/readable';
 
 interface ImportantNumber {
   id: string;
@@ -28,9 +29,18 @@ const generateId = () => Math.random().toString(36).substring(2, 9);
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' });
 
-const relativeDay = (iso: string) => {
+/**
+ * A date here can be historic — the day an account was opened — so a passed date is simply neutral,
+ * not a failure. Only what is still ahead gets the shared horizon colours.
+ */
+const dateTone = (iso: string) => {
   const days = daysUntil(iso);
-  return days === 0 ? 'Hari ini' : days > 0 ? `${days} hari lagi` : `${-days} hari lalu`;
+  if (days < 0) return 'text-muted';
+  return {
+    red: 'text-rose-500 light:text-rose-700',
+    amber: 'text-amber-500 light:text-amber-700',
+    emerald: 'text-emerald-500 light:text-emerald-700',
+  }[horizonTone(days)];
 };
 
 const ImportantNumbers: React.FC = () => {
@@ -38,9 +48,6 @@ const ImportantNumbers: React.FC = () => {
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATS);
   const [search, setSearch] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
-  const [frameEl, setFrameEl] = useState<HTMLElement | null>(null);
-
-  useEffect(() => { setFrameEl(document.getElementById('app-frame')); }, []);
 
   useEffect(() => {
     const saved = store.getItem(STORAGE_KEY);
@@ -71,6 +78,13 @@ const ImportantNumbers: React.FC = () => {
   const [fKind, setFKind] = useState<'number' | 'date'>('number');
   const [fNotes, setFNotes] = useState('');
   const [fHidden, setFHidden] = useState(false);
+
+  useEffect(() => {
+    if (!showForm) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowForm(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showForm]);
 
   const openForm = (item?: ImportantNumber) => {
     if (item) {
@@ -142,19 +156,26 @@ const ImportantNumbers: React.FC = () => {
   };
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  // Only confirm once the write actually resolved — clipboard access fails outside a secure context,
+  // and a "Disalin" that lied would send someone off to paste nothing.
   const copyToClipboard = (id: string, text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    });
   };
 
   const toggleVisibility = (id: string) => {
     setItems(prev => prev.map(i => i.id === id ? { ...i, isHidden: !i.isHidden } : i));
   };
 
-  const filtered = items.filter(i => 
-    i.name.toLowerCase().includes(search.toLowerCase()) || 
-    i.value.toLowerCase().includes(search.toLowerCase()) ||
+  // Numbers are displayed grouped in fours, so a search is matched with the spaces taken out of
+  // both sides — typing what is on the screen has to find the card that shows it.
+  const bare = (s: string) => s.replace(/\s+/g, '').toLowerCase();
+
+  const filtered = items.filter(i =>
+    i.name.toLowerCase().includes(search.toLowerCase()) ||
+    (Boolean(search.trim()) && bare(i.value).includes(bare(search))) ||
     (i.date || '').includes(search) ||
     i.category.toLowerCase().includes(search.toLowerCase()) ||
     (i.notes || '').toLowerCase().includes(search.toLowerCase())
@@ -168,156 +189,260 @@ const ImportantNumbers: React.FC = () => {
   });
   const sortedCategories = Object.keys(grouped).sort();
 
+  const numberCount = items.filter(i => i.value).length;
+  const dateCount = items.filter(i => i.date).length;
+  const subtitle = items.length === 0
+    ? 'Akaun, polisi, ID & tarikh'
+    : [numberCount && `${numberCount} nombor`, dateCount && `${dateCount} tarikh`]
+      .filter(Boolean).join(' · ');
+
   return (
-    <div className="space-y-6 animate-fade-in pb-12">
-      <div className="flex items-center space-x-3 mb-2 px-1">
-        <div className="p-3 bg-fuchsia-500/20 text-fuchsia-400 rounded-xl shrink-0">
+    <div className="space-y-5 animate-fade-in pb-12">
+      <div className="flex items-center gap-3 px-1">
+        <div className="p-2.5 bg-fuchsia-500/15 text-fuchsia-500 light:text-fuchsia-700 rounded-xl shrink-0">
           <Hash size={24} />
         </div>
-        <div>
-          <h2 className="text-2xl font-bold">Important Number / Date</h2>
-          <p className="text-sm text-muted">Akaun, polisi, ID & tarikh</p>
+        <div className="min-w-0">
+          <h2 className="font-display text-2xl font-extrabold leading-tight">Important Number / Date</h2>
+          <p className="text-sm text-muted">{subtitle}</p>
         </div>
       </div>
 
       <div className="relative px-1">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" size={18} />
-        <input 
-          type="text" 
-          value={search} 
-          onChange={e => setSearch(e.target.value)} 
-          placeholder="Cari ikut nama, nombor, tarikh atau kategori..." 
-          className="input-field pl-10 w-full"
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Cari nama, nombor, tarikh atau kategori"
+          className="input-field pl-10 pr-10 w-full"
         />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            aria-label="Kosongkan carian"
+            className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-muted hover:text-text"
+          >
+            <X size={16} />
+          </button>
+        )}
       </div>
+
+      <button
+        onClick={() => openForm()}
+        className="w-full py-4 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-fuchsia-500/50 hover:text-fuchsia-500 light:hover:text-fuchsia-700 transition-all flex items-center justify-center"
+      >
+        <Plus size={20} className="mr-2" /> Tambah Rekod
+      </button>
 
       <div className="space-y-6">
         {items.length === 0 ? (
           <div className="glass-panel p-8 text-center flex flex-col items-center">
             <BookOpen size={32} className="text-muted mb-3" />
-            <p className="text-muted text-sm">Anda belum simpan sebarang nombor atau tarikh.</p>
+            <p className="text-sm font-bold text-text">Fail nombor anda masih kosong.</p>
+            <p className="text-muted text-sm mt-1 max-w-xs">
+              Simpan nombor akaun TNB, polisi insurans atau tarikh renew — sekali taip, senang cari.
+            </p>
           </div>
         ) : filtered.length === 0 ? (
-          <p className="text-muted text-center py-4 text-sm">Tiada padanan dengan carian anda.</p>
+          <p className="text-muted text-center py-4 text-sm">Tiada padanan untuk “{search}”.</p>
         ) : (
-          sortedCategories.map(cat => (
-            <div key={cat} className="space-y-2">
-              <h3 className="font-bold text-sm flex items-center gap-2 px-1 text-muted uppercase tracking-wider">
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: catColor(cat, categories) }} />
-                {cat}
-              </h3>
-              <div className="space-y-2">
-                {grouped[cat].map(item => (
-                  <div key={item.id} className="glass-panel p-4 flex flex-col gap-2">
-                    <div className="flex justify-between items-start">
-                      <div className="min-w-0 pr-2">
-                        <p className="font-bold text-text/90 truncate">{item.name}</p>
-                        {item.notes && <p className="text-[11px] text-muted line-clamp-2 mt-0.5">{item.notes}</p>}
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button onClick={() => openForm(item)} className="p-1.5 text-muted hover:text-emerald-400 rounded-lg bg-text/5"><Pencil size={14} /></button>
-                        <button onClick={() => deleteItem(item.id)} className="p-1.5 text-muted hover:text-rose-400 rounded-lg bg-text/5"><Trash2 size={14} /></button>
-                      </div>
-                    </div>
-                    
-                    {/* Only drawn when there is a number. An entry can now be a date on its own. */}
-                    {item.value && (
-                      <div className="flex items-center justify-between bg-text/5 rounded-xl p-2 mt-1 border border-text/5">
-                        <div className="font-mono font-bold text-fuchsia-500 light:text-fuchsia-700 text-lg tracking-wider pl-2 truncate select-all">
-                          {item.isHidden ? '••••••••••••' : item.value}
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0 pl-2 border-l border-text/10 ml-2">
-                          <button onClick={() => toggleVisibility(item.id)} className="p-2 text-muted hover:text-text rounded-lg" title={item.isHidden ? "Papar" : "Sembunyi"}>
-                            {item.isHidden ? <Eye size={16} /> : <EyeOff size={16} />}
-                          </button>
-                          <button onClick={() => copyToClipboard(item.id, item.value)} aria-label={`Salin ${item.name}`} className="p-2 text-fuchsia-500 light:text-fuchsia-700 bg-fuchsia-500/10 hover:bg-fuchsia-500/20 rounded-lg transition-colors flex items-center justify-center w-9 h-9">
-                            {copiedId === item.id ? <Check size={16} /> : <Copy size={16} />}
-                          </button>
-                        </div>
-                      </div>
-                    )}
+          sortedCategories.map(cat => {
+            const color = catColor(cat, categories);
+            return (
+              <div key={cat} className="space-y-2.5">
+                {/* The tab divider of a card index: the colour that files the group, its name, then a
+                    rule running out to the count. The rule is what makes the groups read as drawers. */}
+                <div className="flex items-center gap-2.5 px-1">
+                  <span className="h-3.5 w-1 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                  <h3 className="font-display text-[11px] font-extrabold uppercase tracking-[0.2em] text-text/70">{cat}</h3>
+                  <span className="h-px flex-1 bg-text/10" />
+                  <span className="font-mono text-[11px] text-muted tabular-nums">{grouped[cat].length}</span>
+                </div>
 
-                    {item.date && (
-                      <div className="flex items-center gap-2 bg-text/5 rounded-xl px-3 py-2.5 border border-text/5">
-                        <CalendarDays size={16} className="text-fuchsia-500 light:text-fuchsia-700 shrink-0" />
-                        <span className="font-mono text-sm text-text">{formatDate(item.date)}</span>
-                        <span className="ml-auto text-[11px] font-bold text-muted shrink-0">{relativeDay(item.date)}</span>
+                <div className="space-y-2.5">
+                  {grouped[cat].map(item => {
+                    const copied = copiedId === item.id;
+                    return (
+                      <div key={item.id} className="glass-panel relative overflow-hidden p-4 pl-5 flex flex-col gap-2.5 transition-colors hover:border-fuchsia-500/25">
+                        {/* Spine. Carries the category colour onto the card itself, so a card stays
+                            filed even once you have scrolled its heading off the screen. */}
+                        <span aria-hidden="true" className="absolute left-0 inset-y-0 w-1" style={{ backgroundColor: color }} />
+
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="min-w-0">
+                            <p className="font-display font-bold text-text truncate leading-tight">{item.name}</p>
+                            {item.notes && <p className="text-[11px] text-muted line-clamp-2 mt-0.5">{item.notes}</p>}
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button onClick={() => openForm(item)} aria-label={`Sunting ${item.name}`} className="p-1.5 text-muted hover:text-text bg-text/5 hover:bg-text/10 rounded-lg transition-colors"><Pencil size={14} /></button>
+                            <button onClick={() => deleteItem(item.id)} aria-label={`Padam ${item.name}`} className="p-1.5 text-muted hover:text-rose-500 bg-text/5 hover:bg-rose-500/10 rounded-lg transition-colors"><Trash2 size={14} /></button>
+                          </div>
+                        </div>
+
+                        {/* The plate. Only drawn when there is a number — an entry can be a date alone. */}
+                        {item.value && (
+                          <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 transition-colors ${
+                            copied ? 'border-fuchsia-500/60 bg-fuchsia-500/10' : 'border-text/5 bg-text/5'
+                          }`}>
+                            <span
+                              className="font-mono text-lg font-semibold tracking-[0.06em] text-fuchsia-500 light:text-fuchsia-700 truncate select-all"
+                              style={{ fontVariantNumeric: 'tabular-nums' }}
+                            >
+                              {item.isHidden ? maskDigits(item.value) : groupDigits(item.value)}
+                            </span>
+                            <div className="ml-auto flex items-center gap-1 shrink-0 pl-2 border-l border-text/10">
+                              <button onClick={() => toggleVisibility(item.id)} aria-label={item.isHidden ? `Papar ${item.name}` : `Sembunyi ${item.name}`} className="p-2 text-muted hover:text-text rounded-lg transition-colors">
+                                {item.isHidden ? <Eye size={16} /> : <EyeOff size={16} />}
+                              </button>
+                              <button
+                                onClick={() => copyToClipboard(item.id, item.value)}
+                                aria-label={`Salin ${item.name}`}
+                                className="h-9 flex items-center gap-1.5 px-2.5 text-xs font-bold text-fuchsia-500 light:text-fuchsia-700 bg-fuchsia-500/10 hover:bg-fuchsia-500/20 rounded-lg transition-colors"
+                              >
+                                {copied ? <><Check size={16} /> Disalin</> : <Copy size={16} />}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* A dashed plate, so a date entry is told apart from a number entry mid-scan. */}
+                        {item.date && (
+                          <div className="flex items-center gap-2.5 rounded-xl border border-dashed border-text/15 bg-text/[0.03] px-3 py-2.5">
+                            <CalendarDays size={16} className={`shrink-0 ${dateTone(item.date)}`} />
+                            <span className="font-mono text-sm text-text" style={{ fontVariantNumeric: 'tabular-nums' }}>{formatDate(item.date)}</span>
+                            <span className={`ml-auto shrink-0 text-[11px] font-bold uppercase tracking-wider ${dateTone(item.date)}`}>
+                              {relativeDay(item.date)}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                ))}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
-      {frameEl && createPortal((
-        <button onClick={() => openForm()} className="fixed bottom-24 right-4 sm:absolute z-30 w-14 h-14 rounded-full bg-fuchsia-500 hover:bg-fuchsia-600 text-white shadow-xl shadow-fuchsia-500/30 flex items-center justify-center active:scale-90 transition-transform" title="Tambah rekod">
-          <Plus size={26} />
-        </button>
-      ), frameEl)}
-
       {showForm && createPortal((
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowForm(false)}>
-          <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-lg">{fId ? 'Sunting' : 'Tambah'} {fKind === 'number' ? 'nombor' : 'tarikh'}</h3>
-              <button onClick={() => setShowForm(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button>
-            </div>
-            
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Nama Akaun / Penyedia</label>
-              <input autoFocus value={fName} onChange={e => setFName(e.target.value)} placeholder="cth. TNB, Unifi, Insurans AIA" className="input-field w-full" />
-            </div>
-
-            <div className="flex p-1 bg-text/5 rounded-xl gap-1">
-              {([['number', 'Nombor', Hash], ['date', 'Tarikh', CalendarDays]] as const).map(([kind, label, Icon]) => (
-                <button
-                  key={kind}
-                  onClick={() => setFKind(kind)}
-                  aria-pressed={fKind === kind}
-                  className={`flex-1 py-2 text-sm font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors ${
-                    fKind === kind ? 'bg-fuchsia-600 text-[#fff]' : 'text-muted hover:text-text'
-                  }`}
-                >
-                  <Icon size={15} /> {label}
-                </button>
-              ))}
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in"
+          onClick={() => setShowForm(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={fId ? 'Sunting rekod' : 'Tambah rekod'}
+        >
+          {/* The sheet is a column with a fixed head and foot: the fields scroll between them, so
+              Save stays reachable no matter how many categories have been added. */}
+          <div
+            className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md flex flex-col max-h-[88dvh] animate-slide-up motion-reduce:animate-none"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between shrink-0 px-5 pt-5 pb-3">
+              <h3 className="font-display font-extrabold text-lg">{fId ? 'Sunting' : 'Tambah'} {fKind === 'number' ? 'nombor' : 'tarikh'}</h3>
+              <button onClick={() => setShowForm(false)} aria-label="Tutup" className="p-1 text-muted hover:text-text"><X size={20} /></button>
             </div>
 
-            {fKind === 'number' ? (
-              <>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="in-value">Nombor / ID</label>
-                  <input id="in-value" value={fValue} onChange={e => setFValue(e.target.value)} placeholder="cth. 1234567890" className="input-field w-full font-mono" />
-                </div>
-
-                <div className="flex items-center gap-2 pt-1 pb-1">
-                  <input type="checkbox" id="hideNumber" checked={fHidden} onChange={e => setFHidden(e.target.checked)} className="rounded bg-text/10 border-text/10 text-fuchsia-500 focus:ring-fuchsia-500 focus:ring-offset-surface" />
-                  <label htmlFor="hideNumber" className="text-sm text-text/80 select-none">Sembunyikan nombor secara lalai (seperti kata laluan)</label>
-                </div>
-              </>
-            ) : (
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="in-date">Tarikh</label>
-                <input id="in-date" type="date" value={fDate} onChange={e => setFDate(e.target.value)} className="input-field w-full" />
+            <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
+              {/* Kind leads: it decides what the record is, and every field under it changes shape. */}
+              <div className="flex p-1 bg-text/5 rounded-xl gap-1">
+                {([['number', 'Nombor', Hash], ['date', 'Tarikh', CalendarDays]] as const).map(([kind, label, Icon]) => (
+                  <button
+                    key={kind}
+                    onClick={() => setFKind(kind)}
+                    aria-pressed={fKind === kind}
+                    className={`flex-1 py-2 text-sm font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors ${
+                      fKind === kind ? 'bg-fuchsia-600 text-[#fff] shadow-lg shadow-fuchsia-600/20' : 'text-muted hover:text-text'
+                    }`}
+                  >
+                    <Icon size={15} /> {label}
+                  </button>
+                ))}
               </div>
-            )}
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Kategori</label>
-              <CategoryChips cats={categories} value={fCat} onSelect={setFCat} onAdd={addCat} onRemove={removeCat} accent="rgb(217 70 239)" />
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="in-name">Nama akaun / penyedia</label>
+                <input
+                  id="in-name"
+                  autoFocus
+                  value={fName}
+                  onChange={e => setFName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') saveForm(); }}
+                  placeholder={fKind === 'number' ? 'cth. TNB, Unifi, Insurans AIA' : 'cth. Renew polisi AIA'}
+                  className="input-field w-full"
+                />
+              </div>
+
+              {fKind === 'number' ? (
+                <>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="in-value">Nombor / ID</label>
+                    <input
+                      id="in-value"
+                      value={fValue}
+                      onChange={e => setFValue(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') saveForm(); }}
+                      placeholder="cth. 1234567890"
+                      className="input-field w-full font-mono"
+                    />
+                    {/* The list groups digits and can mask them. Showing the result here is what makes
+                        the toggle below self-explanatory — you see what hiding does before saving. */}
+                    {fValue.trim() && (
+                      <p className="pt-0.5 text-[11px] text-muted">
+                        Papar sebagai{' '}
+                        <span className="font-mono text-sm font-semibold tracking-[0.06em] text-fuchsia-500 light:text-fuchsia-700">
+                          {fHidden ? maskDigits(fValue.trim()) : groupDigits(fValue.trim())}
+                        </span>
+                      </p>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => setFHidden(v => !v)}
+                    aria-pressed={fHidden}
+                    className={`w-full flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-colors ${
+                      fHidden ? 'border-fuchsia-500/50 bg-fuchsia-500/10 text-text' : 'border-text/10 bg-text/5 text-muted hover:text-text'
+                    }`}
+                  >
+                    {fHidden ? <EyeOff size={16} className="shrink-0" /> : <Eye size={16} className="shrink-0" />}
+                    <span className="text-sm font-medium">Sembunyikan dalam senarai</span>
+                    <span className={`ml-auto shrink-0 w-9 h-5 rounded-full p-0.5 transition-colors ${fHidden ? 'bg-fuchsia-600' : 'bg-text/15'}`}>
+                      <span className={`block w-4 h-4 rounded-full bg-[#fff] transition-transform ${fHidden ? 'translate-x-4' : ''}`} />
+                    </span>
+                  </button>
+                </>
+              ) : (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="in-date">Tarikh</label>
+                  <input id="in-date" type="date" value={fDate} onChange={e => setFDate(e.target.value)} className="input-field w-full font-mono" />
+                  {fDate && <p className="pt-0.5 text-[11px] text-muted">{formatDate(fDate)} · {relativeDay(fDate)}</p>}
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">Kategori</label>
+                <CategoryChips cats={categories} value={fCat} onSelect={setFCat} onAdd={addCat} onRemove={removeCat} accent="rgb(217 70 239)" />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="in-notes">Nota (pilihan)</label>
+                <textarea id="in-notes" value={fNotes} onChange={e => setFNotes(e.target.value)} placeholder="cth. Didaftarkan atas nama isteri" className="input-field w-full h-20 resize-none py-2" />
+              </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Nota (Pilihan)</label>
-              <textarea value={fNotes} onChange={e => setFNotes(e.target.value)} placeholder="cth. Didaftarkan atas nama isteri" className="input-field w-full h-20 resize-none py-2" />
+            <div className="shrink-0 border-t border-text/5 px-5 pt-3 pb-5 space-y-2">
+              {/* A greyed-out button that never says why is a dead end. Name the one thing outstanding. */}
+              {!canSave && (
+                <p className="text-center text-[11px] text-muted">
+                  {!fName.trim() ? 'Isi nama akaun dulu.' : fKind === 'number' ? 'Isi nombor atau ID.' : 'Pilih tarikh.'}
+                </p>
+              )}
+              <button onClick={saveForm} disabled={!canSave} className="w-full py-3 rounded-xl bg-fuchsia-600 text-[#fff] font-bold hover:bg-fuchsia-700 disabled:opacity-40 disabled:pointer-events-none">
+                Simpan {fKind === 'number' ? 'nombor' : 'tarikh'}
+              </button>
             </div>
-
-            <button onClick={saveForm} disabled={!canSave} className="w-full py-3 rounded-xl bg-fuchsia-600 text-[#fff] font-bold hover:bg-fuchsia-700 disabled:opacity-50 disabled:pointer-events-none">
-              Simpan
-            </button>
           </div>
         </div>
       ), document.body)}
