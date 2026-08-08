@@ -47,6 +47,10 @@ const NEW_TOOLS: Record<string, string> = {
   '/tenancy': '2026-07-30',
 };
 const NEW_DAYS = 7;
+const ALERT_TYPE_LABEL: Record<string, string> = {
+  document: 'Dokumen', event: 'Acara', commitment: 'Komitmen', water: 'Air',
+  debt: 'Hutang', expense: 'Belanja', habit: 'Tabiat', warranty: 'Waranti', service: 'Servis',
+};
 const badgeFor = (id: string): 'new' | 'hot' | null => {
   const launch = NEW_TOOLS[id];
   if (launch && (Date.now() - new Date(launch).getTime()) / 86400000 < NEW_DAYS) return 'new';
@@ -661,7 +665,7 @@ const Home: React.FC = () => {
         const data = JSON.parse(expStr);
         const now = new Date();
         const mk = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        const fmtRM = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const fmtRM = (n: number) => n.toLocaleString('ms-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         
         const rawExpenses = (data.expenses || [])
           .filter((e: any) => typeof e.date === 'string' && e.date.slice(0, 7) === mk)
@@ -703,7 +707,7 @@ const Home: React.FC = () => {
           newAlerts.push({
             id: 'expense',
             type: 'expense',
-            title: `Spent RM${fmtRM(spent)}`,
+            title: `Belanja RM${fmtRM(spent)}`,
             daysLeft: 0,
             percentage: income > 0 ? Math.min(100, Math.round((spent / income) * 100)) : (spent > 0 ? 100 : 0),
             to: '/expense-manager'
@@ -727,7 +731,7 @@ const Home: React.FC = () => {
             newAlerts.push({
               id: 'habit',
               type: 'habit',
-              title: `${left} left today`,
+              title: `${left} lagi hari ini`,
               daysLeft: 0,
               percentage: Math.round((done / total) * 100),
               to: '/habit-tracker'
@@ -772,7 +776,7 @@ const Home: React.FC = () => {
               newAlerts.push({
                 id: `v-service-${s.id}`,
                 type: 'service',
-                title: `Vehicle: ${s.title}`,
+                title: `Kenderaan: ${s.title}`,
                 daysLeft: days,
                 to: '/vehicle-services'
               });
@@ -795,7 +799,7 @@ const Home: React.FC = () => {
               newAlerts.push({
                 id: `h-service-${s.id}`,
                 type: 'service',
-                title: `Home: ${s.title}`,
+                title: `Rumah: ${s.title}`,
                 daysLeft: days,
                 to: '/home-services'
               });
@@ -911,7 +915,7 @@ const Home: React.FC = () => {
               onClick={() => setIsAlertsExpanded(!isAlertsExpanded)}
             >
               <Bell size={18} className="text-yellow-400 animate-pulse" />
-              <h3 className="font-bold text-sm">Action Needed <span className="text-muted text-xs font-normal ml-1">({alerts.length})</span></h3>
+              <h3 className="font-bold text-sm">Perlu Tindakan <span className="text-muted text-xs font-normal ml-1">({alerts.length})</span></h3>
             </div>
             <div className="flex items-center gap-1.5">
               {alerts.length > 1 && (
@@ -919,7 +923,7 @@ const Home: React.FC = () => {
                   onClick={() => { setAlertsReorder(r => !r); setIsAlertsExpanded(true); }}
                   className={`px-2 py-1 rounded-full text-[10px] font-bold transition-colors flex items-center gap-1 ${alertsReorder ? 'bg-yellow-500/20 text-yellow-400' : 'bg-text/5 text-muted hover:text-text'}`}
                 >
-                  <ArrowUpDown size={13} /> {alertsReorder ? 'Done' : 'Reorder'}
+                  <ArrowUpDown size={13} /> {alertsReorder ? 'Siap' : 'Susun'}
                 </button>
               )}
               <button onClick={() => setIsAlertsExpanded(!isAlertsExpanded)} className="p-1 rounded-full bg-text/5 hover:bg-text/10 text-muted transition-colors">
@@ -1021,12 +1025,12 @@ const Home: React.FC = () => {
                     ) : (
                       <Calendar size={20} className="text-pink-400" />
                     )}
-                    <span className="text-[10px] font-bold text-text/60 uppercase tracking-wider">{alert.type === 'service' && alert.daysLeft < 0 ? 'Overdue' : alert.type}</span>
+                    <span className="text-[10px] font-bold text-text/60 uppercase tracking-wider">{alert.type === 'service' && alert.daysLeft < 0 ? 'Lewat' : ALERT_TYPE_LABEL[alert.type]}</span>
                   </div>
                 </div>
                 <div className="flex-1 min-w-0 pr-4 relative z-10">
                   <p className="font-bold text-[13px] text-text truncate leading-tight mb-1">
-                    {alert.type === 'document' ? 'Renew: ' : alert.type === 'commitment' ? 'Due: ' : alert.type === 'water' ? 'Water: ' : alert.type === 'debt' ? 'Owe: ' : alert.type === 'habit' ? 'Habits: ' : alert.type === 'warranty' ? 'Warranty: ' : ''}{alert.title}
+                    {alert.type === 'document' ? 'Perbaharui: ' : alert.type === 'commitment' ? 'Bayar: ' : alert.type === 'water' ? 'Air: ' : alert.type === 'debt' ? 'Hutang: ' : alert.type === 'habit' ? 'Tabiat: ' : alert.type === 'warranty' ? 'Waranti: ' : ''}{alert.title}
                   </p>
                   <p className={`text-[11px] font-medium leading-none ${
                     alert.type === 'document'
@@ -1039,11 +1043,11 @@ const Home: React.FC = () => {
                       : alert.type === 'warranty' ? 'text-orange-400'
                       : 'text-pink-400'
                   }`}>
-                    {alert.type === 'water' ? 'Drink up!' : alert.type === 'debt' ? 'Action Required' : alert.type === 'expense' ? `${alert.percentage ?? 0}% of income spent` : alert.type === 'habit' ? `${alert.percentage ?? 0}% done` : alert.daysLeft < 0
-                      ? (alert.type === 'service' ? `Overdue by ${Math.abs(alert.daysLeft)} days` : `Expired ${Math.abs(alert.daysLeft)} days ago`)
+                    {alert.type === 'water' ? 'Minum lagi!' : alert.type === 'debt' ? 'Perlu tindakan' : alert.type === 'expense' ? `${alert.percentage ?? 0}% pendapatan dibelanja` : alert.type === 'habit' ? `${alert.percentage ?? 0}% siap` : alert.daysLeft < 0
+                      ? (alert.type === 'service' ? `Lewat ${Math.abs(alert.daysLeft)} hari` : `Tamat ${Math.abs(alert.daysLeft)} hari lepas`)
                       : alert.daysLeft === 0 
-                        ? 'Today!'
-                        : `${alert.daysLeft} Days Left`}
+                        ? 'Hari ini!'
+                        : `${alert.daysLeft} Hari Lagi`}
                   </p>
                 </div>
                 {alertsReorder && (
@@ -1060,8 +1064,8 @@ const Home: React.FC = () => {
 
       <div className="flex items-end justify-between mt-4 mb-4">
         <section>
-          <h2 className="text-3xl font-bold mb-1">Welcome</h2>
-          <p className="text-muted text-sm pr-4">Select a tool below to get started. Works fully offline.</p>
+          <h2 className="text-3xl font-bold mb-1">Selamat Datang</h2>
+          <p className="text-muted text-sm pr-4">Pilih alat di bawah untuk mula. Berfungsi sepenuhnya luar talian.</p>
         </section>
         <div className="flex flex-col items-end space-y-2">
             {/* Reorder Button */}
@@ -1071,14 +1075,14 @@ const Home: React.FC = () => {
                   onClick={() => {
                     const next = !animationsEnabled;
                     setAnimationsEnabled(next);
-                    showToast(next ? '✨ Animations on' : '⏸️ Animations off');
+                    showToast(next ? '✨ Animasi dihidupkan' : '⏸️ Animasi dimatikan');
                   }}
                   className={`p-2 rounded-xl transition-all border flex items-center justify-center active:scale-90 ${
                     animationsEnabled
                       ? 'bg-blue-500/20 border-blue-500/50 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.3)]'
                       : 'bg-surface border-text/10 text-muted hover:bg-text/5 hover:text-text'
                   }`}
-                  title="Toggle Animations"
+                  title="Hidup/Matikan Animasi"
                 >
                   <Sparkles size={20} className={animationsEnabled ? 'animate-pulse' : ''} />
                 </button>
@@ -1091,7 +1095,7 @@ const Home: React.FC = () => {
                       ? 'bg-rose-500/20 border-rose-500/50 text-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.3)]' 
                       : 'bg-surface border-text/10 text-muted hover:bg-text/5 hover:text-text'
                   }`}
-                  title="Reorder Favorites"
+                  title="Susun Kegemaran"
                 >
                   <ArrowUpDown size={20} className={isReordering ? 'animate-pulse' : ''} />
                 </button>
@@ -1102,16 +1106,16 @@ const Home: React.FC = () => {
             {/* View Mode Toggle */}
             <div className="flex bg-text/5 p-1 rounded-xl">
               <button
-                onClick={() => { setViewMode('list'); showToast('📋 List view'); }}
+                onClick={() => { setViewMode('list'); showToast('📋 Paparan senarai'); }}
                 className={`p-2 rounded-lg transition-all active:scale-90 ${viewMode === 'list' ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'}`}
-                title="List View"
+                title="Paparan Senarai"
               >
                 <List size={18} />
               </button>
               <button
-                onClick={() => { setViewMode('grid'); showToast('▦ Grid view'); }}
+                onClick={() => { setViewMode('grid'); showToast('▦ Paparan grid'); }}
                 className={`p-2 rounded-lg transition-all active:scale-90 ${viewMode === 'grid' ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'}`}
-                title="Grid View"
+                title="Paparan Grid"
               >
                 <LayoutGrid size={18} />
               </button>
@@ -1119,10 +1123,10 @@ const Home: React.FC = () => {
                 onClick={() => {
                   setViewMode('category');
                   setIsReordering(false); // disable reordering in category mode
-                  showToast('🗂️ Category view');
+                  showToast('🗂️ Paparan kategori');
                 }}
                 className={`p-2 rounded-lg transition-all active:scale-90 ${viewMode === 'category' ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'}`}
-                title="Category View"
+                title="Paparan Kategori"
               >
                 <Layers size={18} />
               </button>
@@ -1130,10 +1134,10 @@ const Home: React.FC = () => {
                 onClick={() => {
                   setViewMode('alphabet');
                   setIsReordering(false); // disable reordering in alphabet mode
-                  showToast('🔤 Sorted A–Z');
+                  showToast('🔤 Disusun A–Z');
                 }}
                 className={`p-2 rounded-lg transition-all active:scale-90 ${viewMode === 'alphabet' ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'}`}
-                title="Sort A–Z"
+                title="Susun A–Z"
               >
                 <ArrowDownAZ size={18} />
               </button>
@@ -1145,9 +1149,9 @@ const Home: React.FC = () => {
                 {([2, 3] as const).map(n => (
                   <button
                     key={n}
-                    onClick={() => { setGridCols(n); showToast(`▦ ${n} columns`); }}
+                    onClick={() => { setGridCols(n); showToast(`▦ ${n} lajur`); }}
                     className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all active:scale-90 ${gridCols === n ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'}`}
-                    title={`${n} columns`}
+                    title={`${n} lajur`}
                   >
                     x{n}
                   </button>
@@ -1164,7 +1168,7 @@ const Home: React.FC = () => {
           </div>
           <input 
             type="text" 
-            placeholder="Search tools..." 
+            placeholder="Cari alat..." 
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
@@ -1177,7 +1181,7 @@ const Home: React.FC = () => {
         {isReordering && (
           <div className="mb-4 flex items-center gap-2 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm font-medium animate-fade-in">
             <ArrowUpDown size={16} className="shrink-0 animate-pulse" />
-            <span>Drag &amp; drop your favorites to reorder them. Tap the button again when you're done.</span>
+            <span>Seret &amp; lepas kegemaran anda untuk susun semula. Tekan butang sekali lagi bila dah siap.</span>
           </div>
         )}
 
@@ -1218,7 +1222,7 @@ const Home: React.FC = () => {
             <div className="space-y-4 animate-fade-in">
               <div className="flex items-center space-x-3 px-1">
                 <div className="h-px bg-text/10 flex-1"></div>
-                <h3 className="text-sm font-bold text-muted uppercase tracking-widest">All Tools (A–Z)</h3>
+                <h3 className="text-sm font-bold text-muted uppercase tracking-widest">Semua Alat (A–Z)</h3>
                 <div className="h-px bg-text/10 flex-1"></div>
               </div>
               <div className={`grid ${gridColClass} gap-4`}>
@@ -1246,7 +1250,7 @@ const Home: React.FC = () => {
                 <div className="space-y-4">
                   <div className="flex items-center space-x-3 px-1">
                     <div className="h-px bg-text/10 flex-1"></div>
-                    <h3 className="text-sm font-bold text-muted uppercase tracking-widest">❤️ Favorites</h3>
+                    <h3 className="text-sm font-bold text-muted uppercase tracking-widest">❤️ Kegemaran</h3>
                     <div className="h-px bg-text/10 flex-1"></div>
                   </div>
                   <div className={viewMode === 'list' ? "grid gap-4" : `grid ${gridColClass} gap-4`}>
@@ -1286,16 +1290,16 @@ const Home: React.FC = () => {
                       className="text-sm font-bold text-muted uppercase tracking-widest flex items-center gap-1.5 hover:text-text transition-colors"
                       aria-expanded={!recentMinimized}
                     >
-                      🕒 Recent Tools
+                      🕒 Alat Terkini
                       <span className={`transition-transform duration-200 ${recentMinimized ? '' : 'rotate-180'}`}>▾</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setRecentTools([])}
                       className="text-[10px] font-bold text-muted uppercase tracking-widest hover:text-red-500 transition-colors"
-                      title="Clear recent tools"
+                      title="Kosongkan alat terkini"
                     >
-                      Clear
+                      Kosongkan
                     </button>
                     <div className="h-px bg-text/10 flex-1"></div>
                   </div>
@@ -1335,7 +1339,7 @@ const Home: React.FC = () => {
                 {!searchQuery && (
                   <div className="flex items-center space-x-3 px-1">
                     <div className="h-px bg-text/10 flex-1"></div>
-                    <h3 className="text-sm font-bold text-muted uppercase tracking-widest">All Tools</h3>
+                    <h3 className="text-sm font-bold text-muted uppercase tracking-widest">Semua Alat</h3>
                     <div className="h-px bg-text/10 flex-1"></div>
                   </div>
                 )}

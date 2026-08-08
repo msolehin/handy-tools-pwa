@@ -31,8 +31,8 @@ interface CommitmentView {
 const CommitmentTracker: React.FC = () => {
   const [commitments, setCommitments] = useState<CommitmentView[]>([]);
   const [paidCommitments, setPaidCommitments] = useState<CommitmentView[]>([]);
-  const [categories, setCategories] = useState<string[]>(['All']);
-  const [selectedCat, setSelectedCat] = useState<string>('All');
+  const [categories, setCategories] = useState<string[]>(['Semua']);
+  const [selectedCat, setSelectedCat] = useState<string>('Semua');
 
   useEffect(() => {
     const saved = store.getItem(EXPENSE_STORAGE_KEY);
@@ -76,7 +76,7 @@ const CommitmentTracker: React.FC = () => {
           
           const allMapped = [...mappedPending, ...mappedPaid];
           const uniqueCats = Array.from(new Set(allMapped.map(m => m.category))).sort();
-          setCategories(['All', ...uniqueCats]);
+          setCategories(['Semua', ...uniqueCats]);
         }
       } catch (e) {
         console.error('Failed to parse expense manager data', e);
@@ -84,11 +84,11 @@ const CommitmentTracker: React.FC = () => {
     }
   }, []);
 
-  const displayedPending = selectedCat === 'All' 
+  const displayedPending = selectedCat === 'Semua' 
     ? commitments 
     : commitments.filter(c => c.category === selectedCat);
     
-  const displayedPaid = selectedCat === 'All' 
+  const displayedPaid = selectedCat === 'Semua' 
     ? paidCommitments 
     : paidCommitments.filter(c => c.category === selectedCat);
 
@@ -102,7 +102,7 @@ const CommitmentTracker: React.FC = () => {
           <RefreshCw size={32} />
         </div>
         <h1 className="text-2xl font-bold tracking-tight text-text/90">Commitments</h1>
-        <p className="text-sm text-muted">Synced from Expense Manager</p>
+        <p className="text-sm text-muted">Disegerak dari Expense Manager</p>
       </div>
 
       {/* Category Filter */}
@@ -118,7 +118,7 @@ const CommitmentTracker: React.FC = () => {
                   : 'bg-surface border border-text/10 text-muted hover:text-text'
               }`}
             >
-              {cat === 'All' && <Filter size={14} />}
+              {cat === 'Semua' && <Filter size={14} />}
               <span>{cat}</span>
             </button>
           ))}
@@ -131,7 +131,7 @@ const CommitmentTracker: React.FC = () => {
           <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
             <CreditCard size={40} />
           </div>
-          <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">Pending</p>
+          <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">Belum Bayar</p>
           <p className="text-xl font-black text-text">RM {pendingTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
         
@@ -139,7 +139,7 @@ const CommitmentTracker: React.FC = () => {
           <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
             <CheckCircle2 size={40} />
           </div>
-          <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1">Paid</p>
+          <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1">Sudah Bayar</p>
           <p className="text-xl font-black text-text">RM {paidTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
 
@@ -147,7 +147,7 @@ const CommitmentTracker: React.FC = () => {
           <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
             <Calendar size={40} />
           </div>
-          <p className="text-[10px] font-bold text-purple-400 uppercase tracking-wider mb-1">Yearly Estimate (All Active)</p>
+          <p className="text-[10px] font-bold text-purple-400 uppercase tracking-wider mb-1">Anggaran Setahun (Semua Aktif)</p>
           <p className="text-xl font-black text-text">RM {((pendingTotal + paidTotal) * 12).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
       </div>
@@ -157,8 +157,8 @@ const CommitmentTracker: React.FC = () => {
         className="w-full bg-surface border border-text/10 hover:border-indigo-500/30 rounded-2xl p-4 flex items-center justify-between text-left transition-colors group"
       >
         <div>
-          <p className="font-bold text-sm text-text/90">Manage in Expense Manager</p>
-          <p className="text-[10px] text-muted">Add or pay commitments there.</p>
+          <p className="font-bold text-sm text-text/90">Urus dalam Expense Manager</p>
+          <p className="text-[10px] text-muted">Tambah atau bayar komitmen di sana.</p>
         </div>
         <ExternalLink size={16} className="text-muted group-hover:text-indigo-400 transition-colors" />
       </Link>
@@ -168,7 +168,7 @@ const CommitmentTracker: React.FC = () => {
         
         {displayedPaid.length > 0 && (
           <div className="space-y-3">
-            <h3 className="font-bold text-xs uppercase text-emerald-400 tracking-wider px-1">Paid This Month</h3>
+            <h3 className="font-bold text-xs uppercase text-emerald-400 tracking-wider px-1">Sudah Bayar Bulan Ini</h3>
             {displayedPaid.map(sub => (
               <div key={sub.id} className="glass-panel p-4 flex items-center justify-between opacity-70">
                 <div className="flex-1">
@@ -182,7 +182,7 @@ const CommitmentTracker: React.FC = () => {
                   <div className="flex items-center text-xs text-muted mt-2 space-x-3">
                     <span className="flex items-center">
                       <CreditCard size={12} className="mr-1 opacity-70" />
-                      RM {sub.price.toFixed(2)} / mo
+                      RM {sub.price.toFixed(2)} / bln
                     </span>
                   </div>
                 </div>
@@ -192,10 +192,10 @@ const CommitmentTracker: React.FC = () => {
         )}
 
         <div className="space-y-3">
-          <h3 className="font-bold text-xs uppercase text-indigo-400 tracking-wider px-1">Pending This Month</h3>
+          <h3 className="font-bold text-xs uppercase text-indigo-400 tracking-wider px-1">Belum Bayar Bulan Ini</h3>
           {displayedPending.length === 0 ? (
             <div className="text-center p-8 bg-text/5 rounded-2xl border border-text/10 border-dashed">
-              <p className="text-muted text-sm">All commitments in this category are paid for this month!</p>
+              <p className="text-muted text-sm">Semua komitmen dalam kategori ini sudah dibayar bulan ini!</p>
             </div>
           ) : (
             displayedPending.map(sub => {
@@ -216,12 +216,12 @@ const CommitmentTracker: React.FC = () => {
                     <div className="flex items-center text-xs text-muted mt-2 space-x-3">
                       <span className="flex items-center">
                         <CreditCard size={12} className="mr-1 opacity-70" />
-                        RM {sub.price.toFixed(2)} / mo
+                        RM {sub.price.toFixed(2)} / bln
                       </span>
                       <span className={`flex items-center font-medium ${isOverdue ? 'text-rose-500' : isUrgent ? 'text-rose-400' : 'text-indigo-300'}`}>
                         <Calendar size={12} className="mr-1 opacity-70" />
-                        Due: {sub.renewalDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                        {isOverdue ? ` (${Math.abs(daysLeft)}d overdue)` : daysLeft === 0 ? ' (Today)' : daysLeft === 1 ? ' (Tmrw)' : ` (${daysLeft}d)`}
+                        Bayar: {sub.renewalDate.toLocaleDateString('ms-MY', { day: 'numeric', month: 'short' })}
+                        {isOverdue ? ` (${Math.abs(daysLeft)}h lewat)` : daysLeft === 0 ? ' (Hari ini)' : daysLeft === 1 ? ' (Esok)' : ` (${daysLeft}h)`}
                       </span>
                     </div>
                   </div>

@@ -4,7 +4,7 @@ import { Coins, Hash, Dices, FlaskConical } from 'lucide-react';
 const CoinFlip = () => {
   const [isFlipping, setIsFlipping] = useState(false);
   const [rotation, setRotation] = useState(0);
-  const [result, setResult] = useState<'Heads' | 'Tails' | null>(null);
+  const [result, setResult] = useState<'Kepala' | 'Ekor' | null>(null);
 
   const dragStart = React.useRef<{x: number, y: number} | null>(null);
 
@@ -27,7 +27,7 @@ const CoinFlip = () => {
     setRotation(nextRot);
     
     setTimeout(() => {
-      setResult(isTails ? 'Tails' : 'Heads');
+      setResult(isTails ? 'Ekor' : 'Kepala');
       setIsFlipping(false);
     }, 1500);
   };
@@ -55,7 +55,7 @@ const CoinFlip = () => {
   return (
     <div className="flex flex-col items-center justify-center space-y-12 py-10 relative z-10">
       <div className="absolute top-0 text-[10px] uppercase tracking-widest text-muted/50 font-bold pointer-events-none mt-2">
-        Swipe or click to flip
+        Leret atau klik untuk lambung
       </div>
       <div className="relative w-40 h-40 flex items-center justify-center">
         <div 
@@ -79,7 +79,7 @@ const CoinFlip = () => {
             style={{ backfaceVisibility: 'hidden' }}
           >
             <div className="w-32 h-32 rounded-full border-2 border-yellow-500/50 flex items-center justify-center">
-              <span className="text-4xl font-bold text-yellow-100 drop-shadow-md">H</span>
+              <span className="text-4xl font-bold text-yellow-100 drop-shadow-md">K</span>
             </div>
           </div>
           
@@ -89,7 +89,7 @@ const CoinFlip = () => {
             style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
           >
             <div className="w-32 h-32 rounded-full border-2 border-gray-400/50 flex items-center justify-center">
-              <span className="text-4xl font-bold text-text drop-shadow-md">T</span>
+              <span className="text-4xl font-bold text-text drop-shadow-md">E</span>
             </div>
           </div>
         </div>
@@ -103,7 +103,7 @@ const CoinFlip = () => {
           </h2>
         )}
         {isFlipping && (
-          <h2 className="text-xl font-bold text-muted animate-pulse">Flipping...</h2>
+          <h2 className="text-xl font-bold text-muted animate-pulse">Melambung...</h2>
         )}
       </div>
       
@@ -112,7 +112,7 @@ const CoinFlip = () => {
         disabled={isFlipping}
         className="btn-primary w-full py-4 text-lg"
       >
-        Flip Coin
+        Lambung Duit Syiling
       </button>
     </div>
   );
@@ -132,7 +132,7 @@ const RandomNumber = () => {
     const maxNum = parseInt(max);
     
     if (isNaN(minNum) || isNaN(maxNum) || minNum >= maxNum) {
-      alert('Please enter a valid range where Min is less than Max.');
+      alert('Sila masukkan julat sah di mana Min lebih kecil daripada Maks.');
       return;
     }
     
@@ -171,7 +171,7 @@ const RandomNumber = () => {
           />
         </div>
         <div className="flex-1 space-y-2">
-          <label className="text-xs font-bold text-blue-400 uppercase tracking-wider">Max</label>
+          <label className="text-xs font-bold text-blue-400 uppercase tracking-wider">Maks</label>
           <input 
             type="number" 
             value={max} 
@@ -188,7 +188,7 @@ const RandomNumber = () => {
             {displayNum}
           </div>
         ) : (
-          <div className="text-muted/50 text-xl font-medium">Ready</div>
+          <div className="text-muted/50 text-xl font-medium">Sedia</div>
         )}
       </div>
       
@@ -197,7 +197,7 @@ const RandomNumber = () => {
         disabled={isGenerating}
         className="btn-primary bg-blue-500 hover:bg-blue-600 border-blue-400/50 shadow-[0_0_20px_rgba(59,130,246,0.3)] w-full py-4 text-lg"
       >
-        Generate Number
+        Jana Nombor
       </button>
     </div>
   );
@@ -370,7 +370,7 @@ const DiceRoller = () => {
         style={{ perspective: '1000px' }}
       >
         <div className="absolute top-2 left-0 right-0 text-center pointer-events-none">
-          <span className="text-[10px] uppercase tracking-widest text-muted/50 font-bold">Swipe to roll</span>
+          <span className="text-[10px] uppercase tracking-widest text-muted/50 font-bold">Leret untuk baling</span>
         </div>
         {diceValues.map((val, i) => (
           <div key={i} style={{ animationDelay: `${i * 0.1}s` }} className="pointer-events-none z-20">
@@ -381,7 +381,7 @@ const DiceRoller = () => {
       
       <div className="text-center h-8">
         {!isRolling && (
-          <p className="text-xl font-bold text-purple-400 animate-fade-in">Total: {total}</p>
+          <p className="text-xl font-bold text-purple-400 animate-fade-in">Jumlah: {total}</p>
         )}
       </div>
 
@@ -390,7 +390,7 @@ const DiceRoller = () => {
         disabled={isRolling}
         className="btn-primary bg-purple-500 hover:bg-purple-600 border-purple-400/50 shadow-[0_0_20px_rgba(168,85,247,0.3)] w-full py-4 text-lg"
       >
-        Roll Dice
+        Baling Dadu
       </button>
 
       <style dangerouslySetInnerHTML={{__html: `
@@ -514,7 +514,7 @@ const SpinBottle = () => {
   return (
     <div className="flex flex-col items-center justify-center space-y-12 py-10 relative z-10">
       <div className="absolute top-0 text-[10px] uppercase tracking-widest text-muted/50 font-bold pointer-events-none mt-2">
-        Swipe or click to spin
+        Leret atau klik untuk pusing
       </div>
       <div className="relative w-64 h-64 flex items-center justify-center">
         {/* Circle track */}
@@ -552,9 +552,9 @@ const SpinBottle = () => {
       
       <div className="text-center h-8">
         {isSpinning ? (
-          <h2 className="text-xl font-bold text-muted animate-pulse">Spinning...</h2>
+          <h2 className="text-xl font-bold text-muted animate-pulse">Sedang pusing...</h2>
         ) : (
-          <h2 className="text-sm font-medium text-muted">Swipe or click to spin</h2>
+          <h2 className="text-sm font-medium text-muted">Leret atau klik untuk pusing</h2>
         )}
       </div>
       
@@ -563,7 +563,7 @@ const SpinBottle = () => {
         disabled={isSpinning}
         className="btn-primary w-full py-4 text-lg"
       >
-        Spin Bottle
+        Pusing Botol
       </button>
     </div>
   );
@@ -581,7 +581,7 @@ const Randomizer: React.FC = () => {
           <Dices size={32} />
         </div>
         <h1 className="text-2xl font-bold tracking-tight text-text/90">Randomizer</h1>
-        <p className="text-sm text-muted">Coin, Dice, and Numbers</p>
+        <p className="text-sm text-muted">Syiling, Dadu dan Nombor</p>
       </div>
 
       <div className="glass-panel p-1 flex relative">
@@ -597,25 +597,25 @@ const Randomizer: React.FC = () => {
           onClick={() => setActiveTab('coin')}
           className={`flex-1 flex items-center justify-center py-2.5 z-10 font-medium text-sm transition-colors ${activeTab === 'coin' ? 'text-text' : 'text-muted hover:text-text/80'}`}
         >
-          <Coins size={16} className="mr-2" /> Coin
+          <Coins size={16} className="mr-2" /> Syiling
         </button>
         <button 
           onClick={() => setActiveTab('number')}
           className={`flex-1 flex items-center justify-center py-2.5 z-10 font-medium text-sm transition-colors ${activeTab === 'number' ? 'text-text' : 'text-muted hover:text-text/80'}`}
         >
-          <Hash size={16} className="mr-2" /> Num
+          <Hash size={16} className="mr-2" /> Nombor
         </button>
         <button 
           onClick={() => setActiveTab('dice')}
           className={`flex-1 flex items-center justify-center py-2.5 z-10 font-medium text-sm transition-colors ${activeTab === 'dice' ? 'text-text' : 'text-muted hover:text-text/80'}`}
         >
-          <Dices size={16} className="mr-2" /> Dice
+          <Dices size={16} className="mr-2" /> Dadu
         </button>
         <button 
           onClick={() => setActiveTab('bottle')}
           className={`flex-1 flex items-center justify-center py-2.5 z-10 font-medium text-sm transition-colors ${activeTab === 'bottle' ? 'text-text' : 'text-muted hover:text-text/80'}`}
         >
-          <FlaskConical size={16} className="mr-2" /> Bottle
+          <FlaskConical size={16} className="mr-2" /> Botol
         </button>
       </div>
 

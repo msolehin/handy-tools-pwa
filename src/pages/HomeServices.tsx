@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { store } from '../lib/store';
+import { downscaleFile } from '../lib/downscale';
 import { 
-  Home as HomeIcon, Plus, Trash2, Pencil, X, CalendarClock, ChevronDown, ChevronUp, Search, Check, Trash
+  Home as HomeIcon, Plus, Trash2, Pencil, X, CalendarClock, ChevronDown, ChevronUp, Search, Check, Trash, Image as ImageIcon
 } from 'lucide-react';
 
 interface HomeAsset {
@@ -10,6 +11,8 @@ interface HomeAsset {
   name: string;
   location: string;
   createdAt: number;
+  /** Optional. Downscaled on upload and used as the card background. */
+  photo?: string;
 }
 
 interface ServiceEvent {
@@ -33,6 +36,7 @@ const STORAGE_KEY = 'home_services_data';
 const TITLES_KEY = 'home_custom_titles';
 const DEFAULT_TITLES = ['Cuci Aircond', 'Tukar Penapis Air', 'Baiki Paip', 'Kawalan Serangga', 'Cuci Am', 'Baiki Bumbung'];
 
+const MON = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogos', 'Sep', 'Okt', 'Nov', 'Dis'];
 const generateId = () => Math.random().toString(36).substring(2, 9);
 const pad = (n: number) => String(n).padStart(2, '0');
 const todayStr = () => {
@@ -42,7 +46,7 @@ const todayStr = () => {
 
 const formatDate = (dateStr: string) => {
   const d = new Date(dateStr);
-  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
 // Hook to handle clicking outside to close dropdowns
@@ -65,14 +69,11 @@ function useOutsideClick(ref: React.RefObject<HTMLElement | null>, callback: () 
 const HomeServices: React.FC = () => {
   const [data, setData] = useState<HomeData>({ assets: [], events: [] });
   const [isLoaded, setIsLoaded] = useState(false);
-  const [frameEl, setFrameEl] = useState<HTMLElement | null>(null);
 
   const [customTitles, setCustomTitles] = useState<string[]>(() => {
     const saved = store.getItem(TITLES_KEY);
     return saved ? JSON.parse(saved) : [];
   });
-
-  useEffect(() => { setFrameEl(document.getElementById('app-frame')); }, []);
 
   useEffect(() => {
     const saved = store.getItem(STORAGE_KEY);
@@ -117,6 +118,8 @@ const HomeServices: React.FC = () => {
   const [showAssetForm, setShowAssetForm] = useState(false);
   const [editAssetId, setEditAssetId] = useState<string | null>(null);
   const [assetName, setAssetName] = useState('');
+  const [assetPhoto, setAssetPhoto] = useState('');
+  const assetFileRef = useRef<HTMLInputElement>(null);
   const [assetLocation, setAssetLocation] = useState('');
 
   const saveAsset = () => {
@@ -126,14 +129,15 @@ const HomeServices: React.FC = () => {
       if (editAssetId) {
         return {
           ...prev,
-          assets: prev.assets.map(a => a.id === editAssetId ? { ...a, name: assetName.trim(), location: assetLocation.trim() } : a)
+          assets: prev.assets.map(a => a.id === editAssetId ? { ...a, name: assetName.trim(), location: assetLocation.trim(), photo: assetPhoto || undefined } : a)
         };
       } else {
-        const newAsset = { id: generateId(), name: assetName.trim(), location: assetLocation.trim(), createdAt: Date.now() };
+        const newAsset = { id: generateId(), name: assetName.trim(), location: assetLocation.trim(), photo: assetPhoto || undefined, createdAt: Date.now() };
         return { ...prev, assets: [...prev.assets, newAsset] };
       }
     });
     
+    setAssetPhoto('');
     setShowAssetForm(false);
     setShowAssetSelector(false);
     setEditAssetId(null);
@@ -143,6 +147,7 @@ const HomeServices: React.FC = () => {
     setEditAssetId(asset.id);
     setAssetName(asset.name);
     setAssetLocation(asset.location);
+    setAssetPhoto(asset.photo || '');
     setShowAssetForm(true);
   };
 
@@ -282,26 +287,40 @@ const HomeServices: React.FC = () => {
       {/* Searchable Asset Selector (Button that opens Modal) */}
       <div className="px-1">
         {data.assets.length > 0 ? (
-          <button 
+          <button
             onClick={() => setShowAssetSelector(true)}
-            className="w-full glass-panel p-4 flex items-center justify-between hover:border-teal-500/50 transition-colors"
+            className={`w-full relative overflow-hidden rounded-2xl border border-text/10 text-left transition-colors ${
+              currentAsset?.photo ? 'shadow-lg' : 'glass-panel hover:border-teal-500/50'
+            }`}
           >
+            {currentAsset?.photo && (
+              <>
+                <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${currentAsset.photo})` }} />
+                {/* The photo is whatever the user picked, so the text never leans on it: this scrim
+                    alone carries the contrast. #000 literal because `black` is a theme token here
+                    that inverts to white in light mode. */}
+                <div className="absolute inset-0 bg-gradient-to-r from-[#000]/85 via-[#000]/60 to-[#000]/30" />
+              </>
+            )}
+            <div className={`relative flex items-center justify-between p-4 ${currentAsset?.photo ? 'min-h-[92px] [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]' : ''}`}>
             {currentAsset ? (
-              <div className="text-left">
-                <p className="text-xs font-bold text-muted uppercase tracking-wider mb-0.5">Rumah sekarang</p>
-                <p className="font-bold text-lg text-teal-400">{currentAsset.name}</p>
-                {currentAsset.location && <p className="text-xs text-text/80">{currentAsset.location}</p>}
+              <div className="text-left min-w-0">
+                <p className={`text-xs font-bold uppercase tracking-wider mb-0.5 ${currentAsset.photo ? 'text-[#fff]/75' : 'text-muted'}`}>Rumah sekarang</p>
+                <p className={`font-bold text-lg truncate ${currentAsset.photo ? 'text-[#fff]' : 'text-teal-500 light:text-teal-700'}`}>{currentAsset.name}</p>
+                {currentAsset.location && <p className={`text-xs truncate ${currentAsset.photo ? 'text-[#fff]/85' : 'text-text/80'}`}>{currentAsset.location}</p>}
               </div>
             ) : (
               <p className="font-bold text-muted">Pilih rumah...</p>
             )}
-            <ChevronDown className="text-muted" />
+            <ChevronDown className={`shrink-0 ${currentAsset?.photo ? 'text-[#fff]/80' : 'text-muted'}`} />
+            </div>
           </button>
         ) : (
           <button
             onClick={() => {
               setAssetName('');
               setAssetLocation('');
+              setAssetPhoto('');
               setShowAssetForm(true);
             }}
             className="w-full py-4 rounded-xl border-2 border-dashed border-white/20 text-muted hover:text-teal-400 hover:border-teal-400/50 transition-colors flex flex-col items-center gap-2"
@@ -321,6 +340,13 @@ const HomeServices: React.FC = () => {
         )
       ) : (
         <div className="space-y-4">
+          <button
+            onClick={() => openEventForm()}
+            className="w-full py-4 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-teal-500/50 hover:text-teal-500 light:hover:text-teal-700 transition-all flex items-center justify-center"
+          >
+            <Plus size={20} className="mr-2" /> Tambah Servis
+          </button>
+
           {serviceTitles.length > 0 && (
             <div className="relative px-1" ref={filterRef}>
               <button
@@ -388,48 +414,65 @@ const HomeServices: React.FC = () => {
               </button>
             </div>
           ) : (
-            <div className="relative pl-4 space-y-6 before:content-[''] before:absolute before:left-[23px] before:top-4 before:bottom-4 before:w-[2px] before:bg-white/10">
+            <div className="relative space-y-4 before:content-[''] before:absolute before:left-[21px] before:top-3 before:bottom-3 before:w-[2px] before:bg-text/10">
               {currentEvents.map(event => {
                 const isExpanded = expandedEvents.includes(event.id);
                 return (
-                  <div key={event.id} className="relative pl-6">
-                    <div className="absolute left-[-1px] top-1.5 w-3 h-3 rounded-full bg-teal-500 ring-4 ring-[#121212] z-10" />
-                    <div className="glass-panel p-4 flex flex-col gap-3">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="text-xs text-teal-400 font-bold mb-1">{formatDate(event.date)}</p>
-                          <h4 className="font-bold text-lg">{event.title}</h4>
-                          {event.nextServiceDate && (
-                            <div className="flex items-center gap-2 mt-1 flex-wrap">
-                              <p className={`text-xs font-bold flex items-center gap-1 ${
-                                event.nextDone ? 'text-muted line-through' : 'text-rose-500 light:text-rose-700'
-                              }`}>
-                                <CalendarClock size={12} /> Seterusnya: {formatDate(event.nextServiceDate)}
-                              </p>
-                              <button
-                                onClick={() => toggleNextDone(event.id)}
-                                aria-pressed={!!event.nextDone}
-                                title={event.nextDone ? 'Tap kalau belum buat lagi' : 'Tap kalau dah buat servis ni'}
-                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors flex items-center gap-1 ${
-                                  event.nextDone
-                                    ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-500 light:text-emerald-700'
-                                    : 'border-text/20 text-muted hover:text-text hover:border-text/40'
-                                }`}
-                              >
-                                {event.nextDone && <Check size={11} strokeWidth={3} />}
-                                {event.nextDone ? 'Dah buat' : 'Dah buat?'}
-                              </button>
-                            </div>
-                          )}
+                  <div key={event.id} className="relative flex gap-3">
+                    {/* The stamp a workshop presses into a service book: the date of the visit,
+                        ringed, sitting on the timeline. It replaces a bare dot that hardcoded
+                        ring-[#121212] and so showed as a black halo in light mode. */}
+                    <div className="relative z-10 shrink-0 w-11 h-11 rounded-full bg-surface border-2 border-teal-500/50 flex flex-col items-center justify-center shadow-sm">
+                      <span className="font-mono text-sm font-bold leading-none text-teal-500 light:text-teal-700"
+                            style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        {Number(event.date.slice(8, 10))}
+                      </span>
+                      <span className="text-[8px] font-bold uppercase tracking-wider text-muted leading-none mt-0.5">
+                        {MON[Number(event.date.slice(5, 7)) - 1]}
+                      </span>
+                    </div>
+
+                    <div className="glass-panel p-4 flex-1 min-w-0 flex flex-col gap-3">
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="min-w-0">
+                          <h4 className="font-bold text-lg leading-tight truncate">{event.title}</h4>
+                          <p className="font-mono text-xs text-muted mt-0.5 truncate">{formatDate(event.date)}</p>
                         </div>
-                        <div className="text-right">
-                          <p className="font-bold text-lg text-emerald-400">RM {event.totalCost.toFixed(2)}</p>
-                          <div className="flex items-center gap-1 mt-1 justify-end">
-                            <button onClick={() => openEventForm(event)} className="p-1.5 text-muted hover:text-teal-400 rounded-lg bg-text/5"><Pencil size={14} /></button>
-                            <button onClick={() => deleteEvent(event.id)} className="p-1.5 text-muted hover:text-rose-400 rounded-lg bg-text/5"><Trash2 size={14} /></button>
-                          </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button onClick={() => openEventForm(event)} aria-label="Ubah rekod" className="p-1.5 text-muted hover:text-teal-500 rounded-lg bg-text/5"><Pencil size={14} /></button>
+                          <button onClick={() => deleteEvent(event.id)} aria-label="Padam rekod" className="p-1.5 text-muted hover:text-rose-500 rounded-lg bg-text/5"><Trash2 size={14} /></button>
                         </div>
                       </div>
+
+                      {/* Cost is what a service history actually gets read for — "berapa aku bayar
+                          kali lepas?" — so it carries the display face and the size. */}
+                      <p className="font-display text-2xl font-extrabold leading-none text-emerald-500 light:text-emerald-700"
+                         style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        RM {event.totalCost.toFixed(2)}
+                      </p>
+
+                      {event.nextServiceDate && (
+                        <div className="flex items-center gap-2 flex-wrap border-t border-text/5 pt-2.5">
+                            <p className={`text-xs font-bold flex items-center gap-1 ${
+                              event.nextDone ? 'text-muted line-through' : 'text-rose-500 light:text-rose-700'
+                            }`}>
+                              <CalendarClock size={12} /> Seterusnya: {formatDate(event.nextServiceDate)}
+                            </p>
+                            <button
+                              onClick={() => toggleNextDone(event.id)}
+                              aria-pressed={!!event.nextDone}
+                              title={event.nextDone ? 'Tap kalau belum buat lagi' : 'Tap kalau dah buat servis ni'}
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors flex items-center gap-1 ${
+                                event.nextDone
+                                  ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-500 light:text-emerald-700'
+                                  : 'border-text/20 text-muted hover:text-text hover:border-text/40'
+                              }`}
+                            >
+                              {event.nextDone && <Check size={11} strokeWidth={3} />}
+                              {event.nextDone ? 'Dah buat' : 'Dah buat?'}
+                            </button>
+                          </div>
+                        )}
 
                       {event.notes && (
                         <div>
@@ -456,12 +499,6 @@ const HomeServices: React.FC = () => {
           )}
         </div>
       )}
-
-      {currentAsset && frameEl && createPortal((
-        <button onClick={() => openEventForm()} className="fixed bottom-24 right-4 sm:absolute z-30 w-14 h-14 rounded-full bg-teal-500 hover:bg-teal-600 text-white shadow-xl shadow-teal-500/30 flex items-center justify-center active:scale-90 transition-transform" title="Tambah servis">
-          <Plus size={26} />
-        </button>
-      ), frameEl)}
 
       {/* Asset Selector Modal */}
       {showAssetSelector && createPortal((
@@ -517,7 +554,7 @@ const HomeServices: React.FC = () => {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowAssetForm(false)}>
           <div className="bg-surface border border-text/10 rounded-3xl w-full max-w-sm p-5 space-y-4 shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-lg">{editAssetId ? 'Edit' : 'Add'} Home</h3>
+              <h3 className="font-bold text-lg">{editAssetId ? 'Sunting' : 'Tambah'} Rumah</h3>
               <button onClick={() => setShowAssetForm(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button>
             </div>
             
@@ -529,6 +566,42 @@ const HomeServices: React.FC = () => {
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-muted uppercase tracking-wider">Lokasi/Unit (pilihan)</label>
               <input value={assetLocation} onChange={e => setAssetLocation(e.target.value)} placeholder="cth. Blok A, Unit 12" className="input-field w-full" />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">Gambar (pilihan)</label>
+              <input
+                type="file"
+                accept="image/*"
+                ref={assetFileRef}
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  // 600px is plenty for a card background and keeps the base64 out of quota trouble.
+                  if (file) downscaleFile(file, 600).then(setAssetPhoto).catch(() => {});
+                }}
+                className="hidden"
+                id="asset-photo"
+              />
+              {assetPhoto ? (
+                <div className="relative h-24 rounded-xl overflow-hidden border border-text/10">
+                  <img src={assetPhoto} alt="" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => { setAssetPhoto(''); if (assetFileRef.current) assetFileRef.current.value = ''; }}
+                    aria-label="Buang gambar"
+                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-[#000]/50 text-[#fff]/80 hover:text-[#fff] backdrop-blur-md"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <label
+                  htmlFor="asset-photo"
+                  className="flex items-center justify-center gap-2 h-14 rounded-xl border border-dashed border-text/15 bg-text/5 text-muted text-sm cursor-pointer hover:text-text hover:bg-text/10 transition-colors"
+                >
+                  <ImageIcon size={18} /> Pilih gambar
+                </label>
+              )}
             </div>
 
             <button onClick={saveAsset} disabled={!assetName.trim()} className="w-full py-3 rounded-xl bg-teal-500 text-white font-bold hover:bg-teal-600 disabled:opacity-50 mt-2">
@@ -543,7 +616,7 @@ const HomeServices: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowEventForm(false)}>
           <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 flex flex-col max-h-[90vh] shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4 shrink-0">
-              <h3 className="font-bold text-lg">{fId ? 'Edit' : 'Add'} Service Record</h3>
+              <h3 className="font-bold text-lg">{fId ? 'Sunting' : 'Tambah'} Rekod Servis</h3>
               <button onClick={() => setShowEventForm(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button>
             </div>
             
@@ -598,7 +671,7 @@ const HomeServices: React.FC = () => {
                         onClick={() => { setShowTitleDropdown(false); }}
                         className="px-3 py-2 text-sm hover:bg-teal-500/10 text-teal-400 rounded-lg cursor-pointer flex items-center gap-2 border-t border-white/5 mt-1"
                       >
-                        <Plus size={14} /> Add "{fTitle.trim()}" as new
+                        <Plus size={14} /> Tambah "{fTitle.trim()}" sebagai baru
                       </div>
                     )}
                   </div>

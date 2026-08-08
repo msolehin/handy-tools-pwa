@@ -14,8 +14,8 @@ const STORAGE_KEY = 'habit_tracker_data';
 
 const PRESET_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899'];
 const PRESET_EMOJIS = ['🔥', '💧', '🏃', '📚', '🧘', '💪', '🥗', '😴', '🚭', '🎯', '✍️', '🧹'];
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const MONTHS = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis'];
+const WEEKDAYS = ['A', 'I', 'S', 'R', 'K', 'J', 'S'];
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 // Keep only the last emoji/character typed (handles multi-codepoint emojis like 🏃‍♀️)
@@ -102,9 +102,9 @@ const HabitTracker: React.FC = () => {
 
   const addHabit = () => {
     const name = newName.trim();
-    if (!name) { setError('Enter a habit name'); return; }
+    if (!name) { setError('Masukkan nama tabiat'); return; }
     if (habits.some(h => h.name.toLowerCase() === name.toLowerCase())) {
-      setError('A habit with this name already exists');
+      setError('Tabiat dengan nama ini sudah wujud');
       return;
     }
     setHabits(prev => [...prev, { id: generateId(), name, color: newColor, emoji: newEmoji.trim() || undefined, completedDates: [] }]);
@@ -117,16 +117,16 @@ const HabitTracker: React.FC = () => {
 
   const deleteHabit = (id: string) => {
     const h = habits.find(x => x.id === id);
-    if (h && !window.confirm(`Delete "${h.name}"? Its history will be lost.`)) return;
+    if (h && !window.confirm(`Padam "${h.name}"? Sejarahnya akan hilang.`)) return;
     setHabits(prev => prev.filter(x => x.id !== id));
   };
 
   const startEdit = (h: Habit) => { setEditingId(h.id); setEditName(h.name); setEditColor(h.color); setEditEmoji(h.emoji || ''); setEditError(''); };
   const saveEdit = () => {
     const name = editName.trim();
-    if (!name) { setEditError('Enter a name'); return; }
+    if (!name) { setEditError('Masukkan nama'); return; }
     if (habits.some(h => h.id !== editingId && h.name.toLowerCase() === name.toLowerCase())) {
-      setEditError('Name already exists');
+      setEditError('Nama sudah wujud');
       return;
     }
     setHabits(prev => prev.map(h => h.id === editingId ? { ...h, name, color: editColor, emoji: editEmoji.trim() || undefined } : h));
@@ -157,10 +157,10 @@ const HabitTracker: React.FC = () => {
     return (
       <div className="flex items-center gap-2 text-xs">
         <span className="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30">
-          🔥 {current} day{current === 1 ? '' : 's'}
+          🔥 {current} hari
         </span>
-        <span className="text-muted">Last: {last}</span>
-        <span className="text-muted ml-auto">{habit.completedDates.length} total</span>
+        <span className="text-muted">Terakhir: {last}</span>
+        <span className="text-muted ml-auto">{habit.completedDates.length} jumlah</span>
       </div>
     );
   };
@@ -230,7 +230,7 @@ const HabitTracker: React.FC = () => {
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight text-text/90">Habit Tracker</h1>
-            <p className="text-[10px] text-muted uppercase tracking-wider">Build your streaks</p>
+            <p className="text-[10px] text-muted uppercase tracking-wider">Bina streak anda</p>
           </div>
         </div>
       </div>
@@ -239,23 +239,23 @@ const HabitTracker: React.FC = () => {
       {isAdding ? (
         <div className="glass-panel p-5 space-y-4 border-violet-500/30">
           <div className="flex items-center justify-between">
-            <h3 className="font-bold text-lg">New Habit</h3>
+            <h3 className="font-bold text-lg">Tabiat Baru</h3>
             <button onClick={() => { setIsAdding(false); setError(''); }} className="p-1 text-muted hover:text-text"><X size={18} /></button>
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-bold text-muted uppercase tracking-wider">Habit name</label>
+            <label className="text-xs font-bold text-muted uppercase tracking-wider">Nama tabiat</label>
             <input
               type="text"
               value={newName}
               autoFocus
               onChange={e => { setNewName(e.target.value); setError(''); }}
               onKeyDown={e => { if (e.key === 'Enter') addHabit(); }}
-              placeholder="e.g. Drink water, Read 10 pages"
+              placeholder="cth. Minum air, Baca 10 muka surat"
               className="input-field w-full"
             />
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-bold text-muted uppercase tracking-wider">Emoji (optional)</label>
+            <label className="text-xs font-bold text-muted uppercase tracking-wider">Emoji (pilihan)</label>
             <div className="flex flex-wrap items-center gap-1.5">
               <input
                 type="text"
@@ -275,12 +275,12 @@ const HabitTracker: React.FC = () => {
                   {em}
                 </button>
               ))}
-              {newEmoji && <button onClick={() => setNewEmoji('')} className="text-xs text-muted hover:text-text px-1">clear</button>}
+              {newEmoji && <button onClick={() => setNewEmoji('')} className="text-xs text-muted hover:text-text px-1">buang</button>}
             </div>
-            <p className="text-[10px] text-muted">Tap the box and use your keyboard's emoji picker for any emoji.</p>
+            <p className="text-[10px] text-muted">Tekan kotak dan guna pemilih emoji papan kekunci anda.</p>
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-bold text-muted uppercase tracking-wider">Colour</label>
+            <label className="text-xs font-bold text-muted uppercase tracking-wider">Warna</label>
             <div className="flex flex-wrap items-center gap-2">
               {PRESET_COLORS.map(c => (
                 <button
@@ -290,7 +290,7 @@ const HabitTracker: React.FC = () => {
                   style={{ backgroundColor: c, boxShadow: newColor === c ? `0 0 0 2px ${c}` : undefined }}
                 />
               ))}
-              <label className="w-8 h-8 rounded-full border-2 border-dashed border-text/30 flex items-center justify-center cursor-pointer relative overflow-hidden" title="Custom colour">
+              <label className="w-8 h-8 rounded-full border-2 border-dashed border-text/30 flex items-center justify-center cursor-pointer relative overflow-hidden" title="Warna tersuai">
                 <span className="text-[9px] text-muted">+</span>
                 <input type="color" value={newColor} onChange={e => setNewColor(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" />
               </label>
@@ -298,26 +298,26 @@ const HabitTracker: React.FC = () => {
             </div>
           </div>
           {error && <p className="text-xs text-red-400">{error}</p>}
-          <button onClick={addHabit} className="w-full py-3 rounded-xl bg-violet-500 hover:bg-violet-600 text-white font-bold transition-colors">Add Habit</button>
+          <button onClick={addHabit} className="w-full py-3 rounded-xl bg-violet-500 hover:bg-violet-600 text-white font-bold transition-colors">Tambah Tabiat</button>
         </div>
       ) : (
         <button
           onClick={() => setIsAdding(true)}
           className="w-full py-4 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-violet-500/50 hover:text-violet-400 transition-all flex items-center justify-center"
         >
-          <Plus size={20} className="mr-2" /> Add Habit
+          <Plus size={20} className="mr-2" /> Tambah Tabiat
         </button>
       )}
 
       {habits.length === 0 ? (
         <div className="text-center p-8 text-muted text-sm border border-dashed border-text/10 rounded-2xl">
-          No habits yet. Add one to start tracking your streaks.
+          Belum ada tabiat. Tambah satu untuk mula bina streak anda.
         </div>
       ) : (
         <>
           {/* Tabs */}
           <div className="flex p-1 bg-text/5 rounded-xl">
-            {([['single', 'Single', ListChecks], ['weekly', 'Weekly', CalendarDays], ['yearly', 'Yearly', LayoutGrid]] as const).map(([key, label, Icon]) => (
+            {([['single', 'Harian', ListChecks], ['weekly', 'Mingguan', CalendarDays], ['yearly', 'Tahunan', LayoutGrid]] as const).map(([key, label, Icon]) => (
               <button
                 key={key}
                 onClick={() => setTab(key)}
@@ -337,7 +337,7 @@ const HabitTracker: React.FC = () => {
                     onClick={() => { setIsReordering(r => !r); setEditingId(null); }}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isReordering ? 'bg-violet-500/20 text-violet-400 border border-violet-500/40' : 'bg-text/5 text-muted hover:text-text'}`}
                   >
-                    <ArrowUpDown size={14} /> {isReordering ? 'Done' : 'Reorder'}
+                    <ArrowUpDown size={14} /> {isReordering ? 'Siap' : 'Susun'}
                   </button>
                 </div>
               )}
@@ -369,7 +369,7 @@ const HabitTracker: React.FC = () => {
                               style={{ backgroundColor: c, boxShadow: editColor === c ? `0 0 0 2px ${c}` : undefined }}
                             />
                           ))}
-                          <label className="w-6 h-6 rounded-full border-2 border-dashed border-text/30 flex items-center justify-center cursor-pointer relative overflow-hidden" title="Custom colour">
+                          <label className="w-6 h-6 rounded-full border-2 border-dashed border-text/30 flex items-center justify-center cursor-pointer relative overflow-hidden" title="Warna tersuai">
                             <span className="text-[8px] text-muted">+</span>
                             <input type="color" value={editColor} onChange={e => setEditColor(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" />
                           </label>
@@ -393,7 +393,7 @@ const HabitTracker: React.FC = () => {
                               {em}
                             </button>
                           ))}
-                          {editEmoji && <button onClick={() => setEditEmoji('')} className="text-xs text-muted hover:text-text px-1">clear</button>}
+                          {editEmoji && <button onClick={() => setEditEmoji('')} className="text-xs text-muted hover:text-text px-1">buang</button>}
                         </div>
                         {editError && <p className="text-[10px] text-red-400">{editError}</p>}
                       </div>
@@ -402,7 +402,7 @@ const HabitTracker: React.FC = () => {
                         <div className="flex items-center gap-1.5">
                           <h4 className="font-bold text-text/90 truncate">{habit.emoji ? habit.emoji + ' ' : ''}{habit.name}</h4>
                           {!isReordering && (
-                            <button onClick={() => startEdit(habit)} className="text-muted hover:text-text shrink-0 transition-colors" title="Edit name"><Pencil size={13} /></button>
+                            <button onClick={() => startEdit(habit)} className="text-muted hover:text-text shrink-0 transition-colors" title="Sunting nama"><Pencil size={13} /></button>
                           )}
                         </div>
                         <StreakRow habit={habit} />
@@ -415,7 +415,7 @@ const HabitTracker: React.FC = () => {
                       </div>
                     ) : editingId !== habit.id && (
                       <>
-                        <Tick done={done} color={habit.color} onClick={() => toggleDate(habit.id, todayKey)} label="Mark today" />
+                        <Tick done={done} color={habit.color} onClick={() => toggleDate(habit.id, todayKey)} label="Tanda hari ini" />
                         <button onClick={() => deleteHabit(habit.id)} className="text-rose-400 opacity-50 hover:opacity-100 p-1 hover:bg-rose-500/20 rounded transition-all shrink-0">
                           <Trash2 size={16} />
                         </button>
@@ -476,7 +476,7 @@ const HabitTracker: React.FC = () => {
           {/* YEARLY VIEW */}
           {tab === 'yearly' && (
             <div className="space-y-4">
-              <p className="text-center text-sm font-bold text-text/90">{year} Overview</p>
+              <p className="text-center text-sm font-bold text-text/90">Ringkasan {year}</p>
               {habits.map(habit => {
                 const done = habit.completedDates.includes(todayKey);
                 const set = new Set(habit.completedDates);
@@ -485,7 +485,7 @@ const HabitTracker: React.FC = () => {
                     <div className="flex items-center gap-3">
                       <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: habit.color }} />
                       <h4 className="font-bold text-text/90 truncate flex-1">{habit.emoji ? habit.emoji + ' ' : ''}{habit.name}</h4>
-                      <Tick done={done} color={habit.color} size={32} onClick={() => toggleDate(habit.id, todayKey)} label="Mark today" />
+                      <Tick done={done} color={habit.color} size={32} onClick={() => toggleDate(habit.id, todayKey)} label="Tanda hari ini" />
                     </div>
                     <StreakRow habit={habit} />
                     <div className="overflow-x-auto custom-scrollbar pb-1" data-year-scroll>
@@ -524,7 +524,7 @@ const HabitTracker: React.FC = () => {
                         </div>
                       </div>
                     </div>
-                    <p className="text-[10px] text-muted">Only today can be ticked here. Use Weekly to edit past days.</p>
+                    <p className="text-[10px] text-muted">Hanya hari ini boleh ditanda di sini. Guna Mingguan untuk ubah hari lepas.</p>
                   </div>
                 );
               })}

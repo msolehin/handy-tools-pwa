@@ -21,7 +21,7 @@ interface Contract {
 }
 
 const STORAGE_KEY = 'tenancy_data';
-const DEFAULT_CATS = ['Tenancy', 'Internet', 'Phone', 'Service', 'Other'];
+const DEFAULT_CATS = ['Sewa', 'Internet', 'Telefon', 'Perkhidmatan', 'Lain-lain'];
 const CAT_COLORS = ['#14b8a6', '#3b82f6', '#8b5cf6', '#f97316', '#22c55e', '#eab308', '#ef4444', '#ec4899'];
 const catColor = (cat: string, all: string[]) => CAT_COLORS[Math.max(0, all.indexOf(cat)) % CAT_COLORS.length];
 const generateId = () => Math.random().toString(36).substring(2, 9);
@@ -117,7 +117,7 @@ const Tenancy: React.FC = () => {
     } else {
       setFId(null);
       setFTitle('');
-      setFCat(categories[0] || 'Other');
+      setFCat(categories[0] || 'Lain-lain');
       setFParty('');
       setFPhone('');
       setFAddress('');
@@ -156,11 +156,11 @@ const Tenancy: React.FC = () => {
   };
 
   const deleteItem = (id: string) => {
-    if (window.confirm('Delete this contract?')) setItems(prev => prev.filter(i => i.id !== id));
+    if (window.confirm('Padam kontrak ini?')) setItems(prev => prev.filter(i => i.id !== id));
   };
 
   const renewYear = (item: Contract) => {
-    if (window.confirm(`Extend '${item.title}' by one year?`)) {
+    if (window.confirm(`Lanjutkan '${item.title}' selama setahun?`)) {
       setItems(prev => prev.map(i => i.id === item.id ? { ...i, startDate: i.endDate, endDate: addYearToDate(i.endDate) } : i));
     }
   };
@@ -173,25 +173,25 @@ const Tenancy: React.FC = () => {
 
   const removeCat = (c: string) => {
     if (DEFAULT_CATS.includes(c)) {
-      alert('Cannot delete default categories.');
+      alert('Kategori asal tidak boleh dipadam.');
       return;
     }
-    if (window.confirm(`Delete the category '${c}'?`)) {
+    if (window.confirm(`Padam kategori '${c}'?`)) {
       setCategories(prev => prev.filter(cat => cat !== c));
-      if (fCat === c) setFCat(categories.find(cat => cat !== c) || 'Other');
+      if (fCat === c) setFCat(categories.find(cat => cat !== c) || 'Lain-lain');
     }
   };
 
   const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+    new Date(dateStr).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' });
 
   const sorted = [...items].sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime());
   const monthlyTotal = items.reduce((sum, i) => sum + (i.amount || 0), 0);
 
   const getStatus = (daysLeft: number) => {
-    if (daysLeft < 0) return { text: 'Expired', color: 'text-red-400 bg-red-500/10 border-red-500/30', dot: 'bg-red-400' };
-    if (daysLeft <= 60) return { text: 'Ending Soon', color: 'text-amber-400 bg-amber-500/10 border-amber-500/30', dot: 'bg-amber-400' };
-    return { text: 'Active', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30', dot: 'bg-emerald-400' };
+    if (daysLeft < 0) return { text: 'Tamat', color: 'text-red-400 bg-red-500/10 border-red-500/30', dot: 'bg-red-400' };
+    if (daysLeft <= 60) return { text: 'Hampir Tamat', color: 'text-amber-400 bg-amber-500/10 border-amber-500/30', dot: 'bg-amber-400' };
+    return { text: 'Aktif', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30', dot: 'bg-emerald-400' };
   };
 
   return (
@@ -203,7 +203,7 @@ const Tenancy: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold">Sewa & Kontrak</h2>
           <p className="text-sm text-muted">
-            {monthlyTotal > 0 ? `${money(monthlyTotal)} / month committed` : 'Rentals, contracts & renewals'}
+            {monthlyTotal > 0 ? `${money(monthlyTotal)} / bulan dikomit` : 'Sewaan, kontrak & pembaharuan'}
           </p>
         </div>
       </div>
@@ -212,9 +212,9 @@ const Tenancy: React.FC = () => {
         {items.length === 0 ? (
           <div className="glass-panel p-8 text-center flex flex-col items-center">
             <FileText size={32} className="text-muted mb-3" />
-            <p className="text-muted text-sm">No contracts saved yet.</p>
+            <p className="text-muted text-sm">Belum ada kontrak disimpan.</p>
             <button onClick={() => openForm()} className="mt-4 px-4 py-2 bg-teal-500/20 text-teal-400 rounded-lg font-bold hover:bg-teal-500/30 transition-colors text-sm">
-              Add your first contract
+              Tambah kontrak pertama anda
             </button>
           </div>
         ) : (
@@ -234,7 +234,7 @@ const Tenancy: React.FC = () => {
                         {item.category}
                       </span>
                       <span className={`text-[9px] px-1.5 py-0.5 rounded border font-bold ${status.color}`}>
-                        {status.text} {daysLeft > 0 ? `in ${daysLeft}d` : daysLeft < 0 ? `by ${Math.abs(daysLeft)}d` : 'Today'}
+                        {status.text} {daysLeft > 0 ? `${daysLeft}h lagi` : daysLeft < 0 ? `${Math.abs(daysLeft)}h lepas` : 'Hari ini'}
                       </span>
                     </div>
                     <p className="font-bold text-text/90 truncate text-lg">{item.title}</p>
@@ -269,11 +269,11 @@ const Tenancy: React.FC = () => {
                 <div className="pl-2">
                   <div className="flex bg-black/20 rounded-xl overflow-hidden border border-white/5 divide-x divide-white/5">
                     <div className="flex-1 p-2 text-center">
-                      <p className="text-[10px] text-muted uppercase font-bold tracking-wider mb-1">Start</p>
+                      <p className="text-[10px] text-muted uppercase font-bold tracking-wider mb-1">Mula</p>
                       <p className="text-sm font-mono text-text/80">{formatDate(item.startDate)}</p>
                     </div>
                     <div className="flex-1 p-2 text-center bg-white/5">
-                      <p className="text-[10px] text-muted uppercase font-bold tracking-wider mb-1">Ends</p>
+                      <p className="text-[10px] text-muted uppercase font-bold tracking-wider mb-1">Tamat</p>
                       <p className={`text-sm font-mono font-bold ${daysLeft <= 60 ? 'text-amber-400' : 'text-emerald-400'}`}>{formatDate(item.endDate)}</p>
                     </div>
                   </div>
@@ -281,15 +281,15 @@ const Tenancy: React.FC = () => {
                   {item.amount > 0 && (
                     <div className="flex items-center justify-between mt-2 px-1 text-xs">
                       <span className="text-muted">
-                        <span className="font-bold text-text/80">{money(item.amount)}</span> on day {item.dueDay}
+                        <span className="font-bold text-text/80">{money(item.amount)}</span> pada hari {item.dueDay}
                       </span>
                       <span className={dueIn <= 3 ? 'text-amber-400 font-bold' : 'text-muted'}>
-                        {dueIn === 0 ? 'Due today' : `Due in ${dueIn}d`}
+                        {dueIn === 0 ? 'Perlu bayar hari ini' : `Bayar dalam ${dueIn}h`}
                       </span>
                     </div>
                   )}
                   {item.deposit > 0 && (
-                    <p className="text-xs text-muted mt-1 px-1">Deposit held: <span className="font-bold text-text/80">{money(item.deposit)}</span></p>
+                    <p className="text-xs text-muted mt-1 px-1">Deposit dipegang: <span className="font-bold text-text/80">{money(item.deposit)}</span></p>
                   )}
                   {item.address && (
                     <p className="text-xs text-muted mt-2 pl-1 flex items-start gap-1.5">
@@ -297,7 +297,7 @@ const Tenancy: React.FC = () => {
                       <span className="whitespace-pre-wrap">{item.address}</span>
                     </p>
                   )}
-                  {item.notes && <p className="text-xs text-muted mt-2 pl-1"><span className="font-bold">Notes:</span> {item.notes}</p>}
+                  {item.notes && <p className="text-xs text-muted mt-2 pl-1"><span className="font-bold">Nota:</span> {item.notes}</p>}
                 </div>
 
                 <div className="pl-2 pt-1">
@@ -305,7 +305,7 @@ const Tenancy: React.FC = () => {
                     onClick={() => renewYear(item)}
                     className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold bg-teal-500 hover:bg-teal-600 text-white shadow-lg shadow-teal-500/20 active:scale-[0.98] transition-all"
                   >
-                    Renewed — extend 1 year
+                    Dah renew — lanjut 1 tahun
                   </button>
                 </div>
               </div>
@@ -315,7 +315,7 @@ const Tenancy: React.FC = () => {
       </div>
 
       {frameEl && createPortal((
-        <button onClick={() => openForm()} className="fixed bottom-24 right-4 sm:absolute z-30 w-14 h-14 rounded-full bg-teal-500 hover:bg-teal-600 text-white shadow-xl shadow-teal-500/30 flex items-center justify-center active:scale-90 transition-transform" title="Add Contract">
+        <button onClick={() => openForm()} className="fixed bottom-24 right-4 sm:absolute z-30 w-14 h-14 rounded-full bg-teal-500 hover:bg-teal-600 text-white shadow-xl shadow-teal-500/30 flex items-center justify-center active:scale-90 transition-transform" title="Tambah Kontrak">
           <Plus size={26} />
         </button>
       ), frameEl)}
@@ -324,33 +324,33 @@ const Tenancy: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowForm(false)}>
           <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-lg">{fId ? 'Edit' : 'Add'} Contract</h3>
+              <h3 className="font-bold text-lg">{fId ? 'Sunting' : 'Tambah'} Kontrak</h3>
               <button onClick={() => setShowForm(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Title</label>
-              <input autoFocus value={fTitle} onChange={e => setFTitle(e.target.value)} placeholder="e.g. Rumah Sewa Setapak" className="input-field w-full" />
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">Tajuk</label>
+              <input autoFocus value={fTitle} onChange={e => setFTitle(e.target.value)} placeholder="cth. Rumah Sewa Setapak" className="input-field w-full" />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Start</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">Mula</label>
                 <input type="date" value={fStart} onChange={e => setFStart(e.target.value)} className="input-field w-full" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Ends</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">Tamat</label>
                 <input type="date" value={fEnd} onChange={e => setFEnd(e.target.value)} className="input-field w-full" />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Monthly (RM)</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">Bulanan (RM)</label>
                 <input type="number" inputMode="decimal" value={fAmount} onChange={e => setFAmount(e.target.value)} placeholder="0.00" className="input-field w-full" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Due Day</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">Hari Bayaran</label>
                 <input type="number" min="1" max="31" value={fDueDay} onChange={e => setFDueDay(e.target.value)} className="input-field w-full" />
               </div>
             </div>
@@ -362,11 +362,11 @@ const Tenancy: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Landlord / Provider</label>
-                <input value={fParty} onChange={e => setFParty(e.target.value)} placeholder="Name" className="input-field w-full" />
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">Tuan Rumah / Penyedia</label>
+                <input value={fParty} onChange={e => setFParty(e.target.value)} placeholder="Nama" className="input-field w-full" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="tn-phone">Phone</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="tn-phone">Telefon</label>
                 <input
                   id="tn-phone"
                   type="tel"
@@ -385,34 +385,34 @@ const Tenancy: React.FC = () => {
             {fPhone.trim() && (
               <p className={`text-[11px] -mt-2 ${phoneOk ? 'text-muted' : 'text-rose-500 light:text-rose-700'}`}>
                 {phoneOk
-                  ? <>WhatsApp will open <span className="font-mono">+{phoneOk}</span></>
+                  ? <>WhatsApp akan buka <span className="font-mono">+{phoneOk}</span></>
                   : 'Nombor tak lengkap — WhatsApp tak boleh dibuka. Contoh: 012-345 6789'}
               </p>
             )}
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="tn-address">Address (Optional)</label>
+              <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="tn-address">Alamat (Pilihan)</label>
               <textarea
                 id="tn-address"
                 value={fAddress}
                 onChange={e => setFAddress(e.target.value)}
-                placeholder="e.g. No 12, Jalan Setapak 3, 53000 Kuala Lumpur"
+                placeholder="cth. No 12, Jalan Setapak 3, 53000 Kuala Lumpur"
                 className="input-field w-full h-16 resize-none py-2"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Category</label>
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">Kategori</label>
               <CategoryChips cats={categories} value={fCat} onSelect={setFCat} onAdd={addCat} onRemove={removeCat} accent="rgb(20 184 166)" />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Notes (Optional)</label>
-              <textarea value={fNotes} onChange={e => setFNotes(e.target.value)} placeholder="e.g. 2 months deposit, 1 month utility" className="input-field w-full h-20 resize-none py-2" />
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">Nota (Pilihan)</label>
+              <textarea value={fNotes} onChange={e => setFNotes(e.target.value)} placeholder="cth. deposit 2 bulan, 1 bulan utiliti" className="input-field w-full h-20 resize-none py-2" />
             </div>
 
             <button onClick={saveForm} disabled={!fTitle.trim() || !fEnd} className="w-full py-3 rounded-xl bg-teal-500 text-white font-bold hover:bg-teal-600 disabled:opacity-50 disabled:pointer-events-none">
-              Save
+              Simpan
             </button>
           </div>
         </div>

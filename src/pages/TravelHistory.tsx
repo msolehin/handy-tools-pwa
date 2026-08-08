@@ -121,7 +121,7 @@ const WorldMap: React.FC<{ counts: Record<string, number>; pins: string[]; focus
         className="w-full h-auto select-none block"
         style={{ touchAction: t.k > 1 ? 'none' : 'pan-y' }}
         role="img"
-        aria-label="Visited countries map"
+        aria-label="Peta negara dilawati"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endPtr}
@@ -143,7 +143,7 @@ const WorldMap: React.FC<{ counts: Record<string, number>; pins: string[]; focus
                 strokeWidth={0.5}
                 vectorEffect="non-scaling-stroke"
               >
-                <title>{c.name}{n > 0 ? ` · ${n} trip${n > 1 ? 's' : ''}` : ''}</title>
+                <title>{c.name}{n > 0 ? ` · ${n} perjalanan` : ''}</title>
               </path>
             );
           })}
@@ -159,7 +159,7 @@ const WorldMap: React.FC<{ counts: Record<string, number>; pins: string[]; focus
                 fill={on ? 'rgb(34 211 238)' : 'rgb(16 185 129)'}
                 stroke="rgba(255,255,255,0.85)" strokeWidth={1} vectorEffect="non-scaling-stroke"
               >
-                <title>{name}{counts[name] > 0 ? ` · ${counts[name]} trip${counts[name] > 1 ? 's' : ''}` : ''}</title>
+                <title>{name}{counts[name] > 0 ? ` · ${counts[name]} perjalanan` : ''}</title>
               </circle>
             );
           })}
@@ -186,7 +186,7 @@ const WorldMap: React.FC<{ counts: Record<string, number>; pins: string[]; focus
         <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 bg-surface/80 rounded-lg px-2 py-1 text-[9px] text-muted font-bold">
           <span>1</span>
           {[0.45, 0.65, 0.85, 1].map((o, i) => <span key={i} className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: 'rgb(16 185 129)', opacity: o }} />)}
-          <span>{maxCount}+ trips</span>
+          <span>{maxCount}+ perjalanan</span>
         </div>
       )}
     </div>
@@ -198,13 +198,13 @@ interface ItinDay { id: string; label: string; timed: boolean; activities: ItinA
 interface ChecklistItem { id: string; category: string; text: string; done: boolean; }
 
 const DEFAULT_CHECKLIST: Record<string, string[]> = {
-  Documents: ['Passport', 'Visa', 'ID card', 'Flight tickets', 'Hotel booking', 'Travel insurance'],
-  Money: ['Cash', 'Credit / debit cards', 'Local currency'],
-  Clothing: ['Shirts', 'Pants', 'Underwear', 'Socks', 'Jacket', 'Sleepwear', 'Comfortable shoes'],
-  Toiletries: ['Toothbrush', 'Toothpaste', 'Shampoo', 'Soap', 'Deodorant', 'Sunscreen', 'Skincare'],
-  Electronics: ['Phone', 'Charger', 'Power bank', 'Travel adapter', 'Earphones'],
-  Health: ['Medication', 'First aid kit', 'Hand sanitizer', 'Face masks'],
-  Essentials: ['Reusable water bottle', 'Umbrella', 'Snacks', 'Travel pillow'],
+  Dokumen: ['Pasport', 'Visa', 'Kad pengenalan', 'Tiket kapal terbang', 'Tempahan hotel', 'Insurans perjalanan'],
+  Wang: ['Tunai', 'Kad kredit / debit', 'Mata wang tempatan'],
+  Pakaian: ['Baju', 'Seluar', 'Pakaian dalam', 'Stokin', 'Jaket', 'Baju tidur', 'Kasut selesa'],
+  'Barang mandian': ['Berus gigi', 'Ubat gigi', 'Syampu', 'Sabun', 'Deodoran', 'Pelindung matahari', 'Penjagaan kulit'],
+  Elektronik: ['Telefon', 'Pengecas', 'Power bank', 'Adapter perjalanan', 'Fon telinga'],
+  Kesihatan: ['Ubat', 'Kit pertolongan cemas', 'Pencuci tangan', 'Pelitup muka'],
+  Keperluan: ['Botol air', 'Payung', 'Snek', 'Bantal perjalanan'],
 };
 
 interface Trip {
@@ -224,14 +224,14 @@ interface Trip {
 }
 
 const STORAGE_KEY = 'travel_history_data';
-const DEFAULT_CATS = ['Transport', 'Hotel', 'Food', 'Shopping', 'Entertainment', 'Others'];
+const DEFAULT_CATS = ['Pengangkutan', 'Hotel', 'Makanan', 'Beli-belah', 'Hiburan', 'Lain-lain'];
 const TOTAL_COUNTRIES = 195; // recognised countries in the world
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTHS = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis'];
 const pad2 = (n: number) => String(n).padStart(2, '0');
 const dateKey = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 const generateId = () => Math.random().toString(36).substring(2, 9);
-const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+const fmt = (n: number) => n.toLocaleString('ms-MY', { maximumFractionDigits: 0 });
 const longDate = (key: string) => { if (!key) return ''; const [y, m, d] = key.split('-').map(Number); return `${d} ${MONTHS[m - 1]} ${y}`; };
 const yearOf = (key: string) => key.slice(0, 4);
 
@@ -244,38 +244,38 @@ const makeSampleTrips = (): Trip[] => {
     return { id: generateId(), country, flag: flag(country), title: `${country} ${year}`, startDate: dateKey(sd), endDate: dateKey(ed), budget, ...extra };
   };
   const japanItin: ItinDay[] = [
-    { id: generateId(), label: 'Day 1', timed: true, activities: [
-      { id: generateId(), time: '09:00', text: 'Arrive Narita, train to Tokyo' },
-      { id: generateId(), time: '13:00', text: 'Lunch at Tsukiji Market' },
-      { id: generateId(), time: '19:00', text: 'Shibuya crossing & dinner' },
+    { id: generateId(), label: 'Hari 1', timed: true, activities: [
+      { id: generateId(), time: '09:00', text: 'Tiba Narita, tren ke Tokyo' },
+      { id: generateId(), time: '13:00', text: 'Makan tengah hari di Pasar Tsukiji' },
+      { id: generateId(), time: '19:00', text: 'Lintasan Shibuya & makan malam' },
     ] },
-    { id: generateId(), label: 'Day 2', timed: false, activities: [
-      { id: generateId(), text: 'Senso-ji Temple' },
-      { id: generateId(), text: 'Akihabara shopping' },
+    { id: generateId(), label: 'Hari 2', timed: false, activities: [
+      { id: generateId(), text: 'Kuil Senso-ji' },
+      { id: generateId(), text: 'Beli-belah Akihabara' },
       { id: generateId(), text: 'TeamLab Planets' },
     ] },
   ];
   return [
-    mk('Japan', 2025, 3, 1, 9, 4250, { categories: { Transport: 1200, Hotel: 1500, Food: 900, Shopping: 650 }, bestLocation: 'Osaka Castle', cities: ['Tokyo', 'Osaka', 'Kyoto'], notes: 'Sakura season', itinerary: japanItin }),
+    mk('Japan', 2025, 3, 1, 9, 4250, { categories: { Pengangkutan: 1200, Hotel: 1500, Makanan: 900, 'Beli-belah': 650 }, bestLocation: 'Osaka Castle', cities: ['Tokyo', 'Osaka', 'Kyoto'], notes: 'Musim sakura', itinerary: japanItin }),
     mk('Japan', 2024, 11, 10, 7, 3900, { bestLocation: 'Mount Fuji', cities: ['Tokyo', 'Hakone'] }),
     mk('Japan', 2023, 4, 5, 8, 3600, { cities: ['Kyoto', 'Nara'] }),
-    mk('Thailand', 2026, 1, 12, 5, 1800, { categories: { Transport: 400, Hotel: 600, Food: 500, Shopping: 300 }, bestLocation: 'Grand Palace', cities: ['Bangkok'], notes: 'Food trip' }),
+    mk('Thailand', 2026, 1, 12, 5, 1800, { categories: { Pengangkutan: 400, Hotel: 600, Makanan: 500, 'Beli-belah': 300 }, bestLocation: 'Grand Palace', cities: ['Bangkok'], notes: 'Jalan makan' }),
     mk('Thailand', 2025, 6, 20, 4, 1500, { cities: ['Phuket'] }),
     mk('Thailand', 2024, 2, 14, 6, 2100, { cities: ['Chiang Mai'] }),
     mk('Thailand', 2023, 9, 3, 5, 1700, { cities: ['Krabi'] }),
-    mk('Indonesia', 2025, 8, 8, 6, 2400, { bestLocation: 'Uluwatu', cities: ['Bali'], notes: 'Beach & villas' }),
+    mk('Indonesia', 2025, 8, 8, 6, 2400, { bestLocation: 'Uluwatu', cities: ['Bali'], notes: 'Pantai & vila' }),
     mk('Indonesia', 2023, 12, 22, 7, 2600, { cities: ['Jakarta', 'Bandung'] }),
-    mk('South Korea', 2025, 10, 2, 7, 3800, { categories: { Transport: 1000, Hotel: 1300, Food: 800, Shopping: 700 }, bestLocation: 'Gyeongbokgung', cities: ['Seoul', 'Busan'], notes: 'Autumn leaves' }),
+    mk('South Korea', 2025, 10, 2, 7, 3800, { categories: { Pengangkutan: 1000, Hotel: 1300, Makanan: 800, 'Beli-belah': 700 }, bestLocation: 'Gyeongbokgung', cities: ['Seoul', 'Busan'], notes: 'Daun luruh' }),
     mk('South Korea', 2022, 5, 18, 6, 3200, { cities: ['Seoul'] }),
     mk('Singapore', 2024, 7, 1, 3, 1600, { bestLocation: 'Gardens by the Bay', cities: ['Singapore'] }),
     mk('Vietnam', 2024, 3, 9, 5, 1400, { bestLocation: 'Ha Long Bay', cities: ['Hanoi', 'Ha Long'] }),
-    mk('Australia', 2023, 1, 15, 10, 7800, { categories: { Transport: 2500, Hotel: 2800, Food: 1500, Shopping: 1000 }, bestLocation: 'Sydney Opera House', cities: ['Sydney', 'Melbourne'], notes: 'Summer trip' }),
+    mk('Australia', 2023, 1, 15, 10, 7800, { categories: { Pengangkutan: 2500, Hotel: 2800, Makanan: 1500, 'Beli-belah': 1000 }, bestLocation: 'Sydney Opera House', cities: ['Sydney', 'Melbourne'], notes: 'Percutian musim panas' }),
     mk('United Kingdom', 2022, 8, 5, 9, 8200, { bestLocation: 'Tower Bridge', cities: ['London', 'Edinburgh'] }),
-    mk('France', 2019, 6, 12, 8, 7400, { bestLocation: 'Eiffel Tower', cities: ['Paris', 'Nice'], notes: 'Honeymoon' }),
-    mk('Turkey', 2023, 10, 20, 7, 5200, { bestLocation: 'Cappadocia', cities: ['Istanbul', 'Cappadocia'], notes: 'Hot air balloon' }),
-    mk('Maldives', 2024, 12, 5, 5, 6800, { bestLocation: 'Overwater villa', cities: ['Malé'] }),
-    mk('China', 2018, 9, 1, 8, 4100, { bestLocation: 'Great Wall', cities: ['Beijing', 'Shanghai'] }),
-    mk('Egypt', 2021, 11, 3, 9, 6100, { bestLocation: 'Pyramids of Giza', cities: ['Cairo', 'Luxor'] }),
+    mk('France', 2019, 6, 12, 8, 7400, { bestLocation: 'Eiffel Tower', cities: ['Paris', 'Nice'], notes: 'Bulan madu' }),
+    mk('Turkey', 2023, 10, 20, 7, 5200, { bestLocation: 'Cappadocia', cities: ['Istanbul', 'Cappadocia'], notes: 'Belon udara panas' }),
+    mk('Maldives', 2024, 12, 5, 5, 6800, { bestLocation: 'Vila atas air', cities: ['Malé'] }),
+    mk('China', 2018, 9, 1, 8, 4100, { bestLocation: 'Tembok Besar', cities: ['Beijing', 'Shanghai'] }),
+    mk('Egypt', 2021, 11, 3, 9, 6100, { bestLocation: 'Piramid Giza', cities: ['Cairo', 'Luxor'] }),
   ];
 };
 
@@ -297,7 +297,7 @@ const TravelHistory: React.FC = () => {
     }
     setFocusedCountry(country);
     if (!mapTarget(country)) {
-      showToast(`📍 “${country}” isn’t on the map`);
+      showToast(`📍 “${country}” tiada dalam peta`);
       return;
     }
     setTab('dashboard'); // the map lives on the dashboard — a chip tapped elsewhere still lands there
@@ -361,9 +361,9 @@ const TravelHistory: React.FC = () => {
   const pickCountry = (name: string, flag: string) => { setFCountry(name); setFFlag(flag); setCountrySearch(''); };
 
   const saveTrip = () => {
-    if (!fCountry.trim()) { setError('Pick a country'); return; }
-    if (!fStart || !fEnd) { setError('Add the date range'); return; }
-    if (fEnd < fStart) { setError('End date is before start date'); return; }
+    if (!fCountry.trim()) { setError('Pilih negara'); return; }
+    if (!fStart || !fEnd) { setError('Isi julat tarikh'); return; }
+    if (fEnd < fStart) { setError('Tarikh tamat sebelum tarikh mula'); return; }
     const title = fTitle.trim() || `${fCountry} ${yearOf(fStart)}`;
     // A city typed but not yet "added" still counts — losing it on save would be a nasty surprise.
     const typed = cityDraft.split(',').map(s => s.trim()).filter(Boolean);
@@ -385,7 +385,7 @@ const TravelHistory: React.FC = () => {
     setTrips(prev => editId ? prev.map(t => t.id === editId ? trip : t) : [...prev, trip]);
     setShowForm(false);
   };
-  const deleteTrip = (id: string) => { if (window.confirm('Delete this trip?')) setTrips(prev => prev.filter(t => t.id !== id)); };
+  const deleteTrip = (id: string) => { if (window.confirm('Padam perjalanan ini?')) setTrips(prev => prev.filter(t => t.id !== id)); };
 
   // --- Manage Expenses modal ---
   const blankDetail = () => DEFAULT_CATS.map(c => ({ name: c, amount: '' }));
@@ -427,7 +427,7 @@ const TravelHistory: React.FC = () => {
   const updateDay = (dayId: string, fn: (d: ItinDay) => ItinDay) =>
     setTrips(prev => prev.map(t => t.id === itinTripId ? { ...t, itinerary: (t.itinerary || []).map(d => d.id === dayId ? fn(d) : d) } : t));
   const addDay = () => setTrips(prev => prev.map(t => t.id === itinTripId
-    ? { ...t, itinerary: [...(t.itinerary || []), { id: generateId(), label: `Day ${(t.itinerary?.length || 0) + 1}`, timed: false, activities: [] }] } : t));
+    ? { ...t, itinerary: [...(t.itinerary || []), { id: generateId(), label: `Hari ${(t.itinerary?.length || 0) + 1}`, timed: false, activities: [] }] } : t));
   const deleteDay = (dayId: string) => setTrips(prev => prev.map(t => t.id === itinTripId ? { ...t, itinerary: (t.itinerary || []).filter(d => d.id !== dayId) } : t));
   const addActivity = (day: ItinDay) => {
     const d = draftAct[day.id] || { text: '', time: '' };
@@ -466,11 +466,11 @@ const TravelHistory: React.FC = () => {
   const addCheckCategory = () => { const c = newCheckCat.trim(); if (c && !checkExtraCats.includes(c)) setCheckExtraCats(prev => [...prev, c]); setNewCheckCat(''); };
   const deleteCheckCategory = (cat: string) => {
     const count = (checkTrip?.checklist || []).filter(i => i.category === cat).length;
-    if (count > 0 && !window.confirm(`Delete "${cat}" and its ${count} item${count > 1 ? 's' : ''}?`)) return;
+    if (count > 0 && !window.confirm(`Padam "${cat}" dan ${count} itemnya?`)) return;
     updateChecklist(list => list.filter(i => i.category !== cat));
     setCheckExtraCats(prev => prev.filter(c => c !== cat));
   };
-  const clearChecklist = () => { if (window.confirm('Clear the whole packing list?')) { updateChecklist(() => []); setCheckExtraCats([]); } };
+  const clearChecklist = () => { if (window.confirm('Kosongkan seluruh senarai barang?')) { updateChecklist(() => []); setCheckExtraCats([]); } };
 
   // --- Stats ---
   const uniqueCountries = Array.from(new Set(trips.map(t => t.country)));
@@ -530,7 +530,7 @@ const TravelHistory: React.FC = () => {
       {days.length > 0 && (
         <div>
           <button onClick={() => setShowItin(s => !s)} className="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
-            <MapIcon size={13} /> Itinerary · {days.length} day{days.length > 1 ? 's' : ''}
+            <MapIcon size={13} /> Itinerari · {days.length} hari
             <ChevronDown size={14} className={`transition-transform ${showItin ? 'rotate-180' : ''}`} />
           </button>
           {showItin && (
@@ -542,7 +542,7 @@ const TravelHistory: React.FC = () => {
                     <p className="text-[11px] font-bold text-text/80 mb-1">{day.label}</p>
                     <div className="border-l-2 border-cyan-500/30 ml-1 pl-3 space-y-1.5">
                       {acts.length === 0 ? (
-                        <p className="text-[11px] text-muted">No activities</p>
+                        <p className="text-[11px] text-muted">Tiada aktiviti</p>
                       ) : acts.map(a => (
                         <div key={a.id} className="relative">
                           <span className="absolute -left-[15.5px] top-1.5 w-1.5 h-1.5 rounded-full bg-cyan-400" />
@@ -561,9 +561,9 @@ const TravelHistory: React.FC = () => {
       )}
 
       <div className="flex gap-1.5 pt-1">
-        <button onClick={() => openExpenses(t)} className="flex-1 py-2 rounded-lg bg-text/5 text-[11px] font-bold text-text/80 hover:bg-text/10 flex items-center justify-center gap-1"><Wallet size={13} /> Expenses</button>
-        <button onClick={() => setItinTripId(t.id)} className="flex-1 py-2 rounded-lg bg-text/5 text-[11px] font-bold text-text/80 hover:bg-text/10 flex items-center justify-center gap-1"><MapIcon size={13} /> Itinerary</button>
-        <button onClick={() => openChecklist(t.id)} className="flex-1 py-2 rounded-lg bg-text/5 text-[11px] font-bold text-text/80 hover:bg-text/10 flex items-center justify-center gap-1"><Backpack size={13} /> Packing</button>
+        <button onClick={() => openExpenses(t)} className="flex-1 py-2 rounded-lg bg-text/5 text-[11px] font-bold text-text/80 hover:bg-text/10 flex items-center justify-center gap-1"><Wallet size={13} /> Perbelanjaan</button>
+        <button onClick={() => setItinTripId(t.id)} className="flex-1 py-2 rounded-lg bg-text/5 text-[11px] font-bold text-text/80 hover:bg-text/10 flex items-center justify-center gap-1"><MapIcon size={13} /> Itinerari</button>
+        <button onClick={() => openChecklist(t.id)} className="flex-1 py-2 rounded-lg bg-text/5 text-[11px] font-bold text-text/80 hover:bg-text/10 flex items-center justify-center gap-1"><Backpack size={13} /> Barang</button>
       </div>
       </div>
     </div>
@@ -587,14 +587,14 @@ const TravelHistory: React.FC = () => {
           <div className="p-3 bg-cyan-500/20 rounded-xl"><Globe className="text-cyan-400" size={26} /></div>
           <div>
             <h1 className="text-xl font-bold tracking-tight text-text/90">My Travel History</h1>
-            <p className="text-[10px] text-muted uppercase tracking-wider">Where have I been?</p>
+            <p className="text-[10px] text-muted uppercase tracking-wider">Ke mana saya pernah pergi?</p>
           </div>
         </div>
       </div>
 
       {/* Tabs */}
       <div className="grid grid-cols-3 gap-1 p-1 bg-text/5 rounded-xl">
-        {([['dashboard', 'Dashboard', Globe], ['trips', 'Trips', Plane], ['timeline', 'Timeline', Clock]] as const).map(([key, label, Icon]) => (
+        {([['dashboard', 'Papan Pemuka', Globe], ['trips', 'Perjalanan', Plane], ['timeline', 'Garis Masa', Clock]] as const).map(([key, label, Icon]) => (
           <button key={key} onClick={() => setTab(key)} className={`py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${tab === key ? 'bg-surface text-cyan-400 shadow-sm' : 'text-muted hover:text-text'}`}>
             <Icon size={15} /> {label}
           </button>
@@ -603,26 +603,26 @@ const TravelHistory: React.FC = () => {
 
       {tab === 'dashboard' ? (
         trips.length === 0 ? (
-          <div className="text-center p-8 text-muted text-sm border border-dashed border-text/10 rounded-2xl">No trips recorded yet. Add your first trip on the Trips tab!</div>
+          <div className="text-center p-8 text-muted text-sm border border-dashed border-text/10 rounded-2xl">Belum ada perjalanan direkod. Tambah perjalanan pertama anda di tab Perjalanan!</div>
         ) : (
         <div className="space-y-4">
           {/* Stats */}
           <div className="grid grid-cols-3 gap-3">
-            <div className="glass-panel p-3 text-center"><p className="text-[9px] font-bold text-muted uppercase">Countries</p><p className="text-lg font-black text-cyan-400 mt-1">{uniqueCountries.length}</p></div>
-            <div className="glass-panel p-3 text-center"><p className="text-[9px] font-bold text-muted uppercase">Trips</p><p className="text-lg font-black text-cyan-400 mt-1">{trips.length}</p></div>
-            <div className="glass-panel p-3 text-center"><p className="text-[9px] font-bold text-muted uppercase">Spent</p><p className="text-sm font-black text-cyan-400 font-mono mt-1.5">RM{fmt(totalSpending)}</p></div>
+            <div className="glass-panel p-3 text-center"><p className="text-[9px] font-bold text-muted uppercase">Negara</p><p className="text-lg font-black text-cyan-400 mt-1">{uniqueCountries.length}</p></div>
+            <div className="glass-panel p-3 text-center"><p className="text-[9px] font-bold text-muted uppercase">Perjalanan</p><p className="text-lg font-black text-cyan-400 mt-1">{trips.length}</p></div>
+            <div className="glass-panel p-3 text-center"><p className="text-[9px] font-bold text-muted uppercase">Perbelanjaan</p><p className="text-sm font-black text-cyan-400 font-mono mt-1.5">RM{fmt(totalSpending)}</p></div>
           </div>
 
           {/* Visited countries */}
           <div className="glass-panel p-4 space-y-3 scroll-mt-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-sm flex items-center gap-2"><MapPin size={16} className="text-cyan-400" /> Countries Visited</h3>
+              <h3 className="font-bold text-sm flex items-center gap-2"><MapPin size={16} className="text-cyan-400" /> Negara Dilawati</h3>
               <span className="text-xs font-bold text-cyan-400">{uniqueCountries.length} <span className="text-muted font-normal">/ {TOTAL_COUNTRIES}</span></span>
             </div>
             <div className="h-1.5 bg-black/20 rounded-full overflow-hidden">
               <div className="h-full bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-full" style={{ width: `${Math.min(100, (uniqueCountries.length / TOTAL_COUNTRIES) * 100)}%` }} />
             </div>
-            <p className="text-[10px] text-muted text-right">{((uniqueCountries.length / TOTAL_COUNTRIES) * 100).toFixed(1)}% of the world explored</p>
+            <p className="text-[10px] text-muted text-right">{((uniqueCountries.length / TOTAL_COUNTRIES) * 100).toFixed(1)}% dunia diterokai</p>
             <div ref={mapPanelRef} className="-mx-1 scroll-mt-4">
               <WorldMap
                 counts={Object.fromEntries(countryCounts.map(c => [MAP_ALIAS[c.country] || c.country, c.count]))}
@@ -640,7 +640,7 @@ const TravelHistory: React.FC = () => {
                     <button
                       key={c.country}
                       onClick={() => focusOnMap(c.country)}
-                      title={focusedCountry === c.country ? `Unselect ${c.country}` : `Show ${c.country} on the map`}
+                      title={focusedCountry === c.country ? `Nyahpilih ${c.country}` : `Tunjuk ${c.country} pada peta`}
                       className={`px-2.5 py-1.5 rounded-xl border text-xs font-medium flex items-center gap-1.5 transition-transform active:scale-95 hover:brightness-110 ${focusedCountry === c.country ? 'ring-2 ring-cyan-400 ring-offset-1 ring-offset-surface' : ''}`}
                       style={{ backgroundColor: `rgba(16,185,129,${0.1 + f * 0.5})`, borderColor: `rgba(16,185,129,${0.25 + f * 0.45})` }}
                     >
@@ -651,22 +651,22 @@ const TravelHistory: React.FC = () => {
                 });
               })()}
             </div>
-            <p className="text-[10px] text-muted">Tap a country to zoom the map to it. Countries too small to outline (Singapore, Maldives…) show as a dot.</p>
+            <p className="text-[10px] text-muted">Tekan negara untuk zum peta padanya. Negara terlalu kecil untuk dilukis (Singapura, Maldives…) dipaparkan sebagai titik.</p>
           </div>
 
           {/* Highlights */}
           <div className="grid grid-cols-2 gap-3">
             {mostVisited && (
-              <div className="glass-panel p-3"><p className="text-[9px] font-bold text-muted uppercase flex items-center gap-1"><TrendingUp size={11} /> Most visited</p><p className="text-sm font-bold mt-1">{mostVisited.flag} {mostVisited.country}</p><p className="text-[10px] text-muted">{mostVisited.count} trip{mostVisited.count > 1 ? 's' : ''}</p></div>
+              <div className="glass-panel p-3"><p className="text-[9px] font-bold text-muted uppercase flex items-center gap-1"><TrendingUp size={11} /> Paling kerap dilawati</p><p className="text-sm font-bold mt-1">{mostVisited.flag} {mostVisited.country}</p><p className="text-[10px] text-muted">{mostVisited.count} perjalanan</p></div>
             )}
             {lastTrip && (
-              <div className="glass-panel p-3"><p className="text-[9px] font-bold text-muted uppercase flex items-center gap-1"><Clock size={11} /> Last trip</p><p className="text-sm font-bold mt-1">{lastTrip.flag} {lastTrip.country}</p><p className="text-[10px] text-muted">{longDate(lastTrip.startDate)}</p></div>
+              <div className="glass-panel p-3"><p className="text-[9px] font-bold text-muted uppercase flex items-center gap-1"><Clock size={11} /> Perjalanan terakhir</p><p className="text-sm font-bold mt-1">{lastTrip.flag} {lastTrip.country}</p><p className="text-[10px] text-muted">{longDate(lastTrip.startDate)}</p></div>
             )}
             {highest && (
-              <div className="glass-panel p-3"><p className="text-[9px] font-bold text-muted uppercase">Highest budget</p><p className="text-sm font-bold mt-1">{highest.flag} {highest.title}</p><p className="text-[10px] text-cyan-400 font-mono">RM{fmt(highest.budget)}</p></div>
+              <div className="glass-panel p-3"><p className="text-[9px] font-bold text-muted uppercase">Bajet tertinggi</p><p className="text-sm font-bold mt-1">{highest.flag} {highest.title}</p><p className="text-[10px] text-cyan-400 font-mono">RM{fmt(highest.budget)}</p></div>
             )}
             {cheapest && (
-              <div className="glass-panel p-3"><p className="text-[9px] font-bold text-muted uppercase">Cheapest trip</p><p className="text-sm font-bold mt-1">{cheapest.flag} {cheapest.title}</p><p className="text-[10px] text-emerald-400 font-mono">RM{fmt(cheapest.budget)}</p></div>
+              <div className="glass-panel p-3"><p className="text-[9px] font-bold text-muted uppercase">Perjalanan termurah</p><p className="text-sm font-bold mt-1">{cheapest.flag} {cheapest.title}</p><p className="text-[10px] text-emerald-400 font-mono">RM{fmt(cheapest.budget)}</p></div>
             )}
           </div>
         </div>
@@ -674,10 +674,10 @@ const TravelHistory: React.FC = () => {
       ) : tab === 'trips' ? (
         <div className="space-y-3">
           {/* Add trip button */}
-          <button onClick={openAdd} className="w-full py-3 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-cyan-500/50 hover:text-cyan-400 transition-all flex items-center justify-center"><Plus size={18} className="mr-2" /> Add Trip</button>
+          <button onClick={openAdd} className="w-full py-3 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-cyan-500/50 hover:text-cyan-400 transition-all flex items-center justify-center"><Plus size={18} className="mr-2" /> Tambah Perjalanan</button>
 
           {trips.length === 0 ? (
-            <div className="text-center p-8 text-muted text-sm border border-dashed border-text/10 rounded-2xl">No trips recorded yet. Click the button above to add your first trip!</div>
+            <div className="text-center p-8 text-muted text-sm border border-dashed border-text/10 rounded-2xl">Belum ada perjalanan direkod. Tekan butang di atas untuk tambah perjalanan pertama anda!</div>
           ) : (
             <>
               {/* Sort + group */}
@@ -685,18 +685,18 @@ const TravelHistory: React.FC = () => {
                 <div className="flex-1 relative">
                   <ArrowUpDown size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
                   <select value={sort} onChange={e => setSort(e.target.value as any)} className="input-field w-full pl-8 py-2 text-sm appearance-none">
-                    <option value="latest">Latest</option>
-                    <option value="oldest">Oldest</option>
-                    <option value="highest">Highest Budget</option>
-                    <option value="lowest">Lowest Budget</option>
+                    <option value="latest">Terkini</option>
+                    <option value="oldest">Terlama</option>
+                    <option value="highest">Bajet Tertinggi</option>
+                    <option value="lowest">Bajet Terendah</option>
                   </select>
                 </div>
                 <div className="flex-1 relative">
                   <Layers size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
                   <select value={groupBy} onChange={e => setGroupBy(e.target.value as any)} className="input-field w-full pl-8 py-2 text-sm appearance-none">
-                    <option value="none">No grouping</option>
-                    <option value="country">Group: Country</option>
-                    <option value="year">Group: Year</option>
+                    <option value="none">Tanpa kumpulan</option>
+                    <option value="country">Kumpul: Negara</option>
+                    <option value="year">Kumpul: Tahun</option>
                   </select>
                 </div>
               </div>
@@ -734,7 +734,7 @@ const TravelHistory: React.FC = () => {
       ) : (
         /* TIMELINE */
         trips.length === 0 ? (
-          <div className="text-center p-8 text-muted text-sm border border-dashed border-text/10 rounded-2xl">No trips recorded yet. Add your first trip on the Trips tab!</div>
+          <div className="text-center p-8 text-muted text-sm border border-dashed border-text/10 rounded-2xl">Belum ada perjalanan direkod. Tambah perjalanan pertama anda di tab Perjalanan!</div>
         ) : (
         <div className="space-y-4">
           {Array.from(new Set(sortedByDate.map(t => yearOf(t.startDate)))).sort((a, b) => b.localeCompare(a)).map(yr => (
@@ -765,10 +765,10 @@ const TravelHistory: React.FC = () => {
       {/* Dev tools — only available on localhost / dev server */}
       {import.meta.env.DEV && (
         <div className="border border-dashed border-amber-500/30 rounded-2xl p-3 space-y-2">
-          <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Dev tools (localhost only)</p>
+          <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Alat dev (localhost sahaja)</p>
           <div className="flex gap-2">
-            <button onClick={() => setTrips(makeSampleTrips())} className="flex-1 py-2 rounded-lg bg-amber-500/15 text-amber-400 text-xs font-bold hover:bg-amber-500/25">Generate sample data</button>
-            <button onClick={() => { if (window.confirm('Clear all trips?')) setTrips([]); }} className="flex-1 py-2 rounded-lg bg-rose-500/15 text-rose-400 text-xs font-bold hover:bg-rose-500/25">Clear all data</button>
+            <button onClick={() => setTrips(makeSampleTrips())} className="flex-1 py-2 rounded-lg bg-amber-500/15 text-amber-400 text-xs font-bold hover:bg-amber-500/25">Jana data contoh</button>
+            <button onClick={() => { if (window.confirm('Kosongkan semua perjalanan?')) setTrips([]); }} className="flex-1 py-2 rounded-lg bg-rose-500/15 text-rose-400 text-xs font-bold hover:bg-rose-500/25">Kosongkan semua data</button>
           </div>
         </div>
       )}
@@ -777,11 +777,11 @@ const TravelHistory: React.FC = () => {
       {showForm && createPortal((
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowForm(false)}>
           <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up max-h-[88vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between"><h3 className="font-bold text-lg">{editId ? 'Edit' : 'Add'} Trip</h3><button onClick={() => setShowForm(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button></div>
+            <div className="flex items-center justify-between"><h3 className="font-bold text-lg">{editId ? 'Sunting' : 'Tambah'} Perjalanan</h3><button onClick={() => setShowForm(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button></div>
 
             {/* Country */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Country</label>
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">Negara</label>
               {fCountry ? (
                 <div className="flex items-center gap-2">
                   <span className="flex items-center gap-2 px-3 py-2 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-sm font-bold flex-1"><span className="text-lg">{fFlag}</span> {fCountry}</span>
@@ -791,57 +791,57 @@ const TravelHistory: React.FC = () => {
                 <>
                   <div className="relative">
                     <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
-                    <input value={countrySearch} onChange={e => setCountrySearch(e.target.value)} placeholder="Search country…" className="input-field w-full pl-9" />
+                    <input value={countrySearch} onChange={e => setCountrySearch(e.target.value)} placeholder="Cari negara…" className="input-field w-full pl-9" />
                   </div>
                   <div className="max-h-40 overflow-y-auto custom-scrollbar grid grid-cols-2 gap-1 mt-1">
                     {filteredCountries.map(c => (
                       <button key={c.code} onClick={() => pickCountry(c.name, flagOf(c.code))} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-text/5 text-sm text-left"><span className="text-base">{flagOf(c.code)}</span> <span className="truncate">{c.name}</span></button>
                     ))}
                     {countrySearch.trim() && !filteredCountries.some(c => c.name.toLowerCase() === countrySearch.toLowerCase()) && (
-                      <button onClick={() => pickCountry(countrySearch.trim(), '🌍')} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-text/5 text-sm text-left col-span-2"><span className="text-base">🌍</span> Use “{countrySearch.trim()}”</button>
+                      <button onClick={() => pickCountry(countrySearch.trim(), '🌍')} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-text/5 text-sm text-left col-span-2"><span className="text-base">🌍</span> Guna “{countrySearch.trim()}”</button>
                     )}
                   </div>
                 </>
               )}
             </div>
 
-            <input value={fTitle} onChange={e => setFTitle(e.target.value)} placeholder={`Trip name (optional, e.g. ${fCountry || 'Japan'} ${fStart ? yearOf(fStart) : '2025'})`} className="input-field w-full" />
+            <input value={fTitle} onChange={e => setFTitle(e.target.value)} placeholder={`Nama perjalanan (pilihan, cth. ${fCountry || 'Japan'} ${fStart ? yearOf(fStart) : '2025'})`} className="input-field w-full" />
 
             {/* Dates */}
             <div className="flex gap-2">
-              <div className="flex-1 space-y-1"><label className="text-[10px] font-bold text-muted uppercase">From</label><input type="date" value={fStart} onChange={e => setFStart(e.target.value)} className="input-field w-full text-sm" /></div>
-              <div className="flex-1 space-y-1"><label className="text-[10px] font-bold text-muted uppercase">To</label><input type="date" value={fEnd} onChange={e => setFEnd(e.target.value)} className="input-field w-full text-sm" /></div>
+              <div className="flex-1 space-y-1"><label className="text-[10px] font-bold text-muted uppercase">Dari</label><input type="date" value={fStart} onChange={e => setFStart(e.target.value)} className="input-field w-full text-sm" /></div>
+              <div className="flex-1 space-y-1"><label className="text-[10px] font-bold text-muted uppercase">Hingga</label><input type="date" value={fEnd} onChange={e => setFEnd(e.target.value)} className="input-field w-full text-sm" /></div>
             </div>
 
-            <div className="space-y-1"><label className="text-[10px] font-bold text-muted uppercase">Best place visited (optional)</label><input value={fBest} onChange={e => setFBest(e.target.value)} placeholder="e.g. Osaka Castle" className="input-field w-full text-sm" /></div>
+            <div className="space-y-1"><label className="text-[10px] font-bold text-muted uppercase">Tempat terbaik dilawati (pilihan)</label><input value={fBest} onChange={e => setFBest(e.target.value)} placeholder="cth. Istana Osaka" className="input-field w-full text-sm" /></div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-muted uppercase">Cities / places visited (optional)</label>
+              <label className="text-[10px] font-bold text-muted uppercase">Bandar / tempat dilawati (pilihan)</label>
               <div className="flex gap-2">
                 <input
                   value={cityDraft}
                   onChange={e => setCityDraft(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCity(cityDraft); } }}
-                  placeholder="e.g. Tokyo"
+                  placeholder="cth. Tokyo"
                   className="input-field flex-1 text-sm"
                 />
-                <button type="button" onClick={() => addCity(cityDraft)} disabled={!cityDraft.trim()} className="px-4 rounded-xl bg-cyan-500 text-white font-bold text-sm disabled:opacity-40">Add</button>
+                <button type="button" onClick={() => addCity(cityDraft)} disabled={!cityDraft.trim()} className="px-4 rounded-xl bg-cyan-500 text-white font-bold text-sm disabled:opacity-40">Tambah</button>
               </div>
               {fCities.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {fCities.map(c => (
                     <span key={c} className="flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-xs font-medium">
                       <MapPin size={11} className="text-cyan-400" /> {c}
-                      <button type="button" onClick={() => setFCities(prev => prev.filter(x => x !== c))} className="text-muted hover:text-rose-400" aria-label={`Remove ${c}`}><X size={13} /></button>
+                      <button type="button" onClick={() => setFCities(prev => prev.filter(x => x !== c))} className="text-muted hover:text-rose-400" aria-label={`Buang ${c}`}><X size={13} /></button>
                     </span>
                   ))}
                 </div>
               )}
             </div>
-            <div className="space-y-1"><label className="text-[10px] font-bold text-muted uppercase">Notes (optional)</label><input value={fNotes} onChange={e => setFNotes(e.target.value)} placeholder="e.g. Sakura season" className="input-field w-full text-sm" /></div>
+            <div className="space-y-1"><label className="text-[10px] font-bold text-muted uppercase">Nota (pilihan)</label><input value={fNotes} onChange={e => setFNotes(e.target.value)} placeholder="cth. Musim sakura" className="input-field w-full text-sm" /></div>
 
-            <p className="text-[10px] text-muted">Add expenses and itinerary from the trip card on the Trips tab.</p>
+            <p className="text-[10px] text-muted">Tambah perbelanjaan dan itinerari dari kad perjalanan di tab Perjalanan.</p>
             {error && <p className="text-xs text-red-400">{error}</p>}
-            <button onClick={saveTrip} className="w-full py-3 rounded-xl bg-cyan-500 text-white font-bold hover:bg-cyan-600">{editId ? 'Save Changes' : 'Add Trip'}</button>
+            <button onClick={saveTrip} className="w-full py-3 rounded-xl bg-cyan-500 text-white font-bold hover:bg-cyan-600">{editId ? 'Simpan Perubahan' : 'Tambah Perjalanan'}</button>
           </div>
         </div>
       ), document.body)}
@@ -850,29 +850,29 @@ const TravelHistory: React.FC = () => {
       {expTrip && createPortal((
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setExpTrip(null)}>
           <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up max-h-[88vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between"><h3 className="font-bold text-lg">{expTrip.flag} Expenses</h3><button onClick={() => setExpTrip(null)} className="p-1 text-muted hover:text-text"><X size={20} /></button></div>
+            <div className="flex items-center justify-between"><h3 className="font-bold text-lg">{expTrip.flag} Perbelanjaan</h3><button onClick={() => setExpTrip(null)} className="p-1 text-muted hover:text-text"><X size={20} /></button></div>
             <div className="flex p-0.5 bg-text/5 rounded-lg text-xs font-bold w-fit">
-              <button onClick={() => setExpMode('lump')} className={`px-3 py-1 rounded ${expMode === 'lump' ? 'bg-surface text-cyan-400 shadow-sm' : 'text-muted'}`}>Lump sum</button>
-              <button onClick={() => setExpMode('detailed')} className={`px-3 py-1 rounded ${expMode === 'detailed' ? 'bg-surface text-cyan-400 shadow-sm' : 'text-muted'}`}>Detailed</button>
+              <button onClick={() => setExpMode('lump')} className={`px-3 py-1 rounded ${expMode === 'lump' ? 'bg-surface text-cyan-400 shadow-sm' : 'text-muted'}`}>Sekaligus</button>
+              <button onClick={() => setExpMode('detailed')} className={`px-3 py-1 rounded ${expMode === 'detailed' ? 'bg-surface text-cyan-400 shadow-sm' : 'text-muted'}`}>Terperinci</button>
             </div>
             {expMode === 'lump' ? (
-              <input type="number" value={expLump} onChange={e => setExpLump(e.target.value)} placeholder="Total budget (RM)" className="input-field w-full font-mono text-lg" />
+              <input type="number" value={expLump} onChange={e => setExpLump(e.target.value)} placeholder="Jumlah bajet (RM)" className="input-field w-full font-mono text-lg" />
             ) : (
               <div className="space-y-1.5">
                 {expDetail.map((d, idx) => (
                   <div key={idx} className="flex gap-2">
-                    <input value={d.name} onChange={e => setExpDetail(prev => prev.map((x, i) => i === idx ? { ...x, name: e.target.value } : x))} placeholder="Category" className="input-field flex-1 py-2 text-sm" />
+                    <input value={d.name} onChange={e => setExpDetail(prev => prev.map((x, i) => i === idx ? { ...x, name: e.target.value } : x))} placeholder="Kategori" className="input-field flex-1 py-2 text-sm" />
                     <input type="number" value={d.amount} onChange={e => setExpDetail(prev => prev.map((x, i) => i === idx ? { ...x, amount: e.target.value } : x))} placeholder="RM" className="input-field w-24 py-2 text-sm font-mono" />
                     <button onClick={() => setExpDetail(prev => prev.filter((_, i) => i !== idx))} className="text-rose-400 px-1"><X size={16} /></button>
                   </div>
                 ))}
                 <div className="flex items-center justify-between">
-                  <button onClick={() => setExpDetail(prev => [...prev, { name: '', amount: '' }])} className="text-xs text-cyan-400 font-bold">+ Add category</button>
-                  <span className="text-xs font-mono text-muted">Total RM{fmt(expDetail.reduce((s, d) => s + (parseFloat(d.amount) || 0), 0))}</span>
+                  <button onClick={() => setExpDetail(prev => [...prev, { name: '', amount: '' }])} className="text-xs text-cyan-400 font-bold">+ Tambah kategori</button>
+                  <span className="text-xs font-mono text-muted">Jumlah RM{fmt(expDetail.reduce((s, d) => s + (parseFloat(d.amount) || 0), 0))}</span>
                 </div>
               </div>
             )}
-            <button onClick={saveExpenses} className="w-full py-3 rounded-xl bg-cyan-500 text-white font-bold hover:bg-cyan-600">Save Expenses</button>
+            <button onClick={saveExpenses} className="w-full py-3 rounded-xl bg-cyan-500 text-white font-bold hover:bg-cyan-600">Simpan Perbelanjaan</button>
           </div>
         </div>
       ), document.body)}
@@ -881,7 +881,7 @@ const TravelHistory: React.FC = () => {
       {itinTrip && createPortal((
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setItinTripId(null)}>
           <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-3 animate-slide-up max-h-[88vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between"><h3 className="font-bold text-lg">{itinTrip.flag} Itinerary</h3><button onClick={() => setItinTripId(null)} className="p-1 text-muted hover:text-text"><X size={20} /></button></div>
+            <div className="flex items-center justify-between"><h3 className="font-bold text-lg">{itinTrip.flag} Itinerari</h3><button onClick={() => setItinTripId(null)} className="p-1 text-muted hover:text-text"><X size={20} /></button></div>
 
             {(itinTrip.itinerary || []).map(day => {
               const acts = day.timed ? [...day.activities].sort((a, b) => (a.time || '').localeCompare(b.time || '')) : day.activities;
@@ -891,7 +891,7 @@ const TravelHistory: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <h4 className="font-bold text-sm text-cyan-400">{day.label}</h4>
                     <div className="flex items-center gap-2">
-                      <button onClick={() => updateDay(day.id, dd => ({ ...dd, timed: !dd.timed }))} className={`text-[10px] px-2 py-1 rounded-lg font-bold flex items-center gap-1 ${day.timed ? 'bg-cyan-500/20 text-cyan-400' : 'bg-text/5 text-muted'}`}><Clock size={11} /> {day.timed ? 'Timed' : 'List'}</button>
+                      <button onClick={() => updateDay(day.id, dd => ({ ...dd, timed: !dd.timed }))} className={`text-[10px] px-2 py-1 rounded-lg font-bold flex items-center gap-1 ${day.timed ? 'bg-cyan-500/20 text-cyan-400' : 'bg-text/5 text-muted'}`}><Clock size={11} /> {day.timed ? 'Berjadual' : 'Senarai'}</button>
                       <button onClick={() => deleteDay(day.id)} className="text-rose-400 p-1"><Trash2 size={14} /></button>
                     </div>
                   </div>
@@ -911,14 +911,14 @@ const TravelHistory: React.FC = () => {
                   ))}
                   <div className="flex gap-2 pt-1">
                     {day.timed && <input type="time" value={d.time} onChange={e => setDraftAct(prev => ({ ...prev, [day.id]: { ...d, time: e.target.value } }))} className="input-field w-24 py-1.5 text-sm" />}
-                    <input value={d.text} onChange={e => setDraftAct(prev => ({ ...prev, [day.id]: { ...d, text: e.target.value } }))} onKeyDown={e => { if (e.key === 'Enter') addActivity(day); }} placeholder="Add activity…" className="input-field flex-1 py-1.5 text-sm" />
+                    <input value={d.text} onChange={e => setDraftAct(prev => ({ ...prev, [day.id]: { ...d, text: e.target.value } }))} onKeyDown={e => { if (e.key === 'Enter') addActivity(day); }} placeholder="Tambah aktiviti…" className="input-field flex-1 py-1.5 text-sm" />
                     <button onClick={() => addActivity(day)} className="px-2 rounded-lg bg-cyan-500/20 text-cyan-400"><Plus size={16} /></button>
                   </div>
                 </div>
               );
             })}
 
-            <button onClick={addDay} className="w-full py-2.5 border-2 border-dashed border-text/20 rounded-xl text-muted font-bold text-sm hover:border-cyan-500/50 hover:text-cyan-400 transition-all flex items-center justify-center"><Plus size={16} className="mr-1.5" /> Add Day</button>
+            <button onClick={addDay} className="w-full py-2.5 border-2 border-dashed border-text/20 rounded-xl text-muted font-bold text-sm hover:border-cyan-500/50 hover:text-cyan-400 transition-all flex items-center justify-center"><Plus size={16} className="mr-1.5" /> Tambah Hari</button>
           </div>
         </div>
       ), document.body)}
@@ -933,16 +933,16 @@ const TravelHistory: React.FC = () => {
         return (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setCheckTripId(null)}>
             <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-3 animate-slide-up max-h-[88vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between"><h3 className="font-bold text-lg flex items-center gap-2"><Backpack size={18} className="text-cyan-400" /> {checkTrip.flag} Packing</h3><button onClick={() => setCheckTripId(null)} className="p-1 text-muted hover:text-text"><X size={20} /></button></div>
+              <div className="flex items-center justify-between"><h3 className="font-bold text-lg flex items-center gap-2"><Backpack size={18} className="text-cyan-400" /> {checkTrip.flag} Barang Bawa</h3><button onClick={() => setCheckTripId(null)} className="p-1 text-muted hover:text-text"><X size={20} /></button></div>
 
               {/* Packing progress */}
               <div className="space-y-1">
-                <div className="flex justify-between text-xs"><span className="text-muted font-bold">{done}/{total} packed</span><span className="font-bold text-cyan-400">{pct}%</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted font-bold">{done}/{total} dah masuk beg</span><span className="font-bold text-cyan-400">{pct}%</span></div>
                 <div className="h-2 bg-black/20 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-full transition-all" style={{ width: `${pct}%` }} /></div>
               </div>
 
               {total === 0 && (
-                <button onClick={loadDefaultChecklist} className="w-full py-2.5 rounded-xl bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 font-bold text-sm">✨ Load travel essentials</button>
+                <button onClick={loadDefaultChecklist} className="w-full py-2.5 rounded-xl bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 font-bold text-sm">✨ Muat keperluan perjalanan</button>
               )}
 
               {cats.map(cat => {
@@ -951,7 +951,7 @@ const TravelHistory: React.FC = () => {
                   <div key={cat} className="glass-panel p-3 space-y-1.5 border-text/10">
                     <div className="flex items-center justify-between">
                       <h4 className="font-bold text-xs text-cyan-400">{cat}</h4>
-                      <button onClick={() => deleteCheckCategory(cat)} className="text-rose-400 opacity-50 hover:opacity-100" title="Delete category"><Trash2 size={13} /></button>
+                      <button onClick={() => deleteCheckCategory(cat)} className="text-rose-400 opacity-50 hover:opacity-100" title="Padam kategori"><Trash2 size={13} /></button>
                     </div>
                     {list.map(i => (
                       <div key={i.id} className="flex items-center gap-2">
@@ -961,7 +961,7 @@ const TravelHistory: React.FC = () => {
                       </div>
                     ))}
                     <div className="flex gap-2 pt-1">
-                      <input value={checkDraft[cat] || ''} onChange={e => setCheckDraft(prev => ({ ...prev, [cat]: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') addCheckItem(cat); }} placeholder="Add item…" className="input-field flex-1 py-1.5 text-sm" />
+                      <input value={checkDraft[cat] || ''} onChange={e => setCheckDraft(prev => ({ ...prev, [cat]: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') addCheckItem(cat); }} placeholder="Tambah item…" className="input-field flex-1 py-1.5 text-sm" />
                       <button onClick={() => addCheckItem(cat)} className="px-2 rounded-lg bg-cyan-500/20 text-cyan-400"><Plus size={16} /></button>
                     </div>
                   </div>
@@ -970,13 +970,13 @@ const TravelHistory: React.FC = () => {
 
               {/* Add custom category */}
               <div className="flex gap-2">
-                <input value={newCheckCat} onChange={e => setNewCheckCat(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addCheckCategory(); }} placeholder="New category (e.g. Baby, Hiking)" className="input-field flex-1 text-sm" />
-                <button onClick={addCheckCategory} className="px-4 rounded-xl bg-cyan-500 text-white font-bold text-sm">Add</button>
+                <input value={newCheckCat} onChange={e => setNewCheckCat(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addCheckCategory(); }} placeholder="Kategori baru (cth. Bayi, Mendaki)" className="input-field flex-1 text-sm" />
+                <button onClick={addCheckCategory} className="px-4 rounded-xl bg-cyan-500 text-white font-bold text-sm">Tambah</button>
               </div>
               {total > 0 && (
                 <div className="flex gap-2">
-                  <button onClick={loadDefaultChecklist} className="flex-1 py-2 text-xs font-bold text-cyan-400">+ Add essentials</button>
-                  <button onClick={clearChecklist} className="flex-1 py-2 text-xs font-bold text-rose-400 flex items-center justify-center gap-1"><Trash2 size={13} /> Clear all</button>
+                  <button onClick={loadDefaultChecklist} className="flex-1 py-2 text-xs font-bold text-cyan-400">+ Tambah keperluan</button>
+                  <button onClick={clearChecklist} className="flex-1 py-2 text-xs font-bold text-rose-400 flex items-center justify-center gap-1"><Trash2 size={13} /> Kosongkan semua</button>
                 </div>
               )}
             </div>

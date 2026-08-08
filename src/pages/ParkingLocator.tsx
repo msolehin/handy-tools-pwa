@@ -61,33 +61,33 @@ const ParkingLocator: React.FC = () => {
       return () => URL.revokeObjectURL(objectUrl);
     }, [blob]);
     if (!url) return null;
-    return <img src={url} alt="Parking Location" className="mt-3 w-full h-40 object-cover rounded-xl cursor-pointer hover:opacity-90 transition-opacity" onClick={() => setFullImage(url)} />;
+    return <img src={url} alt="Lokasi Parking" className="mt-3 w-full h-40 object-cover rounded-xl cursor-pointer hover:opacity-90 transition-opacity" onClick={() => setFullImage(url)} />;
   };
 
   const locations = useLiveQuery(() => db.parkingLocations.orderBy('createdAt').reverse().toArray());
 
   const getLocation = (manual = false) => {
     setIsLocating(true);
-    if (manual) showToast('📍 Getting your location…');
+    if (manual) showToast('📍 Mencari lokasi anda…');
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setCurrentLocation([position.coords.latitude, position.coords.longitude]);
           setAccuracy(position.coords.accuracy);
           setIsLocating(false);
-          if (manual) showToast('✅ Location updated');
+          if (manual) showToast('✅ Lokasi dikemas kini');
         },
         (error) => {
           console.error("Error getting location", error);
-          showToast('⚠️ Couldn’t get location');
-          alert("Could not get your precise location. Please ensure location services are enabled.");
+          showToast('⚠️ Gagal dapatkan lokasi');
+          alert("Tidak dapat lokasi tepat anda. Pastikan perkhidmatan lokasi dihidupkan.");
           setIsLocating(false);
         },
         { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
       );
     } else {
-      showToast('⚠️ Geolocation not supported');
-      alert("Geolocation is not supported by this browser.");
+      showToast('⚠️ Geolokasi tidak disokong');
+      alert("Geolokasi tidak disokong oleh pelayar ini.");
       setIsLocating(false);
     }
   };
@@ -98,8 +98,8 @@ const ParkingLocator: React.FC = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentLocation) return alert("Location not acquired yet.");
-    if (!title.trim()) return alert("Please enter a title.");
+    if (!currentLocation) return alert("Lokasi belum diperoleh.");
+    if (!title.trim()) return alert("Sila masukkan tajuk.");
 
     setIsSaving(true);
     try {
@@ -121,14 +121,14 @@ const ParkingLocator: React.FC = () => {
       setShowForm(false);
     } catch (err) {
       console.error(err);
-      alert("Failed to save location.");
+      alert("Gagal menyimpan lokasi.");
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm("Are you sure you want to delete this parking location?")) {
+    if (confirm("Anda pasti mahu padam lokasi parking ini?")) {
       await db.parkingLocations.delete(id);
     }
   };
@@ -144,11 +144,11 @@ const ParkingLocator: React.FC = () => {
   // Derive GNSS signal quality from location accuracy (smaller = better)
   const signalLevel = accuracy == null ? 0 : accuracy <= 10 ? 4 : accuracy <= 25 ? 3 : accuracy <= 50 ? 2 : 1;
   const signalMeta = [
-    { label: 'No signal', text: 'text-muted', bar: 'bg-emerald-400' },
-    { label: 'Weak', text: 'text-red-400', bar: 'bg-red-400' },
-    { label: 'Fair', text: 'text-amber-400', bar: 'bg-amber-400' },
-    { label: 'Good', text: 'text-lime-400', bar: 'bg-lime-400' },
-    { label: 'Excellent', text: 'text-emerald-400', bar: 'bg-emerald-400' },
+    { label: 'Tiada isyarat', text: 'text-muted', bar: 'bg-emerald-400' },
+    { label: 'Lemah', text: 'text-red-400', bar: 'bg-red-400' },
+    { label: 'Sederhana', text: 'text-amber-400', bar: 'bg-amber-400' },
+    { label: 'Baik', text: 'text-lime-400', bar: 'bg-lime-400' },
+    { label: 'Cemerlang', text: 'text-emerald-400', bar: 'bg-emerald-400' },
   ][signalLevel];
 
   return (
@@ -182,12 +182,12 @@ const ParkingLocator: React.FC = () => {
         <div className="flex items-center gap-2.5">
           <Satellite size={20} className={`${signalMeta.text} ${isLocating ? 'animate-pulse' : ''}`} />
           <div>
-            <p className="text-xs font-bold text-text/90">GNSS Signal</p>
+            <p className="text-xs font-bold text-text/90">Isyarat GNSS</p>
             <p className={`text-[11px] ${signalMeta.text}`}>
               {isLocating
-                ? 'Locking on…'
+                ? 'Sedang mengunci…'
                 : accuracy == null
-                  ? 'No fix yet'
+                  ? 'Belum dapat lokasi'
                   : `${signalMeta.label} · ±${Math.round(accuracy)}m`}
             </p>
           </div>
@@ -212,12 +212,12 @@ const ParkingLocator: React.FC = () => {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             <Marker position={currentLocation}>
-              <Popup>You are here</Popup>
+              <Popup>Anda di sini</Popup>
             </Marker>
           </MapContainer>
         ) : (
           <div className="h-full flex items-center justify-center bg-background/50 animate-pulse rounded-xl">
-            <p className="text-muted">Acquiring location...</p>
+            <p className="text-muted">Mendapatkan lokasi...</p>
           </div>
         )}
       </div>
@@ -230,32 +230,32 @@ const ParkingLocator: React.FC = () => {
           disabled={!currentLocation}
         >
           <Plus size={20} />
-          <span>Save Current Location</span>
+          <span>Simpan Lokasi Semasa</span>
         </button>
       ) : (
         <form onSubmit={handleSave} className="glass-panel p-4 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-muted mb-1">Title</label>
+            <label className="block text-sm font-medium text-muted mb-1">Tajuk</label>
             <input 
               type="text" 
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Basement 2, Pillar A5"
+              placeholder="cth. Basement 2, Tiang A5"
               className="input-field"
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-muted mb-1">Notes (Optional)</label>
+            <label className="block text-sm font-medium text-muted mb-1">Nota (Pilihan)</label>
             <textarea 
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Add any extra details to help you find your vehicle..."
+              placeholder="Tambah butiran lain untuk bantu anda cari kenderaan..."
               className="input-field resize-none h-20"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-muted mb-1">Photo (Optional)</label>
+            <label className="block text-sm font-medium text-muted mb-1">Gambar (Pilihan)</label>
             
             <div className="flex gap-2 mb-3">
               <button
@@ -264,7 +264,7 @@ const ParkingLocator: React.FC = () => {
                 className="flex-1 bg-primary/20 hover:bg-primary/30 text-primary py-2 px-4 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center space-x-2"
               >
                  <Camera size={18} />
-                 <span>Take Photo</span>
+                 <span>Ambil Gambar</span>
               </button>
               <button
                 type="button"
@@ -272,7 +272,7 @@ const ParkingLocator: React.FC = () => {
                 className="flex-1 bg-text/5 hover:bg-text/10 text-text/80 py-2 px-4 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center space-x-2 border border-text/10"
               >
                  <Upload size={18} />
-                 <span>Upload File</span>
+                 <span>Muat Naik Fail</span>
               </button>
             </div>
             
@@ -313,7 +313,7 @@ const ParkingLocator: React.FC = () => {
               onClick={() => setShowForm(false)}
               className="btn-secondary flex-1"
             >
-              Cancel
+              Batal
             </button>
             <button 
               type="submit" 
@@ -321,7 +321,7 @@ const ParkingLocator: React.FC = () => {
               className="btn-primary flex-1 flex justify-center items-center space-x-2"
             >
               <Save size={18} />
-              <span>{isSaving ? 'Saving...' : 'Save'}</span>
+              <span>{isSaving ? 'Menyimpan...' : 'Simpan'}</span>
             </button>
           </div>
         </form>
@@ -329,10 +329,10 @@ const ParkingLocator: React.FC = () => {
 
       {/* Saved Location */}
       <div className="mt-8">
-        <h3 className="text-lg font-semibold mb-4 text-text/90">Saved Location</h3>
+        <h3 className="text-lg font-semibold mb-4 text-text/90">Lokasi Disimpan</h3>
         <div className="space-y-4">
           {locations?.length === 0 && (
-            <p className="text-muted text-sm text-center py-8">No saved parking location yet.</p>
+            <p className="text-muted text-sm text-center py-8">Belum ada lokasi parking disimpan.</p>
           )}
           {locations?.map((loc: ParkingLocation) => (
             <div key={loc.id} className="glass-panel p-4">
@@ -340,11 +340,11 @@ const ParkingLocator: React.FC = () => {
                 <div>
                   <h4 className="font-semibold text-lg">{loc.title}</h4>
                   <p className="text-xs text-muted mt-1">
-                    {new Date(loc.createdAt).toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    {new Date(loc.createdAt).toLocaleString('ms-MY', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </p>
                   <button
                     onClick={() => navigator.clipboard?.writeText(`${loc.latitude}, ${loc.longitude}`)}
-                    title="Tap to copy coordinates"
+                    title="Tekan untuk salin koordinat"
                     className="flex items-center gap-1.5 mt-1.5 text-[11px] font-mono text-muted hover:text-text transition-colors"
                   >
                     <Crosshair size={12} className="shrink-0 text-primary" />
@@ -366,7 +366,7 @@ const ParkingLocator: React.FC = () => {
                   className="w-full bg-primary/10 hover:bg-primary/20 py-3 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center space-x-2 text-primary border border-primary/20"
                 >
                   <Compass size={18} />
-                  <span>In-App Compass Guide</span>
+                  <span>Panduan Kompas Dalam App</span>
                 </button>
                 <div className="flex space-x-2">
                   <button 
@@ -403,7 +403,7 @@ const ParkingLocator: React.FC = () => {
           <div className="flex-1 w-full h-full flex items-center justify-center overflow-hidden py-8">
             <img 
               src={fullImage} 
-              alt="Full preview" 
+              alt="Pratonton penuh" 
               className="max-w-full max-h-full object-contain rounded-xl shadow-2xl" 
               onClick={(e) => e.stopPropagation()} 
             />

@@ -20,17 +20,17 @@ interface ImportantNumber {
 }
 
 const STORAGE_KEY = 'important_numbers_data';
-const DEFAULT_CATS = ['Utilities', 'Internet', 'Insurance', 'Memberships', 'Bank', 'Other'];
+const DEFAULT_CATS = ['Utiliti', 'Internet', 'Insurans', 'Keahlian', 'Bank', 'Lain-lain'];
 const CAT_COLORS = ['#3b82f6', '#22c55e', '#f97316', '#ec4899', '#8b5cf6', '#14b8a6', '#eab308', '#ef4444', '#06b6d4', '#a855f7'];
 const catColor = (cat: string, all: string[]) => CAT_COLORS[Math.max(0, all.indexOf(cat)) % CAT_COLORS.length];
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
 const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  new Date(iso).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' });
 
 const relativeDay = (iso: string) => {
   const days = daysUntil(iso);
-  return days === 0 ? 'Today' : days > 0 ? `in ${days} days` : `${-days} days ago`;
+  return days === 0 ? 'Hari ini' : days > 0 ? `${days} hari lagi` : `${-days} hari lalu`;
 };
 
 const ImportantNumbers: React.FC = () => {
@@ -84,7 +84,7 @@ const ImportantNumbers: React.FC = () => {
       setFHidden(item.isHidden || false);
     } else {
       setFId(null);
-      setFCat(categories[0] || 'Other');
+      setFCat(categories[0] || 'Lain-lain');
       setFName('');
       setFValue('');
       setFDate('');
@@ -119,7 +119,7 @@ const ImportantNumbers: React.FC = () => {
   };
 
   const deleteItem = (id: string) => {
-    if (window.confirm("Delete this entry?")) {
+    if (window.confirm("Padam rekod ini?")) {
       setItems(prev => prev.filter(i => i.id !== id));
     }
   };
@@ -132,12 +132,12 @@ const ImportantNumbers: React.FC = () => {
 
   const removeCat = (c: string) => {
     if (DEFAULT_CATS.includes(c)) {
-      alert("Cannot delete default categories.");
+      alert("Kategori asal tidak boleh dipadam.");
       return;
     }
-    if (window.confirm(`Delete the category '${c}'?`)) {
+    if (window.confirm(`Padam kategori '${c}'?`)) {
       setCategories(prev => prev.filter(cat => cat !== c));
-      if (fCat === c) setFCat(categories.find(cat => cat !== c) || 'Other');
+      if (fCat === c) setFCat(categories.find(cat => cat !== c) || 'Lain-lain');
     }
   };
 
@@ -176,7 +176,7 @@ const ImportantNumbers: React.FC = () => {
         </div>
         <div>
           <h2 className="text-2xl font-bold">Important Number / Date</h2>
-          <p className="text-sm text-muted">Accounts, policies, IDs & dates</p>
+          <p className="text-sm text-muted">Akaun, polisi, ID & tarikh</p>
         </div>
       </div>
 
@@ -186,7 +186,7 @@ const ImportantNumbers: React.FC = () => {
           type="text" 
           value={search} 
           onChange={e => setSearch(e.target.value)} 
-          placeholder="Search by name, number, date, or category..." 
+          placeholder="Cari ikut nama, nombor, tarikh atau kategori..." 
           className="input-field pl-10 w-full"
         />
       </div>
@@ -195,10 +195,10 @@ const ImportantNumbers: React.FC = () => {
         {items.length === 0 ? (
           <div className="glass-panel p-8 text-center flex flex-col items-center">
             <BookOpen size={32} className="text-muted mb-3" />
-            <p className="text-muted text-sm">You haven't saved any numbers or dates yet.</p>
+            <p className="text-muted text-sm">Anda belum simpan sebarang nombor atau tarikh.</p>
           </div>
         ) : filtered.length === 0 ? (
-          <p className="text-muted text-center py-4 text-sm">Nothing matches your search.</p>
+          <p className="text-muted text-center py-4 text-sm">Tiada padanan dengan carian anda.</p>
         ) : (
           sortedCategories.map(cat => (
             <div key={cat} className="space-y-2">
@@ -227,10 +227,10 @@ const ImportantNumbers: React.FC = () => {
                           {item.isHidden ? '••••••••••••' : item.value}
                         </div>
                         <div className="flex items-center gap-1 shrink-0 pl-2 border-l border-text/10 ml-2">
-                          <button onClick={() => toggleVisibility(item.id)} className="p-2 text-muted hover:text-text rounded-lg" title={item.isHidden ? "Show" : "Hide"}>
+                          <button onClick={() => toggleVisibility(item.id)} className="p-2 text-muted hover:text-text rounded-lg" title={item.isHidden ? "Papar" : "Sembunyi"}>
                             {item.isHidden ? <Eye size={16} /> : <EyeOff size={16} />}
                           </button>
-                          <button onClick={() => copyToClipboard(item.id, item.value)} aria-label={`Copy ${item.name}`} className="p-2 text-fuchsia-500 light:text-fuchsia-700 bg-fuchsia-500/10 hover:bg-fuchsia-500/20 rounded-lg transition-colors flex items-center justify-center w-9 h-9">
+                          <button onClick={() => copyToClipboard(item.id, item.value)} aria-label={`Salin ${item.name}`} className="p-2 text-fuchsia-500 light:text-fuchsia-700 bg-fuchsia-500/10 hover:bg-fuchsia-500/20 rounded-lg transition-colors flex items-center justify-center w-9 h-9">
                             {copiedId === item.id ? <Check size={16} /> : <Copy size={16} />}
                           </button>
                         </div>
@@ -253,7 +253,7 @@ const ImportantNumbers: React.FC = () => {
       </div>
 
       {frameEl && createPortal((
-        <button onClick={() => openForm()} className="fixed bottom-24 right-4 sm:absolute z-30 w-14 h-14 rounded-full bg-fuchsia-500 hover:bg-fuchsia-600 text-white shadow-xl shadow-fuchsia-500/30 flex items-center justify-center active:scale-90 transition-transform" title="Add entry">
+        <button onClick={() => openForm()} className="fixed bottom-24 right-4 sm:absolute z-30 w-14 h-14 rounded-full bg-fuchsia-500 hover:bg-fuchsia-600 text-white shadow-xl shadow-fuchsia-500/30 flex items-center justify-center active:scale-90 transition-transform" title="Tambah rekod">
           <Plus size={26} />
         </button>
       ), frameEl)}
@@ -262,17 +262,17 @@ const ImportantNumbers: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowForm(false)}>
           <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-lg">{fId ? 'Edit' : 'Add'} {fKind === 'number' ? 'number' : 'date'}</h3>
+              <h3 className="font-bold text-lg">{fId ? 'Sunting' : 'Tambah'} {fKind === 'number' ? 'nombor' : 'tarikh'}</h3>
               <button onClick={() => setShowForm(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button>
             </div>
             
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Account / Provider Name</label>
-              <input autoFocus value={fName} onChange={e => setFName(e.target.value)} placeholder="e.g. TNB, Unifi, AIA Insurance" className="input-field w-full" />
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">Nama Akaun / Penyedia</label>
+              <input autoFocus value={fName} onChange={e => setFName(e.target.value)} placeholder="cth. TNB, Unifi, Insurans AIA" className="input-field w-full" />
             </div>
 
             <div className="flex p-1 bg-text/5 rounded-xl gap-1">
-              {([['number', 'Number', Hash], ['date', 'Date', CalendarDays]] as const).map(([kind, label, Icon]) => (
+              {([['number', 'Nombor', Hash], ['date', 'Tarikh', CalendarDays]] as const).map(([kind, label, Icon]) => (
                 <button
                   key={kind}
                   onClick={() => setFKind(kind)}
@@ -289,34 +289,34 @@ const ImportantNumbers: React.FC = () => {
             {fKind === 'number' ? (
               <>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="in-value">Number / ID</label>
-                  <input id="in-value" value={fValue} onChange={e => setFValue(e.target.value)} placeholder="e.g. 1234567890" className="input-field w-full font-mono" />
+                  <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="in-value">Nombor / ID</label>
+                  <input id="in-value" value={fValue} onChange={e => setFValue(e.target.value)} placeholder="cth. 1234567890" className="input-field w-full font-mono" />
                 </div>
 
                 <div className="flex items-center gap-2 pt-1 pb-1">
                   <input type="checkbox" id="hideNumber" checked={fHidden} onChange={e => setFHidden(e.target.checked)} className="rounded bg-text/10 border-text/10 text-fuchsia-500 focus:ring-fuchsia-500 focus:ring-offset-surface" />
-                  <label htmlFor="hideNumber" className="text-sm text-text/80 select-none">Hide number by default (like a password)</label>
+                  <label htmlFor="hideNumber" className="text-sm text-text/80 select-none">Sembunyikan nombor secara lalai (seperti kata laluan)</label>
                 </div>
               </>
             ) : (
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="in-date">Date</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="in-date">Tarikh</label>
                 <input id="in-date" type="date" value={fDate} onChange={e => setFDate(e.target.value)} className="input-field w-full" />
               </div>
             )}
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Category</label>
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">Kategori</label>
               <CategoryChips cats={categories} value={fCat} onSelect={setFCat} onAdd={addCat} onRemove={removeCat} accent="rgb(217 70 239)" />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Notes (Optional)</label>
-              <textarea value={fNotes} onChange={e => setFNotes(e.target.value)} placeholder="e.g. Registered under wife's name" className="input-field w-full h-20 resize-none py-2" />
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">Nota (Pilihan)</label>
+              <textarea value={fNotes} onChange={e => setFNotes(e.target.value)} placeholder="cth. Didaftarkan atas nama isteri" className="input-field w-full h-20 resize-none py-2" />
             </div>
 
             <button onClick={saveForm} disabled={!canSave} className="w-full py-3 rounded-xl bg-fuchsia-600 text-[#fff] font-bold hover:bg-fuchsia-700 disabled:opacity-50 disabled:pointer-events-none">
-              Save
+              Simpan
             </button>
           </div>
         </div>

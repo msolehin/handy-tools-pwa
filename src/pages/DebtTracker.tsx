@@ -24,7 +24,7 @@ const GREEN = 'text-emerald-500 light:text-emerald-700';
 const RED = 'text-rose-500 light:text-rose-700';
 
 const TAB_LABELS: { key: Filter; label: string }[] = [
-  { key: 'all', label: 'All' },
+  { key: 'all', label: 'Semua' },
   { key: 'owe_me', label: 'Orang hutang you' },
   { key: 'i_owe', label: 'You hutang orang' },
 ];
@@ -53,7 +53,7 @@ const Row: React.FC<{
         <button
           onClick={() => onToggle(iou.id)}
           aria-pressed={settled}
-          aria-label={settled ? `Mark ${iou.personName} unsettled` : `Mark ${iou.personName} settled`}
+          aria-label={settled ? `Tanda ${iou.personName} belum settle` : `Tanda ${iou.personName} dah settle`}
           title={settled ? 'Tap: belum settle' : 'Tap: dah settle'}
           className={`w-9 h-9 shrink-0 rounded-full border flex items-center justify-center font-display text-sm font-extrabold transition-all hover:ring-2 hover:ring-indigo-500/40 ${
             settled
@@ -78,7 +78,7 @@ const Row: React.FC<{
         </span>
         <button
           onClick={() => onDelete(iou)}
-          aria-label={`Delete note for ${iou.personName}`}
+          aria-label={`Padam catatan untuk ${iou.personName}`}
           className="shrink-0 p-1.5 -mr-1 rounded-lg text-muted hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
         >
           <Trash2 size={14} />
@@ -153,7 +153,7 @@ const DebtTracker: React.FC = () => {
   };
 
   const deleteIou = (iou: IOU) => {
-    if (window.confirm(`Delete the note for ${iou.personName}?`)) {
+    if (window.confirm(`Padam catatan untuk ${iou.personName}?`)) {
       setIous(ious.filter(i => i.id !== iou.id));
     }
   };
@@ -205,7 +205,7 @@ const DebtTracker: React.FC = () => {
           something the two numbers above cannot: which way the page is leaning, at a glance. */}
       <div className="glass-panel px-4 py-3">
         <div className="flex items-baseline justify-between gap-2 mb-2.5">
-          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted shrink-0">Balance</span>
+          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted shrink-0">Imbangan</span>
           <span
             className={`font-display text-lg font-extrabold leading-none truncate ${
               net > 0 ? GREEN : net < 0 ? RED : 'text-muted'
@@ -234,8 +234,8 @@ const DebtTracker: React.FC = () => {
       {isAddingIou ? (
         <div className="glass-panel p-5 space-y-4 border-indigo-500/30 animate-slide-up motion-reduce:animate-none">
           <div className="flex items-center justify-between">
-            <h3 className="font-bold text-lg">New note</h3>
-            <button onClick={() => setIsAddingIou(false)} aria-label="Close" className="p-1 text-muted hover:text-text">
+            <h3 className="font-bold text-lg">Catatan baru</h3>
+            <button onClick={() => setIsAddingIou(false)} aria-label="Tutup" className="p-1 text-muted hover:text-text">
               <X size={20} />
             </button>
           </div>
@@ -262,18 +262,18 @@ const DebtTracker: React.FC = () => {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="dt-name">Person's name</label>
-            <input id="dt-name" autoFocus type="text" value={iouName} onChange={e => setIouName(e.target.value)} placeholder="e.g. Sara" className="input-field w-full" />
+            <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="dt-name">Nama orang</label>
+            <input id="dt-name" autoFocus type="text" value={iouName} onChange={e => setIouName(e.target.value)} placeholder="cth. Sara" className="input-field w-full" />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="dt-amount">Amount (RM)</label>
+            <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="dt-amount">Jumlah (RM)</label>
             <input id="dt-amount" type="number" step="0.01" value={iouAmount} onChange={e => setIouAmount(e.target.value)} placeholder="0.00" className="input-field w-full font-mono text-lg" />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="dt-desc">For what? (optional)</label>
-            <input id="dt-desc" type="text" value={iouDesc} onChange={e => setIouDesc(e.target.value)} placeholder="e.g. Concert tickets" className="input-field w-full" />
+            <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="dt-desc">Untuk apa? (pilihan)</label>
+            <input id="dt-desc" type="text" value={iouDesc} onChange={e => setIouDesc(e.target.value)} placeholder="cth. Tiket konsert" className="input-field w-full" />
           </div>
 
           <button
@@ -281,7 +281,7 @@ const DebtTracker: React.FC = () => {
             disabled={!iouName.trim() || !parseFloat(iouAmount)}
             className="w-full py-3 rounded-xl bg-indigo-600 text-[#fff] font-bold hover:bg-indigo-700 disabled:opacity-50 disabled:pointer-events-none"
           >
-            Save note
+            Simpan catatan
           </button>
         </div>
       ) : (
@@ -289,7 +289,7 @@ const DebtTracker: React.FC = () => {
           onClick={() => setIsAddingIou(true)}
           className="w-full py-4 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-indigo-500/50 hover:text-indigo-500 light:hover:text-indigo-700 transition-all flex items-center justify-center"
         >
-          <Plus size={20} className="mr-2" /> Add Debt Note
+          <Plus size={20} className="mr-2" /> Tambah Catatan Hutang
         </button>
       )}
 

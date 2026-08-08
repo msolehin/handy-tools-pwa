@@ -14,18 +14,19 @@ interface Commitment {
 }
 
 const STORAGE_KEY = 'expense_manager_data';
-const DEFAULT_EXPENSE_CATS = ['Food', 'Transport', 'Shopping', 'Bills', 'Health', 'Entertainment', 'Other'];
-const DEFAULT_COMMIT_CATS = ['Loan', 'Subscription', 'Utilities', 'Insurance', 'Rent', 'Other'];
+const DEFAULT_EXPENSE_CATS = ['Makanan', 'Pengangkutan', 'Beli-belah', 'Bil', 'Kesihatan', 'Hiburan', 'Lain-lain'];
+const DEFAULT_COMMIT_CATS = ['Pinjaman', 'Langganan', 'Utiliti', 'Insurans', 'Sewa', 'Lain-lain'];
 const CAT_COLORS = ['#3b82f6', '#22c55e', '#f97316', '#ec4899', '#8b5cf6', '#14b8a6', '#eab308', '#ef4444', '#06b6d4', '#a855f7'];
 
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const MONTHS = ['Januari', 'Februari', 'Mac', 'April', 'Mei', 'Jun', 'Julai', 'Ogos', 'September', 'Oktober', 'November', 'Disember'];
 const pad = (n: number) => String(n).padStart(2, '0');
+const PERIOD_LABELS = { daily: 'Harian', weekly: 'Mingguan', monthly: 'Bulanan', yearly: 'Tahunan' } as const;
 const dateKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const monthOf = (key: string) => key.slice(0, 7);
 const monthLabel = (mk: string) => { const [y, m] = mk.split('-').map(Number); return `${MONTHS[m - 1]} ${y}`; };
 const addMonth = (mk: string, delta: number) => { const [y, m] = mk.split('-').map(Number); const d = new Date(y, m - 1 + delta, 1); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; };
 const daysInMonth = (mk: string) => { const [y, m] = mk.split('-').map(Number); return new Date(y, m, 0).getDate(); };
-const fmt = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt = (n: number) => n.toLocaleString('ms-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtDate = (key: string) => { const [y, m, d] = key.split('-'); return `${Number(d)}/${Number(m)}/${y}`; }; // d/m/yyyy
 const generateId = () => Math.random().toString(36).substring(2, 9);
 const catColor = (cat: string, all: string[]) => CAT_COLORS[Math.max(0, all.indexOf(cat)) % CAT_COLORS.length];
@@ -43,13 +44,13 @@ const makeSampleData = (): { expenses: Expense[]; incomes: Income[]; commitments
   const cur = monthOf(dateKey(today));
   const rnd = (n: number) => Math.floor(Math.random() * n);
   const descByCat: Record<string, string[]> = {
-    Food: ['Lunch', 'Groceries', 'Dinner out', 'Coffee', 'Fast food', 'Bubble tea', 'Breakfast'],
-    Transport: ['Petrol', 'Grab ride', 'Toll', 'Parking', 'Train fare'],
-    Shopping: ['Shopee order', 'Clothes', 'Shoes', 'Lazada', 'Gadget'],
-    Bills: ['Electric bill', 'Water bill', 'Internet', 'Phone topup'],
-    Health: ['Pharmacy', 'Clinic visit', 'Supplements', 'Gym pass'],
-    Entertainment: ['Movie', 'Spotify', 'Games', 'Concert ticket'],
-    Other: ['Gift', 'Donation', 'Misc'],
+    Makanan: ['Makan tengah hari', 'Barang dapur', 'Makan malam', 'Kopi', 'Makanan segera', 'Bubble tea', 'Sarapan'],
+    Pengangkutan: ['Minyak', 'Tambang Grab', 'Tol', 'Parking', 'Tambang tren'],
+    'Beli-belah': ['Pesanan Shopee', 'Baju', 'Kasut', 'Lazada', 'Gajet'],
+    Bil: ['Bil elektrik', 'Bil air', 'Internet', 'Topup telefon'],
+    Kesihatan: ['Farmasi', 'Klinik', 'Suplemen', 'Pas gim'],
+    Hiburan: ['Wayang', 'Spotify', 'Permainan', 'Tiket konsert'],
+    'Lain-lain': ['Hadiah', 'Derma', 'Pelbagai'],
   };
   const expenses: Expense[] = [];
   for (let m = 0; m < 6; m++) {
@@ -58,29 +59,29 @@ const makeSampleData = (): { expenses: Expense[]; incomes: Income[]; commitments
     const count = 10 + rnd(10);
     for (let i = 0; i < count; i++) {
       const cat = DEFAULT_EXPENSE_CATS[rnd(DEFAULT_EXPENSE_CATS.length)];
-      const descs = descByCat[cat] || ['Expense'];
+      const descs = descByCat[cat] || ['Perbelanjaan'];
       expenses.push({ id: generateId(), description: descs[rnd(descs.length)], amount: 5 + rnd(195), category: cat, date: `${mk}-${pad(1 + rnd(maxDay))}` });
     }
   }
   const sixAgo = addMonth(cur, -6);
   const lastMonth = addMonth(cur, -1);
   const incomes: Income[] = [
-    { id: generateId(), title: 'Salary', amount: 3700, recurring: true, date: `${sixAgo}-01`, startMonth: sixAgo, endMonth: addMonth(cur, -2), day: 25 },
-    { id: generateId(), title: 'Salary', amount: 4200, recurring: true, date: `${lastMonth}-01`, startMonth: lastMonth, day: 25 },
-    { id: generateId(), title: 'Freelance', amount: 600, recurring: true, date: `${sixAgo}-01`, startMonth: sixAgo, day: 10 },
-    { id: generateId(), title: 'Performance bonus', amount: 2000, recurring: false, date: `${addMonth(cur, -3)}-15` },
-    { id: generateId(), title: 'Sold old phone', amount: 800, recurring: false, date: `${lastMonth}-08` },
+    { id: generateId(), title: 'Gaji', amount: 3700, recurring: true, date: `${sixAgo}-01`, startMonth: sixAgo, endMonth: addMonth(cur, -2), day: 25 },
+    { id: generateId(), title: 'Gaji', amount: 4200, recurring: true, date: `${lastMonth}-01`, startMonth: lastMonth, day: 25 },
+    { id: generateId(), title: 'Kerja bebas', amount: 600, recurring: true, date: `${sixAgo}-01`, startMonth: sixAgo, day: 10 },
+    { id: generateId(), title: 'Bonus prestasi', amount: 2000, recurring: false, date: `${addMonth(cur, -3)}-15` },
+    { id: generateId(), title: 'Jual telefon lama', amount: 800, recurring: false, date: `${lastMonth}-08` },
   ];
   const mkCommit = (title: string, amount: number, day: number, category: string): Commitment =>
     ({ id: generateId(), title, amount, paymentDay: day, category, archived: false, payments: {} });
   const commitments: Commitment[] = [
-    mkCommit('Car loan', 950, 5, 'Loan'),
-    mkCommit('House rent', 1200, 1, 'Rent'),
-    mkCommit('Car insurance', 180, 15, 'Insurance'),
-    mkCommit('Netflix', 55, 8, 'Subscription'),
-    mkCommit('Spotify', 24, 8, 'Subscription'),
-    mkCommit('Gym membership', 130, 3, 'Subscription'),
-    mkCommit('Phone postpaid', 98, 20, 'Utilities'),
+    mkCommit('Pinjaman kereta', 950, 5, 'Pinjaman'),
+    mkCommit('Sewa rumah', 1200, 1, 'Sewa'),
+    mkCommit('Insurans kereta', 180, 15, 'Insurans'),
+    mkCommit('Netflix', 55, 8, 'Langganan'),
+    mkCommit('Spotify', 24, 8, 'Langganan'),
+    mkCommit('Keahlian gim', 130, 3, 'Langganan'),
+    mkCommit('Telefon pascabayar', 98, 20, 'Utiliti'),
   ];
   commitments.forEach(c => {
     for (let m = 1; m <= 5; m++) { const mk = addMonth(cur, -m); c.payments[mk] = `${mk}-${pad(Math.min(c.paymentDay, daysInMonth(mk)))}`; }
@@ -208,7 +209,7 @@ const ExpenseManager: React.FC = () => {
   };
   const addCommitCat = (c: string) => { const v = c.trim(); if (v && !commitCats.includes(v)) setCommitCats(prev => [...prev, v]); setCForm(f => ({ ...f, category: v })); };
   const archiveCommitment = (id: string, val: boolean) => setCommitments(prev => prev.map(c => c.id === id ? { ...c, archived: val } : c));
-  const deleteCommitment = (id: string) => { if (window.confirm('Delete this commitment and its payment history?')) setCommitments(prev => prev.filter(c => c.id !== id)); };
+  const deleteCommitment = (id: string) => { if (window.confirm('Padam komitmen ini dan sejarah bayarannya?')) setCommitments(prev => prev.filter(c => c.id !== id)); };
 
   // --- Commitment payment confirm ---
   const [payTarget, setPayTarget] = useState<Commitment | null>(null);
@@ -252,7 +253,7 @@ const ExpenseManager: React.FC = () => {
   const [delIncome, setDelIncome] = useState<Income | null>(null);
   const requestDeleteIncome = (i: Income) => {
     if (!i.recurring) {
-      if (window.confirm(`Delete "${i.title}"? It will be removed from ${monthLabel(viewMonth)}.`)) deleteIncome(i.id);
+      if (window.confirm(`Padam "${i.title}"? Ia akan dibuang dari ${monthLabel(viewMonth)}.`)) deleteIncome(i.id);
       return;
     }
     setDelIncome(i);
@@ -348,7 +349,7 @@ const ExpenseManager: React.FC = () => {
     return monthOf(key) === selMonth;
   };
   const periodLabel = period === 'daily'
-    ? (txOffset === 0 ? 'Today' : `${shortDay(selDay)} ${selDay.getFullYear()}`)
+    ? (txOffset === 0 ? 'Hari ini' : `${shortDay(selDay)} ${selDay.getFullYear()}`)
     : period === 'weekly'
       ? `${shortDay(selWeekStart)} – ${shortDay(selWeekEnd)}`
       : period === 'yearly'
@@ -382,7 +383,7 @@ const ExpenseManager: React.FC = () => {
   const txIn = txns.filter(t => t.type === 'in').reduce((s, t) => s + t.amount, 0);
   const txOut = txns.filter(t => t.type === 'out').reduce((s, t) => s + t.amount, 0);
   const spendByCat: Record<string, number> = {};
-  txns.filter(t => t.type === 'out').forEach(t => { const k = t.category || 'Other'; spendByCat[k] = (spendByCat[k] || 0) + t.amount; });
+  txns.filter(t => t.type === 'out').forEach(t => { const k = t.category || 'Lain-lain'; spendByCat[k] = (spendByCat[k] || 0) + t.amount; });
   const catRows = Object.entries(spendByCat).sort((a, b) => b[1] - a[1]);
 
   // --- Reusable category chips ---
@@ -396,11 +397,11 @@ const ExpenseManager: React.FC = () => {
         ))}
         {adding ? (
           <span className="flex items-center gap-1">
-            <input autoFocus value={val} onChange={e => setVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { onAdd(val); setVal(''); setAdding(false); } }} placeholder="New" className="input-field py-1 text-xs w-20" />
+            <input autoFocus value={val} onChange={e => setVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { onAdd(val); setVal(''); setAdding(false); } }} placeholder="Baru" className="input-field py-1 text-xs w-20" />
             <button type="button" onClick={() => { onAdd(val); setVal(''); setAdding(false); }} className="text-emerald-400"><Check size={16} /></button>
           </span>
         ) : (
-          <button type="button" onClick={() => setAdding(true)} className="px-2 py-1 rounded-lg text-xs font-bold border border-dashed border-text/20 text-muted hover:text-text">+ New</button>
+          <button type="button" onClick={() => setAdding(true)} className="px-2 py-1 rounded-lg text-xs font-bold border border-dashed border-text/20 text-muted hover:text-text">+ Baru</button>
         )}
       </div>
     );
@@ -415,13 +416,13 @@ const ExpenseManager: React.FC = () => {
         <div className="p-3 bg-emerald-500/20 rounded-xl"><Wallet className="text-emerald-400" size={26} /></div>
         <div>
           <h1 className="text-xl font-bold tracking-tight text-text/90">Expense Manager</h1>
-          <p className="text-[10px] text-muted uppercase tracking-wider">Income · Commitments · Spending</p>
+          <p className="text-[10px] text-muted uppercase tracking-wider">Pendapatan · Komitmen · Perbelanjaan</p>
         </div>
       </div>
 
       {/* Tabs */}
       <div className="grid grid-cols-4 gap-1 p-1 bg-text/5 rounded-xl">
-        {([['dashboard', 'Home', PieChart], ['commitment', 'Commit', CreditCard], ['income', 'Income', Coins], ['transaction', 'Txns', ListChecks]] as const).map(([key, label, Icon]) => (
+        {([['dashboard', 'Utama', PieChart], ['commitment', 'Komitmen', CreditCard], ['income', 'Pendapatan', Coins], ['transaction', 'Transaksi', ListChecks]] as const).map(([key, label, Icon]) => (
           <button key={key} onClick={() => setTab(key)} className={`py-2 text-xs font-bold rounded-lg transition-all flex flex-col items-center gap-1 ${tab === key ? 'bg-surface text-emerald-400 shadow-sm' : 'text-muted hover:text-text'}`}>
             <Icon size={16} /> {label}
           </button>
@@ -441,44 +442,44 @@ const ExpenseManager: React.FC = () => {
       {tab === 'dashboard' && (
         <div className="space-y-4">
           <div className="glass-panel p-5 text-center bg-gradient-to-br from-emerald-500/15 to-transparent">
-            <p className="text-[11px] font-bold text-muted uppercase tracking-wider">Balance</p>
+            <p className="text-[11px] font-bold text-muted uppercase tracking-wider">Baki</p>
             <p className={`text-3xl font-black font-mono mt-1 ${balance < 0 ? 'text-red-400' : 'text-emerald-400'}`}>RM{fmt(balance)}</p>
-            {pendingIncome > 0 && <p className="text-[10px] text-amber-400 mt-1">+RM{fmt(pendingIncome)} income not received yet</p>}
+            {pendingIncome > 0 && <p className="text-[10px] text-amber-400 mt-1">+RM{fmt(pendingIncome)} pendapatan belum diterima</p>}
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div className="glass-panel p-3 text-center">
-              <p className="text-[9px] font-bold text-muted uppercase">Income</p>
+              <p className="text-[9px] font-bold text-muted uppercase">Pendapatan</p>
               <p className="text-sm font-black text-emerald-400 font-mono mt-1">{fmt(totalIncome)}</p>
             </div>
             <div className="glass-panel p-3 text-center">
-              <p className="text-[9px] font-bold text-muted uppercase">Paid Commit</p>
+              <p className="text-[9px] font-bold text-muted uppercase">Komitmen Dibayar</p>
               <p className="text-sm font-black text-amber-400 font-mono mt-1">{fmt(paidCommitment)}</p>
             </div>
             <div className="glass-panel p-3 text-center">
-              <p className="text-[9px] font-bold text-muted uppercase">Expenses</p>
+              <p className="text-[9px] font-bold text-muted uppercase">Perbelanjaan</p>
               <p className="text-sm font-black text-red-400 font-mono mt-1">{fmt(totalExpenses)}</p>
             </div>
           </div>
 
           {/* Commitment checklist */}
           <div className="glass-panel p-4 space-y-2">
-            <h3 className="font-bold text-sm flex items-center gap-2 mb-1"><CreditCard size={16} className="text-amber-400" /> Commitments</h3>
+            <h3 className="font-bold text-sm flex items-center gap-2 mb-1"><CreditCard size={16} className="text-amber-400" /> Komitmen</h3>
             
             <div className="flex items-center justify-between text-[10px] font-bold text-muted bg-text/5 rounded-lg p-2 mb-3">
               <div className="text-center flex-1 border-r border-text/10">
-                Total<br/><span className="text-text text-xs">RM{fmt(totalCommitment)}</span>
+                Jumlah<br/><span className="text-text text-xs">RM{fmt(totalCommitment)}</span>
               </div>
               <div className="text-center flex-1 border-r border-text/10">
-                Paid<br/><span className="text-emerald-400 text-xs">RM{fmt(paidCommitment)}</span>
+                Dibayar<br/><span className="text-emerald-400 text-xs">RM{fmt(paidCommitment)}</span>
               </div>
               <div className="text-center flex-1">
-                Balance<br/><span className="text-amber-400 text-xs">RM{fmt(totalCommitment - paidCommitment)}</span>
+                Baki<br/><span className="text-amber-400 text-xs">RM{fmt(totalCommitment - paidCommitment)}</span>
               </div>
             </div>
             
             {monthCommitments.length === 0 ? (
-              <p className="text-xs text-muted text-center py-3">No commitments yet.</p>
+              <p className="text-xs text-muted text-center py-3">Belum ada komitmen.</p>
             ) : monthCommitments.map(c => {
               const paid = !!c.payments[viewMonth];
               return (
@@ -486,7 +487,7 @@ const ExpenseManager: React.FC = () => {
                   <button onClick={() => paid ? undoPay(c.id) : openPay(c)} className={`w-6 h-6 rounded-md border-2 flex items-center justify-center shrink-0 ${paid ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-text/30 text-transparent'}`}><Check size={14} strokeWidth={3} /></button>
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm font-medium truncate ${paid ? 'line-through text-text/50' : 'text-text/90'}`}>{c.title}</p>
-                    <p className="text-[10px] text-muted">Day {c.paymentDay} · {c.category}{paid ? ` · paid ${fmtDate(c.payments[viewMonth])}` : ''}{c.archived ? ' · archived' : ''}</p>
+                    <p className="text-[10px] text-muted">Hari {c.paymentDay} · {c.category}{paid ? ` · dibayar ${fmtDate(c.payments[viewMonth])}` : ''}{c.archived ? ' · diarkib' : ''}</p>
                   </div>
                   <span className={`font-mono text-sm font-bold ${paid ? 'text-text/50' : 'text-amber-400'}`}>RM{fmt(c.amount)}</span>
                 </div>
@@ -497,18 +498,18 @@ const ExpenseManager: React.FC = () => {
           {/* Today's expenses (current month) or all of the viewed month */}
           <div className="glass-panel p-4 space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <h3 className="font-bold text-sm flex items-center gap-2"><CalendarDays size={16} className="text-red-400" /> {isPastView || expScope === 'month' ? `${monthLabel(viewMonth)} Expenses` : "Today's Expenses"}</h3>
+              <h3 className="font-bold text-sm flex items-center gap-2"><CalendarDays size={16} className="text-red-400" /> {isPastView || expScope === 'month' ? `Perbelanjaan ${monthLabel(viewMonth)}` : 'Perbelanjaan Hari Ini'}</h3>
               {!isPastView && (
                 <div className="flex p-0.5 bg-text/5 rounded-lg text-[10px] font-bold shrink-0">
-                  <button onClick={() => setExpScope('today')} className={`px-2 py-0.5 rounded ${expScope === 'today' ? 'bg-surface text-red-400 shadow-sm' : 'text-muted'}`}>Today</button>
-                  <button onClick={() => setExpScope('month')} className={`px-2 py-0.5 rounded ${expScope === 'month' ? 'bg-surface text-red-400 shadow-sm' : 'text-muted'}`}>Month</button>
+                  <button onClick={() => setExpScope('today')} className={`px-2 py-0.5 rounded ${expScope === 'today' ? 'bg-surface text-red-400 shadow-sm' : 'text-muted'}`}>Hari ini</button>
+                  <button onClick={() => setExpScope('month')} className={`px-2 py-0.5 rounded ${expScope === 'month' ? 'bg-surface text-red-400 shadow-sm' : 'text-muted'}`}>Bulan</button>
                 </div>
               )}
             </div>
             {(() => {
               const showMonth = isPastView || expScope === 'month';
               const list = showMonth ? [...monthExpenses].sort((a, b) => b.date.localeCompare(a.date)) : todayExpenses;
-              if (list.length === 0) return <p className="text-xs text-muted text-center py-3">{showMonth ? 'No expenses this month.' : 'Nothing spent today.'}</p>;
+              if (list.length === 0) return <p className="text-xs text-muted text-center py-3">{showMonth ? 'Tiada perbelanjaan bulan ini.' : 'Tiada perbelanjaan hari ini.'}</p>;
               return list.map(e => (
                 <div key={e.id} className="flex items-center gap-3 py-1">
                   <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: catColor(e.category, expenseCats) }} />
@@ -525,10 +526,10 @@ const ExpenseManager: React.FC = () => {
             <div className="glass-panel p-4">
               <h3 className="font-bold text-xs mb-2 text-muted uppercase tracking-wider">{monthLabel(prevMonth)}</h3>
               <div className="space-y-1 text-xs font-mono">
-                <div className="flex justify-between"><span className="text-text/50">In</span><span className="text-emerald-400">+RM{fmt(prevIncome)}</span></div>
-                <div className="flex justify-between"><span className="text-text/50">Out</span><span className="text-red-400">-RM{fmt(prevExpense + prevPaid)}</span></div>
+                <div className="flex justify-between"><span className="text-text/50">Masuk</span><span className="text-emerald-400">+RM{fmt(prevIncome)}</span></div>
+                <div className="flex justify-between"><span className="text-text/50">Keluar</span><span className="text-red-400">-RM{fmt(prevExpense + prevPaid)}</span></div>
                 <div className="flex justify-between pt-1 border-t border-text/10 mt-1">
-                  <span className="text-text/80 font-bold">Net</span>
+                  <span className="text-text/80 font-bold">Bersih</span>
                   <span className={prevNet < 0 ? 'text-red-400 font-bold' : 'text-text/90 font-bold'}>{prevNet < 0 ? '-' : ''}RM{fmt(Math.abs(prevNet))}</span>
                 </div>
               </div>
@@ -538,10 +539,10 @@ const ExpenseManager: React.FC = () => {
               <div className="absolute top-0 right-0 w-1 h-full bg-emerald-500/50" />
               <h3 className="font-bold text-xs mb-2 text-emerald-400 uppercase tracking-wider">{monthLabel(viewMonth)}</h3>
               <div className="space-y-1 text-xs font-mono">
-                <div className="flex justify-between"><span className="text-text/50">In</span><span className="text-emerald-400">+RM{fmt(receivedIncome)}</span></div>
-                <div className="flex justify-between"><span className="text-text/50">Out</span><span className="text-red-400">-RM{fmt(totalExpenses + paidCommitment)}</span></div>
+                <div className="flex justify-between"><span className="text-text/50">Masuk</span><span className="text-emerald-400">+RM{fmt(receivedIncome)}</span></div>
+                <div className="flex justify-between"><span className="text-text/50">Keluar</span><span className="text-red-400">-RM{fmt(totalExpenses + paidCommitment)}</span></div>
                 <div className="flex justify-between pt-1 border-t border-text/10 mt-1">
-                  <span className="text-text/80 font-bold">Net</span>
+                  <span className="text-text/80 font-bold">Bersih</span>
                   <span className={balance < 0 ? 'text-red-400 font-bold' : 'text-text/90 font-bold'}>{balance < 0 ? '-' : ''}RM{fmt(Math.abs(balance))}</span>
                 </div>
               </div>
@@ -550,7 +551,7 @@ const ExpenseManager: React.FC = () => {
 
           {/* 6-month net trend */}
           <div className="glass-panel p-4 space-y-2">
-            <h3 className="font-bold text-sm flex items-center gap-2"><TrendingUp size={16} className="text-emerald-400" /> 6-Month Net Trend</h3>
+            <h3 className="font-bold text-sm flex items-center gap-2"><TrendingUp size={16} className="text-emerald-400" /> Trend Bersih 6 Bulan</h3>
             <div className="flex gap-1.5 items-stretch" style={{ height: 112 }}>
               {netTrend.map(d => {
                 const h = Math.round((Math.abs(d.net) / netMaxAbs) * 46);
@@ -592,13 +593,13 @@ const ExpenseManager: React.FC = () => {
                 <div className="flex items-center gap-2 flex-wrap">
                   {paid ? (
                     <>
-                      <span className="text-xs text-emerald-400 font-bold flex items-center gap-1"><Check size={14} /> Paid {fmtDate(c.payments[viewMonth])}</span>
-                      <button onClick={() => undoPay(c.id)} className="text-xs px-2 py-1 rounded-lg bg-text/5 text-muted hover:text-text flex items-center gap-1"><RotateCcw size={12} /> Undo</button>
+                      <span className="text-xs text-emerald-400 font-bold flex items-center gap-1"><Check size={14} /> Dibayar {fmtDate(c.payments[viewMonth])}</span>
+                      <button onClick={() => undoPay(c.id)} className="text-xs px-2 py-1 rounded-lg bg-text/5 text-muted hover:text-text flex items-center gap-1"><RotateCcw size={12} /> Buat asal</button>
                     </>
                   ) : (
-                    <button onClick={() => openPay(c)} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold flex items-center gap-1"><Check size={13} /> Mark paid</button>
+                    <button onClick={() => openPay(c)} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold flex items-center gap-1"><Check size={13} /> Tanda dibayar</button>
                   )}
-                  <button onClick={() => openCForm(c)} className="text-xs px-2 py-1 rounded-lg bg-text/5 text-muted hover:text-text flex items-center gap-1 ml-auto"><Pencil size={12} /> Edit</button>
+                  <button onClick={() => openCForm(c)} className="text-xs px-2 py-1 rounded-lg bg-text/5 text-muted hover:text-text flex items-center gap-1 ml-auto"><Pencil size={12} /> Sunting</button>
                   <button onClick={() => archiveCommitment(c.id, true)} className="text-xs px-2 py-1 rounded-lg bg-text/5 text-muted hover:text-text flex items-center gap-1"><Archive size={12} /></button>
                   <button onClick={() => deleteCommitment(c.id)} className="text-xs px-2 py-1 rounded-lg bg-rose-500/10 text-rose-400"><Trash2 size={12} /></button>
                 </div>
@@ -606,18 +607,18 @@ const ExpenseManager: React.FC = () => {
             );
           })}
 
-          <button onClick={() => openCForm()} className="w-full py-3 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-emerald-500/50 hover:text-emerald-400 transition-all flex items-center justify-center"><Plus size={18} className="mr-2" /> Add Commitment</button>
+          <button onClick={() => openCForm()} className="w-full py-3 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-emerald-500/50 hover:text-emerald-400 transition-all flex items-center justify-center"><Plus size={18} className="mr-2" /> Tambah Komitmen</button>
 
           {commitments.some(c => c.archived) && (
             <div className="space-y-2 pt-2">
-              <h3 className="text-xs font-bold text-muted uppercase tracking-wider px-1">Archived</h3>
-              <p className="text-[11px] text-muted px-1 leading-relaxed">Archived commitments stop appearing as upcoming bills, but stay on past months where they were already paid (so your history and balances don't change). Restore one to bring it back to your active list.</p>
+              <h3 className="text-xs font-bold text-muted uppercase tracking-wider px-1">Diarkib</h3>
+              <p className="text-[11px] text-muted px-1 leading-relaxed">Komitmen yang diarkib tidak lagi muncul sebagai bil akan datang, tetapi kekal pada bulan lepas yang sudah dibayar (jadi sejarah dan baki anda tidak berubah). Pulihkan untuk kembalikan ke senarai aktif.</p>
               {commitments.filter(c => c.archived).map(c => (
                 <div key={c.id} className="glass-panel p-3 flex items-center justify-between opacity-60">
                   <div className="min-w-0"><p className="font-medium truncate text-sm">{c.title}</p><p className="text-[10px] text-muted">{c.category}</p></div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="font-mono text-xs">RM{fmt(c.amount)}</span>
-                    <button onClick={() => archiveCommitment(c.id, false)} className="text-muted hover:text-emerald-400" title="Restore"><ArchiveRestore size={15} /></button>
+                    <button onClick={() => archiveCommitment(c.id, false)} className="text-muted hover:text-emerald-400" title="Pulihkan"><ArchiveRestore size={15} /></button>
                     <button onClick={() => deleteCommitment(c.id)} className="text-rose-400"><Trash2 size={13} /></button>
                   </div>
                 </div>
@@ -631,29 +632,29 @@ const ExpenseManager: React.FC = () => {
       {tab === 'income' && (
         <div className="space-y-3">
           <div className="glass-panel p-4 space-y-3">
-            <input value={iTitle} onChange={e => setITitle(e.target.value)} placeholder="Income title (e.g. Salary)" className="input-field w-full" />
+            <input value={iTitle} onChange={e => setITitle(e.target.value)} placeholder="Tajuk pendapatan (cth. Gaji)" className="input-field w-full" />
             <div className="flex gap-2">
-              <input type="number" value={iAmount} onChange={e => setIAmount(e.target.value)} placeholder="Amount" className="input-field flex-1 font-mono" />
+              <input type="number" value={iAmount} onChange={e => setIAmount(e.target.value)} placeholder="Jumlah" className="input-field flex-1 font-mono" />
               <button
                 onClick={() => !isPastView && setIRecurring(r => !r)}
                 disabled={isPastView}
                 className={`px-3 rounded-xl text-xs font-bold border ${iRecurring && !isPastView ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' : 'bg-text/5 text-muted border-text/10'} ${isPastView ? 'opacity-50' : ''}`}
               >
-                {iRecurring && !isPastView ? '🔁 Recurring' : 'One-time'}
+                {iRecurring && !isPastView ? '🔁 Berulang' : 'Sekali sahaja'}
               </button>
             </div>
             {iRecurring && !isPastView && (
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <label className="text-xs font-bold text-muted">Pay day</label>
+                  <label className="text-xs font-bold text-muted">Hari gaji</label>
                   <input type="number" min={1} max={31} value={iDay} onChange={e => setIDay(e.target.value)} className={`input-field w-16 font-mono py-1.5 text-center ${payDayInvalid ? 'border-red-500/60 focus:ring-red-500/40' : ''}`} />
-                  <span className="text-[10px] text-muted">Counts in balance from this day each month</span>
+                  <span className="text-[10px] text-muted">Dikira dalam baki dari hari ini setiap bulan</span>
                 </div>
-                {payDayInvalid && <p className="text-[10px] text-red-400">Pay day must be between 1 and 31.</p>}
+                {payDayInvalid && <p className="text-[10px] text-red-400">Hari gaji mesti antara 1 hingga 31.</p>}
               </div>
             )}
-            {isPastView && <p className="text-[10px] text-amber-400">Past month — will be saved as a one-time income for {monthLabel(viewMonth)}.</p>}
-            <button onClick={addIncome} disabled={payDayInvalid} className="w-full py-2.5 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 disabled:opacity-40 disabled:pointer-events-none">Add Income</button>
+            {isPastView && <p className="text-[10px] text-amber-400">Bulan lepas — akan disimpan sebagai pendapatan sekali sahaja untuk {monthLabel(viewMonth)}.</p>}
+            <button onClick={addIncome} disabled={payDayInvalid} className="w-full py-2.5 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 disabled:opacity-40 disabled:pointer-events-none">Tambah Pendapatan</button>
           </div>
 
           <div className="glass-panel p-4">
@@ -662,15 +663,15 @@ const ExpenseManager: React.FC = () => {
               <span className="font-mono font-bold text-emerald-400">RM{fmt(totalIncome)}</span>
             </div>
             {monthIncomes.length === 0 ? (
-              <p className="text-xs text-muted text-center py-3">No income this month.</p>
+              <p className="text-xs text-muted text-center py-3">Tiada pendapatan bulan ini.</p>
             ) : monthIncomes.map(i => {
               const received = incomeReceived(i, viewMonth);
               return (
               <div key={i.id} className="flex items-center gap-3 py-1.5 border-t border-white/5 first:border-0">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate text-text/90">{i.title}</p>
-                  {i.recurring && <p className="text-[10px] text-emerald-400">🔁 Recurring{i.day ? ` · day ${i.day}` : ''}{i.startMonth ? ` · from ${monthLabel(i.startMonth)}` : ''}</p>}
-                  {!received && <p className="text-[10px] text-amber-400">Not received yet</p>}
+                  {i.recurring && <p className="text-[10px] text-emerald-400">🔁 Berulang{i.day ? ` · hari ${i.day}` : ''}{i.startMonth ? ` · dari ${monthLabel(i.startMonth)}` : ''}</p>}
+                  {!received && <p className="text-[10px] text-amber-400">Belum diterima</p>}
                 </div>
                 <span className={`font-mono text-sm font-bold ${received ? 'text-emerald-400' : 'text-amber-400/70'}`}>+RM{fmt(i.amount)}</span>
                 <button onClick={() => openIncomeEdit(i)} className="text-muted hover:text-text p-1"><Pencil size={13} /></button>
@@ -687,7 +688,7 @@ const ExpenseManager: React.FC = () => {
         <div className="space-y-4">
           <div className="flex p-1 bg-text/5 rounded-xl">
             {(['daily', 'weekly', 'monthly', 'yearly'] as const).map(p => (
-              <button key={p} onClick={() => changePeriod(p)} className={`flex-1 py-2 text-xs font-bold rounded-lg capitalize transition-all ${period === p ? 'bg-surface text-emerald-400 shadow-sm' : 'text-muted hover:text-text'}`}>{p}</button>
+              <button key={p} onClick={() => changePeriod(p)} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${period === p ? 'bg-surface text-emerald-400 shadow-sm' : 'text-muted hover:text-text'}`}>{PERIOD_LABELS[p]}</button>
             ))}
           </div>
 
@@ -698,16 +699,16 @@ const ExpenseManager: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-3 gap-3">
-            <div className="glass-panel p-3 text-center"><p className="text-[9px] font-bold text-muted uppercase flex items-center justify-center gap-1"><TrendingUp size={11} /> In</p><p className="text-sm font-black text-emerald-400 font-mono mt-1">{fmt(txIn)}</p></div>
-            <div className="glass-panel p-3 text-center"><p className="text-[9px] font-bold text-muted uppercase flex items-center justify-center gap-1"><TrendingDown size={11} /> Out</p><p className="text-sm font-black text-red-400 font-mono mt-1">{fmt(txOut)}</p></div>
-            <div className="glass-panel p-3 text-center"><p className="text-[9px] font-bold text-muted uppercase">Net</p><p className={`text-sm font-black font-mono mt-1 ${txIn - txOut < 0 ? 'text-red-400' : 'text-text/90'}`}>{fmt(txIn - txOut)}</p></div>
+            <div className="glass-panel p-3 text-center"><p className="text-[9px] font-bold text-muted uppercase flex items-center justify-center gap-1"><TrendingUp size={11} /> Masuk</p><p className="text-sm font-black text-emerald-400 font-mono mt-1">{fmt(txIn)}</p></div>
+            <div className="glass-panel p-3 text-center"><p className="text-[9px] font-bold text-muted uppercase flex items-center justify-center gap-1"><TrendingDown size={11} /> Keluar</p><p className="text-sm font-black text-red-400 font-mono mt-1">{fmt(txOut)}</p></div>
+            <div className="glass-panel p-3 text-center"><p className="text-[9px] font-bold text-muted uppercase">Bersih</p><p className={`text-sm font-black font-mono mt-1 ${txIn - txOut < 0 ? 'text-red-400' : 'text-text/90'}`}>{fmt(txIn - txOut)}</p></div>
           </div>
 
           {/* Spending by category */}
           <div className="glass-panel p-4 space-y-2">
-            <h3 className="font-bold text-sm flex items-center gap-2"><PieChart size={16} className="text-emerald-400" /> Spending by Category</h3>
+            <h3 className="font-bold text-sm flex items-center gap-2"><PieChart size={16} className="text-emerald-400" /> Perbelanjaan Ikut Kategori</h3>
             {catRows.length === 0 ? (
-              <p className="text-xs text-muted text-center py-3">No spending in {periodLabel.toLowerCase()}.</p>
+              <p className="text-xs text-muted text-center py-3">Tiada perbelanjaan dalam {periodLabel.toLowerCase()}.</p>
             ) : catRows.map(([cat, amt]) => {
               const pct = txOut > 0 ? (amt / txOut) * 100 : 0;
               return (
@@ -721,9 +722,9 @@ const ExpenseManager: React.FC = () => {
 
           {/* History */}
           <div className="glass-panel p-4 space-y-1">
-            <h3 className="font-bold text-sm mb-1">History · {periodLabel}</h3>
+            <h3 className="font-bold text-sm mb-1">Sejarah · {periodLabel}</h3>
             {txns.length === 0 ? (
-              <p className="text-xs text-muted text-center py-3">No transactions.</p>
+              <p className="text-xs text-muted text-center py-3">Tiada transaksi.</p>
             ) : txns.map(t => (
               <div key={t.id} className="flex items-center gap-3 py-1.5 border-t border-white/5 first:border-0">
                 <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate text-text/90">{t.label}</p><p className="text-[10px] text-muted">{fmtDate(t.date)}{t.category ? ` · ${t.category}` : ''}</p></div>
@@ -737,10 +738,10 @@ const ExpenseManager: React.FC = () => {
       {/* Dev tools — only on localhost / dev server */}
       {import.meta.env.DEV && (
         <div className="border border-dashed border-amber-500/30 rounded-2xl p-3 space-y-2">
-          <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Dev tools (localhost only)</p>
+          <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Alat dev (localhost sahaja)</p>
           <div className="flex gap-2">
-            <button onClick={() => { const d = makeSampleData(); setExpenses(d.expenses); setIncomes(d.incomes); setCommitments(d.commitments); }} className="flex-1 py-2 rounded-lg bg-amber-500/15 text-amber-400 text-xs font-bold hover:bg-amber-500/25">Generate sample data</button>
-            <button onClick={() => { if (window.confirm('Clear all expense data?')) { setExpenses([]); setIncomes([]); setCommitments([]); } }} className="flex-1 py-2 rounded-lg bg-rose-500/15 text-rose-400 text-xs font-bold hover:bg-rose-500/25">Clear all data</button>
+            <button onClick={() => { const d = makeSampleData(); setExpenses(d.expenses); setIncomes(d.incomes); setCommitments(d.commitments); }} className="flex-1 py-2 rounded-lg bg-amber-500/15 text-amber-400 text-xs font-bold hover:bg-amber-500/25">Jana data contoh</button>
+            <button onClick={() => { if (window.confirm('Kosongkan semua data perbelanjaan?')) { setExpenses([]); setIncomes([]); setCommitments([]); } }} className="flex-1 py-2 rounded-lg bg-rose-500/15 text-rose-400 text-xs font-bold hover:bg-rose-500/25">Kosongkan semua data</button>
           </div>
         </div>
       )}
@@ -748,7 +749,7 @@ const ExpenseManager: React.FC = () => {
       {/* Floating add-expense button (dashboard only) — portaled into the phone frame so it
           stays pinned bottom-right above the menu bar and never scrolls away */}
       {tab === 'dashboard' && frameEl && createPortal((
-        <button onClick={openExpense} className="fixed bottom-24 right-4 sm:absolute z-30 w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white shadow-xl shadow-emerald-500/30 flex items-center justify-center active:scale-90 transition-transform" title="Add expense">
+        <button onClick={openExpense} className="fixed bottom-24 right-4 sm:absolute z-30 w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white shadow-xl shadow-emerald-500/30 flex items-center justify-center active:scale-90 transition-transform" title="Tambah perbelanjaan">
           <Plus size={26} />
         </button>
       ), frameEl)}
@@ -757,18 +758,18 @@ const ExpenseManager: React.FC = () => {
       {showExpense && createPortal((
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowExpense(false)}>
           <div className="bg-surface border border-text/10 rounded-t-3xl w-full max-w-md p-5 space-y-4 animate-slide-up" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between"><h3 className="font-bold text-lg">Add Expense</h3><button onClick={() => setShowExpense(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button></div>
-            <input autoFocus value={eDesc} onChange={e => setEDesc(e.target.value)} placeholder="Description" className="input-field w-full" />
-            <input type="number" value={eAmount} onChange={e => setEAmount(e.target.value)} placeholder="Amount (RM)" className="input-field w-full font-mono text-lg" />
+            <div className="flex items-center justify-between"><h3 className="font-bold text-lg">Tambah Perbelanjaan</h3><button onClick={() => setShowExpense(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button></div>
+            <input autoFocus value={eDesc} onChange={e => setEDesc(e.target.value)} placeholder="Keterangan" className="input-field w-full" />
+            <input type="number" value={eAmount} onChange={e => setEAmount(e.target.value)} placeholder="Jumlah (RM)" className="input-field w-full font-mono text-lg" />
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Category</label>
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">Kategori</label>
               <CategoryChips cats={expenseCats} value={eCat} onSelect={setECat} onAdd={addExpenseCat} accent={accent} />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Date</label>
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">Tarikh</label>
               <input type="date" value={eDate} max={todayKey} onChange={e => setEDate(e.target.value)} className="input-field w-full" />
             </div>
-            <button onClick={saveExpense} className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600">Save Expense</button>
+            <button onClick={saveExpense} className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600">Simpan Perbelanjaan</button>
           </div>
         </div>
       ), document.body)}
@@ -777,17 +778,17 @@ const ExpenseManager: React.FC = () => {
       {showCForm && createPortal((
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowCForm(false)}>
           <div className="bg-surface border border-text/10 rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between"><h3 className="font-bold text-lg">{cForm.id ? 'Edit' : 'Add'} Commitment</h3><button onClick={() => setShowCForm(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button></div>
-            <input autoFocus value={cForm.title} onChange={e => setCForm(f => ({ ...f, title: e.target.value }))} placeholder="Title (e.g. Car loan)" className="input-field w-full" />
+            <div className="flex items-center justify-between"><h3 className="font-bold text-lg">{cForm.id ? 'Sunting' : 'Tambah'} Komitmen</h3><button onClick={() => setShowCForm(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button></div>
+            <input autoFocus value={cForm.title} onChange={e => setCForm(f => ({ ...f, title: e.target.value }))} placeholder="Tajuk (cth. Pinjaman kereta)" className="input-field w-full" />
             <div className="flex gap-2">
-              <input type="number" value={cForm.amount} onChange={e => setCForm(f => ({ ...f, amount: e.target.value }))} placeholder="Amount" className="input-field flex-1 font-mono" />
-              <input type="number" min={1} max={31} value={cForm.day} onChange={e => setCForm(f => ({ ...f, day: e.target.value }))} placeholder="Day" className="input-field w-20 font-mono" title="Payment day of month" />
+              <input type="number" value={cForm.amount} onChange={e => setCForm(f => ({ ...f, amount: e.target.value }))} placeholder="Jumlah" className="input-field flex-1 font-mono" />
+              <input type="number" min={1} max={31} value={cForm.day} onChange={e => setCForm(f => ({ ...f, day: e.target.value }))} placeholder="Hari" className="input-field w-20 font-mono" title="Hari bayaran dalam bulan" />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Category</label>
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">Kategori</label>
               <CategoryChips cats={commitCats} value={cForm.category} onSelect={c => setCForm(f => ({ ...f, category: c }))} onAdd={addCommitCat} accent="rgb(245 158 11)" />
             </div>
-            <button onClick={saveCForm} className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600">{cForm.id ? 'Save Changes' : 'Add Commitment'}</button>
+            <button onClick={saveCForm} className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600">{cForm.id ? 'Simpan Perubahan' : 'Tambah Komitmen'}</button>
           </div>
         </div>
       ), document.body)}
@@ -796,37 +797,37 @@ const ExpenseManager: React.FC = () => {
       {editIncome && createPortal((
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setEditIncome(null)}>
           <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between"><h3 className="font-bold text-lg">Edit Income</h3><button onClick={() => setEditIncome(null)} className="p-1 text-muted hover:text-text"><X size={20} /></button></div>
-            <input autoFocus value={ieTitle} onChange={e => setIeTitle(e.target.value)} placeholder="Title" className="input-field w-full" />
-            <input type="number" value={ieAmount} onChange={e => setIeAmount(e.target.value)} placeholder="Amount" className="input-field w-full font-mono text-lg" />
+            <div className="flex items-center justify-between"><h3 className="font-bold text-lg">Sunting Pendapatan</h3><button onClick={() => setEditIncome(null)} className="p-1 text-muted hover:text-text"><X size={20} /></button></div>
+            <input autoFocus value={ieTitle} onChange={e => setIeTitle(e.target.value)} placeholder="Tajuk" className="input-field w-full" />
+            <input type="number" value={ieAmount} onChange={e => setIeAmount(e.target.value)} placeholder="Jumlah" className="input-field w-full font-mono text-lg" />
             {editIncome.recurring && (
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <label className="text-xs font-bold text-muted">Pay day</label>
+                  <label className="text-xs font-bold text-muted">Hari gaji</label>
                   <input type="number" min={1} max={31} value={ieDay} onChange={e => setIeDay(e.target.value)} className={`input-field w-16 font-mono py-1.5 text-center ${ieDayInvalid ? 'border-red-500/60 focus:ring-red-500/40' : ''}`} />
-                  <span className="text-[10px] text-muted">Day salary is received each month</span>
+                  <span className="text-[10px] text-muted">Hari gaji diterima setiap bulan</span>
                 </div>
-                {ieDayInvalid && <p className="text-[10px] text-red-400">Pay day must be between 1 and 31.</p>}
+                {ieDayInvalid && <p className="text-[10px] text-red-400">Hari gaji mesti antara 1 hingga 31.</p>}
               </div>
             )}
             {editIncome.recurring ? (
               <div className="space-y-2">
                 {isPastView ? (
                   <>
-                    <p className="text-xs text-muted">{monthLabel(viewMonth)} is a past month — this change applies to that month only.</p>
-                    <button onClick={saveIncomeEditSingle} disabled={ieDayInvalid} className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 disabled:opacity-40 disabled:pointer-events-none">Apply to {monthLabel(viewMonth)} only</button>
-                    <button onClick={() => saveIncomeEdit('all')} disabled={ieDayInvalid} className="w-full py-2.5 rounded-xl bg-text/5 text-text font-bold hover:bg-text/10 disabled:opacity-40 disabled:pointer-events-none">Change all months</button>
+                    <p className="text-xs text-muted">{monthLabel(viewMonth)} ialah bulan lepas — perubahan ini hanya untuk bulan tersebut.</p>
+                    <button onClick={saveIncomeEditSingle} disabled={ieDayInvalid} className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 disabled:opacity-40 disabled:pointer-events-none">Guna untuk {monthLabel(viewMonth)} sahaja</button>
+                    <button onClick={() => saveIncomeEdit('all')} disabled={ieDayInvalid} className="w-full py-2.5 rounded-xl bg-text/5 text-text font-bold hover:bg-text/10 disabled:opacity-40 disabled:pointer-events-none">Ubah semua bulan</button>
                   </>
                 ) : (
                   <>
-                    <p className="text-xs text-muted">Applies to {monthLabel(viewMonth)} and every upcoming month (past months stay the same).</p>
-                    <button onClick={() => saveIncomeEdit('forward')} disabled={ieDayInvalid} className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 disabled:opacity-40 disabled:pointer-events-none">Apply from {monthLabel(viewMonth)} onward</button>
-                    <button onClick={() => saveIncomeEdit('all')} disabled={ieDayInvalid} className="w-full py-2.5 rounded-xl bg-text/5 text-text font-bold hover:bg-text/10 disabled:opacity-40 disabled:pointer-events-none">Change all months</button>
+                    <p className="text-xs text-muted">Digunakan untuk {monthLabel(viewMonth)} dan setiap bulan akan datang (bulan lepas kekal sama).</p>
+                    <button onClick={() => saveIncomeEdit('forward')} disabled={ieDayInvalid} className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 disabled:opacity-40 disabled:pointer-events-none">Guna dari {monthLabel(viewMonth)} ke hadapan</button>
+                    <button onClick={() => saveIncomeEdit('all')} disabled={ieDayInvalid} className="w-full py-2.5 rounded-xl bg-text/5 text-text font-bold hover:bg-text/10 disabled:opacity-40 disabled:pointer-events-none">Ubah semua bulan</button>
                   </>
                 )}
               </div>
             ) : (
-              <button onClick={() => saveIncomeEdit('all')} className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600">Save</button>
+              <button onClick={() => saveIncomeEdit('all')} className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600">Simpan</button>
             )}
           </div>
         </div>
@@ -836,12 +837,12 @@ const ExpenseManager: React.FC = () => {
       {delIncome && createPortal((
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setDelIncome(null)}>
           <div className="bg-surface border border-text/10 rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up" onClick={e => e.stopPropagation()}>
-            <h3 className="font-bold text-lg">Delete recurring income</h3>
+            <h3 className="font-bold text-lg">Padam pendapatan berulang</h3>
             <p className="text-sm text-muted">{delIncome.title} · <span className="font-mono font-bold text-emerald-400">RM{fmt(delIncome.amount)}</span></p>
-            <p className="text-xs text-muted">This income repeats every month. Deleting it everywhere also removes it from past records.</p>
-            <button onClick={stopIncomeFromMonth} className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600">Stop from {monthLabel(viewMonth)} (keep past)</button>
-            <button onClick={deleteIncomeEverywhere} className="w-full py-2.5 rounded-xl bg-rose-500/15 text-rose-400 font-bold hover:bg-rose-500/25">Delete from all months</button>
-            <button onClick={() => setDelIncome(null)} className="w-full py-2.5 rounded-xl bg-text/5 text-text font-bold hover:bg-text/10">Cancel</button>
+            <p className="text-xs text-muted">Pendapatan ini berulang setiap bulan. Memadamnya di semua tempat juga membuangnya dari rekod lepas.</p>
+            <button onClick={stopIncomeFromMonth} className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600">Berhenti dari {monthLabel(viewMonth)} (kekalkan lepas)</button>
+            <button onClick={deleteIncomeEverywhere} className="w-full py-2.5 rounded-xl bg-rose-500/15 text-rose-400 font-bold hover:bg-rose-500/25">Padam dari semua bulan</button>
+            <button onClick={() => setDelIncome(null)} className="w-full py-2.5 rounded-xl bg-text/5 text-text font-bold hover:bg-text/10">Batal</button>
           </div>
         </div>
       ), document.body)}
@@ -852,16 +853,16 @@ const ExpenseManager: React.FC = () => {
         return (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setPayTarget(null)}>
             <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up" onClick={e => e.stopPropagation()}>
-              <h3 className="font-bold text-lg">Confirm Payment</h3>
+              <h3 className="font-bold text-lg">Sahkan Bayaran</h3>
               <p className="text-sm text-muted">{payTarget.title} · <span className="font-mono font-bold text-amber-400">RM{fmt(payTarget.amount)}</span></p>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Payment date</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">Tarikh bayaran</label>
                 <input type="date" min={`${viewMonth}-01`} max={viewMonth === currentMonth ? todayKey : `${viewMonth}-${pad(daysInMonth(viewMonth))}`} value={payDate} onChange={e => setPayDate(e.target.value)} className={`input-field w-full ${!payDateValid ? 'border-red-500/60 text-red-400' : ''}`} />
-                {!payDateValid && <p className="text-[10px] text-red-400">Date must be within {monthLabel(viewMonth)}{viewMonth === currentMonth ? ' and not in the future' : ''}.</p>}
+                {!payDateValid && <p className="text-[10px] text-red-400">Tarikh mesti dalam {monthLabel(viewMonth)}{viewMonth === currentMonth ? ' dan bukan masa hadapan' : ''}.</p>}
               </div>
               <div className="flex gap-2">
-                <button onClick={() => setPayTarget(null)} className="flex-1 py-3 rounded-xl bg-text/5 text-text font-bold">Cancel</button>
-                <button onClick={confirmPay} disabled={!payDateValid} className="flex-1 py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 disabled:opacity-40 disabled:pointer-events-none">Confirm Paid</button>
+                <button onClick={() => setPayTarget(null)} className="flex-1 py-3 rounded-xl bg-text/5 text-text font-bold">Batal</button>
+                <button onClick={confirmPay} disabled={!payDateValid} className="flex-1 py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 disabled:opacity-40 disabled:pointer-events-none">Sahkan Dibayar</button>
               </div>
             </div>
           </div>

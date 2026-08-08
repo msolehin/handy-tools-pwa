@@ -6,8 +6,8 @@ type Mode = 'pace' | 'time' | 'distance';
 const distances = [
   { label: '5K', km: '5' },
   { label: '10K', km: '10' },
-  { label: 'Half Marathon', km: '21.0975' },
-  { label: 'Full Marathon', km: '42.195' },
+  { label: 'Separuh Maraton', km: '21.0975' },
+  { label: 'Maraton Penuh', km: '42.195' },
 ];
 
 const PaceCalculator: React.FC = () => {
@@ -31,7 +31,7 @@ const PaceCalculator: React.FC = () => {
   useEffect(() => { localStorage.setItem('pc_paceSecs', paceSecs); }, [paceSecs]);
 
   const handleReset = () => {
-    if (window.confirm("Reset all Pace Calculator inputs?")) {
+    if (window.confirm("Set semula semua input Kira Pace?")) {
       setMode('pace');
       setTimeHrs('');
       setTimeMins('');
@@ -124,20 +124,20 @@ const PaceCalculator: React.FC = () => {
           onClick={handleReset}
           className="text-xs flex items-center text-muted hover:text-text transition-colors"
         >
-          <RefreshCw size={12} className="mr-1" /> Reset
+          <RefreshCw size={12} className="mr-1" /> Set Semula
         </button>
       </div>
 
       <div className="glass-panel p-4">
-        <label className="block text-sm font-medium text-muted mb-2">What do you want to calculate?</label>
+        <label className="block text-sm font-medium text-muted mb-2">Apa yang anda mahu kira?</label>
         <select 
           value={mode} 
           onChange={(e) => setMode(e.target.value as Mode)}
           className="w-full bg-background border border-text/10 rounded-xl px-4 py-3 text-text focus:outline-none focus:border-primary transition-colors appearance-none"
         >
           <option value="pace">Pace (min/km)</option>
-          <option value="time">Time (hh:mm:ss)</option>
-          <option value="distance">Distance (km)</option>
+          <option value="time">Masa (jj:mm:ss)</option>
+          <option value="distance">Jarak (km)</option>
         </select>
       </div>
 
@@ -146,12 +146,12 @@ const PaceCalculator: React.FC = () => {
         <div className={`glass-panel p-4 transition-opacity duration-300 ${mode === 'time' ? 'opacity-60 border-primary/30' : 'border-text/10'}`}>
           <div className="flex items-center space-x-2 mb-3">
             <Timer className="text-primary" size={18} />
-            <h3 className="font-semibold">Time</h3>
-            {mode === 'time' && <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded ml-2">Auto-calculated</span>}
+            <h3 className="font-semibold">Masa</h3>
+            {mode === 'time' && <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded ml-2">Dikira automatik</span>}
           </div>
           <div className="flex space-x-2">
             <div className="flex-1">
-              <label className="block text-xs text-muted mb-1 text-center">Hours</label>
+              <label className="block text-xs text-muted mb-1 text-center">Jam</label>
               <input 
                 type="number" 
                 min="0"
@@ -164,7 +164,7 @@ const PaceCalculator: React.FC = () => {
             </div>
             <div className="flex items-center justify-center pt-5 font-bold">:</div>
             <div className="flex-1">
-              <label className="block text-xs text-muted mb-1 text-center">Mins</label>
+              <label className="block text-xs text-muted mb-1 text-center">Minit</label>
               <input 
                 type="number" 
                 min="0" max="59"
@@ -177,7 +177,7 @@ const PaceCalculator: React.FC = () => {
             </div>
             <div className="flex items-center justify-center pt-5 font-bold">:</div>
             <div className="flex-1">
-              <label className="block text-xs text-muted mb-1 text-center">Secs</label>
+              <label className="block text-xs text-muted mb-1 text-center">Saat</label>
               <input 
                 type="number" 
                 min="0" max="59"
@@ -195,8 +195,8 @@ const PaceCalculator: React.FC = () => {
         <div className={`glass-panel p-4 transition-opacity duration-300 ${mode === 'distance' ? 'opacity-60 border-primary/30' : 'border-text/10'}`}>
           <div className="flex items-center space-x-2 mb-3">
             <Footprints className="text-secondary" size={18} />
-            <h3 className="font-semibold">Distance (km)</h3>
-            {mode === 'distance' && <span className="text-xs bg-secondary/20 text-secondary px-2 py-0.5 rounded ml-2">Auto-calculated</span>}
+            <h3 className="font-semibold">Jarak (km)</h3>
+            {mode === 'distance' && <span className="text-xs bg-secondary/20 text-secondary px-2 py-0.5 rounded ml-2">Dikira automatik</span>}
           </div>
           <input 
             type="number" 
@@ -205,7 +205,7 @@ const PaceCalculator: React.FC = () => {
             value={distanceKm}
             onChange={(e) => setDistanceKm(e.target.value)}
             readOnly={mode === 'distance'}
-            placeholder="e.g. 5.00"
+            placeholder="cth. 5.00"
             className="input-field text-xl py-3 px-4 mb-3"
           />
           
@@ -232,11 +232,11 @@ const PaceCalculator: React.FC = () => {
           <div className="flex items-center space-x-2 mb-3">
             <Activity className="text-accent" size={18} />
             <h3 className="font-semibold">Pace (min/km)</h3>
-            {mode === 'pace' && <span className="text-xs bg-accent/20 text-accent px-2 py-0.5 rounded ml-2">Auto-calculated</span>}
+            {mode === 'pace' && <span className="text-xs bg-accent/20 text-accent px-2 py-0.5 rounded ml-2">Dikira automatik</span>}
           </div>
           <div className="flex space-x-4 max-w-[60%] mx-auto">
             <div className="flex-1">
-              <label className="block text-xs text-muted mb-1 text-center">Mins</label>
+              <label className="block text-xs text-muted mb-1 text-center">Minit</label>
               <input 
                 type="number" 
                 min="0" max="59"
@@ -249,7 +249,7 @@ const PaceCalculator: React.FC = () => {
             </div>
             <div className="flex items-center justify-center pt-5 font-bold text-2xl">:</div>
             <div className="flex-1">
-              <label className="block text-xs text-muted mb-1 text-center">Secs</label>
+              <label className="block text-xs text-muted mb-1 text-center">Saat</label>
               <input 
                 type="number" 
                 min="0" max="59"

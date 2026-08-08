@@ -94,7 +94,7 @@ const DENOMS: { sen: number; label: string }[] = [
 ];
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
-const fmt = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt = (n: number) => n.toLocaleString('ms-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const DuitRayaManager: React.FC = () => {
   const [theme, setTheme] = useState<ThemeKey>('raya');
@@ -219,7 +219,7 @@ const DuitRayaManager: React.FC = () => {
   const deleteFamily = (id: string) => {
     const fam = families.find(f => f.id === id);
     if (fam && fam.recipients.length > 0) {
-      if (!window.confirm(`Delete "${fam.name}" and its ${fam.recipients.length} recipient(s)?`)) return;
+      if (!window.confirm(`Padam "${fam.name}" dan ${fam.recipients.length} penerimanya?`)) return;
     }
     setFamilies(prev => prev.filter(f => f.id !== id));
   };
@@ -258,7 +258,7 @@ const DuitRayaManager: React.FC = () => {
   const toggleCollapse = (id: string) => setCollapsed(prev => ({ ...prev, [id]: !prev[id] }));
 
   const resetAll = () => {
-    if (!window.confirm('Reset everything? This will clear your budget and all families/recipients. This cannot be undone.')) return;
+    if (!window.confirm('Set semula semua? Ini akan kosongkan bajet dan semua keluarga/penerima. Tindakan ini tidak boleh dibatalkan.')) return;
     setBudget(0);
     setFamilies([]);
     setPlanSearch('');
@@ -301,13 +301,13 @@ const DuitRayaManager: React.FC = () => {
           onClick={() => setTab('plan')}
           className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${tab === 'plan' ? `bg-surface ${t.accentText} shadow-sm` : 'text-muted hover:text-text'}`}
         >
-          <Wallet2 size={16} /> Plan
+          <Wallet2 size={16} /> Rancang
         </button>
         <button
           onClick={() => setTab('board')}
           className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${tab === 'board' ? `bg-surface ${t.accentText} shadow-sm` : 'text-muted hover:text-text'}`}
         >
-          <Trophy size={16} /> Leaderboard
+          <Trophy size={16} /> Ranking
         </button>
       </div>
 
@@ -316,7 +316,7 @@ const DuitRayaManager: React.FC = () => {
       <div className="glass-panel p-5 space-y-4">
         <div className="space-y-1">
           <label className="text-xs font-bold text-muted uppercase tracking-wider flex items-center gap-1.5">
-            <Wallet size={14} /> Budget (RM)
+            <Wallet size={14} /> Bajet (RM)
           </label>
           <input
             type="number"
@@ -324,31 +324,31 @@ const DuitRayaManager: React.FC = () => {
             min="0"
             value={budget === 0 ? '' : budget}
             onChange={e => setBudget(parseFloat(e.target.value) || 0)}
-            placeholder="e.g. 1000"
+            placeholder="cth. 1000"
             className="input-field w-full font-mono text-lg"
           />
         </div>
 
         <div className="space-y-2 font-mono text-sm">
           <div className="flex justify-between">
-            <span className="text-muted">Budget</span>
+            <span className="text-muted">Bajet</span>
             <span className="text-text/90 font-bold">RM{fmt(budget)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted">Assigned to names</span>
+            <span className="text-muted">Diagih kepada nama</span>
             <span className="text-text/90 font-bold">RM{fmt(allocated)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted">Left to assign</span>
+            <span className="text-muted">Baki untuk diagih</span>
             <span className={`font-bold ${unallocated < 0 ? 'text-red-400' : t.accentText}`}>RM{fmt(unallocated)}</span>
           </div>
           <div className="h-px bg-white/10 my-1" />
           <div className="flex justify-between">
-            <span className="text-muted">Given</span>
+            <span className="text-muted">Dah beri</span>
             <span className={`font-bold ${t.accentText}`}>RM{fmt(given)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted">Remaining</span>
+            <span className="text-muted">Baki</span>
             <span className={`font-bold ${remaining < 0 ? 'text-red-400' : 'text-text/90'}`}>RM{fmt(remaining)}</span>
           </div>
         </div>
@@ -361,12 +361,12 @@ const DuitRayaManager: React.FC = () => {
               style={{ width: `${Math.min(100, percentUsed)}%` }}
             />
           </div>
-          <p className="text-right text-xs font-bold text-muted">{percentUsed.toFixed(0)}% Used</p>
+          <p className="text-right text-xs font-bold text-muted">{percentUsed.toFixed(0)}% Digunakan</p>
         </div>
 
         {overBudget && (
           <p className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2">
-            ⚠️ Allocated RM{fmt(allocated)} exceeds your budget by RM{fmt(allocated - budget)}.
+            ⚠️ Agihan RM{fmt(allocated)} melebihi bajet anda sebanyak RM{fmt(allocated - budget)}.
           </p>
         )}
       </div>
@@ -374,12 +374,12 @@ const DuitRayaManager: React.FC = () => {
       {/* Cash preparation */}
       <div className="glass-panel p-5 space-y-3">
         <h3 className="font-bold text-base flex items-center gap-2">
-          <Coins size={18} className={t.accentText} /> Cash Preparation
+          <Coins size={18} className={t.accentText} /> Sediakan Duit Tunai
         </h3>
 
         {/* Denomination toggles — tap to exclude notes you don't want (RM1 is locked) */}
         <div>
-          <p className="text-[11px] text-muted uppercase tracking-wider mb-2">Use these notes</p>
+          <p className="text-[11px] text-muted uppercase tracking-wider mb-2">Guna not/duit ini</p>
           <div className="flex flex-wrap gap-1.5">
             {DENOMS.map(d => {
               const on = denomEnabled(d.sen);
@@ -389,7 +389,7 @@ const DuitRayaManager: React.FC = () => {
                   key={d.sen}
                   onClick={() => toggleDenom(d.sen)}
                   disabled={locked}
-                  title={locked ? 'RM1 is required and cannot be turned off' : on ? 'Tap to exclude' : 'Tap to include'}
+                  title={locked ? 'RM1 wajib dan tidak boleh dimatikan' : on ? 'Tekan untuk keluarkan' : 'Tekan untuk masukkan'}
                   className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all ${
                     on
                       ? `${t.accentBg} ${t.accentBorder} ${t.accentText}`
@@ -406,12 +406,12 @@ const DuitRayaManager: React.FC = () => {
         {cashRows.length === 0 ? (
           <p className="text-sm text-muted text-center py-4">
             {allRecipients.length === 0
-              ? 'Add recipients to see how much cash to prepare.'
-              : 'All envelopes given — nothing left to prepare 🎉'}
+              ? 'Tambah penerima untuk lihat berapa tunai perlu disediakan.'
+              : 'Semua sampul dah diberi — tiada apa perlu disediakan 🎉'}
           </p>
         ) : (
           <>
-            <p className="text-[11px] text-muted uppercase tracking-wider">Need (for pending envelopes)</p>
+            <p className="text-[11px] text-muted uppercase tracking-wider">Perlu (untuk sampul belum diberi)</p>
             <div className="space-y-1.5 font-mono text-sm">
               {cashRows.map(d => (
                 <div key={d.sen} className="flex items-center justify-between">
@@ -425,12 +425,12 @@ const DuitRayaManager: React.FC = () => {
               ))}
             </div>
             <div className="border-t border-white/10 pt-2 flex justify-between font-mono text-sm font-bold">
-              <span>Total</span>
+              <span>Jumlah</span>
               <span className={t.accentText}>RM{fmt(cashTotalSen / 100)}</span>
             </div>
             {cashLeftoverSen > 0 && (
               <p className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2">
-                ⚠️ RM{fmt(cashLeftoverSen / 100)} can't be made with the selected notes. Enable a smaller denomination to cover it.
+                ⚠️ RM{fmt(cashLeftoverSen / 100)} tidak boleh dibuat dengan not yang dipilih. Hidupkan nilai lebih kecil untuk menampungnya.
               </p>
             )}
           </>
@@ -441,9 +441,9 @@ const DuitRayaManager: React.FC = () => {
       <div className="space-y-4">
         <div className="flex items-center justify-between px-1">
           <h3 className="font-bold text-base flex items-center gap-2">
-            <Users size={18} className={t.accentText} /> Families
+            <Users size={18} className={t.accentText} /> Keluarga
           </h3>
-          <span className="text-xs text-muted">{allRecipients.length} recipient(s)</span>
+          <span className="text-xs text-muted">{allRecipients.length} penerima</span>
         </div>
 
         {/* Search */}
@@ -454,14 +454,14 @@ const DuitRayaManager: React.FC = () => {
               type="text"
               value={planSearch}
               onChange={e => setPlanSearch(e.target.value)}
-              placeholder="Search name or family…"
+              placeholder="Cari nama atau keluarga…"
               className="input-field w-full pl-9 pr-9 text-sm"
             />
             {planSearch && (
               <button
                 onClick={() => setPlanSearch('')}
                 className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted hover:text-text rounded-md hover:bg-text/10"
-                title="Clear search"
+                title="Kosongkan carian"
               >
                 <X size={15} />
               </button>
@@ -481,7 +481,7 @@ const DuitRayaManager: React.FC = () => {
                   {isCollapsed ? <ChevronRight size={18} className="text-muted" /> : <ChevronDown size={18} className="text-muted" />}
                   <div>
                     <h4 className="font-bold text-text/90">{family.name}</h4>
-                    <p className="text-[11px] text-muted">{famGiven}/{family.recipients.length} given · RM{fmt(famTotal)}</p>
+                    <p className="text-[11px] text-muted">{famGiven}/{family.recipients.length} dah beri · RM{fmt(famTotal)}</p>
                   </div>
                 </button>
                 <button onClick={() => deleteFamily(family.id)} className="text-rose-400 opacity-60 hover:opacity-100 p-1.5 hover:bg-rose-500/20 rounded-lg transition-all">
@@ -496,7 +496,7 @@ const DuitRayaManager: React.FC = () => {
                       <button
                         onClick={() => toggleGiven(family.id, r.id)}
                         className={`shrink-0 w-6 h-6 rounded-md border flex items-center justify-center transition-all ${r.given ? `${t.solidBtn} border-transparent text-white` : 'border-text/30 text-transparent hover:border-text/60'}`}
-                        title={r.given ? 'Marked as given' : 'Mark as given'}
+                        title={r.given ? 'Ditanda dah beri' : 'Tanda dah beri'}
                       >
                         <Check size={16} />
                       </button>
@@ -516,7 +516,7 @@ const DuitRayaManager: React.FC = () => {
                           type="text"
                           value={recipName}
                           onChange={e => setRecipName(e.target.value)}
-                          placeholder="Name"
+                          placeholder="Nama"
                           autoFocus
                           className="input-field flex-1 py-2 text-sm"
                           onKeyDown={e => { if (e.key === 'Enter') addRecipient(family.id); }}
@@ -532,8 +532,8 @@ const DuitRayaManager: React.FC = () => {
                         />
                       </div>
                       <div className="flex gap-2">
-                        <button onClick={() => setActiveFamily(null)} className="flex-1 py-2 rounded-lg bg-text/5 text-text text-sm font-bold hover:bg-text/10">Done</button>
-                        <button onClick={() => addRecipient(family.id)} className={`flex-1 py-2 rounded-lg text-white text-sm font-bold ${t.solidBtn}`}>Add</button>
+                        <button onClick={() => setActiveFamily(null)} className="flex-1 py-2 rounded-lg bg-text/5 text-text text-sm font-bold hover:bg-text/10">Siap</button>
+                        <button onClick={() => addRecipient(family.id)} className={`flex-1 py-2 rounded-lg text-white text-sm font-bold ${t.solidBtn}`}>Tambah</button>
                       </div>
                     </div>
                   ) : (
@@ -541,7 +541,7 @@ const DuitRayaManager: React.FC = () => {
                       onClick={() => openAddRecipient(family.id)}
                       className={`w-full py-2.5 rounded-xl border border-dashed border-text/20 text-muted text-sm font-bold ${t.addHover} transition-all flex items-center justify-center`}
                     >
-                      <Plus size={16} className="mr-1.5" /> Add Name
+                      <Plus size={16} className="mr-1.5" /> Tambah Nama
                     </button>
                   )}
                 </div>
@@ -552,7 +552,7 @@ const DuitRayaManager: React.FC = () => {
 
         {planQuery && visibleFamilies.length === 0 && families.length > 0 && (
           <div className="text-center p-6 text-muted text-sm border border-dashed border-text/10 rounded-2xl">
-            No name or family matches “{planSearch}”.
+            Tiada nama atau keluarga sepadan “{planSearch}”.
           </div>
         )}
 
@@ -562,17 +562,17 @@ const DuitRayaManager: React.FC = () => {
             type="text"
             value={newFamilyName}
             onChange={e => setNewFamilyName(e.target.value)}
-            placeholder="New family / group name"
+            placeholder="Nama keluarga / kumpulan baru"
             className="input-field flex-1"
           />
           <button type="submit" className={`px-4 rounded-xl text-white font-bold ${t.solidBtn} flex items-center`}>
-            <Plus size={18} className="mr-1" /> Family
+            <Plus size={18} className="mr-1" /> Keluarga
           </button>
         </form>
 
         {families.length === 0 && (
           <div className="text-center p-8 text-muted text-sm border border-dashed border-text/10 rounded-2xl">
-            Set your budget, then add a family to start planning your {t.label.toLowerCase()}.
+            Tetapkan bajet anda, kemudian tambah keluarga untuk mula merancang {t.label.toLowerCase()} anda.
           </div>
         )}
 
@@ -581,7 +581,7 @@ const DuitRayaManager: React.FC = () => {
             onClick={resetAll}
             className="w-full mt-2 py-2.5 rounded-xl border border-red-500/30 text-red-400 text-sm font-bold hover:bg-red-500/10 transition-all flex items-center justify-center gap-1.5"
           >
-            <RotateCcw size={16} /> Reset All
+            <RotateCcw size={16} /> Set Semula Semua
           </button>
         )}
       </div>
@@ -594,13 +594,13 @@ const DuitRayaManager: React.FC = () => {
             onClick={() => setBoardTab('names')}
             className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${boardTab === 'names' ? `bg-surface ${t.accentText} shadow-sm` : 'text-muted hover:text-text'}`}
           >
-            <Trophy size={15} /> Recipients
+            <Trophy size={15} /> Penerima
           </button>
           <button
             onClick={() => setBoardTab('families')}
             className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${boardTab === 'families' ? `bg-surface ${t.accentText} shadow-sm` : 'text-muted hover:text-text'}`}
           >
-            <Users size={15} /> Families
+            <Users size={15} /> Keluarga
           </button>
         </div>
 
@@ -608,10 +608,10 @@ const DuitRayaManager: React.FC = () => {
         /* Leaderboard: by name */
         <div className="glass-panel p-5 space-y-3">
           <h3 className="font-bold text-base flex items-center gap-2">
-            <Trophy size={18} className={t.accentText} /> Top Recipients
+            <Trophy size={18} className={t.accentText} /> Penerima Teratas
           </h3>
           {nameBoard.length === 0 ? (
-            <p className="text-sm text-muted text-center py-4">Add recipients to see the ranking.</p>
+            <p className="text-sm text-muted text-center py-4">Tambah penerima untuk lihat ranking.</p>
           ) : (
             <div className="space-y-2">
               {nameBoard.map((r, i) => (
@@ -622,7 +622,7 @@ const DuitRayaManager: React.FC = () => {
                       <p className={`font-medium truncate flex items-center gap-1.5 ${r.given ? 'text-text/60' : 'text-text/90'}`}>
                         <span className="truncate">{r.name}</span>
                         {r.given && (
-                          <span className={`shrink-0 inline-flex items-center justify-center w-4 h-4 rounded-full ${t.solidBtn} text-white`} title="Already given">
+                          <span className={`shrink-0 inline-flex items-center justify-center w-4 h-4 rounded-full ${t.solidBtn} text-white`} title="Sudah diberi">
                             <Check size={11} strokeWidth={3} />
                           </span>
                         )}
@@ -645,10 +645,10 @@ const DuitRayaManager: React.FC = () => {
         /* Leaderboard: by family */
         <div className="glass-panel p-5 space-y-3">
           <h3 className="font-bold text-base flex items-center gap-2">
-            <Users size={18} className={t.accentText} /> Top Families
+            <Users size={18} className={t.accentText} /> Keluarga Teratas
           </h3>
           {familyBoard.length === 0 ? (
-            <p className="text-sm text-muted text-center py-4">Add families with recipients to see the ranking.</p>
+            <p className="text-sm text-muted text-center py-4">Tambah keluarga dengan penerima untuk lihat ranking.</p>
           ) : (
             <div className="space-y-2">
               {familyBoard.map((f, i) => (
@@ -659,12 +659,12 @@ const DuitRayaManager: React.FC = () => {
                       <p className={`font-medium truncate flex items-center gap-1.5 ${f.allGiven ? 'text-text/60' : 'text-text/90'}`}>
                         <span className="truncate">{f.name}</span>
                         {f.allGiven && (
-                          <span className={`shrink-0 inline-flex items-center justify-center w-4 h-4 rounded-full ${t.solidBtn} text-white`} title="All recipients given">
+                          <span className={`shrink-0 inline-flex items-center justify-center w-4 h-4 rounded-full ${t.solidBtn} text-white`} title="Semua penerima sudah diberi">
                             <Check size={11} strokeWidth={3} />
                           </span>
                         )}
                       </p>
-                      <p className="text-[11px] text-muted">{f.count} recipient(s)</p>
+                      <p className="text-[11px] text-muted">{f.count} penerima</p>
                     </div>
                     <span className={`font-mono font-bold shrink-0 ${t.accentText}`}>RM{fmt(f.total)}</span>
                   </div>

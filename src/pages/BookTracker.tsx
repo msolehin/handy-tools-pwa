@@ -32,20 +32,20 @@ export interface Book {
   createdAt: string;
 }
 
-const CATEGORIES = ['Fiction', 'Non-Fiction', 'Self-Help', 'Business', 'Biography', 'Science', 'Fantasy', 'Other'];
+const CATEGORIES = ['Fiksyen', 'Bukan Fiksyen', 'Motivasi', 'Perniagaan', 'Biografi', 'Sains', 'Fantasi', 'Lain-lain'];
 
 const STATUS_META: Record<BookStatus, { label: string; cls: string; dot: string }> = {
-  'wishlist': { label: 'Wishlist', cls: 'bg-rose-500/15 text-rose-500', dot: 'bg-rose-500' },
-  'to-read': { label: 'To Read', cls: 'bg-amber-500/15 text-amber-500', dot: 'bg-amber-500' },
-  'reading': { label: 'Reading', cls: 'bg-violet-500/15 text-violet-500', dot: 'bg-violet-500' },
-  'completed': { label: 'Completed', cls: 'bg-emerald-500/15 text-emerald-500', dot: 'bg-emerald-500' },
+  'wishlist': { label: 'Senarai Hajat', cls: 'bg-rose-500/15 text-rose-500', dot: 'bg-rose-500' },
+  'to-read': { label: 'Nak Baca', cls: 'bg-amber-500/15 text-amber-500', dot: 'bg-amber-500' },
+  'reading': { label: 'Sedang Baca', cls: 'bg-violet-500/15 text-violet-500', dot: 'bg-violet-500' },
+  'completed': { label: 'Selesai', cls: 'bg-emerald-500/15 text-emerald-500', dot: 'bg-emerald-500' },
 };
 
 const STATUS_OPTIONS: { value: BookStatus; label: string }[] = [
-  { value: 'to-read', label: 'To Read (Owned)' },
-  { value: 'reading', label: 'Currently Reading' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'wishlist', label: 'Wishlist' },
+  { value: 'to-read', label: 'Nak Baca (Ada)' },
+  { value: 'reading', label: 'Sedang Dibaca' },
+  { value: 'completed', label: 'Selesai' },
+  { value: 'wishlist', label: 'Senarai Hajat' },
 ];
 
 type Tab = 'dashboard' | 'library' | 'reading' | 'completed' | 'wishlist' | 'notes' | 'stats';
@@ -178,7 +178,7 @@ export default function BookTracker() {
   };
 
   const handleDelete = (id: string) => {
-    if (window.confirm('Delete this book and its notes?')) {
+    if (window.confirm('Padam buku ini dan notanya?')) {
       setBooks(books.filter(b => b.id !== id));
     }
   };
@@ -272,7 +272,7 @@ export default function BookTracker() {
   const completedByYear = (() => {
     const map: Record<string, Book[]> = {};
     completedBooks.forEach(b => {
-      const y = b.completedDate ? String(new Date(b.completedDate).getFullYear()) : 'Unknown';
+      const y = b.completedDate ? String(new Date(b.completedDate).getFullYear()) : 'Tidak diketahui';
       (map[y] = map[y] || []).push(b);
     });
     return Object.entries(map).sort((a, b) => (a[0] < b[0] ? 1 : -1));
@@ -291,13 +291,13 @@ export default function BookTracker() {
   const maxYearCount = Math.max(1, ...yearlyStats.map(([, c]) => c));
 
   const TABS: { key: Tab; label: string; Icon: React.ElementType; count?: number }[] = [
-    { key: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard },
-    { key: 'library', label: 'Library', Icon: Library, count: ownedBooks.length },
-    { key: 'reading', label: 'Reading', Icon: BookOpen, count: readingBooks.length },
-    { key: 'completed', label: 'Done', Icon: CheckCircle, count: completedBooks.length },
-    { key: 'wishlist', label: 'Wishlist', Icon: Bookmark, count: wishlistBooks.length },
-    { key: 'notes', label: 'Notes', Icon: Quote, count: totalNotes },
-    { key: 'stats', label: 'Stats', Icon: BarChart3 },
+    { key: 'dashboard', label: 'Papan', Icon: LayoutDashboard },
+    { key: 'library', label: 'Koleksi', Icon: Library, count: ownedBooks.length },
+    { key: 'reading', label: 'Baca', Icon: BookOpen, count: readingBooks.length },
+    { key: 'completed', label: 'Selesai', Icon: CheckCircle, count: completedBooks.length },
+    { key: 'wishlist', label: 'Hajat', Icon: Bookmark, count: wishlistBooks.length },
+    { key: 'notes', label: 'Nota', Icon: Quote, count: totalNotes },
+    { key: 'stats', label: 'Statistik', Icon: BarChart3 },
   ];
 
   const inputCls = 'w-full px-4 py-3 bg-surface border border-text/10 rounded-xl text-text focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50 transition-all';
@@ -329,13 +329,13 @@ export default function BookTracker() {
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 cursor-pointer" onClick={() => handleEdit(book)}>
               <h3 className="font-bold text-text truncate leading-tight">{book.title}</h3>
-              <p className="text-xs text-muted truncate mt-0.5">{book.author || 'Unknown author'}</p>
+              <p className="text-xs text-muted truncate mt-0.5">{book.author || 'Penulis tidak diketahui'}</p>
             </div>
             <div className="flex items-center gap-1 shrink-0">
-              <button onClick={() => handleEdit(book)} aria-label="Edit" className="p-1.5 text-muted hover:text-violet-500 bg-text/5 hover:bg-violet-500/10 rounded-lg transition-colors">
+              <button onClick={() => handleEdit(book)} aria-label="Sunting" className="p-1.5 text-muted hover:text-violet-500 bg-text/5 hover:bg-violet-500/10 rounded-lg transition-colors">
                 <Pencil size={15} />
               </button>
-              <button onClick={(e) => { e.stopPropagation(); handleDelete(book.id); }} aria-label="Delete" className="p-1.5 text-muted hover:text-rose-500 bg-text/5 hover:bg-rose-500/10 rounded-lg transition-colors">
+              <button onClick={(e) => { e.stopPropagation(); handleDelete(book.id); }} aria-label="Padam" className="p-1.5 text-muted hover:text-rose-500 bg-text/5 hover:bg-rose-500/10 rounded-lg transition-colors">
                 <Trash2 size={15} />
               </button>
             </div>
@@ -387,13 +387,13 @@ export default function BookTracker() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-text leading-tight">My Books</h1>
-            <p className="text-sm text-muted">Track reading, wishlist & quotes</p>
+            <p className="text-sm text-muted">Rekod bacaan, senarai hajat & petikan</p>
           </div>
         </div>
         {!isAdding && (
           <button
             onClick={() => openAdd()}
-            aria-label="Add book"
+            aria-label="Tambah buku"
             className="w-10 h-10 rounded-full bg-violet-500 text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-transform shadow-lg shadow-violet-500/20 shrink-0"
           >
             <Plus size={24} />
@@ -427,52 +427,52 @@ export default function BookTracker() {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold flex items-center gap-2 text-text">
               <Plus className="text-violet-500" />
-              {editingBook ? 'Edit Book' : 'Add Book'}
+              {editingBook ? 'Sunting Buku' : 'Tambah Buku'}
             </h2>
-            <button onClick={resetForm} aria-label="Close" className="p-2 bg-text/5 hover:bg-text/10 text-muted rounded-full transition-colors">
+            <button onClick={resetForm} aria-label="Tutup" className="p-2 bg-text/5 hover:bg-text/10 text-muted rounded-full transition-colors">
               <X size={20} />
             </button>
           </div>
 
           <form onSubmit={handleSave} className="space-y-4">
             <div>
-              <label className={labelCls}>Title *</label>
+              <label className={labelCls}>Tajuk *</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted"><Tag size={18} /></div>
-                <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} className={inputCls + ' pl-10'} placeholder="e.g. Atomic Habits" />
+                <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} className={inputCls + ' pl-10'} placeholder="cth. Atomic Habits" />
               </div>
             </div>
 
             <div>
-              <label className={labelCls}>Author</label>
+              <label className={labelCls}>Penulis</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted"><User size={18} /></div>
-                <input type="text" value={author} onChange={(e) => setAuthor(e.target.value)} className={inputCls + ' pl-10'} placeholder="e.g. James Clear" />
+                <input type="text" value={author} onChange={(e) => setAuthor(e.target.value)} className={inputCls + ' pl-10'} placeholder="cth. James Clear" />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-xs font-bold text-muted uppercase tracking-wider">Category</label>
+                  <label className="block text-xs font-bold text-muted uppercase tracking-wider">Kategori</label>
                   {customCategories.includes(category) && (
                     <button
                       type="button"
                       onClick={() => {
-                        if (window.confirm(`Delete custom category "${category}"?`)) {
+                        if (window.confirm(`Padam kategori sendiri "${category}"?`)) {
                           setCustomCategories(customCategories.filter(c => c !== category));
                           setCategory(CATEGORIES[0]);
                         }
                       }}
                       className="text-[10px] font-bold text-rose-500 hover:text-rose-600 uppercase tracking-wider"
-                    >Delete</button>
+                    >Padam</button>
                   )}
                 </div>
-                {category === 'Add Custom...' ? (
+                {category === 'Tambah Sendiri...' ? (
                   <input
                     type="text"
                     autoFocus
-                    placeholder="New category..."
+                    placeholder="Kategori baru..."
                     className={inputCls}
                     onBlur={(e) => {
                       const val = e.target.value.trim();
@@ -486,15 +486,15 @@ export default function BookTracker() {
                   />
                 ) : (
                   <select value={category} onChange={(e) => setCategory(e.target.value)} className={inputCls + ' appearance-none'}>
-                    {[...CATEGORIES, ...customCategories, 'Add Custom...'].map(c => <option key={c} value={c}>{c}</option>)}
+                    {[...CATEGORIES, ...customCategories, 'Tambah Sendiri...'].map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 )}
               </div>
               <div>
-                <label className={labelCls}>Total Pages</label>
+                <label className={labelCls}>Jumlah Muka Surat</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted"><Hash size={18} /></div>
-                  <input type="number" min="0" value={totalPages} onChange={(e) => setTotalPages(e.target.value)} className={inputCls + ' pl-10'} placeholder="e.g. 320" />
+                  <input type="number" min="0" value={totalPages} onChange={(e) => setTotalPages(e.target.value)} className={inputCls + ' pl-10'} placeholder="cth. 320" />
                 </div>
               </div>
             </div>
@@ -508,19 +508,19 @@ export default function BookTracker() {
 
             {!editingBook && (
               <div>
-                <label className={labelCls}>Notes / Quote (optional)</label>
+                <label className={labelCls}>Nota / Petikan (pilihan)</label>
                 <div className="relative">
                   <div className="absolute top-3 left-3 flex items-start pointer-events-none text-muted"><FileText size={18} /></div>
-                  <textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)} className={inputCls + ' pl-10 min-h-[70px]'} placeholder="A thought or quote to remember..." />
+                  <textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)} className={inputCls + ' pl-10 min-h-[70px]'} placeholder="Fikiran atau petikan untuk diingat..." />
                 </div>
               </div>
             )}
 
             <div>
-              <label className={labelCls}>Cover Image (optional)</label>
+              <label className={labelCls}>Gambar Kulit (pilihan)</label>
               {cover ? (
                 <div className="relative inline-block">
-                  <img src={cover} alt="Cover" className="w-28 h-40 object-cover rounded-xl border border-text/10 shadow-md" />
+                  <img src={cover} alt="Kulit buku" className="w-28 h-40 object-cover rounded-xl border border-text/10 shadow-md" />
                   <button type="button" onClick={() => { setCover(''); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="absolute -top-2 -right-2 p-1.5 bg-black/60 text-white rounded-full hover:bg-black/80 transition-colors backdrop-blur-sm">
                     <X size={14} />
                   </button>
@@ -528,7 +528,7 @@ export default function BookTracker() {
               ) : (
                 <div className="w-full border-2 border-dashed border-text/20 rounded-xl p-6 flex flex-col items-center justify-center text-muted hover:text-violet-500 hover:border-violet-500/50 hover:bg-violet-500/5 transition-all cursor-pointer" onClick={() => fileInputRef.current?.click()}>
                   <Camera size={24} className="mb-2" />
-                  <span className="text-sm font-medium">Tap to add cover</span>
+                  <span className="text-sm font-medium">Tekan untuk tambah kulit</span>
                   <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
                 </div>
               )}
@@ -536,7 +536,7 @@ export default function BookTracker() {
 
             <button type="submit" className="w-full py-4 bg-violet-500 text-white rounded-xl font-bold text-lg hover:shadow-lg hover:shadow-violet-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
               <CheckCircle size={20} />
-              {editingBook ? 'Save Changes' : 'Add Book'}
+              {editingBook ? 'Simpan Perubahan' : 'Tambah Buku'}
             </button>
           </form>
         </div>
@@ -547,10 +547,10 @@ export default function BookTracker() {
             <div className="space-y-6 animate-fade-in">
               <div className="grid grid-cols-2 gap-4">
                 {[
-                  { label: 'Books Owned', value: ownedBooks.length, Icon: Library, cls: 'text-violet-500 bg-violet-500/15', emoji: '📚' },
-                  { label: 'Reading', value: readingBooks.length, Icon: BookOpen, cls: 'text-blue-500 bg-blue-500/15', emoji: '📖' },
-                  { label: 'Completed', value: completedBooks.length, Icon: CheckCircle, cls: 'text-emerald-500 bg-emerald-500/15', emoji: '✅' },
-                  { label: 'Wishlist', value: wishlistBooks.length, Icon: Bookmark, cls: 'text-rose-500 bg-rose-500/15', emoji: '⏳' },
+                  { label: 'Buku Dimiliki', value: ownedBooks.length, Icon: Library, cls: 'text-violet-500 bg-violet-500/15', emoji: '📚' },
+                  { label: 'Sedang Baca', value: readingBooks.length, Icon: BookOpen, cls: 'text-blue-500 bg-blue-500/15', emoji: '📖' },
+                  { label: 'Selesai', value: completedBooks.length, Icon: CheckCircle, cls: 'text-emerald-500 bg-emerald-500/15', emoji: '✅' },
+                  { label: 'Senarai Hajat', value: wishlistBooks.length, Icon: Bookmark, cls: 'text-rose-500 bg-rose-500/15', emoji: '⏳' },
                 ].map(s => (
                   <div key={s.label} className="glass-panel p-4 flex items-center gap-3">
                     <div className={`p-2.5 rounded-xl shrink-0 ${s.cls}`}><s.Icon size={22} /></div>
@@ -568,11 +568,11 @@ export default function BookTracker() {
                 <div className="relative z-10">
                   <div className="flex items-center gap-2 text-muted mb-1">
                     <Target size={16} className="text-violet-500" />
-                    <span className="text-xs font-bold uppercase tracking-wider">Pages Read in {currentYear}</span>
+                    <span className="text-xs font-bold uppercase tracking-wider">Muka Surat Dibaca {currentYear}</span>
                   </div>
                   <div className="text-4xl font-black text-text">{pagesReadThisYear.toLocaleString()}</div>
                   <div className="text-xs text-muted mt-1">
-                    {completedBooks.filter(b => b.completedDate && new Date(b.completedDate).getFullYear() === currentYear).length} finished · {readingBooks.length} in progress
+                    {completedBooks.filter(b => b.completedDate && new Date(b.completedDate).getFullYear() === currentYear).length} selesai · {readingBooks.length} sedang dibaca
                   </div>
                 </div>
               </div>
@@ -581,7 +581,7 @@ export default function BookTracker() {
               <div className="glass-panel p-5">
                 <div className="flex items-center gap-2 mb-4 text-violet-500">
                   <BookOpen size={20} />
-                  <h3 className="font-bold text-lg text-text">Continue Reading</h3>
+                  <h3 className="font-bold text-lg text-text">Sambung Baca</h3>
                 </div>
                 {readingBooks.length > 0 ? (
                   <div className="space-y-3">
@@ -602,7 +602,7 @@ export default function BookTracker() {
                 ) : (
                   <div className="text-center py-8 text-muted bg-surface/50 rounded-xl border border-dashed border-text/10">
                     <BookOpen size={32} className="mx-auto mb-2 opacity-50" />
-                    <p className="font-medium text-sm">No books in progress.</p>
+                    <p className="font-medium text-sm">Tiada buku sedang dibaca.</p>
                   </div>
                 )}
               </div>
@@ -615,13 +615,13 @@ export default function BookTracker() {
               {ownedBooks.length > 0 && (
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted"><Search size={18} /></div>
-                  <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search your library..." className={inputCls + ' pl-10'} />
+                  <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari koleksi anda..." className={inputCls + ' pl-10'} />
                 </div>
               )}
               {ownedBooks.length === 0 ? (
-                <EmptyState icon={Library} title="Your library is empty" sub="Add books you own to track reading progress and status." cta="Add Your First Book" onCta={() => openAdd('to-read')} />
+                <EmptyState icon={Library} title="Koleksi anda kosong" sub="Tambah buku yang anda miliki untuk rekod kemajuan bacaan." cta="Tambah Buku Pertama" onCta={() => openAdd('to-read')} />
               ) : ownedBooks.filter(matchesSearch).length === 0 ? (
-                <div className="glass-panel p-8 text-center text-muted"><Search size={28} className="mx-auto mb-2 opacity-50" /><p className="text-sm font-medium">No books match “{search}”.</p></div>
+                <div className="glass-panel p-8 text-center text-muted"><Search size={28} className="mx-auto mb-2 opacity-50" /><p className="text-sm font-medium">Tiada buku sepadan “{search}”.</p></div>
               ) : (
                 ownedBooks.filter(matchesSearch).map(b => <BookRow key={b.id} book={b} />)
               )}
@@ -632,7 +632,7 @@ export default function BookTracker() {
           {activeTab === 'reading' && (
             <div className="space-y-4 animate-fade-in">
               {readingBooks.length === 0 ? (
-                <EmptyState icon={BookOpen} title="Nothing in progress" sub="Mark a book as 'Currently Reading' to track pages here." cta="Add a Book" onCta={() => openAdd('reading')} />
+                <EmptyState icon={BookOpen} title="Tiada bacaan sedang berjalan" sub="Tanda buku sebagai 'Sedang Dibaca' untuk rekod muka surat di sini." cta="Tambah Buku" onCta={() => openAdd('reading')} />
               ) : (
                 readingBooks.map(book => {
                   const pct = progressPct(book);
@@ -644,15 +644,15 @@ export default function BookTracker() {
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0 cursor-pointer" onClick={() => handleEdit(book)}>
                               <h3 className="font-bold text-text truncate leading-tight">{book.title}</h3>
-                              <p className="text-xs text-muted truncate mt-0.5">{book.author || 'Unknown author'}</p>
+                              <p className="text-xs text-muted truncate mt-0.5">{book.author || 'Penulis tidak diketahui'}</p>
                             </div>
-                            <button onClick={() => handleDelete(book.id)} aria-label="Delete" className="p-1.5 text-muted hover:text-rose-500 bg-text/5 hover:bg-rose-500/10 rounded-lg transition-colors shrink-0">
+                            <button onClick={() => handleDelete(book.id)} aria-label="Padam" className="p-1.5 text-muted hover:text-rose-500 bg-text/5 hover:bg-rose-500/10 rounded-lg transition-colors shrink-0">
                               <Trash2 size={15} />
                             </button>
                           </div>
                           <div className="flex items-baseline gap-2 mt-2">
                             <span className="text-2xl font-black text-violet-500">{pct}%</span>
-                            <span className="text-xs text-muted">complete</span>
+                            <span className="text-xs text-muted">siap</span>
                           </div>
                         </div>
                       </div>
@@ -671,10 +671,10 @@ export default function BookTracker() {
                             onChange={(e) => setProgressExact(book, parseInt(e.target.value) || 0)}
                             className="w-16 px-2 py-1 bg-surface border border-text/10 rounded-lg text-text text-center focus:outline-none focus:border-violet-500/50"
                           />
-                          <span>/ {book.totalPages || '?'} pages</span>
+                          <span>/ {book.totalPages || '?'} muka surat</span>
                         </div>
                         <button onClick={() => markCompleted(book)} className="px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-500 font-bold hover:bg-emerald-500/25 transition-colors flex items-center gap-1">
-                          <CheckCircle size={14} /> Finish
+                          <CheckCircle size={14} /> Habiskan
                         </button>
                       </div>
 
@@ -682,7 +682,7 @@ export default function BookTracker() {
                       <div className="grid grid-cols-3 gap-2 mt-3">
                         {[5, 10, 25].map(n => (
                           <button key={n} onClick={() => updateProgress(book, n)} className="py-2.5 rounded-xl bg-violet-500/10 text-violet-500 font-bold text-sm hover:bg-violet-500/20 active:scale-95 transition-all">
-                            +{n} Pages
+                            +{n} Muka Surat
                           </button>
                         ))}
                       </div>
@@ -697,13 +697,13 @@ export default function BookTracker() {
           {activeTab === 'completed' && (
             <div className="space-y-6 animate-fade-in">
               {completedBooks.length === 0 ? (
-                <EmptyState icon={CheckCircle} title="No finished books yet" sub="Books you complete will be archived here, grouped by year." />
+                <EmptyState icon={CheckCircle} title="Belum ada buku selesai" sub="Buku yang anda habiskan akan disimpan di sini, mengikut tahun." />
               ) : (
                 completedByYear.map(([year, list]) => (
                   <div key={year}>
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="font-black text-lg text-text">{year}</h3>
-                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 text-xs font-bold">{list.length} finished</span>
+                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 text-xs font-bold">{list.length} selesai</span>
                     </div>
                     <div className="space-y-3">
                       {list.map(b => <BookRow key={b.id} book={b} />)}
@@ -718,7 +718,7 @@ export default function BookTracker() {
           {activeTab === 'wishlist' && (
             <div className="space-y-4 animate-fade-in">
               {wishlistBooks.length === 0 ? (
-                <EmptyState icon={Bookmark} title="Wishlist is empty" sub="Save books you want to buy or read next." cta="Add to Wishlist" onCta={() => openAdd('wishlist')} />
+                <EmptyState icon={Bookmark} title="Senarai hajat kosong" sub="Simpan buku yang anda nak beli atau baca seterusnya." cta="Tambah ke Senarai Hajat" onCta={() => openAdd('wishlist')} />
               ) : (
                 wishlistBooks.map(b => <BookRow key={b.id} book={b} />)
               )}
@@ -729,26 +729,26 @@ export default function BookTracker() {
           {activeTab === 'notes' && (
             <div className="space-y-5 animate-fade-in">
               {books.length === 0 ? (
-                <EmptyState icon={Quote} title="No books to annotate" sub="Add a book first, then save quotes and notes from it." cta="Add a Book" onCta={() => openAdd()} />
+                <EmptyState icon={Quote} title="Tiada buku untuk dinotakan" sub="Tambah buku dahulu, kemudian simpan petikan dan nota daripadanya." cta="Tambah Buku" onCta={() => openAdd()} />
               ) : (
                 <>
                   {/* add note form */}
                   <form onSubmit={addNote} className="glass-panel p-4 space-y-3">
-                    <h3 className="font-bold text-text flex items-center gap-2"><Quote size={18} className="text-violet-500" /> Add a Quote / Note</h3>
+                    <h3 className="font-bold text-text flex items-center gap-2"><Quote size={18} className="text-violet-500" /> Tambah Petikan / Nota</h3>
                     <select value={noteBookId} onChange={(e) => setNoteBookId(e.target.value)} className={inputCls + ' appearance-none'} required>
-                      <option value="">Select a book…</option>
+                      <option value="">Pilih buku…</option>
                       {books.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}
                     </select>
                     <div className="grid grid-cols-2 gap-2">
                       <select value={noteType} onChange={(e) => setNoteType(e.target.value as 'quote' | 'note')} className={inputCls + ' appearance-none'}>
-                        <option value="quote">Quote</option>
-                        <option value="note">Note</option>
+                        <option value="quote">Petikan</option>
+                        <option value="note">Nota</option>
                       </select>
-                      <input type="number" min="0" value={notePage} onChange={(e) => setNotePage(e.target.value)} placeholder="Page #" className={inputCls} />
+                      <input type="number" min="0" value={notePage} onChange={(e) => setNotePage(e.target.value)} placeholder="Muka surat" className={inputCls} />
                     </div>
-                    <textarea value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Type the quote or note…" className={inputCls + ' min-h-[70px]'} required />
+                    <textarea value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Taip petikan atau nota…" className={inputCls + ' min-h-[70px]'} required />
                     <button type="submit" className="w-full py-3 bg-violet-500 text-white rounded-xl font-bold hover:shadow-lg hover:shadow-violet-500/30 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
-                      <Plus size={18} /> Save
+                      <Plus size={18} /> Simpan
                     </button>
                   </form>
 
@@ -756,7 +756,7 @@ export default function BookTracker() {
                   {totalNotes === 0 ? (
                     <div className="text-center py-8 text-muted bg-surface/50 rounded-xl border border-dashed border-text/10">
                       <Quote size={32} className="mx-auto mb-2 opacity-50" />
-                      <p className="font-medium text-sm">No quotes saved yet.</p>
+                      <p className="font-medium text-sm">Tiada petikan disimpan lagi.</p>
                     </div>
                   ) : (
                     books.filter(b => b.notes.length > 0).map(book => (
@@ -778,11 +778,11 @@ export default function BookTracker() {
                                 <p className={`text-sm flex-1 ${n.type === 'quote' ? 'italic text-text/90' : 'text-text/80'}`}>
                                   {n.type === 'quote' ? `“${n.text}”` : n.text}
                                 </p>
-                                <button onClick={() => deleteNote(book.id, n.id)} aria-label="Delete note" className="p-1 text-muted hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                <button onClick={() => deleteNote(book.id, n.id)} aria-label="Padam nota" className="p-1 text-muted hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                                   <Trash2 size={14} />
                                 </button>
                               </div>
-                              {typeof n.page === 'number' && <div className="text-[11px] text-muted mt-1 pl-6">Page {n.page}</div>}
+                              {typeof n.page === 'number' && <div className="text-[11px] text-muted mt-1 pl-6">Muka surat {n.page}</div>}
                             </div>
                           ))}
                         </div>
@@ -799,11 +799,11 @@ export default function BookTracker() {
             <div className="space-y-6 animate-fade-in">
               <div className="grid grid-cols-2 gap-4">
                 <div className="glass-panel p-4">
-                  <div className="text-xs text-muted font-bold uppercase tracking-wider mb-1">Total Finished</div>
+                  <div className="text-xs text-muted font-bold uppercase tracking-wider mb-1">Jumlah Selesai</div>
                   <div className="text-3xl font-black text-text">{completedBooks.length}</div>
                 </div>
                 <div className="glass-panel p-4">
-                  <div className="text-xs text-muted font-bold uppercase tracking-wider mb-1">Pages All-Time</div>
+                  <div className="text-xs text-muted font-bold uppercase tracking-wider mb-1">Muka Surat Keseluruhan</div>
                   <div className="text-3xl font-black text-text">{completedBooks.reduce((s, b) => s + (b.totalPages || 0), 0).toLocaleString()}</div>
                 </div>
               </div>
@@ -811,12 +811,12 @@ export default function BookTracker() {
               <div className="glass-panel p-5">
                 <div className="flex items-center gap-2 mb-5 text-violet-500">
                   <BarChart3 size={20} />
-                  <h3 className="font-bold text-lg text-text">Books Finished by Year</h3>
+                  <h3 className="font-bold text-lg text-text">Buku Selesai Ikut Tahun</h3>
                 </div>
                 {yearlyStats.length === 0 ? (
                   <div className="text-center py-8 text-muted bg-surface/50 rounded-xl border border-dashed border-text/10">
                     <BarChart3 size={32} className="mx-auto mb-2 opacity-50" />
-                    <p className="font-medium text-sm">Finish a book to see your stats grow.</p>
+                    <p className="font-medium text-sm">Habiskan sebuah buku untuk lihat statistik anda.</p>
                   </div>
                 ) : (
                   <div className="flex items-end justify-around gap-3 h-56 pt-4">
@@ -829,7 +829,7 @@ export default function BookTracker() {
                             <div
                               key={i}
                               className="w-full max-w-[44px] rounded-[3px] bg-gradient-to-r from-violet-500 to-violet-400 shadow-sm border-b border-violet-700/40 flex-1"
-                              title={`${year}: book ${i + 1}`}
+                              title={`${year}: buku ${i + 1}`}
                             />
                           ))}
                         </div>
@@ -839,7 +839,7 @@ export default function BookTracker() {
                   </div>
                 )}
                 <p className="text-center text-[11px] text-muted mt-4 flex items-center justify-center gap-1">
-                  <Star size={11} className="text-violet-500" /> Each block is one finished book
+                  <Star size={11} className="text-violet-500" /> Setiap blok ialah satu buku selesai
                 </p>
               </div>
             </div>

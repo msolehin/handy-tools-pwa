@@ -16,7 +16,7 @@ const ICScanner: React.FC = () => {
 
   // Watermark States
   const [wmEnabled, setWmEnabled] = useState(false);
-  const [wmText, setWmText] = useState('FOR PRIVATE USE ONLY');
+  const [wmText, setWmText] = useState('UNTUK KEGUNAAN PERSENDIRIAN SAHAJA');
   const [wmColor, setWmColor] = useState('#000000');
   const [wmSize, setWmSize] = useState(10);
   const [wmRotation, setWmRotation] = useState(-30);
@@ -31,7 +31,7 @@ const ICScanner: React.FC = () => {
     setWmThickness(1);
     setWmOffset({ x: -15, y: 55 });
     setWmColor('#000000');
-    setWmText('FOR PRIVATE USE ONLY');
+    setWmText('UNTUK KEGUNAAN PERSENDIRIAN SAHAJA');
   };
   const [showWmAdvanced, setShowWmAdvanced] = useState(false);
 
@@ -244,7 +244,7 @@ const ICScanner: React.FC = () => {
       }
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Failed to generate PDF. Make sure your images are valid JPEG or PNG.');
+      alert('Gagal menjana PDF. Pastikan gambar anda dalam format JPEG atau PNG.');
     } finally {
       setIsGenerating(false);
     }
@@ -262,8 +262,8 @@ const ICScanner: React.FC = () => {
         <>
           <img src={image} alt={title} className="absolute inset-0 w-full h-full object-cover opacity-80" />
           <div className="absolute bottom-2 right-2 flex space-x-2 bg-black/60 p-2 rounded-lg backdrop-blur-sm z-10">
-            <button onClick={(e) => { e.stopPropagation(); onCamera(); }} className="p-1.5 hover:text-primary transition-colors text-text" title="Retake Photo"><Camera size={16} /></button>
-            <button onClick={(e) => { e.stopPropagation(); onFile(); }} className="p-1.5 hover:text-primary transition-colors text-text" title="Reupload Image"><Upload size={16} /></button>
+            <button onClick={(e) => { e.stopPropagation(); onCamera(); }} className="p-1.5 hover:text-primary transition-colors text-text" title="Ambil Semula Gambar"><Camera size={16} /></button>
+            <button onClick={(e) => { e.stopPropagation(); onFile(); }} className="p-1.5 hover:text-primary transition-colors text-text" title="Muat Naik Semula"><Upload size={16} /></button>
           </div>
         </>
       ) : (
@@ -272,11 +272,11 @@ const ICScanner: React.FC = () => {
           <div className="flex space-x-4">
             <button onClick={(e) => { e.stopPropagation(); onCamera(); }} className="flex flex-col items-center p-3 bg-text/5 rounded-xl hover:bg-text/10 transition-colors border border-text/10">
               <Camera className="text-primary mb-2" size={24} />
-              <span className="text-xs font-medium">Camera</span>
+              <span className="text-xs font-medium">Kamera</span>
             </button>
             <button onClick={(e) => { e.stopPropagation(); onFile(); }} className="flex flex-col items-center p-3 bg-text/5 rounded-xl hover:bg-text/10 transition-colors border border-text/10">
               <Upload className="text-primary mb-2" size={24} />
-              <span className="text-xs font-medium">Insert Image</span>
+              <span className="text-xs font-medium">Masukkan Gambar</span>
             </button>
           </div>
         </>
@@ -290,7 +290,7 @@ const ICScanner: React.FC = () => {
         <h2 className="text-2xl font-bold">IC Palang</h2>
         {(frontImage || backImage) && (
           <button onClick={reset} className="text-xs text-muted hover:text-text transition-colors">
-            Reset All
+            Set Semula
           </button>
         )}
       </div>
@@ -313,7 +313,7 @@ const ICScanner: React.FC = () => {
           onChange={(e) => handleImageUpload(e, 'front')} 
         />
         <UploadBox 
-          title="Front Side" 
+          title="Bahagian Depan" 
           image={frontImage} 
           onCamera={() => {
             if (frontCameraRef.current) frontCameraRef.current.value = '';
@@ -342,7 +342,7 @@ const ICScanner: React.FC = () => {
           onChange={(e) => handleImageUpload(e, 'back')} 
         />
         <UploadBox 
-          title="Back Side" 
+          title="Bahagian Belakang" 
           image={backImage} 
           onCamera={() => {
             if (backCameraRef.current) backCameraRef.current.value = '';
@@ -359,7 +359,7 @@ const ICScanner: React.FC = () => {
         <div className="glass-panel p-4 space-y-4">
           <div>
             <div className="flex justify-between items-center mb-2">
-              <label className="text-sm font-medium text-text/90">Card Print Size</label>
+              <label className="text-sm font-medium text-text/90">Saiz Cetakan Kad</label>
               <span className="text-xs text-primary font-bold bg-primary/10 px-2 py-1 rounded-md">
                 {Math.round(cardScale * 100)}%
               </span>
@@ -376,7 +376,7 @@ const ICScanner: React.FC = () => {
           </div>
 
           <div className="mt-6">
-            <p className="text-xs text-muted mb-2 text-center">Live A4 Print Preview</p>
+            <p className="text-xs text-muted mb-2 text-center">Pratonton Cetakan A4 Langsung</p>
             <div 
               className="w-full max-w-[240px] mx-auto bg-[#f8fafc] rounded shadow-2xl relative overflow-hidden ring-1 ring-text/10 touch-none" 
               style={{ aspectRatio: '1 / 1.414' }}
@@ -419,7 +419,7 @@ const ICScanner: React.FC = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Type className="text-primary" size={18} />
-            <h3 className="font-semibold text-text/90">Add Watermark (Palang)</h3>
+            <h3 className="font-semibold text-text/90">Tambah Tera Air (Palang)</h3>
           </div>
           <button 
             onClick={() => setWmEnabled(!wmEnabled)}
@@ -432,16 +432,16 @@ const ICScanner: React.FC = () => {
         {wmEnabled && (
           <div className="space-y-4 animate-slide-up mt-4 pt-4 border-t border-text/10">
             <div>
-              <label className="block text-sm text-muted mb-2">Watermark Text</label>
+              <label className="block text-sm text-muted mb-2">Teks Tera Air</label>
               <input 
                 type="text" 
                 value={wmText}
                 onChange={(e) => setWmText(e.target.value)}
                 className="input-field w-full"
-                placeholder="e.g. FOR PRIVATE USE ONLY"
+                placeholder="cth. UNTUK KEGUNAAN PERSENDIRIAN SAHAJA"
               />
               <div className="flex flex-wrap gap-2 mt-2">
-                {['FOR PRIVATE USE ONLY', 'FOR BANK USE ONLY', 'FOR LOAN APPLICATION'].map(t => (
+                {['UNTUK KEGUNAAN PERSENDIRIAN SAHAJA', 'UNTUK KEGUNAAN BANK SAHAJA', 'UNTUK PERMOHONAN PINJAMAN'].map(t => (
                   <button key={t} onClick={() => setWmText(t)} className="text-[10px] bg-text/5 hover:bg-text/10 px-2 py-1 rounded">
                     {t}
                   </button>
@@ -450,7 +450,7 @@ const ICScanner: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-between">
-              <label className="text-sm text-muted">Color</label>
+              <label className="text-sm text-muted">Warna</label>
               <div className="flex space-x-2">
                 {['#000000', '#EF4444', '#3B82F6', '#10B981', '#ffffff'].map(c => (
                   <button 
@@ -469,36 +469,36 @@ const ICScanner: React.FC = () => {
                 className="flex items-center text-xs text-primary hover:text-primary/80 transition-colors"
               >
                 <Settings2 size={14} className="mr-1" />
-                <span>Advanced Settings</span>
+                <span>Tetapan Lanjutan</span>
                 <ChevronDown size={14} className={`ml-1 transition-transform ${showWmAdvanced ? 'rotate-180' : ''}`} />
               </button>
               
               <button onClick={resetWmSettings} className="text-[10px] text-muted hover:text-text transition-colors underline">
-                Reset Position & Settings
+                Set Semula Kedudukan & Tetapan
               </button>
             </div>
               
               {showWmAdvanced && (
                 <div className="grid grid-cols-2 gap-4 mt-4 bg-black/20 p-3 rounded-xl border border-text/5">
                   <div>
-                    <label className="block text-[10px] text-muted mb-1">Size ({wmSize}px)</label>
+                    <label className="block text-[10px] text-muted mb-1">Saiz ({wmSize}px)</label>
                     <input type="range" min="5" max="14" value={wmSize} onChange={(e) => setWmSize(parseInt(e.target.value))} className="w-full accent-primary" />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-muted mb-1">Rotation ({wmRotation}°)</label>
+                    <label className="block text-[10px] text-muted mb-1">Putaran ({wmRotation}°)</label>
                     <input type="range" min="-90" max="90" value={wmRotation} onChange={(e) => setWmRotation(parseInt(e.target.value))} className="w-full accent-primary" />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-muted mb-1">Opacity ({Math.round(wmOpacity * 100)}%)</label>
+                    <label className="block text-[10px] text-muted mb-1">Kelegapan ({Math.round(wmOpacity * 100)}%)</label>
                     <input type="range" min="0.1" max="1.0" step="0.1" value={wmOpacity} onChange={(e) => setWmOpacity(parseFloat(e.target.value))} className="w-full accent-primary" />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-muted mb-1">Thickness ({wmThickness}px)</label>
+                    <label className="block text-[10px] text-muted mb-1">Ketebalan ({wmThickness}px)</label>
                     <input type="range" min="1" max="4" value={wmThickness} onChange={(e) => setWmThickness(parseInt(e.target.value))} className="w-full accent-primary" />
                   </div>
                 </div>
               )}
-            <p className="text-[10px] text-muted italic">Tip: You can drag the watermark directly on the preview above to move it!</p>
+            <p className="text-[10px] text-muted italic">Tip: Anda boleh seret tera air terus pada pratonton di atas untuk alihkannya!</p>
           </div>
         )}
       </div>
@@ -513,17 +513,17 @@ const ICScanner: React.FC = () => {
         ) : (
           <Download />
         )}
-        <span>{isGenerating ? 'Generating...' : 'Generate & Download PDF'}</span>
+        <span>{isGenerating ? 'Menjana...' : 'Jana & Muat Turun PDF'}</span>
       </button>
 
       <p className="text-xs text-center text-muted">
-        All processing is done locally on your device. No images are uploaded to any server.
+        Semua pemprosesan dibuat secara setempat pada peranti anda. Tiada gambar dimuat naik ke mana-mana pelayan.
       </p>
 
       {croppingImage && createPortal(
         <div className="fixed inset-0 z-[100] bg-background flex flex-col animate-fade-in">
           <div className="flex-1 min-h-0 relative bg-black/80 flex flex-col">
-            <h3 className="text-center py-4 font-semibold text-text">Adjust Crop Area</h3>
+            <h3 className="text-center py-4 font-semibold text-text">Laraskan Kawasan Potong</h3>
             <div className="flex-1 min-h-0 overflow-hidden">
               <Cropper
                 src={croppingImage}
@@ -547,7 +547,7 @@ const ICScanner: React.FC = () => {
               className="btn-secondary flex-1 flex items-center justify-center space-x-2 py-4"
             >
               <X size={20} />
-              <span>Cancel</span>
+              <span>Batal</span>
             </button>
             <button 
               onClick={() => {
@@ -563,7 +563,7 @@ const ICScanner: React.FC = () => {
               className="btn-primary flex-1 flex items-center justify-center space-x-2 py-4"
             >
               <Check size={20} />
-              <span>Save Crop</span>
+              <span>Simpan Potongan</span>
             </button>
           </div>
         </div>

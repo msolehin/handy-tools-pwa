@@ -42,7 +42,7 @@ const CategoryChips: React.FC<CategoryChipsProps> = ({ cats, value, onSelect, on
             <span 
               onClick={(e) => { e.stopPropagation(); onRemove(c); }}
               className="p-1 rounded-full bg-black/20 hover:bg-black/40 text-white/80 hover:text-white transition-colors"
-              title="Delete Category"
+              title="Padam Kategori"
             >
               <X size={12} />
             </span>
@@ -57,7 +57,7 @@ const CategoryChips: React.FC<CategoryChipsProps> = ({ cats, value, onSelect, on
             type="text" 
             value={newVal}
             onChange={e => setNewVal(e.target.value)}
-            placeholder="New..."
+            placeholder="Baru..."
             className="bg-transparent border-none outline-none text-xs w-20 text-text placeholder:text-muted"
           />
           <button type="submit" className="p-1 text-emerald-400 hover:text-emerald-300 rounded-full"><Plus size={14} /></button>
@@ -69,7 +69,7 @@ const CategoryChips: React.FC<CategoryChipsProps> = ({ cats, value, onSelect, on
           onClick={() => setIsAdding(true)}
           className="px-3 py-1.5 rounded-full text-xs font-bold bg-text/5 text-muted hover:bg-text/10 hover:text-text border border-dashed border-text/20 flex items-center gap-1"
         >
-          <Plus size={12} /> Add
+          <Plus size={12} /> Tambah
         </button>
       )}
     </div>

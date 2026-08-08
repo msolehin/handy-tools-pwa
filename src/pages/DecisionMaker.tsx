@@ -14,10 +14,10 @@ const colors = [
 ];
 
 const DecisionMaker: React.FC = () => {
-  const defaultQuestion = 'Where should I eat?';
+  const defaultQuestion = 'Nak makan apa?';
   const defaultOptions = [
     { id: '1', text: 'Pizza' },
-    { id: '2', text: 'Burgers' },
+    { id: '2', text: 'Burger' },
     { id: '3', text: 'Sushi' },
     { id: '4', text: 'Salad' },
   ];
@@ -77,7 +77,7 @@ const DecisionMaker: React.FC = () => {
   };
 
   const handleResetOptions = () => {
-    if (window.confirm("Reset to default question and options?")) {
+    if (window.confirm("Set semula soalan dan pilihan asal?")) {
       setQuestion(defaultQuestion);
       setOptions(defaultOptions);
       resetGame();
@@ -87,7 +87,7 @@ const DecisionMaker: React.FC = () => {
   };
 
   const handleClearOptions = () => {
-    if (options.length > 0 && window.confirm("Clear all options?")) {
+    if (options.length > 0 && window.confirm("Kosongkan semua pilihan?")) {
       setOptions([]);
       resetGame();
     }
@@ -107,7 +107,7 @@ const DecisionMaker: React.FC = () => {
       setOptions(options.filter(o => o.id !== id));
       resetGame();
     } else {
-      alert("You need at least 2 options to make a decision!");
+      alert("Anda perlu sekurang-kurangnya 2 pilihan untuk buat keputusan!");
     }
   };
 
@@ -205,7 +205,7 @@ const DecisionMaker: React.FC = () => {
             setQuestion(e.target.value);
             resetGame();
           }}
-          placeholder="What do you want to decide?"
+          placeholder="Apa yang anda nak putuskan?"
           className="text-2xl font-bold bg-transparent text-center border-b border-transparent hover:border-text/20 focus:border-primary focus:outline-none transition-colors w-full px-2 py-1"
         />
       </div>
@@ -262,12 +262,12 @@ const DecisionMaker: React.FC = () => {
           {tiedOptions && !isSpinning ? <Swords size={24} /> : <Play fill="currentColor" size={24} />}
           <span>
             {isSpinning 
-              ? 'Spinning...' 
+              ? 'Sedang pusing...' 
               : tiedOptions 
-                ? 'TIEBREAKER!' 
+                ? 'PECAH SERI!' 
                 : isMultiSpin && spinResults.length > 0 
-                  ? `SPIN ${spinResults.length + 1}` 
-                  : 'SPIN!'}
+                  ? `PUSING ${spinResults.length + 1}` 
+                  : 'PUSING!'}
           </span>
         </button>
       </div>
@@ -286,11 +286,11 @@ const DecisionMaker: React.FC = () => {
               disabled={isSpinning}
               className="w-4 h-4 rounded border-text/20 bg-text/5 text-primary focus:ring-primary focus:ring-offset-background"
             />
-            <label htmlFor="multiSpinToggle" className="text-sm font-medium">Best of Mode</label>
+            <label htmlFor="multiSpinToggle" className="text-sm font-medium">Mod Best Of</label>
           </div>
           {isMultiSpin && (
             <div className="flex items-center space-x-2">
-              <span className="text-sm text-muted">Total Spins:</span>
+              <span className="text-sm text-muted">Jumlah Pusingan:</span>
               <input 
                 type="number" 
                 min="2" max="15"
@@ -309,9 +309,9 @@ const DecisionMaker: React.FC = () => {
         {isMultiSpin && (
           <div className="bg-text/5 rounded-xl p-3 border border-text/5">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-[10px] font-bold text-muted uppercase tracking-wider">Scoreboard</span>
+              <span className="text-[10px] font-bold text-muted uppercase tracking-wider">Papan Markah</span>
               <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${tiedOptions ? 'bg-red-500/20 text-red-400' : 'bg-primary/20 text-primary'}`}>
-                {tiedOptions ? 'Sudden Death' : `Round ${Math.min(spinResults.length + 1, totalSpins)} of ${totalSpins}`}
+                {tiedOptions ? 'Sudden Death' : `Pusingan ${Math.min(spinResults.length + 1, totalSpins)} dari ${totalSpins}`}
               </span>
             </div>
             
@@ -334,7 +334,7 @@ const DecisionMaker: React.FC = () => {
             {spinResults.length > 0 && !tiedOptions && (
               <div className="mt-3 text-center">
                 <button onClick={resetGame} disabled={isSpinning} className="text-xs text-muted hover:text-text transition-colors">
-                  Restart Series
+                  Mula Semula Siri
                 </button>
               </div>
             )}
@@ -344,21 +344,21 @@ const DecisionMaker: React.FC = () => {
 
       <div className="glass-panel p-4 space-y-4">
         <div className="flex justify-between items-center mb-2">
-          <h3 className="font-semibold">Options ({options.length}/24)</h3>
+          <h3 className="font-semibold">Pilihan ({options.length}/24)</h3>
           <div className="flex space-x-3">
             <button 
               onClick={handleClearOptions}
               disabled={isSpinning || options.length === 0 || spinResults.length > 0}
               className="text-xs flex items-center text-muted hover:text-red-400 transition-colors disabled:opacity-50"
             >
-              <Trash2 size={12} className="mr-1" /> Clear
+              <Trash2 size={12} className="mr-1" /> Kosongkan
             </button>
             <button 
               onClick={handleResetOptions}
               disabled={isSpinning || spinResults.length > 0}
               className="text-xs flex items-center text-muted hover:text-text transition-colors disabled:opacity-50"
             >
-              <RefreshCw size={12} className="mr-1" /> Reset
+              <RefreshCw size={12} className="mr-1" /> Set Semula
             </button>
           </div>
         </div>
@@ -386,7 +386,7 @@ const DecisionMaker: React.FC = () => {
             value={newOption}
             onChange={(e) => setNewOption(e.target.value)}
             disabled={isSpinning || options.length >= 24 || spinResults.length > 0}
-            placeholder={options.length >= 24 ? "Max 24 options" : "Add new option..."}
+            placeholder={options.length >= 24 ? "Maksimum 24 pilihan" : "Tambah pilihan baru..."}
             className="input-field flex-1"
           />
           <button 
@@ -403,7 +403,7 @@ const DecisionMaker: React.FC = () => {
       {intermediateWinner && !winner && !isTieAnnounced && (
         <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4 animate-fade-in backdrop-blur-sm" onClick={() => setIntermediateWinner(null)}>
           <div className="bg-surface border border-text/20 p-8 rounded-2xl w-full max-w-sm text-center shadow-2xl transform transition-all scale-100 animate-bounce-short" onClick={e => e.stopPropagation()}>
-            <p className="text-muted text-sm uppercase tracking-wider mb-2">Round {spinResults.length} Winner</p>
+            <p className="text-muted text-sm uppercase tracking-wider mb-2">Pemenang Pusingan {spinResults.length}</p>
             <h2 className="text-3xl font-bold text-text mb-6">
               {intermediateWinner.text}
             </h2>
@@ -411,7 +411,7 @@ const DecisionMaker: React.FC = () => {
               onClick={() => setIntermediateWinner(null)}
               className="btn-secondary w-full py-3 text-text bg-text/10 border-text/20 hover:bg-text/20"
             >
-              Continue to Next Spin
+              Teruskan ke Pusingan Seterusnya
             </button>
           </div>
         </div>
@@ -426,15 +426,15 @@ const DecisionMaker: React.FC = () => {
                 <Swords size={48} className="text-red-400" />
               </div>
             </div>
-            <h2 className="text-3xl font-black text-red-400 uppercase tracking-widest mb-2">It's a TIE!</h2>
+            <h2 className="text-3xl font-black text-red-400 uppercase tracking-widest mb-2">SERI!</h2>
             <p className="text-text/80 mb-6 leading-relaxed">
-              The leaders are tied with equal wins. Entering <strong className="text-red-400">Sudden Death Mode</strong>. First to win the next spin takes it all!
+              Pendahulu seri dengan jumlah kemenangan sama. Masuk <strong className="text-red-400">Mod Sudden Death</strong>. Siapa menang pusingan seterusnya ambil semua!
             </p>
             <button 
               onClick={() => setIsTieAnnounced(false)}
               className="w-full py-3 bg-red-500 hover:bg-red-600 text-text font-bold rounded-xl transition-colors shadow-lg shadow-red-500/20"
             >
-              Begin Tiebreaker!
+              Mula Pecah Seri!
             </button>
           </div>
         </div>
@@ -450,7 +450,7 @@ const DecisionMaker: React.FC = () => {
               </div>
             </div>
             <p className="text-primary font-bold text-sm uppercase tracking-wider mb-2">
-              {isMultiSpin ? 'Grand Winner!' : 'The Wheel has spoken!'}
+              {isMultiSpin ? 'Pemenang Besar!' : 'Roda dah berkata!'}
             </p>
             <h2 className="text-4xl font-black text-text mb-6 break-words leading-tight">
               {winner.text}
@@ -459,7 +459,7 @@ const DecisionMaker: React.FC = () => {
               onClick={resetGame}
               className="btn-primary w-full py-3 text-lg"
             >
-              Awesome!
+              Mantap!
             </button>
           </div>
         </div>

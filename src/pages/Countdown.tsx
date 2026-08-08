@@ -19,7 +19,7 @@ interface CountdownEvent {
 const hueOf = (title: string) => [...title].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
 
 const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+  new Date(iso).toLocaleDateString('ms-MY', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
 
 const Countdown: React.FC = () => {
   const [events, setEvents] = useState<CountdownEvent[]>(() => {
@@ -77,7 +77,7 @@ const Countdown: React.FC = () => {
   };
 
   const removeEvent = (event: CountdownEvent) => {
-    if (window.confirm(`Delete the countdown to ${event.title}?`)) {
+    if (window.confirm(`Padam countdown ke ${event.title}?`)) {
       setEvents(prev => prev.filter(ev => ev.id !== event.id));
     }
   };
@@ -87,10 +87,10 @@ const Countdown: React.FC = () => {
   const passed = dated.filter(d => d.days < 0).sort((a, b) => b.days - a.days);
 
   const subtitle = events.length === 0
-    ? 'The trip, the wedding, the last day of work'
+    ? 'Percutian, majlis kahwin, hari terakhir kerja'
     : upcoming.length === 0
-      ? 'Nothing ahead — add the next one'
-      : `Next up in ${upcoming[0].days === 0 ? 'no time' : `${upcoming[0].days} days`}`;
+      ? 'Tiada apa di hadapan — tambah yang seterusnya'
+      : `Seterusnya dalam ${upcoming[0].days === 0 ? 'hari ini' : `${upcoming[0].days} hari`}`;
 
   const actions = (event: CountdownEvent, onDark: boolean) => (
     // z-10: the poster's text block is `relative` and comes later in the DOM, so without this it
@@ -98,7 +98,7 @@ const Countdown: React.FC = () => {
     <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
       <button
         onClick={() => openForm(event)}
-        aria-label={`Edit ${event.title}`}
+        aria-label={`Sunting ${event.title}`}
         className={`p-2 rounded-lg backdrop-blur-md transition-colors ${
           onDark ? 'bg-[#000]/55 text-[#fff] hover:bg-[#000]/75'
             : 'bg-text/5 text-muted hover:text-text hover:bg-text/10'
@@ -108,7 +108,7 @@ const Countdown: React.FC = () => {
       </button>
       <button
         onClick={() => removeEvent(event)}
-        aria-label={`Delete ${event.title}`}
+        aria-label={`Padam ${event.title}`}
         className={`p-2 rounded-lg backdrop-blur-md transition-colors ${
           onDark ? 'bg-[#000]/55 text-[#fff] hover:text-rose-300 hover:bg-[#000]/75'
             : 'bg-text/5 text-muted hover:text-rose-500 hover:bg-rose-500/10'
@@ -135,7 +135,7 @@ const Countdown: React.FC = () => {
         onClick={() => openForm()}
         className="w-full py-4 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-pink-500/50 hover:text-pink-500 light:hover:text-pink-700 transition-all flex items-center justify-center"
       >
-        <Plus size={20} className="mr-2" /> Add Countdown
+        <Plus size={20} className="mr-2" /> Tambah Countdown
       </button>
 
       <div className="space-y-4">
@@ -171,10 +171,10 @@ const Countdown: React.FC = () => {
                   {event.title}
                 </p>
                 <p className="font-display font-extrabold leading-[0.85] tracking-tight text-[#fff] text-6xl mt-1">
-                  {days === 0 ? 'Today' : days}
+                  {days === 0 ? 'Hari Ini' : days}
                 </p>
                 <p className="text-xs text-[#fff]/90 mt-2">
-                  {days === 0 ? formatDate(event.targetDate) : `days · ${formatDate(event.targetDate)}`}
+                  {days === 0 ? formatDate(event.targetDate) : `hari · ${formatDate(event.targetDate)}`}
                 </p>
               </div>
             </div>
@@ -183,7 +183,7 @@ const Countdown: React.FC = () => {
 
         {events.length === 0 && (
           <div className="text-center p-8 text-muted text-sm border border-dashed border-text/10 rounded-2xl">
-            Nothing to count down to yet. Add the trip, the wedding, the last day of work.
+            Belum ada apa-apa untuk dikira. Tambah percutian, majlis kahwin, hari terakhir kerja.
           </div>
         )}
       </div>
@@ -191,13 +191,13 @@ const Countdown: React.FC = () => {
       {passed.length > 0 && (
         <div className="space-y-2">
           <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted px-1">
-            Passed · {passed.length}
+            Sudah Lepas · {passed.length}
           </h3>
           {passed.map(({ event, days }) => (
             <div key={event.id} className="glass-panel relative p-3 pr-24 flex items-center gap-3">
               <div className="w-11 h-11 rounded-xl bg-text/5 flex flex-col items-center justify-center shrink-0">
                 <span className="font-mono text-sm font-bold text-muted leading-none">{Math.abs(days)}</span>
-                <span className="text-[8px] uppercase tracking-wider text-muted">days</span>
+                <span className="text-[8px] uppercase tracking-wider text-muted">hari</span>
               </div>
               <div className="min-w-0">
                 <p className="font-bold text-text/70 truncate">{event.title}</p>
@@ -215,31 +215,31 @@ const Countdown: React.FC = () => {
           onClick={() => setShowForm(false)}
           role="dialog"
           aria-modal="true"
-          aria-label={fId ? 'Edit countdown' : 'Add countdown'}
+          aria-label={fId ? 'Sunting countdown' : 'Tambah countdown'}
         >
           <div
             className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up motion-reduce:animate-none"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-lg">{fId ? 'Edit countdown' : 'Add countdown'}</h3>
-              <button onClick={() => setShowForm(false)} aria-label="Close" className="p-1 text-muted hover:text-text"><X size={20} /></button>
+              <h3 className="font-bold text-lg">{fId ? 'Sunting countdown' : 'Tambah countdown'}</h3>
+              <button onClick={() => setShowForm(false)} aria-label="Tutup" className="p-1 text-muted hover:text-text"><X size={20} /></button>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="cd-title">Event</label>
+              <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="cd-title">Acara</label>
               <input
                 id="cd-title"
                 autoFocus
                 value={fTitle}
                 onChange={e => setFTitle(e.target.value)}
-                placeholder="e.g. Balik kampung, Wedding, Exam"
+                placeholder="cth. Balik kampung, Kahwin, Peperiksaan"
                 className="input-field w-full"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="cd-date">Happens on</label>
+              <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="cd-date">Tarikh</label>
               <input
                 id="cd-date"
                 type="date"
@@ -250,20 +250,20 @@ const Countdown: React.FC = () => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Photo (optional)</label>
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">Gambar (pilihan)</label>
               <input type="file" accept="image/*" onChange={handleImageUpload} ref={fileInputRef} className="hidden" id="cd-image-upload" />
               {fImage ? (
                 <div className="relative h-28 rounded-xl overflow-hidden border border-text/10">
                   <img src={fImage} alt="" className="w-full h-full object-cover" />
                   <button
                     onClick={clearImage}
-                    aria-label="Remove photo"
+                    aria-label="Buang gambar"
                     className="absolute top-2 right-2 p-1.5 rounded-lg bg-[#000]/50 text-[#fff]/80 hover:text-[#fff] backdrop-blur-md"
                   >
                     <X size={14} />
                   </button>
                   <span className="absolute bottom-2 left-2 flex items-center gap-1 text-[11px] font-bold text-[#fff]/90 bg-[#000]/50 px-2 py-1 rounded-lg backdrop-blur-md">
-                    <Check size={12} /> Photo added
+                    <Check size={12} /> Gambar ditambah
                   </span>
                 </div>
               ) : (
@@ -271,7 +271,7 @@ const Countdown: React.FC = () => {
                   htmlFor="cd-image-upload"
                   className="flex items-center justify-center gap-2 h-16 rounded-xl border border-dashed border-text/15 bg-text/5 text-muted text-sm cursor-pointer hover:text-text hover:bg-text/10 transition-colors"
                 >
-                  <ImageIcon size={18} /> Choose a photo
+                  <ImageIcon size={18} /> Pilih gambar
                 </label>
               )}
             </div>
@@ -281,7 +281,7 @@ const Countdown: React.FC = () => {
               disabled={!canSave}
               className="w-full py-3 rounded-xl bg-pink-600 text-[#fff] font-bold hover:bg-pink-700 disabled:opacity-50 disabled:pointer-events-none"
             >
-              {fId ? 'Save changes' : 'Start counting down'}
+              {fId ? 'Simpan Perubahan' : 'Mula Kira Detik'}
             </button>
           </div>
         </div>

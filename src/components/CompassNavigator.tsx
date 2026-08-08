@@ -64,7 +64,7 @@ export const CompassNavigator: React.FC<Props> = ({ targetLat, targetLng, onClos
         if (permission === 'granted') {
           window.addEventListener('deviceorientation', handleOrientation);
         } else {
-          setError("Compass permission denied.");
+          setError("Kebenaran kompas ditolak.");
         }
       } else {
         window.addEventListener('deviceorientationabsolute', handleOrientation);
@@ -86,14 +86,14 @@ export const CompassNavigator: React.FC<Props> = ({ targetLat, targetLng, onClos
             setHeading(pos.coords.heading);
           }
         },
-        (err) => setError("Location error: " + err.message),
+        (err) => setError("Ralat lokasi: " + err.message),
         { enableHighAccuracy: true, maximumAge: 0 }
       );
       
       setWatchId(id);
       setStarted(true);
     } catch (err: any) {
-      setError(err.message || "Failed to start navigation");
+      setError(err.message || "Gagal memulakan navigasi");
     }
   };
 
@@ -121,12 +121,12 @@ export const CompassNavigator: React.FC<Props> = ({ targetLat, targetLng, onClos
           <div className="mx-auto w-16 h-16 bg-primary/20 text-primary flex items-center justify-center rounded-2xl">
             <Compass size={32} />
           </div>
-          <h2 className="text-xl font-bold">Start In-App Navigation</h2>
+          <h2 className="text-xl font-bold">Mula Navigasi Dalam App</h2>
           <p className="text-muted text-sm">
-            This will use your device's compass and location to guide you back to your parking spot.
+            Ini akan guna kompas dan lokasi peranti anda untuk pandu anda kembali ke tempat parking.
           </p>
           <button onClick={startNavigation} className="btn-primary w-full py-4 text-lg">
-            Start Compass
+            Mula Kompas
           </button>
           {error && <p className="text-red-400 text-sm">{error}</p>}
         </div>
@@ -158,16 +158,16 @@ export const CompassNavigator: React.FC<Props> = ({ targetLat, targetLng, onClos
               </div>
 
               <div className="text-center space-y-2 glass-panel p-6 w-full max-w-sm">
-                <p className="text-muted uppercase tracking-widest text-xs font-semibold">Distance to vehicle</p>
+                <p className="text-muted uppercase tracking-widest text-xs font-semibold">Jarak ke kenderaan</p>
                 {distance !== null ? (
                   <div className="text-5xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                    {distance < 10 ? 'Arrived!' : `${Math.round(distance)}m`}
+                    {distance < 10 ? 'Dah sampai!' : `${Math.round(distance)}m`}
                   </div>
                 ) : (
-                  <div className="text-2xl font-bold text-text animate-pulse">Calculating...</div>
+                  <div className="text-2xl font-bold text-text animate-pulse">Mengira...</div>
                 )}
                 <p className="text-xs text-muted pt-2">
-                  Follow the arrow. It rotates dynamically based on your device compass.
+                  Ikut anak panah. Ia berputar mengikut kompas peranti anda.
                 </p>
               </div>
             </>

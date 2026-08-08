@@ -120,7 +120,7 @@ const WaterTracker: React.FC = () => {
   };
 
   const reset = () => {
-    if (window.confirm('Are you sure you want to reset your water intake for today?')) {
+    if (window.confirm('Anda pasti mahu set semula pengambilan air hari ini?')) {
       const newData = {
         ...data,
         intake: 0,
@@ -152,15 +152,15 @@ const WaterTracker: React.FC = () => {
             <Droplets size={24} />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-text/90">Hydration</h1>
-            <p className="text-xs text-muted">Daily Goal: {data.goal}ml</p>
+            <h1 className="text-xl font-bold tracking-tight text-text/90">Minum</h1>
+            <p className="text-xs text-muted">Sasaran Harian: {data.goal}ml</p>
           </div>
         </div>
         <div className="flex items-center space-x-2">
           {needsPermission && !motionEnabled && (
             <button
               onClick={enableMotion}
-              title="Enable tilt motion"
+              title="Hidupkan gerakan condong"
               className="p-3 bg-blue-500/15 rounded-xl hover:bg-blue-500/25 text-blue-400 border border-blue-500/30 transition-colors active:scale-90"
             >
               <Smartphone size={20} />
@@ -180,12 +180,12 @@ const WaterTracker: React.FC = () => {
           {data.intake}<span className="text-2xl text-text/70">ml</span>
         </h2>
         <p className="text-xl font-bold mt-2 text-blue-200 drop-shadow-md bg-black/20 px-4 py-1 rounded-full backdrop-blur-sm">
-          {percentage}% Complete
+          {percentage}% Selesai
         </p>
         
         {data.intake >= data.goal && (
           <div className="mt-4 px-4 py-2 bg-emerald-500/20 text-emerald-300 font-bold rounded-xl border border-emerald-500/30 animate-fade-in backdrop-blur-md">
-            Goal Reached! 🎉
+            Sasaran Tercapai! 🎉
           </div>
         )}
       </div>
@@ -223,7 +223,7 @@ const WaterTracker: React.FC = () => {
               className="flex items-center space-x-2 px-4 py-2 bg-text/5 rounded-full text-sm font-medium text-muted hover:text-text hover:bg-text/10 transition-colors"
             >
               <Undo2 size={16} />
-              <span>Undo</span>
+              <span>Buat Asal</span>
             </button>
           )}
           {data.intake > 0 && (
@@ -232,7 +232,7 @@ const WaterTracker: React.FC = () => {
               className="flex items-center space-x-2 px-4 py-2 bg-rose-500/10 text-rose-400 rounded-full text-sm font-medium hover:bg-rose-500/20 transition-colors border border-rose-500/20"
             >
               <RotateCcw size={16} />
-              <span>Reset</span>
+              <span>Set Semula</span>
             </button>
           )}
         </div>
@@ -277,11 +277,11 @@ const WaterTracker: React.FC = () => {
               <X size={18} />
             </button>
             
-            <h2 className="text-xl font-bold mb-6">Settings</h2>
+            <h2 className="text-xl font-bold mb-6">Tetapan</h2>
             
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Daily Goal (ml)</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">Sasaran Harian (ml)</label>
                 <input 
                   type="number"
                   inputMode="numeric"
@@ -294,7 +294,7 @@ const WaterTracker: React.FC = () => {
                 onClick={saveSettings}
                 className="w-full btn-primary bg-blue-500 hover:bg-blue-600 mt-6"
               >
-                Save
+                Simpan
               </button>
             </div>
           </div>
