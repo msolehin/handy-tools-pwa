@@ -137,6 +137,21 @@ const esc = (s: string) =>
 const line = (r: DueReminder) =>
   r.offsetDays === 1 ? 'Esok' : `${r.offsetDays} hari lagi`;
 
+/**
+ * Red at one day, orange at seven, yellow at thirty.
+ *
+ * A tinted pill rather than coloured text: yellow on white is 1.9:1 contrast, nowhere near the
+ * 4.5:1 body text needs, and a reminder nobody can read is worse than an uncoloured one. The
+ * light background carries the hue, the dark text of the same hue stays legible. All six values
+ * are Tailwind's 100/700 steps, so they match the palette the app already uses.
+ */
+const URGENCY: Record<number, { bg: string; fg: string }> = {
+  1: { bg: '#fee2e2', fg: '#b91c1c' },   // red-100 / red-700
+  7: { bg: '#ffedd5', fg: '#c2410c' },   // orange-100 / orange-700
+  30: { bg: '#fef9c3', fg: '#a16207' },  // yellow-100 / yellow-700
+};
+const urgencyOf = (days: number) => URGENCY[days] ?? URGENCY[30];
+
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -176,8 +191,8 @@ function emailHtml(d: Digest) {
         <a href="${APP_ORIGIN}${r.href}" style="color:#0f172a;font-weight:600;text-decoration:none">${esc(r.title)}</a>
         <div style="color:#64748b;font-size:13px;margin-top:2px">${esc(fmtDate(r.dueDate))}</div>
       </td>
-      <td align="right" valign="top" style="${cell};font-family:${FONT};text-align:right;white-space:nowrap;color:#b45309;font-weight:600;padding-left:12px">
-        ${line(r)}
+      <td align="right" valign="top" style="${cell};font-family:${FONT};text-align:right;white-space:nowrap;padding-left:12px">
+        <span style="display:inline-block;padding:4px 10px;border-radius:999px;background:${urgencyOf(r.offsetDays).bg};color:${urgencyOf(r.offsetDays).fg};font-size:13px;font-weight:700">${line(r)}</span>
       </td>
     </tr>`).join('');
 
