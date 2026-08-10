@@ -7,7 +7,9 @@
 // descriptor in tools.ts and no longer syncs. It was also the only recurring source, which
 // is why nothing here does anniversary arithmetic.
 import { Hono } from 'hono';
+import webpush from 'web-push';
 import { q } from './db.ts';
+import { requireUser } from './auth.ts';
 
 export type ReminderSource =
   | 'document' | 'contract' | 'asset' | 'countdown' | 'vehicle_service' | 'home_service';
@@ -208,8 +210,129 @@ reminders.get('/unsubscribe', async (c) => {
     </div>`);
 });
 
-// Replaced in Task 4 once both channels exist.
-const deliverDigest: Deliver = async () => false;
+export const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY ?? '';
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY ?? '';
+
+// A malformed key pair must not take the whole app down on boot — the rest of SenangKit works
+// fine without push, so this fails closed the way an unset ADMIN_EMAIL closes /admin.
+const pushConfigured = (() => {
+  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) return false;
+  try {
+    webpush.setVapidDetails('mailto:reminder@senangkit.app', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+    return true;
+  } catch (err) {
+    console.error('invalid VAPID keys, push disabled:', err);
+    return false;
+  }
+})();
+
+export async function sendPush(d: Digest): Promise<boolean> {
+  if (!pushConfigured) return false;
+
+  const { rows } = await q(
+    'select id, endpoint, p256dh, auth from push_subscriptions where user_id = $1', [d.userId]);
+  if (!rows.length) return false;
+
+  const first = d.items[0];
+  const payload = JSON.stringify({
+    title: d.items.length === 1 ? first.title : `${d.items.length} rekod nak tamat tempoh`,
+    body: d.items.length === 1
+      ? `${line(first)} — ${first.dueDate}`
+      : d.items.slice(0, 3).map((r) => `${r.title} (${line(r)})`).join('\n'),
+    href: d.items.length === 1 ? first.href : '/app',
+  });
+
+  let delivered = 0;
+  for (const sub of rows) {
+    try {
+      await webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload);
+      await q('update push_subscriptions set last_ok_at = now() where id = $1', [sub.id]);
+      delivered++;
+    } catch (err) {
+      // 404/410 means the browser threw the subscription away. Anything else is transient,
+      // so the row stays and tomorrow's run tries again.
+      const status = (err as { statusCode?: number }).statusCode;
+      if (status === 404 || status === 410) {
+        await q('delete from push_subscriptions where id = $1', [sub.id]);
+      } else {
+        console.error('push failed', status, err);
+      }
+    }
+  }
+  return delivered > 0;
+}
+
+/**
+ * Both channels fire when both are on — two independent switches, no precedence.
+ * Succeeds if either channel landed, so a dead push endpoint does not suppress the email.
+ */
+const deliverDigest: Deliver = async (d) => {
+  const results = await Promise.all([
+    d.emailEnabled ? sendEmail(d) : Promise.resolve(false),
+    d.pushEnabled ? sendPush(d) : Promise.resolve(false),
+  ]);
+  return results.some(Boolean);
+};
+
+reminders.get('/push/key', (c) => c.json({ key: VAPID_PUBLIC_KEY || null }));
+
+reminders.post('/push/subscribe', requireUser, async (c) => {
+  const body = await c.req.json().catch(() => null) as
+    { endpoint?: string; keys?: { p256dh?: string; auth?: string } } | null;
+
+  const endpoint = body?.endpoint;
+  const p256dh = body?.keys?.p256dh;
+  const auth = body?.keys?.auth;
+  if (!endpoint || !p256dh || !auth) return c.json({ error: 'invalid subscription' }, 400);
+
+  // Endpoint is unique: re-subscribing on the same browser updates rather than duplicating.
+  await q(
+    `insert into push_subscriptions (user_id, endpoint, p256dh, auth)
+     values ($1, $2, $3, $4)
+     on conflict (endpoint) do update
+       set user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth`,
+    [c.get('userId'), endpoint, p256dh, auth]);
+
+  await q(
+    `insert into notification_prefs (user_id, push_enabled) values ($1, true)
+     on conflict (user_id) do update set push_enabled = true, updated_at = now()`,
+    [c.get('userId')]);
+
+  return c.json({ ok: true });
+});
+
+reminders.delete('/push/subscribe', requireUser, async (c) => {
+  await q('delete from push_subscriptions where user_id = $1', [c.get('userId')]);
+  await q(
+    `insert into notification_prefs (user_id, push_enabled) values ($1, false)
+     on conflict (user_id) do update set push_enabled = false, updated_at = now()`,
+    [c.get('userId')]);
+  return c.json({ ok: true });
+});
+
+reminders.get('/notification-prefs', requireUser, async (c) => {
+  const { rows } = await q(
+    `insert into notification_prefs (user_id) values ($1)
+     on conflict (user_id) do update set user_id = excluded.user_id
+     returning email_enabled, push_enabled`, [c.get('userId')]);
+  return c.json({
+    emailEnabled: rows[0].email_enabled,
+    pushEnabled: rows[0].push_enabled,
+    pushConfigured,
+  });
+});
+
+reminders.put('/notification-prefs', requireUser, async (c) => {
+  const body = await c.req.json().catch(() => null) as { emailEnabled?: boolean } | null;
+  if (typeof body?.emailEnabled !== 'boolean') return c.json({ error: 'invalid' }, 400);
+
+  await q(
+    `insert into notification_prefs (user_id, email_enabled) values ($1, $2)
+     on conflict (user_id) do update set email_enabled = excluded.email_enabled, updated_at = now()`,
+    [c.get('userId'), body.emailEnabled]);
+  return c.json({ ok: true });
+});
 
 /**
  * One pass: find what is due, group it into one digest per user, deliver, record.
