@@ -26,7 +26,10 @@ export default defineConfig({
         // index.html, React would match nothing, and the `*` catch-all would bounce you to `/` —
         // working in a fresh browser and silently failing in the installed PWA.
         navigateFallbackDenylist: [/^\/api\//, /^\/admin/],
-        cleanupOutdatedCaches: true
+        cleanupOutdatedCaches: true,
+        // Push and notificationclick handlers. Kept out of this config so generateSW keeps
+        // owning precaching and the denylist above.
+        importScripts: ['/push-sw.js']
       },
       manifest: {
         name: 'SenangKit',
