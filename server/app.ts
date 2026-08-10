@@ -5,6 +5,7 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { hasDb, q, tx } from './db.ts';
 import { TOOLS, isKnownTool } from './tools.ts';
 import { admin } from './admin.ts';
+import { reminders } from './reminders.ts';
 import {
   GOOGLE_CLIENT_ID, verifyGoogleIdToken, upsertUser,
   createSession, destroySession, requireUser, sameOriginOnly,
@@ -174,6 +175,11 @@ api.post('/feedback', needsDb, requireUser, async (c) => {
     [uid, kind, target, message]);
   return c.json({ ok: true });
 });
+
+// Reminder prefs, push subscriptions, unsubscribe and the cron entry point. Mounted on `api`
+// rather than `app` so it inherits sameOriginOnly, and before the catch-all below or every
+// route in it would answer 404.
+api.route('/', reminders);
 
 // Anything under /api that we don't recognise must answer as JSON. If it fell through to the
 // SPA fallback below, the client would JSON.parse('<!doctype html>...') and the real error

@@ -334,6 +334,23 @@ reminders.put('/notification-prefs', requireUser, async (c) => {
   return c.json({ ok: true });
 });
 
+const CRON_SECRET = process.env.CRON_SECRET ?? '';
+
+/**
+ * Driven by Railway cron, not an in-process timer: a setInterval dies on every redeploy and
+ * fires twice if the service ever runs two instances.
+ *
+ * Fails closed — with CRON_SECRET unset this answers 404 for everyone, the way /admin does.
+ */
+reminders.post('/cron/reminders', async (c) => {
+  if (!CRON_SECRET) return c.notFound();
+  if (c.req.header('authorization') !== `Bearer ${CRON_SECRET}`) return c.notFound();
+
+  const result = await runReminders();
+  console.log('reminders run', result);
+  return c.json(result);
+});
+
 /**
  * One pass: find what is due, group it into one digest per user, deliver, record.
  * Returns counts for the cron response so a silent zero is visible in the logs.
