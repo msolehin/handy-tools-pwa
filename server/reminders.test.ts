@@ -96,6 +96,19 @@ describe('reminders', { skip: skip && 'DATABASE_URL not set' }, () => {
       'one digest carrying all four, not four separate deliveries');
   });
 
+  test('the digest is ordered most urgent first', async () => {
+    await pool!.query('delete from reminder_sends where user_id = $1', [userId]);
+
+    let seen = [];
+    await runReminders(async (d) => {
+      if (d.userId === userId) seen = d.items.map((i) => i.offsetDays);
+      return true;
+    });
+
+    assert.deepEqual(seen, [1, 7, 7, 30],
+      'esok must never sit below a 30-day row — push only shows the first three');
+  });
+
   test('a failed delivery is retried rather than swallowed', async () => {
     await pool!.query('delete from reminder_sends where user_id = $1', [userId]);
 

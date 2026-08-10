@@ -435,6 +435,11 @@ export async function runReminders(deliver: Deliver = deliverDigest) {
 
   let users = 0;
   for (const [userId, items] of byUser) {
+    // Most urgent first, in both channels. The query already returns this order, but the
+    // promise belongs where it is rendered — push only shows the first three, and a digest
+    // that buried "esok" under four 30-day rows would be the wrong mail entirely.
+    items.sort((a, b) => a.offsetDays - b.offsetDays || a.title.localeCompare(b.title));
+
     const prefs = await ensurePrefs(userId);
     if (!prefs.email) continue;
     if (!prefs.email_enabled && !prefs.push_enabled) continue;
