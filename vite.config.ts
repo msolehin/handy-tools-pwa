@@ -34,9 +34,14 @@ export default defineConfig({
       manifest: {
         name: 'SenangKit',
         short_name: 'SenangKit',
-        description: 'A lightweight offline-capable tools app',
-        theme_color: '#0f172a',
-        background_color: '#0f172a',
+        // Plugin default is 'en'; index.html declares ms and the description below is Malay.
+        lang: 'ms',
+        description: 'Simpan rekod yang ada tarikh luput — roadtax, pasport, warranty, sewa, hari jadi, hutang — dan dapat peringatan sebelum tarikh sampai.',
+        // #101010 is --color-background in dark mode (src/index.css), which is what the app
+        // actually paints. The old #0f172a was slate-900 and belonged to nothing on screen, so
+        // the splash and Android status bar flashed a blue-grey the app never uses.
+        theme_color: '#101010',
+        background_color: '#101010',
         display: 'standalone',
         // Installed users go straight to the tools; `/` is the marketing page and would be a
         // pointless ad for an app they already have. Landing.tsx also redirects out of
