@@ -5,7 +5,7 @@
 import { test, before, after, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { hasDb, migrate, pool } from './db.ts';
-import { dueReminders } from './reminders.ts';
+import { dueReminders, runReminders, type Digest } from './reminders.ts';
 
 const skip = !hasDb;
 let userId: string;
@@ -79,5 +79,31 @@ describe('reminders', { skip: skip && 'DATABASE_URL not set' }, () => {
     const due = (await dueReminders()).filter((r) => r.userId === userId);
     assert.equal(due.find((r) => r.recordId === 'doc01')?.title, 'Sijil Kahwin');
     assert.equal(due.find((r) => r.recordId === 'doc30')?.title, 'Roadtax');
+  });
+
+  test('a second run the same day delivers nothing', async () => {
+    const seen: string[][] = [];
+    const record = async (d: Digest) => {
+      if (d.userId === userId) seen.push(d.items.map((i) => i.recordId).sort());
+      return true;
+    };
+
+    await runReminders(record);
+    await runReminders(record);
+
+    assert.equal(seen.length, 1, 'the second run must find nothing left to send');
+    assert.deepEqual(seen[0], ['doc01', 'doc07', 'doc30', 'svcOil'],
+      'one digest carrying all four, not four separate deliveries');
+  });
+
+  test('a failed delivery is retried rather than swallowed', async () => {
+    await pool!.query('delete from reminder_sends where user_id = $1', [userId]);
+
+    let attempts = 0;
+    const fail = async (d: Digest) => { if (d.userId === userId) attempts++; return false; };
+    await runReminders(fail);
+    await runReminders(fail);
+
+    assert.equal(attempts, 2, 'nothing may be recorded as sent when delivery failed');
   });
 });

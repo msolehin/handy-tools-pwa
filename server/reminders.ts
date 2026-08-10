@@ -85,3 +85,86 @@ export async function dueReminders(): Promise<DueReminder[]> {
     href: r.href,
   }));
 }
+
+export type Digest = {
+  userId: string;
+  email: string;
+  unsubscribeToken: string;
+  emailEnabled: boolean;
+  pushEnabled: boolean;
+  items: DueReminder[];
+};
+
+export type Deliver = (d: Digest) => Promise<boolean>;
+
+/**
+ * Read a user's preferences, creating the row if it does not exist yet.
+ *
+ * The upsert has to happen here rather than lazily on first toggle: a user who never opens
+ * Settings would otherwise have no row, therefore no unsubscribe_token, and their email would
+ * carry a dead unsubscribe link.
+ */
+async function ensurePrefs(userId: string) {
+  const { rows } = await q(
+    `insert into notification_prefs (user_id) values ($1)
+     on conflict (user_id) do update set user_id = excluded.user_id
+     returning email_enabled, push_enabled, unsubscribe_token`, [userId]);
+  const { rows: [user] } = await q('select email from users where id = $1', [userId]);
+  return { ...rows[0], email: user?.email as string | undefined };
+}
+
+/** Only ever called after a delivery actually succeeded. */
+async function recordSends(userId: string, items: DueReminder[]) {
+  await q(
+    `insert into reminder_sends (user_id, source, record_id, offset_days)
+     select $1, * from unnest($2::text[], $3::text[], $4::int[])
+     on conflict do nothing`,
+    [userId, items.map((i) => i.source), items.map((i) => i.recordId),
+      items.map((i) => i.offsetDays)]);
+}
+
+// Replaced in Task 4 once both channels exist.
+const deliverDigest: Deliver = async () => false;
+
+/**
+ * One pass: find what is due, group it into one digest per user, deliver, record.
+ * Returns counts for the cron response so a silent zero is visible in the logs.
+ */
+export async function runReminders(deliver: Deliver = deliverDigest) {
+  const due = await dueReminders();
+
+  const byUser = new Map<string, DueReminder[]>();
+  for (const r of due) {
+    const list = byUser.get(r.userId);
+    if (list) list.push(r);
+    else byUser.set(r.userId, [r]);
+  }
+
+  let users = 0;
+  for (const [userId, items] of byUser) {
+    const prefs = await ensurePrefs(userId);
+    if (!prefs.email) continue;
+    if (!prefs.email_enabled && !prefs.push_enabled) continue;
+
+    // One user's dead push endpoint or bounced address must not stop everyone behind them.
+    let ok = false;
+    try {
+      ok = await deliver({
+        userId,
+        email: prefs.email,
+        unsubscribeToken: prefs.unsubscribe_token,
+        emailEnabled: prefs.email_enabled,
+        pushEnabled: prefs.push_enabled,
+        items,
+      });
+    } catch (err) {
+      console.error('reminder delivery failed for', userId, err);
+    }
+
+    if (!ok) continue;
+    await recordSends(userId, items);
+    users++;
+  }
+
+  return { users, reminders: due.length };
+}
