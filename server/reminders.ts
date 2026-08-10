@@ -137,61 +137,55 @@ const esc = (s: string) =>
 const line = (r: DueReminder) =>
   r.offsetDays === 1 ? 'Esok' : `${r.offsetDays} hari lagi`;
 
-const MONTHS_MS = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun',
-  'Jul', 'Ogos', 'Sep', 'Okt', 'Nov', 'Dis'];
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
 
-/** 2026-09-09 is machine output. Nobody says that out loud. */
+/** 2026-08-08 is machine output. Nobody says that out loud — "8 August 2026" is. */
 function fmtDate(iso: string) {
   const [y, m, day] = iso.split('-').map(Number);
-  const month = MONTHS_MS[m - 1];
+  const month = MONTHS[m - 1];
   return month ? `${day} ${month} ${y}` : iso;
 }
 
-// The logo's bolt runs cyan-blue at the top, through violet, to amber at the tip. Reading it
-// as an urgency scale is the whole design: a reminder starts blue when it is far off and
-// travels down the bolt as it closes in. These are the app's own tokens — --color-primary
-// and --color-accent from index.css — not a second palette invented for email.
-const URGENCY: Record<number, string> = { 30: '#3b82f6', 7: '#8b5cf6', 1: '#f59e0b' };
-const urgencyOf = (days: number) => URGENCY[days] ?? '#3b82f6';
+// One glyph per source, mapped to the lucide icon that tool already uses in src/lib/tools.ts:
+// ShieldAlert, KeyRound, Box, Calendar, CarFront, Home.
+//
+// Emoji rather than the real icons because lucide ships SVG, and Gmail strips inline SVG while
+// Outlook renders through Word's engine and ignores it. The alternative is a PNG per tool
+// hosted at APP_ORIGIN, which is a build step plus six assets that all show broken until the
+// domain is live — the same way the header logo does today.
+const TOOL_ICON: Record<ReminderSource, string> = {
+  document: '\u{1F6E1}️',        // ShieldAlert
+  contract: '\u{1F511}',              // KeyRound
+  asset: '\u{1F4E6}',                 // Box
+  countdown: '\u{1F4C5}',             // Calendar
+  vehicle_service: '\u{1F697}',       // CarFront
+  home_service: '\u{1F3E0}',          // Home
+};
 
 const FONT = `-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif`;
 
 /**
+ * One digest, never one email per record — eight warranties is one mail, not eight.
+ *
  * Tables and inline styles, not flexbox: Outlook still renders with Word's engine, and Gmail
- * strips <style> blocks and @font-face. Personality has to come from colour, scale and copy,
- * because a custom typeface simply will not load in the client that matters most here.
+ * strips <style> blocks and @font-face.
  */
-function card(r: DueReminder) {
-  const colour = urgencyOf(r.offsetDays);
-  const count = r.offsetDays === 1
-    ? `<div style="font-size:22px;font-weight:700;color:${colour};letter-spacing:-0.02em;line-height:1">ESOK</div>`
-    : `<div style="font-size:34px;font-weight:700;color:${colour};letter-spacing:-0.03em;line-height:1">${r.offsetDays}</div>
-       <div style="font-size:11px;color:#94a3b8;margin-top:3px;white-space:nowrap">hari lagi</div>`;
-
-  return `
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 10px">
-    <tr>
-      <td width="4" bgcolor="${colour}" style="width:4px;background:${colour};border-radius:14px 0 0 14px;font-size:0;line-height:0">&nbsp;</td>
-      <td bgcolor="#ffffff" style="background:#ffffff;border-radius:0 14px 14px 0;padding:16px 18px">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-          <tr>
-            <td align="left" style="font-family:${FONT}">
-              <a href="${APP_ORIGIN}${r.href}" style="font-size:16px;font-weight:600;color:#0f172a;text-decoration:none;line-height:1.3">${esc(r.title)}</a>
-              <div style="font-size:13px;color:#64748b;margin-top:4px">${esc(fmtDate(r.dueDate))}</div>
-            </td>
-            <td align="right" valign="top" width="80" style="font-family:${FONT};padding-left:12px">
-              ${count}
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>`;
-}
-
-/** One digest, never one email per record — eight warranties is one mail, not eight. */
 function emailHtml(d: Digest) {
-  const n = d.items.length;
+  const cell = 'padding:12px 0;border-bottom:1px solid #e2e8f0';
+
+  const rows = d.items.map((r) => `
+    <tr>
+      <td width="30" valign="top" style="${cell};padding-right:10px;font-size:18px;line-height:1.4">${TOOL_ICON[r.source] ?? ''}</td>
+      <td style="${cell};font-family:${FONT}">
+        <a href="${APP_ORIGIN}${r.href}" style="color:#0f172a;font-weight:600;text-decoration:none">${esc(r.title)}</a>
+        <div style="color:#64748b;font-size:13px;margin-top:2px">${esc(fmtDate(r.dueDate))}</div>
+      </td>
+      <td align="right" valign="top" style="${cell};font-family:${FONT};text-align:right;white-space:nowrap;color:#b45309;font-weight:600;padding-left:12px">
+        ${line(r)}
+      </td>
+    </tr>`).join('');
+
   // Shown next to the subject in the inbox list, before anything is opened.
   const preheader = d.items.map((r) => `${r.title} — ${line(r).toLowerCase()}`).join(' · ');
 
@@ -204,79 +198,36 @@ function emailHtml(d: Digest) {
 <meta name="supported-color-schemes" content="light only">
 <title>Ada yang nak tamat tempoh</title>
 </head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:${FONT};-webkit-font-smoothing:antialiased">
+<body style="margin:0;background:#f8fafc;font-family:${FONT}">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0">${esc(preheader)}</div>
 
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f1f5f9" style="background:#f1f5f9">
-  <tr>
-    <td align="center" style="padding:24px 12px 40px">
-      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px">
+<div style="max-width:520px;margin:0 auto;padding:32px 24px">
 
-        <!-- The icon's own background is #0f172a, so on this band it has no visible edge.
-             The wordmark is real text, not part of the image, so the header still reads when
-             the client blocks images — which Gmail does by default for a first-time sender. -->
-        <tr>
-          <td bgcolor="#0f172a" style="background:#0f172a;border-radius:16px 16px 0 0;padding:20px 24px">
-            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td width="32" style="padding-right:10px">
-                  <img src="${APP_ORIGIN}/pwa-192x192.png" width="32" height="32" alt=""
-                       style="display:block;width:32px;height:32px;border:0;border-radius:8px">
-                </td>
-                <td style="font-family:${FONT};font-size:16px;font-weight:600;color:#f8fafc;letter-spacing:-0.01em">
-                  SenangKit
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
+  <!-- The wordmark is real text beside the icon, not baked into it, so the header still reads
+       when the client blocks images — which Gmail does by default for a first-time sender. -->
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px">
+    <tr>
+      <td width="28" style="padding-right:9px">
+        <img src="${APP_ORIGIN}/pwa-192x192.png" width="28" height="28" alt=""
+             style="display:block;width:28px;height:28px;border:0;border-radius:7px">
+      </td>
+      <td style="font-family:${FONT};font-size:16px;font-weight:700;color:#0f172a;letter-spacing:-0.01em">
+        SenangKit
+      </td>
+    </tr>
+  </table>
 
-        <tr>
-          <td bgcolor="#ffffff" style="background:#ffffff;padding:28px 24px 8px">
-            <h1 style="margin:0;font-family:${FONT};font-size:22px;line-height:1.25;font-weight:700;color:#0f172a;letter-spacing:-0.02em">
-              Ada yang nak tamat tempoh
-            </h1>
-            <p style="margin:6px 0 0;font-family:${FONT};font-size:14px;color:#64748b">
-              ${n} rekod perlu perhatian anda.
-            </p>
-          </td>
-        </tr>
+  <h1 style="font-size:20px;color:#0f172a;margin:0 0 4px">Ada yang nak tamat tempoh</h1>
+  <p style="color:#64748b;font-size:14px;margin:0 0 24px">Ini rekod dalam SenangKit yang perlu perhatian anda.</p>
 
-        <tr>
-          <td bgcolor="#ffffff" style="background:#ffffff;padding:20px 24px 4px">
-            ${d.items.map(card).join('')}
-          </td>
-        </tr>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse">${rows}</table>
 
-        <tr>
-          <td bgcolor="#ffffff" style="background:#ffffff;padding:16px 24px 32px" align="center">
-            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td bgcolor="#0f172a" style="background:#0f172a;border-radius:12px">
-                  <a href="${APP_ORIGIN}/app"
-                     style="display:inline-block;padding:13px 28px;font-family:${FONT};font-size:15px;font-weight:600;color:#ffffff;text-decoration:none">
-                    Buka SenangKit
-                  </a>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
+  <p style="margin:32px 0 0;font-size:12px;color:#94a3b8">
+    <a href="${APP_ORIGIN}/app" style="color:#64748b">Buka SenangKit</a> &middot;
+    <a href="${APP_ORIGIN}/api/unsubscribe?t=${encodeURIComponent(d.unsubscribeToken)}" style="color:#94a3b8">Berhenti terima emel ini</a>
+  </p>
 
-        <tr>
-          <td bgcolor="#ffffff" style="background:#ffffff;border-radius:0 0 16px 16px;padding:0 24px 24px" align="center">
-            <div style="border-top:1px solid #e2e8f0;padding-top:16px;font-family:${FONT};font-size:12px;color:#94a3b8;line-height:1.6">
-              Peringatan dihantar 30, 7 dan 1 hari sebelum tamat tempoh.<br>
-              <a href="${APP_ORIGIN}/api/unsubscribe?t=${encodeURIComponent(d.unsubscribeToken)}"
-                 style="color:#94a3b8;text-decoration:underline">Berhenti terima emel ini</a>
-            </div>
-          </td>
-        </tr>
-
-      </table>
-    </td>
-  </tr>
-</table>
+</div>
 </body>
 </html>`;
 }
