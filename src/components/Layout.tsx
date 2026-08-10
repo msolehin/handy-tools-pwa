@@ -7,6 +7,7 @@ import {
 import { DEFAULT_TOOLS } from '../pages/Home';
 import AccountPanel from './AccountPanel';
 import FeedbackForm from './FeedbackForm';
+import NotificationSettings from './NotificationSettings';
 import { ToolRail, HorizonPanel } from './DesktopShell';
 import { HorizonList } from './HorizonList';
 import { useHorizon } from '../lib/useHorizon';
@@ -650,6 +651,7 @@ const Layout: React.FC = () => {
                 <div className="flex-1 overflow-y-auto p-4 pb-28 space-y-2 overscroll-contain">
                   <AccountPanel />
                   <FeedbackForm />
+                  <NotificationSettings />
 
                   {/* The old sheet heading lived up top and described only this list, so it
                       moved down here once the account block took the first slot. */}
