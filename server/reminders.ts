@@ -147,23 +147,19 @@ function fmtDate(iso: string) {
   return month ? `${day} ${month} ${y}` : iso;
 }
 
-// One glyph per source, mapped to the lucide icon that tool already uses in src/lib/tools.ts:
-// ShieldAlert, KeyRound, Box, Calendar, CarFront, Home.
-//
-// Emoji rather than the real icons because lucide ships SVG, and Gmail strips inline SVG while
-// Outlook renders through Word's engine and ignores it. The alternative is a PNG per tool
-// hosted at APP_ORIGIN, which is a build step plus six assets that all show broken until the
-// domain is live — the same way the header logo does today.
-const TOOL_ICON: Record<ReminderSource, string> = {
-  document: '\u{1F6E1}️',        // ShieldAlert
-  contract: '\u{1F511}',              // KeyRound
-  asset: '\u{1F4E6}',                 // Box
-  countdown: '\u{1F4C5}',             // Calendar
-  vehicle_service: '\u{1F697}',       // CarFront
-  home_service: '\u{1F3E0}',          // Home
-};
+// Inter first, matching tailwind.config.js `sans`, then the system stack. Gmail strips the
+// stylesheet link below so it falls back there; Apple Mail and iOS Mail honour it.
+const FONT = `Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif`;
 
-const FONT = `-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif`;
+/**
+ * The header wordmark, matching Layout.tsx: "Senang" in the text colour, "Kit" in the
+ * pink-500 -> orange-400 gradient.
+ *
+ * The app does that gradient with `bg-clip-text` + `text-transparent`, which no email client
+ * supports — Gmail and Outlook would paint the background and leave the letters invisible.
+ * Three solid steps sampled along the same ramp read almost identically and work everywhere.
+ */
+const WORDMARK = `Senang<span style="color:#ec4899">K</span><span style="color:#f66d69">i</span><span style="color:#fb923c">t</span>`;
 
 /**
  * One digest, never one email per record — eight warranties is one mail, not eight.
@@ -176,7 +172,6 @@ function emailHtml(d: Digest) {
 
   const rows = d.items.map((r) => `
     <tr>
-      <td width="30" valign="top" style="${cell};padding-right:10px;font-size:18px;line-height:1.4">${TOOL_ICON[r.source] ?? ''}</td>
       <td style="${cell};font-family:${FONT}">
         <a href="${APP_ORIGIN}${r.href}" style="color:#0f172a;font-weight:600;text-decoration:none">${esc(r.title)}</a>
         <div style="color:#64748b;font-size:13px;margin-top:2px">${esc(fmtDate(r.dueDate))}</div>
@@ -197,22 +192,26 @@ function emailHtml(d: Digest) {
 <meta name="color-scheme" content="light only">
 <meta name="supported-color-schemes" content="light only">
 <title>Ada yang nak tamat tempoh</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body style="margin:0;background:#f8fafc;font-family:${FONT}">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0">${esc(preheader)}</div>
 
 <div style="max-width:520px;margin:0 auto;padding:32px 24px">
 
-  <!-- The wordmark is real text beside the icon, not baked into it, so the header still reads
-       when the client blocks images — which Gmail does by default for a first-time sender. -->
+  <!-- favicon.png is the transparent bolt the app header itself uses (Layout.tsx:319), not the
+       dark-square pwa icon. Its native ratio is 126x196, so 18x28 keeps it undistorted — email
+       clients need both dimensions stated or Outlook guesses.
+       The wordmark is real text beside it, so the header still reads when the client blocks
+       images, which Gmail does by default for a first-time sender. -->
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px">
     <tr>
-      <td width="28" style="padding-right:9px">
-        <img src="${APP_ORIGIN}/pwa-192x192.png" width="28" height="28" alt=""
-             style="display:block;width:28px;height:28px;border:0;border-radius:7px">
+      <td width="18" valign="middle" style="padding-right:9px">
+        <img src="${APP_ORIGIN}/favicon.png" width="18" height="28" alt=""
+             style="display:block;width:18px;height:28px;border:0">
       </td>
-      <td style="font-family:${FONT};font-size:16px;font-weight:700;color:#0f172a;letter-spacing:-0.01em">
-        SenangKit
+      <td valign="middle" style="font-family:${FONT};font-size:20px;font-weight:700;color:#0f172a;letter-spacing:-0.02em">
+        ${WORDMARK}
       </td>
     </tr>
   </table>
