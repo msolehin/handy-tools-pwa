@@ -6,6 +6,7 @@
 // `occasions` is deliberately absent: the Birthdays tool was removed, its table has no
 // descriptor in tools.ts and no longer syncs. It was also the only recurring source, which
 // is why nothing here does anniversary arithmetic.
+import { Hono } from 'hono';
 import { q } from './db.ts';
 
 export type ReminderSource =
@@ -122,6 +123,90 @@ async function recordSends(userId: string, items: DueReminder[]) {
     [userId, items.map((i) => i.source), items.map((i) => i.recordId),
       items.map((i) => i.offsetDays)]);
 }
+
+const RESEND_API_KEY = process.env.RESEND_API_KEY ?? '';
+const REMINDER_FROM = process.env.REMINDER_FROM ?? 'SenangKit <reminder@senangkit.app>';
+const APP_ORIGIN = process.env.APP_ORIGIN ?? 'https://senangkit.app';
+
+/** User-controlled titles land in an HTML document. This is a security boundary. */
+const esc = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+const line = (r: DueReminder) =>
+  r.offsetDays === 1 ? 'Esok' : `${r.offsetDays} hari lagi`;
+
+/** One digest, never one email per record — eight warranties is one mail, not eight. */
+function emailHtml(d: Digest) {
+  const rows = d.items.map((r) => `
+    <tr>
+      <td style="padding:12px 0;border-bottom:1px solid #e2e8f0">
+        <a href="${APP_ORIGIN}${r.href}" style="color:#0f172a;font-weight:600;text-decoration:none">${esc(r.title)}</a>
+        <div style="color:#64748b;font-size:13px;margin-top:2px">${esc(r.dueDate)}</div>
+      </td>
+      <td style="padding:12px 0;border-bottom:1px solid #e2e8f0;text-align:right;white-space:nowrap;color:#b45309;font-weight:600">
+        ${line(r)}
+      </td>
+    </tr>`).join('');
+
+  return `<!doctype html><html><body style="margin:0;background:#f8fafc;font-family:system-ui,-apple-system,Segoe UI,sans-serif">
+    <div style="max-width:520px;margin:0 auto;padding:32px 24px">
+      <h1 style="font-size:20px;color:#0f172a;margin:0 0 4px">Ada yang nak tamat tempoh</h1>
+      <p style="color:#64748b;font-size:14px;margin:0 0 24px">Ini rekod dalam SenangKit yang perlu perhatian anda.</p>
+      <table style="width:100%;border-collapse:collapse">${rows}</table>
+      <p style="margin:32px 0 0;font-size:12px;color:#94a3b8">
+        <a href="${APP_ORIGIN}/app" style="color:#64748b">Buka SenangKit</a> &middot;
+        <a href="${APP_ORIGIN}/api/unsubscribe?t=${encodeURIComponent(d.unsubscribeToken)}" style="color:#94a3b8">Berhenti terima emel ini</a>
+      </p>
+    </div>
+  </body></html>`;
+}
+
+export async function sendEmail(d: Digest): Promise<boolean> {
+  if (!RESEND_API_KEY) return false;
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${RESEND_API_KEY}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: REMINDER_FROM,
+      to: d.email,
+      subject: d.items.length === 1
+        ? `${d.items[0].title} — ${line(d.items[0]).toLowerCase()}`
+        : `${d.items.length} rekod nak tamat tempoh`,
+      html: emailHtml(d),
+    }),
+  });
+
+  if (!res.ok) {
+    console.error('resend failed', res.status, await res.text().catch(() => ''));
+    return false;
+  }
+  return true;
+}
+
+export const reminders = new Hono<{ Variables: { userId: string } }>();
+
+// No session required: the token IS the authorisation. That is what makes the link work from
+// a mail client that has never seen the app's cookie.
+reminders.get('/unsubscribe', async (c) => {
+  const token = c.req.query('t');
+  if (!token) return c.text('pautan tidak sah', 400);
+
+  const { rowCount } = await q(
+    'update notification_prefs set email_enabled = false, updated_at = now() where unsubscribe_token = $1',
+    [token]);
+
+  if (!rowCount) return c.text('pautan tidak sah', 400);
+  return c.html(`<!doctype html><meta charset="utf-8"><title>Berhenti langgan</title>
+    <div style="font-family:system-ui;max-width:420px;margin:80px auto;padding:0 24px;text-align:center">
+      <h1 style="font-size:20px">Sudah berhenti</h1>
+      <p style="color:#64748b">Anda tidak akan terima emel peringatan lagi. Boleh hidupkan semula bila-bila dalam Settings.</p>
+      <a href="${APP_ORIGIN}/app" style="color:#0f172a">Buka SenangKit</a>
+    </div>`);
+});
 
 // Replaced in Task 4 once both channels exist.
 const deliverDigest: Deliver = async () => false;
