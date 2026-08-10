@@ -82,6 +82,25 @@ export async function requireUser(c: Context, next: Next) {
   await next();
 }
 
+/**
+ * Owner-only. Chains after `requireUser`, so `userId` is already set.
+ *
+ * Answers 404 rather than 403: a wrong guess should not learn that an admin area exists here.
+ */
+export async function requireAdmin(c: Context, next: Next) {
+  // Read per request, never as a module-level const. An unset ADMIN_EMAIL has to fail closed,
+  // and `undefined !== undefined` is false — which would hand the admin page to every signed-in
+  // account the moment the variable is missing. Reading it here also lets the tests set it.
+  const admin = (process.env.ADMIN_EMAIL ?? '').trim().toLowerCase();
+  if (!admin) return c.text('not found', 404);
+
+  const { rows } = await q('select email from users where id = $1', [c.get('userId')]);
+  if ((rows[0]?.email as string | undefined ?? '').toLowerCase() !== admin) {
+    return c.text('not found', 404);
+  }
+  await next();
+}
+
 export function isAllowedOrigin(origin: string, requestUrl: string): boolean {
   let sent: URL;
   try { sent = new URL(origin); } catch { return false; }

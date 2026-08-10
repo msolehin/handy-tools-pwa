@@ -7,7 +7,12 @@ export default defineConfig({
     allowedHosts: true,
     // Same-origin in dev too, or the httpOnly session cookie is silently dropped and auth
     // works in production but mysteriously not locally.
-    proxy: { '/api': 'http://localhost:3000' }
+    //
+    // /admin is server-rendered and has no client route, so without it here Vite answers with
+    // index.html, React matches nothing, and the `*` catch-all redirects to the landing page —
+    // the page looks like it silently does nothing. Production serves both from one origin and
+    // never needs this.
+    proxy: { '/api': 'http://localhost:3000', '/admin': 'http://localhost:3000' }
   },
   plugins: [
     react(),
@@ -17,7 +22,10 @@ export default defineConfig({
       workbox: {
         // Without this the SW answers /api/* navigations out of the precache with index.html,
         // and the client parses HTML as JSON. Only bites once the API is same-origin.
-        navigateFallbackDenylist: [/^\/api\//],
+        // /admin is server-rendered and has no client route, so the same fallback would hand it
+        // index.html, React would match nothing, and the `*` catch-all would bounce you to `/` —
+        // working in a fresh browser and silently failing in the installed PWA.
+        navigateFallbackDenylist: [/^\/api\//, /^\/admin/],
         cleanupOutdatedCaches: true
       },
       manifest: {

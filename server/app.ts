@@ -4,6 +4,7 @@ import { Hono } from 'hono';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { hasDb, q, tx } from './db.ts';
 import { TOOLS, isKnownTool } from './tools.ts';
+import { admin } from './admin.ts';
 import {
   GOOGLE_CLIENT_ID, verifyGoogleIdToken, upsertUser,
   createSession, destroySession, requireUser, sameOriginOnly,
@@ -181,6 +182,11 @@ api.all('*', (c) => c.json({ error: 'not found' }, 404));
 
 // Order below is load-bearing.
 app.route('/api', api);
+
+// Owner-only, and deliberately not a client route: it must be matched here, before the static
+// handlers, or the SPA fallback would answer with index.html. See also the navigateFallbackDenylist
+// entry in vite.config.ts, which stops the service worker doing the same thing from its cache.
+app.route('/admin', admin);
 
 // The service worker must never be cached, or registerType:'autoUpdate' keeps handing out a
 // stale SW and users stop receiving deploys.

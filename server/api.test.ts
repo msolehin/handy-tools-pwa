@@ -177,6 +177,171 @@ describe('api', { skip: !hasDb && 'DATABASE_URL not set' }, () => {
     assert.deepEqual(rows, [{ kind: 'bug', target: '/document-expiry', message: 'tarikh salah' }]);
   });
 
+  // The admin area is the one place where a mistake exposes every account's data at once, so
+  // the gate gets tested from both sides — including the misconfiguration case.
+  describe('admin', () => {
+    const withAdminEmail = async (email: string | undefined, fn: () => Promise<void>) => {
+      const previous = process.env.ADMIN_EMAIL;
+      if (email === undefined) delete process.env.ADMIN_EMAIL;
+      else process.env.ADMIN_EMAIL = email;
+      try {
+        await fn();
+      } finally {
+        if (previous === undefined) delete process.env.ADMIN_EMAIL;
+        else process.env.ADMIN_EMAIL = previous;
+      }
+    };
+
+    test('an unset ADMIN_EMAIL locks everyone out, signed in or not', async () => {
+      await withAdminEmail(undefined, async () => {
+        assert.equal((await call('/admin')).status, 404,
+          'a missing env var must fail closed, not hand the page to every account');
+        assert.equal((await call('/admin/backup')).status, 404);
+      });
+    });
+
+    test('another account gets 404, not 403', async () => {
+      await withAdminEmail('someone.else@test.local', async () => {
+        const res = await call('/admin');
+        assert.equal(res.status, 404, 'a wrong guess must not learn that /admin exists');
+        assert.equal((await call('/admin/backup')).status, 404);
+      });
+    });
+
+    test('no session is unauthorized', async () => {
+      await withAdminEmail('api@test.local', async () => {
+        assert.equal((await call('/admin', {}, false)).status, 401);
+      });
+    });
+
+    test('the owner gets the page, and the match ignores case', async () => {
+      await withAdminEmail('API@Test.Local', async () => {
+        const res = await call('/admin');
+        assert.equal(res.status, 200);
+        assert.match(res.headers.get('content-type') ?? '', /text\/html/);
+
+        const body = await res.text();
+        assert.match(body, /SenangKit/);
+        for (const section of ['Mesej terkini', 'Salinan data', 'Muat turun salinan']) {
+          assert.ok(body.includes(section), `the ${section} section is missing`);
+        }
+        // Every view is reachable from the menu on every page.
+        for (const v of ['ringkasan', 'mesej', 'alat', 'akaun']) {
+          assert.ok(body.includes(`/admin?view=${v}`), `the ${v} menu link is missing`);
+        }
+
+        // data-stat is the page's stable hook for this; the visible label is Malay copy and
+        // free to change without breaking the test.
+        const akaun = body.match(/data-stat="akaun"><div class="n">([^<]*)</);
+        assert.ok(akaun && Number(akaun[1]) >= 1, 'the account reading renders a real count');
+      });
+    });
+
+    test('each view renders its own section', async () => {
+      await withAdminEmail('api@test.local', async () => {
+        for (const [view, marker] of [
+          ['mesej', 'Mesej'], ['alat', 'Penggunaan alat'], ['akaun', 'Akaun'],
+        ]) {
+          const res = await call(`/admin?view=${view}`);
+          assert.equal(res.status, 200, `${view} did not render`);
+          const body = await res.text();
+          assert.ok(body.includes(marker), `${view} is missing its heading`);
+          assert.ok(body.includes(`class="on"`), `${view} does not mark the active menu item`);
+        }
+      });
+    });
+
+    test('a junk view or page never errors, and page numbers clamp', async () => {
+      await withAdminEmail('api@test.local', async () => {
+        // An unknown view falls back to the overview rather than 404ing or throwing.
+        const junk = await call('/admin?view=../../etc/passwd');
+        assert.equal(junk.status, 200);
+        assert.ok((await junk.text()).includes('Mesej terkini'), 'falls back to the overview');
+
+        // A negative offset would be a SQL error; a huge page would be an empty table.
+        for (const page of ['abc', '-5', '0', '99999', '1e9', '']) {
+          const res = await call(`/admin?view=mesej&page=${encodeURIComponent(page)}`);
+          assert.equal(res.status, 200, `page=${page} broke the listing`);
+        }
+      });
+    });
+
+    test('listings paginate once they outgrow a page', async () => {
+      // 30 rows against a 25-row page: page 1 is full, page 2 holds the remainder.
+      const marker = 'pagination-fixture';
+      for (let i = 0; i < 30; i++) {
+        await pool!.query(
+          `insert into feedback (user_id, kind, target, message, created_at)
+           values ($1,'idea','/app',$2, now() - ($3 || ' minutes')::interval)`,
+          [userId, `${marker} ${i}`, i]);
+      }
+      try {
+        await withAdminEmail('api@test.local', async () => {
+          const one = await (await call('/admin?view=mesej')).text();
+          assert.equal((one.match(/class="msg"/g) ?? []).length, 25, 'page 1 holds one full page');
+          assert.ok(one.includes('Seterusnya'), 'a next link appears');
+          assert.ok(one.includes('/admin?view=mesej&amp;page=2'), 'and points at page 2');
+
+          const two = await (await call('/admin?view=mesej&page=2')).text();
+          const onPageTwo = (two.match(/class="msg"/g) ?? []).length;
+          assert.ok(onPageTwo > 0 && onPageTwo <= 25, 'page 2 holds the remainder');
+          assert.ok(two.includes('Sebelum'), 'a previous link appears');
+
+          // No row may appear on both pages, or paging silently loses messages.
+          const idsOn = (html: string) =>
+            (html.match(new RegExp(`${marker} \\d+`, 'g')) ?? []);
+          const overlap = idsOn(one).filter((m) => idsOn(two).includes(m));
+          assert.deepEqual(overlap, [], 'pages must not repeat rows');
+        });
+      } finally {
+        await pool!.query('delete from feedback where message like $1', [`${marker}%`]);
+      }
+    });
+
+    test('feedback is escaped, never rendered as markup', async () => {
+      const payload = '<script>alert(1)</script>';
+      await pool!.query(
+        `insert into feedback (user_id, kind, target, message) values ($1,'bug','/app',$2)`,
+        [userId, payload]);
+
+      try {
+        await withAdminEmail('api@test.local', async () => {
+          const body = await (await call('/admin?view=mesej')).text();
+          assert.ok(!body.includes(payload), 'a feedback message must never land as live markup');
+          assert.ok(body.includes('&lt;script&gt;alert(1)&lt;/script&gt;'),
+            'and it must still be readable, escaped');
+        });
+      } finally {
+        await pool!.query('delete from feedback where user_id = $1 and message = $2',
+          [userId, payload]);
+      }
+    });
+
+    test('the backup dumps every table and records that it happened', async () => {
+      await withAdminEmail('api@test.local', async () => {
+        const before = await pool!.query('select count(*)::int as n from admin_backups');
+
+        const res = await call('/admin/backup');
+        assert.equal(res.status, 200);
+        assert.match(res.headers.get('content-disposition') ?? '', /attachment; filename="senangkit-/);
+        assert.equal(res.headers.get('cache-control'), 'no-store');
+
+        const dump = await res.json();
+        // Every table, not just the ones someone remembered to list.
+        for (const table of ['users', 'sessions', 'tool_revisions', 'feedback', 'contracts']) {
+          assert.ok(Array.isArray(dump.data[table]), `${table} is missing from the dump`);
+        }
+        assert.ok(dump.data.users.some((r: { email: string }) => r.email === 'api@test.local'),
+          'the dump carries real rows, not empty arrays');
+        assert.ok(dump.rowsTotal > 0);
+
+        const after = await pool!.query('select count(*)::int as n from admin_backups');
+        assert.equal(after.rows[0].n, before.rows[0].n + 1,
+          'the download is logged, or the page can never report backup staleness');
+      });
+    });
+  });
+
   test('logout revokes the session', async () => {
     const throwaway = randomBytes(32).toString('base64url');
     await pool!.query(
