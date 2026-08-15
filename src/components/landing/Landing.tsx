@@ -68,7 +68,7 @@ const Landing: React.FC = () => {
       <div className="relative z-10">
         <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-5 sm:px-8 sm:py-7">
           <div className="flex items-center gap-2.5">
-            <img src="/favicon.png" alt="" className="h-8 w-8 object-contain" />
+            <img src="/favicon.svg" alt="" className="h-8 w-8 object-contain" />
             <span className="font-display text-lg font-extrabold tracking-tight">
               Senang
               <span className="bg-gradient-to-r from-pink-500 to-orange-400 bg-clip-text text-transparent">Kit</span>

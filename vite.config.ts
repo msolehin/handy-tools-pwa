@@ -18,7 +18,9 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.png', 'apple-touch-icon.png'],
+      // favicon.svg is the header logo, not just a tab icon — without it precached the app
+      // header renders a broken image offline.
+      includeAssets: ['favicon.svg', 'favicon.png', 'apple-touch-icon.png'],
       workbox: {
         // Without this the SW answers /api/* navigations out of the precache with index.html,
         // and the client parses HTML as JSON. Only bites once the API is same-origin.

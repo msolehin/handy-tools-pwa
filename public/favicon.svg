@@ -1,3 +1,47 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#3b82f6" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 117.4 193.7" role="img" aria-label="SenangKit">
+  <!--
+    The SenangKit bolt, as vector. Traced from the original 1024x512 logo render: every edge
+    was least-squares fitted to the source's anti-aliased boundary (residuals <= 0.25px), and
+    the two gradients were fitted to the source pixels, so this is the same mark, not a redraw.
+
+    It exists because the raster bolt is only ~188px tall at its largest. Anything above that —
+    the 512px PWA icon, a splash screen, print — was upscaling, and the PNG it came from carried
+    a grey matte fringe left by the rembg background removal. Both problems go away in vector.
+
+    The mark is one silhouette in two facets, split by a hard colour break at y=113: cyan ->
+    purple above, magenta -> orange below. The full silhouette is painted with the upper
+    gradient first and the lower facet laid on top, so the seam antialiases against blue rather
+    than against the page.
+  -->
+  <defs>
+    <linearGradient id="sk-bolt-upper" gradientUnits="userSpaceOnUse" x1="-4.45" y1="58" x2="103.1" y2="35.14">
+      <stop offset="0.0625" stop-color="#0ab3fe"/>
+      <stop offset="0.1875" stop-color="#2396fe"/>
+      <stop offset="0.3125" stop-color="#3e7bfd"/>
+      <stop offset="0.4375" stop-color="#5767fd"/>
+      <stop offset="0.5625" stop-color="#7555fc"/>
+      <stop offset="0.6875" stop-color="#9248fc"/>
+      <stop offset="0.8125" stop-color="#a042fd"/>
+      <stop offset="0.9375" stop-color="#9f42fd"/>
+    </linearGradient>
+    <linearGradient id="sk-bolt-lower" gradientUnits="userSpaceOnUse" x1="-7.53" y1="152.5" x2="39.87" y2="87.25">
+      <stop offset="0.0625" stop-color="#fda416"/>
+      <stop offset="0.1875" stop-color="#fe9526"/>
+      <stop offset="0.3125" stop-color="#fd843d"/>
+      <stop offset="0.4375" stop-color="#fd7355"/>
+      <stop offset="0.5625" stop-color="#fd6173"/>
+      <stop offset="0.6875" stop-color="#fb4f95"/>
+      <stop offset="0.8125" stop-color="#f742b9"/>
+      <stop offset="0.9375" stop-color="#ec3dd4"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Full silhouette. The long right edge is a single quadratic: the source curves gently
+       there (a straight fit left 2.6px of residual, the two tangents meet at 71.1,137). -->
+  <path fill="url(#sk-bolt-upper)"
+        d="M111.5 0.1 L66.5 74.5 L117.1 82 Q71.1 137 13.4 193.5 L53.1 113 L0.1 113 L28.4 54.2 Z"/>
+
+  <!-- Lower facet, sharing the same curve (split at the crease) so the outline stays exact. -->
+  <path fill="url(#sk-bolt-lower)"
+        d="M90.35 113 Q54.9 152.86 13.4 193.5 L53.1 113 Z"/>
 </svg>

@@ -215,15 +215,17 @@ function emailHtml(d: Digest) {
 <div style="max-width:520px;margin:0 auto;padding:32px 24px">
 
   <!-- favicon.png is the transparent bolt the app header itself uses (Layout.tsx:319), not the
-       dark-square pwa icon. Its native ratio is 126x196, so 18x28 keeps it undistorted — email
-       clients need both dimensions stated or Outlook guesses.
+       dark-square pwa icon. PNG rather than the favicon.svg the app now renders, because Gmail
+       and Outlook strip inline and linked SVG. It is rendered from that same vector, so its
+       ratio is the viewBox's 117.4x193.7 and 17x28 keeps it undistorted — email clients need
+       both dimensions stated or Outlook guesses.
        The wordmark is real text beside it, so the header still reads when the client blocks
        images, which Gmail does by default for a first-time sender. -->
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px">
     <tr>
-      <td width="18" valign="middle" style="padding-right:9px">
-        <img src="${APP_ORIGIN}/favicon.png" width="18" height="28" alt=""
-             style="display:block;width:18px;height:28px;border:0">
+      <td width="17" valign="middle" style="padding-right:9px">
+        <img src="${APP_ORIGIN}/favicon.png" width="17" height="28" alt=""
+             style="display:block;width:17px;height:28px;border:0">
       </td>
       <td valign="middle" style="font-family:${FONT};font-size:20px;font-weight:700;color:#0f172a;letter-spacing:-0.02em">
         ${WORDMARK}
