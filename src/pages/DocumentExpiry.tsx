@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  ShieldAlert, Plus, Trash2, Pencil, X, RotateCw, Check, Search,
+  ShieldAlert, Plus, Trash2, Pencil, X, RotateCw, Check, Search, ListFilter,
   BookUser, CarFront, IdCard, Fingerprint, HeartPulse, Plane, FileText,
 } from 'lucide-react';
 import { store } from '../lib/store';
@@ -177,10 +177,11 @@ const DocumentExpiry: React.FC = () => {
     .map(doc => ({ doc, days: daysUntil(doc.expiryDate) }))
     .sort((a, b) => a.days - b.days);
 
-  // Only the types actually saved get a chip — chips for documents you don't own are dead weight.
-  // Deleting the last document of the filtered type drops its chip, so the filter falls back to Semua.
+  // Only the types actually saved get an option — types for documents you don't own are dead weight.
+  // Deleting the last document of the filtered type drops its option, so the filter falls back to Semua.
   const usedTypes = DOC_TYPES.filter(t => documents.some(d => d.type === t.name));
   const active = usedTypes.some(t => t.name === filter) ? filter : 'all';
+  const FilterIcon = active === 'all' ? ListFilter : typeOf(active).Icon;
 
   // Search and filter narrow the list only — the counts in the subtitle stay the truth about everything saved
   const q = query.trim().toLowerCase();
@@ -257,19 +258,19 @@ const DocumentExpiry: React.FC = () => {
           </div>
 
           {usedTypes.length > 1 && (
-            <div className="flex gap-1.5 overflow-x-auto pb-0.5 -mx-1 px-1">
-              {[{ name: 'all', label: 'Semua', Icon: null }, ...usedTypes].map(({ name, label, Icon }) => (
-                <button
-                  key={name}
-                  onClick={() => setFilter(name)}
-                  aria-pressed={active === name}
-                  className={`flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors ${
-                    active === name ? 'bg-rose-600 text-[#fff]' : 'bg-text/5 text-muted hover:text-text'
-                  }`}
-                >
-                  {Icon && <Icon size={13} />}{label}
-                </button>
-              ))}
+            <div className="relative">
+              <FilterIcon size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+              <select
+                value={active}
+                onChange={e => setFilter(e.target.value)}
+                aria-label="Tapis ikut jenis"
+                className="input-field w-full pl-8 py-2 text-sm appearance-none"
+              >
+                <option value="all">Semua jenis</option>
+                {usedTypes.map(({ name, label }) => (
+                  <option key={name} value={name}>{label}</option>
+                ))}
+              </select>
             </div>
           )}
         </div>
