@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 (globalThis as any).document = { visibilityState: 'visible' };
 (globalThis as any).Event = class { type: string; constructor(type: string) { this.type = type; } };
 
-const { daysUntil, horizonTone, byMonth, renewedDate, addMonths, openServices, nextDueDate } = await import('./horizon.ts');
+const { daysUntil, horizonTone, byMonth, renewedDate, addMonths, openServices, latestServiceIds, nextDueDate } = await import('./horizon.ts');
 type HorizonItem = Awaited<ReturnType<typeof import('./horizon.ts').readHorizon>>[number];
 
 const NOW = new Date('2026-08-07T09:00:00');
@@ -94,6 +94,17 @@ test('a newer visit with no next date closes the reminder outright', () => {
     { id: '2', assetId: 'car', title: 'Engine Oil', date: '2026-07-08' },
   ]);
   assert.deepEqual(open, []);
+});
+
+// The tool pages grey out superseded rows off this set, so it must keep the latest row of a pair
+// even when that row is ticked "dah buat" — otherwise the tick would hide its own untick button.
+test('the latest row of a pair stays latest even once it is ticked done', () => {
+  const events = [
+    { id: '1', assetId: 'car', title: 'Engine Oil', date: '2026-01-05', nextServiceDate: '2026-07-05' },
+    { id: '2', assetId: 'car', title: 'Engine Oil', date: '2026-07-08', nextServiceDate: '2027-01-08', nextDone: true },
+  ];
+  assert.deepEqual([...latestServiceIds(events)], ['2']);
+  assert.deepEqual(openServices(events), []);
 });
 
 test('services are tracked per asset and per title, not lumped together', () => {

@@ -1,6 +1,9 @@
 // Every UN member state (plus Taiwan, Hong Kong and Macau, which travellers count as
-// destinations). Names are the ones we display and store on a trip — the map knows them
-// through MAP_ALIAS / SMALL_COUNTRY_POINTS in worldMap.ts, so every entry here is clickable.
+// destinations), less Israel — the Malaysian passport this app is written for is not valid for
+// travel there, so it is not a destination to offer. The trip form's free-text fallback still
+// accepts any name typed by hand.
+// Names are the ones we display and store on a trip — the map knows them through
+// MAP_ALIAS / SMALL_COUNTRY_POINTS in worldMap.ts, so every entry here is clickable.
 export const COUNTRIES: { name: string; code: string }[] = [
   { name: 'Afghanistan', code: 'AF' }, { name: 'Albania', code: 'AL' }, { name: 'Algeria', code: 'DZ' },
   { name: 'Andorra', code: 'AD' }, { name: 'Angola', code: 'AO' }, { name: 'Antigua and Barbuda', code: 'AG' },
@@ -29,7 +32,7 @@ export const COUNTRIES: { name: string; code: string }[] = [
   { name: 'Honduras', code: 'HN' }, { name: 'Hong Kong', code: 'HK' }, { name: 'Hungary', code: 'HU' },
   { name: 'Iceland', code: 'IS' }, { name: 'India', code: 'IN' }, { name: 'Indonesia', code: 'ID' },
   { name: 'Iran', code: 'IR' }, { name: 'Iraq', code: 'IQ' }, { name: 'Ireland', code: 'IE' },
-  { name: 'Israel', code: 'IL' }, { name: 'Italy', code: 'IT' }, { name: 'Ivory Coast', code: 'CI' },
+  { name: 'Italy', code: 'IT' }, { name: 'Ivory Coast', code: 'CI' },
   { name: 'Jamaica', code: 'JM' }, { name: 'Japan', code: 'JP' }, { name: 'Jordan', code: 'JO' },
   { name: 'Kazakhstan', code: 'KZ' }, { name: 'Kenya', code: 'KE' }, { name: 'Kiribati', code: 'KI' },
   { name: 'Kuwait', code: 'KW' }, { name: 'Kyrgyzstan', code: 'KG' }, { name: 'Laos', code: 'LA' },

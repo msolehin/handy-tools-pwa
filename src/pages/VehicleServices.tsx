@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { store } from '../lib/store';
+import { latestServiceIds } from '../lib/horizon';
 import { downscaleFile } from '../lib/downscale';
 import { useT, t as trs, locale } from '../lib/lang';
 import { 
@@ -294,6 +295,15 @@ const VehicleServices: React.FC = () => {
     .filter(e => e.assetId === selectedAssetId)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
+  // Logging a new "Tukar Minyak Hitam" retires the previous one's next-service date. The Home
+  // screen has always honoured that; without this the page kept nagging for every past visit.
+  const stillOwed = latestServiceIds(assetEvents);
+
+  // The odometer as of the newest visit that recorded one. Derived, never stored: a hand-updated
+  // mileage field on the vehicle goes stale the day after it is typed, and nothing here could tell
+  // a stale reading from a fresh one. assetEvents is already newest-first.
+  const lastMileage = assetEvents.find(e => e.mileage)?.mileage;
+
   // Only the services this vehicle actually has. Derived rather than stored, so switching to a
   // vehicle that has never had an aircond service falls back to "all" instead of an empty list.
   const serviceTitles = [...new Set(assetEvents.map(e => e.title))].sort();
@@ -354,7 +364,10 @@ const VehicleServices: React.FC = () => {
                 <div className="min-w-0">
                   <p className={`text-xs font-bold uppercase tracking-wider mb-0.5 ${currentAsset.photo ? 'text-[#fff]/75' : 'text-muted'}`}>{tr('Kenderaan sekarang', 'Current vehicle')}</p>
                   <p className={`font-bold text-lg truncate ${currentAsset.photo ? 'text-[#fff]' : 'text-amber-500 light:text-amber-700'}`}>{currentAsset.name}</p>
-                  <p className={`text-xs truncate ${currentAsset.photo ? 'text-[#fff]/85' : 'text-text/80'}`}>{currentAsset.plate || tr('Tiada plat', 'No plate')}</p>
+                  <p className={`text-xs truncate ${currentAsset.photo ? 'text-[#fff]/85' : 'text-text/80'}`}>
+                    {currentAsset.plate || tr('Tiada plat', 'No plate')}
+                    {lastMileage ? ` · ${lastMileage}` : ''}
+                  </p>
                 </div>
               ) : (
                 <p className="font-bold text-muted">{tr('Pilih kenderaan...', 'Choose a vehicle...')}</p>
@@ -463,6 +476,7 @@ const VehicleServices: React.FC = () => {
             <div className="relative space-y-4 before:content-[''] before:absolute before:left-[21px] before:top-3 before:bottom-3 before:w-[2px] before:bg-text/10">
               {currentEvents.map(event => {
                 const isExpanded = expandedEvents.includes(event.id);
+                const superseded = !stillOwed.has(event.id);
                 return (
                   <div key={event.id} className="relative flex gap-3">
                     {/* The stamp a workshop presses into a service book: the date of the visit,
@@ -500,10 +514,15 @@ const VehicleServices: React.FC = () => {
                       {event.nextServiceDate && (
                         <div className="flex items-center gap-2 flex-wrap border-t border-text/5 pt-2.5">
                             <p className={`text-xs font-bold flex items-center gap-1 ${
-                              event.nextDone ? 'text-muted line-through' : 'text-rose-500 light:text-rose-700'
+                              event.nextDone || superseded ? 'text-muted line-through' : 'text-rose-500 light:text-rose-700'
                             }`}>
                               <CalendarClock size={12} /> {tr('Seterusnya', 'Next')}: {formatDate(event.nextServiceDate)}
                             </p>
+                            {superseded ? (
+                              <span className="text-[10px] text-muted">
+                                {tr('Dah diganti rekod lebih baru', 'Replaced by a newer record')}
+                              </span>
+                            ) : (
                             <button
                               onClick={() => toggleNextDone(event.id)}
                               aria-pressed={!!event.nextDone}
@@ -517,6 +536,7 @@ const VehicleServices: React.FC = () => {
                               {event.nextDone && <Check size={11} strokeWidth={3} />}
                               {event.nextDone ? tr('Dah buat', 'Done') : tr('Dah buat?', 'Done?')}
                             </button>
+                            )}
                           </div>
                         )}
 

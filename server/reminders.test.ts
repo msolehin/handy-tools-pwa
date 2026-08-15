@@ -53,6 +53,16 @@ describe('reminders', { skip: skip && 'DATABASE_URL not set' }, () => {
          ($1, 'svcOil',  'car1', $2, 'Tukar minyak hitam', $3, false),
          ($1, 'svcAircond', 'car1', $2, 'Servis aircond',  $3, true)`,
       [userId, plus(-60), plus(7)]);
+
+    // A tyre change due in 7 days that was already re-done last week. The newer visit is what
+    // closes the old row — nothing was ticked, so only the latest-per-(asset, title) rule can
+    // stop the stale date from pushing.
+    await pool!.query(
+      `insert into vehicle_service_events
+         (user_id, id, asset_id, date, title, next_service_date, next_done) values
+         ($1, 'svcTyreOld', 'car1', $2, 'Tukar tayar', $4, false),
+         ($1, 'svcTyreNew', 'car1', $3, 'Tukar tayar', $5, false)`,
+      [userId, plus(-400), plus(-7), plus(7), plus(200)]);
   });
 
   after(async () => {
@@ -73,6 +83,12 @@ describe('reminders', { skip: skip && 'DATABASE_URL not set' }, () => {
     assert.ok(due.some((r) => r.recordId === 'svcOil'), 'the open service must still fire');
     assert.ok(!due.some((r) => r.recordId === 'svcAircond'),
       'next_done closes the reminder without inventing a service record');
+  });
+
+  test('a service re-done since does not fire off the superseded record', async () => {
+    const due = (await dueReminders()).filter((r) => r.userId === userId);
+    assert.ok(!due.some((r) => r.recordId === 'svcTyreOld'),
+      'logging the new visit is what closes the old one, same rule as openServices()');
   });
 
   test('uses custom_title when the document has one', async () => {

@@ -6,8 +6,10 @@ import { COUNTRIES, flagOf } from './countries.ts';
 import { mapTarget, countryPath, SMALL_COUNTRY_POINTS, MAP_W, MAP_H } from './worldMap.ts';
 
 describe('countries', () => {
-  test('covers every UN member state', () => {
+  test('covers every UN member state bar the one we deliberately omit', () => {
     assert.ok(COUNTRIES.length >= 195, `only ${COUNTRIES.length} countries listed`);
+    // Not a destination on a Malaysian passport — see the note in countries.ts.
+    assert.equal(COUNTRIES.find((c) => c.code === 'IL'), undefined);
   });
 
   test('has no duplicate names or codes', () => {

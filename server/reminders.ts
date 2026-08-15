@@ -48,17 +48,24 @@ due as (
   select user_id, 'countdown', id, title, target_date, '/countdown'
     from countdown_events
   union all
-  -- Every row, not the latest per asset: one car legitimately has an oil change, a tyre
-  -- rotation and an aircond service open at once. next_done is the user's "dah buat" tick,
-  -- which closes the reminder without inventing a service record (migration 006).
+  -- Latest row per (asset, title), not per asset: one car legitimately has an oil change, a
+  -- tyre rotation and an aircond service open at once, but logging a *new* oil change is what
+  -- closes the previous one — otherwise every past visit keeps pushing its stale date forever.
+  -- Mirrors openServices() in src/lib/horizon.ts, tie-break included (last entered wins a
+  -- same-day tie, which is pos desc here). next_done is the user's "dah buat" tick, closing the
+  -- reminder without inventing a service record (migration 006).
   select user_id, 'vehicle_service', id, coalesce(nullif(title, ''), 'Servis'),
          next_service_date, '/vehicle-services'
-    from vehicle_service_events
+    from (select distinct on (user_id, asset_id, title) *
+            from vehicle_service_events
+           order by user_id, asset_id, title, date desc, pos desc) v
    where next_service_date is not null and not next_done
   union all
   select user_id, 'home_service', id, coalesce(nullif(title, ''), 'Servis'),
          next_service_date, '/home-services'
-    from home_service_events
+    from (select distinct on (user_id, asset_id, title) *
+            from home_service_events
+           order by user_id, asset_id, title, date desc, pos desc) h
    where next_service_date is not null and not next_done
 )
 select d.user_id, d.source, d.record_id, d.title,
