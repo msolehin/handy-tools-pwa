@@ -99,15 +99,33 @@ const FIXTURES: Record<string, unknown> = {
   expense_manager_data: {
     expenses: [
       { id: 'exp0001', description: 'Groceries', amount: 182.45, category: 'Food', date: '2026-08-02' },
-      { id: 'exp0002', description: 'Petrol', amount: 90, category: 'Transport', date: '2026-08-04' },
+      // A one-off expense that went into savings; the row above has no goalId at all.
+      { id: 'exp0002', description: 'Petrol', amount: 90, category: 'Transport', date: '2026-08-04', goalId: 'gol0001' },
     ],
     incomes: [
       { id: 'inc0001', title: 'Gaji', amount: 5200, recurring: true, date: '2026-08-25', startMonth: '2026-01', endMonth: '2026-12', day: 25 },
       { id: 'inc0002', title: 'Freelance', amount: 800, recurring: false, date: '2026-07-19' },
     ],
     commitments: [
-      { id: 'com0001', title: 'Ansuran kereta', amount: 890, paymentDay: 5, category: 'Loan', archived: false, payments: { '2026-07': '2026-07-05', '2026-08': '2026-08-04' } },
-      { id: 'com0002', title: 'Gym lama', amount: 120, paymentDay: 15, category: 'Other', archived: true, payments: {} },
+      // One month paid at the scheduled figure, one that differed. '0000-01' in `amounts` is the
+      // pre-history sentinel, not a real month — the reason that field is jsonb rather than rows.
+      {
+        id: 'com0001', title: 'Ansuran kereta', amount: 890, paymentDay: 5, category: 'Loan', archived: false,
+        payments: { '2026-07': '2026-07-05', '2026-08': '2026-08-04' },
+        paidAmounts: { '2026-07': 850, '2026-08': 910.5 },
+        amounts: { '0000-01': 850, '2026-08': 890 },
+        endMonth: '2027-06',
+      },
+      // Every optional field absent, and paidAmounts empty rather than missing — read always emits it.
+      { id: 'com0002', title: 'Gym lama', amount: 120, paymentDay: 15, category: 'Other', archived: true, payments: {}, paidAmounts: {}, goalId: 'gol0001' },
+    ],
+    goals: [
+      { id: 'gol0001', name: 'Umrah', target: 12000, deadline: '2027-12-31', note: 'dua orang' },
+      { id: 'gol0002', name: 'Tabung kecemasan', target: 5000 },
+    ],
+    topups: [
+      { id: 'top0001', goalId: 'gol0001', date: '2026-08-01', amount: 500, note: 'bonus' },
+      { id: 'top0002', goalId: 'gol0002', date: '2026-07-15', amount: 250 },
     ],
     expenseCats: ['Food', 'Transport', 'Bills'],
     commitCats: ['Loan', 'Other'],
@@ -193,6 +211,12 @@ const FIXTURES: Record<string, unknown> = {
 // So "an empty blob clears the tool" does not apply to it.
 const NEVER_CLEARS = new Set(['water_tracker_data']);
 
+// expense_manager_data leaves goals and topups alone when the blob mentions neither, which is what
+// stops one save from a pre-savings build wiping every goal on the account. `{}` is exactly such a
+// blob, so those two collections are exempt from the clearing test — the guard has its own test
+// below, and a null blob still clears everything.
+const KEEPS_ON_EMPTY: Record<string, string[]> = { expense_manager_data: ['goals', 'topups'] };
+
 const skip = !hasDb;
 let userId: string;
 
@@ -247,7 +271,7 @@ describe('tool descriptors', { skip: skip && 'DATABASE_URL not set' }, () => {
         // Only the collections have to empty out. Scalar settings (duit raya's theme and
         // budget) correctly fall back to their defaults instead.
         const lists = Object.entries(readBack as Record<string, unknown>)
-          .filter(([, v]) => Array.isArray(v));
+          .filter(([k, v]) => Array.isArray(v) && !(KEEPS_ON_EMPTY[tool] ?? []).includes(k));
         assert.ok(lists.length, 'blob-shaped tools must expose their collections');
         for (const [key, value] of lists) {
           assert.deepEqual(value, [], `${key} should come back empty`);
@@ -260,4 +284,29 @@ describe('tool descriptors', { skip: skip && 'DATABASE_URL not set' }, () => {
       await tx(async (q) => { await desc.write(q, userId, null); });
     });
   }
+
+  // The one non-trivial branch in the descriptor: a save from a build that predates savings sends
+  // no goals key at all, and must not be read as "the user deleted them". The rev guard is no help
+  // there — a stale device that has pulled is at the current rev, so its write is accepted.
+  test('expense_manager_data: a blob with no goals key leaves goals alone', async () => {
+    const desc = TOOLS.expense_manager_data;
+    const full = FIXTURES.expense_manager_data as Record<string, unknown>;
+    const { goals, topups, ...oldClient } = full; // exactly what a pre-savings build sends
+
+    const kept = await tx(async (q) => {
+      await desc.write(q, userId, full);
+      await desc.write(q, userId, oldClient);
+      return desc.read(q, userId);
+    }) as Record<string, unknown>;
+    assert.deepEqual(kept.goals, goals, 'an old client must not wipe goals');
+    assert.deepEqual(kept.topups, topups, 'nor topups');
+
+    // ...while an explicit empty array is an opinion, and still clears.
+    const cleared = await tx(async (q) => {
+      await desc.write(q, userId, { ...full, goals: [], topups: [] });
+      return desc.read(q, userId);
+    }) as Record<string, unknown>;
+    assert.deepEqual(cleared.goals, []);
+    assert.deepEqual(cleared.topups, []);
+  });
 });

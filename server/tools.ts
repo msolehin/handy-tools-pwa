@@ -330,7 +330,8 @@ export const TOOLS: Record<string, Descriptor> = {
   expense_manager_data: {
     async read(q, uid) {
       const { rows: expenses } = await q(
-        `select id, description, amount::float8 as amount, category, date::text as date
+        `select id, description, amount::float8 as amount, category, date::text as date,
+                goal_id as "goalId"
            from expenses where user_id = $1 order by pos`, [uid]);
 
       const { rows: incomes } = await q(
@@ -340,23 +341,54 @@ export const TOOLS: Record<string, Descriptor> = {
 
       const { rows: commitments } = await q(
         `select id, title, amount::float8 as amount, payment_day as "paymentDay",
-                category, archived
+                category, archived, amounts, end_month as "endMonth", goal_id as "goalId"
            from commitments where user_id = $1 order by pos`, [uid]);
 
       const { rows: payments } = await q(
-        `select commitment_id, month, paid_date::text as paid_date
+        `select commitment_id, month, paid_date::text as paid_date,
+                paid_amount::float8 as paid_amount
            from commitment_payments where user_id = $1 order by month`, [uid]);
 
+      const { rows: goals } = await q(
+        `select id, name, target::float8 as target, deadline::text as deadline, note
+           from savings_goals where user_id = $1 order by pos`, [uid]);
+
+      const { rows: topups } = await q(
+        `select id, goal_id as "goalId", date::text as date, amount::float8 as amount, note
+           from savings_topups where user_id = $1 order by pos`, [uid]);
+
+      // A null paid_amount is a row written before 009 — skipped rather than filled with a figure
+      // we cannot support. The client's own load repair stamps those from the current amount,
+      // which is what they were already being counted as.
       const byCommitment = new Map<string, Record<string, string>>();
+      const paidByCommitment = new Map<string, Record<string, number>>();
       for (const p of payments) {
-        if (!byCommitment.has(p.commitment_id)) byCommitment.set(p.commitment_id, {});
+        if (!byCommitment.has(p.commitment_id)) {
+          byCommitment.set(p.commitment_id, {});
+          paidByCommitment.set(p.commitment_id, {});
+        }
         byCommitment.get(p.commitment_id)![p.month] = p.paid_date;
+        if (p.paid_amount !== null) paidByCommitment.get(p.commitment_id)![p.month] = p.paid_amount;
       }
 
       return {
-        expenses,
+        // dropNulls now that goal_id is nullable — every other expense column is not null, so the
+        // raw rows used to be safe; without this every expense would come back with goalId: null.
+        expenses: dropNulls(expenses),
         incomes: dropNulls(incomes),
-        commitments: commitments.map((c) => ({ ...c, payments: byCommitment.get(c.id) ?? {} })),
+        // paidAmounts is always emitted, {} included: the client rebuilds it from the payment keys
+        // on every load, so it is always present in what it sends. amounts, endMonth and goalId are
+        // genuinely optional and must come back ABSENT rather than null, hence the destructure.
+        commitments: commitments.map(({ amounts, endMonth, goalId, ...c }) => ({
+          ...c,
+          payments: byCommitment.get(c.id) ?? {},
+          paidAmounts: paidByCommitment.get(c.id) ?? {},
+          ...(amounts && { amounts }),
+          ...(endMonth !== null && { endMonth }),
+          ...(goalId !== null && { goalId }),
+        })),
+        goals: dropNulls(goals),
+        topups: dropNulls(topups),
         expenseCats: await readList(q, uid, 'expense_cat'),
         commitCats: await readList(q, uid, 'commit_cat'),
       };
@@ -366,11 +398,24 @@ export const TOOLS: Record<string, Descriptor> = {
       await q('delete from incomes where user_id = $1', [uid]);
       await q('delete from commitments where user_id = $1', [uid]); // payments cascade
 
+      // goals and topups are the first new TOP-LEVEL keys since sync shipped. Per-item fields
+      // survive an old client because it spreads whole objects, but an old bundle rebuilds the top
+      // level from the five keys it knows — so arr(undefined) -> [] would let one save from a stale
+      // phone delete every goal on the account, accepted rather than 409'd because that phone is at
+      // the current rev. A missing key is not an opinion; `goals: []` is, and still clears.
+      const knowsGoals = !blob || blob.goals !== undefined || blob.topups !== undefined;
+      if (knowsGoals) {
+        // No foreign key points at savings_goals, so these two deletes are order-free and a goalId
+        // left pointing at a goal that is already gone can never fail this write.
+        await q('delete from savings_goals where user_id = $1', [uid]);
+        await q('delete from savings_topups where user_id = $1', [uid]);
+      }
+
       await insertMany(q, 'expenses',
-        ['user_id', 'id', 'description', 'amount', 'category', 'date', 'pos'],
+        ['user_id', 'id', 'description', 'amount', 'category', 'date', 'goal_id', 'pos'],
         arr(blob?.expenses).map((e, i) => [
           uid, String(e.id), String(e.description ?? ''), num(e.amount),
-          String(e.category ?? ''), e.date, i,
+          String(e.category ?? ''), e.date, e.goalId ?? null, i,
         ]));
 
       await insertMany(q, 'incomes',
@@ -384,11 +429,16 @@ export const TOOLS: Record<string, Descriptor> = {
 
       const commitments = arr(blob?.commitments);
       await insertMany(q, 'commitments',
-        ['user_id', 'id', 'title', 'amount', 'payment_day', 'category', 'archived', 'pos'],
+        ['user_id', 'id', 'title', 'amount', 'payment_day', 'category', 'archived',
+          'amounts', 'end_month', 'goal_id', 'pos'],
         commitments.map((c, i) => [
           uid, String(c.id), String(c.title ?? ''), num(c.amount),
           Math.min(31, Math.max(1, num(c.paymentDay) || 1)),
-          String(c.category ?? ''), Boolean(c.archived), i,
+          String(c.category ?? ''), Boolean(c.archived),
+          // The client never writes an empty `amounts` — it seeds the origin sentinel on the first
+          // forward change — so truthiness separates "no schedule changes" from a real history.
+          c.amounts ? JSON.stringify(c.amounts) : null,
+          c.endMonth ?? null, c.goalId ?? null, i,
         ]));
 
       // Archiving a commitment deliberately keeps its payment history, so the cascade above
@@ -396,16 +446,37 @@ export const TOOLS: Record<string, Descriptor> = {
       const payments = commitments.flatMap((c) =>
         Object.entries(c.payments ?? {})
           .filter(([, paid]) => typeof paid === 'string' && paid)
-          .map(([month, paid]) => [uid, String(c.id), month, paid]));
+          .map(([month, paid]) => [uid, String(c.id), month, paid,
+            // ponytail: a paidAmounts key with no matching payment is dropped. The client rebuilds
+            // paidAmounts from the payment keys on load so it cannot produce one; give it its own
+            // table if that ever stops being true.
+            typeof c.paidAmounts?.[month] === 'number' ? c.paidAmounts[month] : null]));
       for (let i = 0; i < payments.length; i += 500) {
         const chunk = payments.slice(i, i + 500);
         const values = chunk
-          .map((_, r) => `($${r * 4 + 1},$${r * 4 + 2},$${r * 4 + 3},$${r * 4 + 4})`).join(',');
+          .map((_, r) => `($${r * 5 + 1},$${r * 5 + 2},$${r * 5 + 3},$${r * 5 + 4},$${r * 5 + 5})`)
+          .join(',');
         await q(
-          `insert into commitment_payments (user_id, commitment_id, month, paid_date)
+          `insert into commitment_payments (user_id, commitment_id, month, paid_date, paid_amount)
            values ${values}
            on conflict (user_id, commitment_id, month) do update
-             set paid_date = excluded.paid_date`, chunk.flat());
+             set paid_date = excluded.paid_date, paid_amount = excluded.paid_amount`, chunk.flat());
+      }
+
+      if (knowsGoals) {
+        await insertMany(q, 'savings_goals',
+          ['user_id', 'id', 'name', 'target', 'deadline', 'note', 'pos'],
+          arr(blob?.goals).map((g, i) => [
+            uid, String(g.id), String(g.name ?? ''), num(g.target),
+            g.deadline ?? null, g.note ?? null, i,
+          ]));
+
+        await insertMany(q, 'savings_topups',
+          ['user_id', 'id', 'goal_id', 'date', 'amount', 'note', 'pos'],
+          arr(blob?.topups).map((t, i) => [
+            uid, String(t.id), String(t.goalId ?? ''), t.date, num(t.amount),
+            t.note ?? null, i,
+          ]));
       }
 
       await writeList(q, uid, 'expense_cat', blob?.expenseCats);

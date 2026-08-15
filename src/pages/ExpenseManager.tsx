@@ -2,16 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { store } from '../lib/store';
 import { useT, t as trs, getLang, locale } from '../lib/lang';
+import { AMOUNT_ORIGIN, scheduledFor, paidFor, commitmentPaidTotal, goalSaved } from '../lib/savings';
 import {
   Wallet, Plus, Trash2, Check, X, ChevronLeft, ChevronRight, ChevronDown, Pencil, RotateCcw,
   TrendingUp, TrendingDown, PieChart, ListChecks, CreditCard, Coins, CalendarDays,
   Eye, EyeOff,
   Utensils, ShoppingCart, Car, ShoppingBag, Receipt, HeartPulse, GraduationCap, Clapperboard,
   Plane, Gift, HeartHandshake, Sparkles, Baby, CircleEllipsis, Landmark, Repeat, Zap, ShieldCheck,
-  Home, Tag, Search
+  Home, Tag, Search, PiggyBank, LineChart
 } from 'lucide-react';
 
-interface Expense { id: string; description: string; amount: number; category: string; date: string; }
+interface Expense { id: string; description: string; amount: number; category: string; date: string; goalId?: string; }
+// A savings goal is a tally, not a pot of its own: it counts money that already left through a
+// linked commitment or expense, plus top-ups that move nothing else.
+interface SavingsGoal { id: string; name: string; target: number; deadline?: string; note?: string; }
+interface Topup { id: string; goalId: string; date: string; amount: number; note?: string; }
 interface Income { id: string; title: string; amount: number; recurring: boolean; date: string; startMonth?: string; endMonth?: string; day?: number; }
 interface Commitment {
   id: string; title: string; amount: number; paymentDay: number; category: string;
@@ -24,6 +29,7 @@ interface Commitment {
   // `amount` stays the current plan; older builds keep reading just that.
   amounts?: Record<string, number>; // 'YYYY-MM' -> amount effective from that month
   endMonth?: string; // last month it applies — past payments stay on record after it ends
+  goalId?: string;   // the savings goal this feeds, if any — at most one, so it lives here
 }
 
 const STORAGE_KEY = 'expense_manager_data';
@@ -47,6 +53,8 @@ const DEFAULT_EXPENSE_CATS: CatDef[] = [
   { id: 'charity',   ms: 'Zakat & Derma',     en: 'Zakat & Charity',   Icon: HeartHandshake },
   { id: 'family',    ms: 'Keluarga & Anak',   en: 'Family & Kids',     Icon: Baby },
   { id: 'personal',  ms: 'Penjagaan Diri',    en: 'Personal Care',     Icon: Sparkles },
+  { id: 'savings',   ms: 'Simpanan',          en: 'Savings',           Icon: PiggyBank },
+  { id: 'invest',    ms: 'Pelaburan',         en: 'Investment',        Icon: LineChart },
   { id: 'other',     ms: 'Lain-lain',         en: 'Other',             Icon: CircleEllipsis },
 ];
 
@@ -56,6 +64,9 @@ const DEFAULT_COMMIT_CATS: CatDef[] = [
   { id: 'utility',      ms: 'Utiliti',   en: 'Utilities',    Icon: Zap },
   { id: 'insurance',    ms: 'Insurans',  en: 'Insurance',    Icon: ShieldCheck },
   { id: 'rent',         ms: 'Sewa',      en: 'Rent',         Icon: Home },
+  // A standing monthly saving or investment — the kind a savings goal is usually fed by
+  { id: 'commit-savings',  ms: 'Simpanan',  en: 'Savings',    Icon: PiggyBank },
+  { id: 'commit-invest',   ms: 'Pelaburan', en: 'Investment', Icon: LineChart },
   { id: 'commit-other', ms: 'Lain-lain', en: 'Other',        Icon: CircleEllipsis },
 ];
 
@@ -65,19 +76,6 @@ const LEGACY_CATS = ['Makanan', 'Pengangkutan', 'Beli-belah', 'Bil', 'Kesihatan'
 
 // True for a built-in, by id or by either label — so a user-added name that collides with a
 // built-in can never show up as a second, deletable copy of it.
-// What the commitment was scheduled at in a given month: the latest change effective on or
-// before it. The ORIGIN key holds the figure from before the first recorded change.
-const AMOUNT_ORIGIN = '0000-01';
-const scheduledFor = (c: Commitment, mk: string) => {
-  if (!c.amounts) return c.amount;
-  let best = '';
-  for (const k of Object.keys(c.amounts)) if (k <= mk && k > best) best = k;
-  return best ? c.amounts[best] : c.amount;
-};
-// What a commitment actually cost in a given month. Records made before amounts were kept
-// fall back to what was scheduled then, which is what they were counted as anyway.
-const paidFor = (c: Commitment, mk: string) => c.paidAmounts?.[mk] ?? scheduledFor(c, mk);
-
 const isDefaultCat = (id: string, defs: CatDef[]) => defs.some(d => d.id === id || d.ms === id || d.en === id);
 const catLabel = (id: string, defs: CatDef[]) => defs.find(d => d.id === id)?.[catLang()] ?? id;
 // A user-added category is its own id and label, and gets the generic tag icon
@@ -254,9 +252,11 @@ const ExpenseManager: React.FC = () => {
   // Only user-added categories are stored; the defaults live in code so they can never be lost
   const [expenseCats, setExpenseCats] = useState<string[]>([]);
   const [commitCats, setCommitCats] = useState<string[]>([]);
+  const [goals, setGoals] = useState<SavingsGoal[]>([]);
+  const [topups, setTopups] = useState<Topup[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  const [tab, setTab] = useState<'dashboard' | 'commitment' | 'income' | 'transaction'>('dashboard');
+  const [tab, setTab] = useState<'dashboard' | 'commitment' | 'income' | 'savings' | 'transaction'>('dashboard');
   const today = new Date();
   const todayKey = dateKey(today);
   const currentMonth = monthOf(todayKey);
@@ -289,14 +289,16 @@ const ExpenseManager: React.FC = () => {
         const custom = (list: unknown, defs: CatDef[]) => (list as string[]).filter(c => !LEGACY_CATS.includes(c) && !isDefaultCat(c, defs));
         if (Array.isArray(p.expenseCats)) setExpenseCats(custom(p.expenseCats, DEFAULT_EXPENSE_CATS));
         if (Array.isArray(p.commitCats)) setCommitCats(custom(p.commitCats, DEFAULT_COMMIT_CATS));
+        if (Array.isArray(p.goals)) setGoals(p.goals);
+        if (Array.isArray(p.topups)) setTopups(p.topups);
       } catch (e) {}
     }
     setIsLoaded(true);
   }, []);
 
   useEffect(() => {
-    if (isLoaded) store.setItem(STORAGE_KEY, JSON.stringify({ expenses, incomes, commitments, expenseCats, commitCats }));
-  }, [expenses, incomes, commitments, expenseCats, commitCats, isLoaded]);
+    if (isLoaded) store.setItem(STORAGE_KEY, JSON.stringify({ expenses, incomes, commitments, goals, topups, expenseCats, commitCats }));
+  }, [expenses, incomes, commitments, goals, topups, expenseCats, commitCats, isLoaded]);
 
   // Built-ins first, then anything the user added
   const expenseOptions: CatDef[] = [...DEFAULT_EXPENSE_CATS, ...expenseCats.map(asCatDef)];
@@ -357,6 +359,7 @@ const ExpenseManager: React.FC = () => {
   const [eAmount, setEAmount] = useState('');
   const [eCat, setECat] = useState(DEFAULT_EXPENSE_CATS[0].id);
   const [eDate, setEDate] = useState(todayKey);
+  const [eGoal, setEGoal] = useState('');
   // Same sheet adds and edits — eId null means a new one
   const [eId, setEId] = useState<string | null>(null);
   const openExpense = (e?: Expense) => {
@@ -365,12 +368,14 @@ const ExpenseManager: React.FC = () => {
     setEAmount(e ? String(e.amount) : '');
     setECat(e?.category ?? DEFAULT_EXPENSE_CATS[0].id);
     setEDate(e?.date ?? todayKey);
+    setEGoal(e?.goalId ?? '');
     setShowExpense(true);
   };
   const saveExpense = () => {
     const amount = parseFloat(eAmount);
     if (!eDesc.trim() || isNaN(amount) || amount <= 0) return;
-    const fields = { description: eDesc.trim(), amount, category: eCat, date: eDate };
+    // '' means not going into any fund — kept off the record entirely rather than stored empty
+    const fields = { description: eDesc.trim(), amount, category: eCat, date: eDate, ...(eGoal ? { goalId: eGoal } : { goalId: undefined }) };
     setExpenses(prev => eId
       ? prev.map(x => x.id === eId ? { ...x, ...fields } : x)
       : [{ id: generateId(), ...fields }, ...prev]);
@@ -394,6 +399,56 @@ const ExpenseManager: React.FC = () => {
     setExpenseCats(prev => prev.filter(x => x !== c));
     if (eCat === c) setECat(DEFAULT_EXPENSE_CATS[0].id);
   };
+
+  // --- Savings goals ---
+  const [gForm, setGForm] = useState<{ id: string | null; name: string; target: string; deadline: string }>({ id: null, name: '', target: '', deadline: '' });
+  const [showGForm, setShowGForm] = useState(false);
+  const [openGoal, setOpenGoal] = useState<string | null>(null); // the goal whose sheet is open
+  const [topupAmount, setTopupAmount] = useState('');
+  const [topupDate, setTopupDate] = useState(todayKey);
+
+  const openGForm = (g?: SavingsGoal) => {
+    setGForm(g
+      ? { id: g.id, name: g.name, target: String(g.target), deadline: g.deadline ?? '' }
+      : { id: null, name: '', target: '', deadline: '' });
+    setShowGForm(true);
+  };
+  const saveGForm = () => {
+    const target = parseFloat(gForm.target);
+    if (!gForm.name.trim() || isNaN(target) || target <= 0) return;
+    const fields = { name: gForm.name.trim(), target, ...(gForm.deadline ? { deadline: gForm.deadline } : {}) };
+    setGoals(prev => gForm.id
+      ? prev.map(g => g.id === gForm.id ? { ...g, ...fields, ...(gForm.deadline ? {} : { deadline: undefined }) } : g)
+      : [...prev, { id: generateId(), ...fields }]);
+    setShowGForm(false);
+  };
+  // Deleting a goal unlinks rather than cascades: the commitments and expenses that fed it are
+  // real money that still happened, so only the tally goes.
+  const deleteGoal = (g: SavingsGoal) => {
+    if (!window.confirm(trs(`Padam tabung "${g.name}"? Komitmen dan perbelanjaan yang dipautkan akan dilepaskan, bukan dipadam.`,
+      `Delete the "${g.name}" fund? The commitments and expenses feeding it are unlinked, not deleted.`))) return;
+    setCommitments(prev => prev.map(c => c.goalId === g.id ? { ...c, goalId: undefined } : c));
+    setExpenses(prev => prev.map(e => e.goalId === g.id ? { ...e, goalId: undefined } : e));
+    setTopups(prev => prev.filter(t => t.goalId !== g.id));
+    setGoals(prev => prev.filter(x => x.id !== g.id));
+    setOpenGoal(null);
+  };
+  // One commitment feeds at most one goal, so ticking one that already belongs elsewhere moves it.
+  const linkCommitment = (c: Commitment, goalId: string) => {
+    if (c.goalId && c.goalId !== goalId) {
+      const from = goals.find(g => g.id === c.goalId)?.name ?? '';
+      if (!window.confirm(trs(`"${c.title}" sedang masuk ke "${from}". Pindahkan ke tabung ini?`,
+        `"${c.title}" currently feeds "${from}". Move it to this fund?`))) return;
+    }
+    setCommitments(prev => prev.map(x => x.id === c.id ? { ...x, goalId: x.goalId === goalId ? undefined : goalId } : x));
+  };
+  const addTopup = (goalId: string) => {
+    const amount = parseFloat(topupAmount);
+    if (isNaN(amount) || amount <= 0) return;
+    setTopups(prev => [{ id: generateId(), goalId, date: topupDate, amount }, ...prev]);
+    setTopupAmount('');
+  };
+  const savedFor = (goalId: string) => goalSaved(goalId, commitments, expenses, topups);
 
   // --- Commitment add/edit ---
   const [cForm, setCForm] = useState<{ id: string | null; title: string; amount: string; day: string; category: string }>({ id: null, title: '', amount: '', day: '1', category: DEFAULT_COMMIT_CATS[0].id });
@@ -662,10 +717,10 @@ const ExpenseManager: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div className="grid grid-cols-4 gap-1 p-1 bg-text/5 rounded-xl">
-        {([['dashboard', tr('Utama', 'Overview'), PieChart], ['commitment', tr('Komitmen', 'Commitments'), CreditCard], ['income', tr('Pendapatan', 'Income'), Coins], ['transaction', tr('Transaksi', 'Transactions'), ListChecks]] as const).map(([key, label, Icon]) => (
-          <button key={key} onClick={() => setTab(key)} className={`py-2 text-xs font-bold rounded-lg transition-all flex flex-col items-center gap-1 ${tab === key ? 'bg-surface text-emerald-400 shadow-sm' : 'text-muted hover:text-text'}`}>
-            <Icon size={16} /> {label}
+      <div className="grid grid-cols-5 gap-1 p-1 bg-text/5 rounded-xl">
+        {([['dashboard', tr('Utama', 'Overview'), PieChart], ['commitment', tr('Komitmen', 'Commitments'), CreditCard], ['income', tr('Pendapatan', 'Income'), Coins], ['savings', tr('Tabung', 'Savings'), PiggyBank], ['transaction', tr('Transaksi', 'Transactions'), ListChecks]] as const).map(([key, label, Icon]) => (
+          <button key={key} onClick={() => setTab(key)} className={`py-2 text-[10px] font-bold rounded-lg transition-all flex flex-col items-center gap-1 ${tab === key ? 'bg-surface text-emerald-400 light:text-emerald-600 shadow-sm' : 'text-muted hover:text-text'}`}>
+            <Icon size={16} /> <span className="truncate max-w-full px-0.5">{label}</span>
           </button>
         ))}
       </div>
@@ -856,7 +911,13 @@ const ExpenseManager: React.FC = () => {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="font-bold text-text/90 truncate">{c.title}</p>
-                    <p className="text-[11px] text-muted">{tr('Hari', 'Day')} {c.paymentDay} · {catLabel(c.category, commitOptions)}</p>
+                    <p className="text-[11px] text-muted truncate">
+                      {tr('Hari', 'Day')} {c.paymentDay} · {catLabel(c.category, commitOptions)}
+                      {/* The link is only editable from the fund, so name it here to make it findable */}
+                      {c.goalId && goals.some(g => g.id === c.goalId) && (
+                        <span className="text-emerald-400 light:text-emerald-600"> · {tr('masuk', 'feeds')} {goals.find(g => g.id === c.goalId)!.name}</span>
+                      )}
+                    </p>
                   </div>
                   <span className="font-mono font-bold text-amber-400 shrink-0">RM{fmt(c.amount)}</span>
                 </div>
@@ -934,6 +995,61 @@ const ExpenseManager: React.FC = () => {
       )}
 
       {/* TRANSACTION */}
+      {/* SAVINGS — a tally of money that already left through a commitment or expense, plus top-ups */}
+      {tab === 'savings' && (
+        <div className="space-y-3">
+          <button onClick={() => openGForm()} className="w-full py-3 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-emerald-500/50 hover:text-emerald-400 transition-all flex items-center justify-center">
+            <Plus size={18} className="mr-2" /> {tr('Tambah Tabung', 'Add a fund')}
+          </button>
+
+          {goals.length === 0 ? (
+            <p className="text-xs text-muted text-center py-6 leading-relaxed">
+              {tr('Belum ada tabung. Buat satu, kemudian tandakan komitmen mana yang masuk ke dalamnya.',
+                'No funds yet. Make one, then tick which commitments feed it.')}
+            </p>
+          ) : goals.map(g => {
+            const saved = savedFor(g.id);
+            const pct = g.target > 0 ? Math.min(100, (saved / g.target) * 100) : 0;
+            const feeders = commitments.filter(c => c.goalId === g.id);
+            const done = saved >= g.target;
+            return (
+              <button key={g.id} onClick={() => setOpenGoal(g.id)} className="w-full text-left glass-panel p-4 space-y-2.5 hover:border-emerald-500/30 transition-colors">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-bold text-text/90 truncate flex items-center gap-1.5">
+                      {done && <Check size={14} className="text-emerald-400 light:text-emerald-600 shrink-0" />}{g.name}
+                    </p>
+                    <p className="text-[10px] text-muted">
+                      {feeders.length > 0
+                        ? tr(`${feeders.length} komitmen`, `${feeders.length} commitments`)
+                        : tr('Belum dipautkan', 'Nothing linked yet')}
+                      {g.deadline ? ` · ${fmtLongDate(g.deadline)}` : ''}
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-bold text-muted shrink-0" style={{ fontVariantNumeric: 'tabular-nums' }}>{pct.toFixed(0)}%</span>
+                </div>
+
+                <div className="h-2 bg-text/10 rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full transition-all duration-700 ${done ? 'bg-emerald-500' : 'bg-emerald-400/80'}`} style={{ width: `${pct}%` }} />
+                </div>
+
+                <div className="flex items-baseline justify-between gap-2 font-mono text-xs" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  <span className="font-black text-emerald-400 light:text-emerald-600">RM {fmt(saved)}</span>
+                  <span className="text-muted">{tr('daripada', 'of')} RM {fmt(g.target)}</span>
+                </div>
+              </button>
+            );
+          })}
+
+          {goals.length > 0 && (
+            <p className="text-[10px] text-muted leading-relaxed px-1">
+              {tr('Tabung hanya mengira — duit komitmen dan perbelanjaan yang dipautkan sudah pun ditolak dari baki. Tambah nilai tidak mengubah baki.',
+                'A fund only counts. Money from linked commitments and expenses has already left your balance, and a top-up changes nothing else.')}
+            </p>
+          )}
+        </div>
+      )}
+
       {tab === 'transaction' && (
         <div className="space-y-4">
           <div className="flex p-1 bg-text/5 rounded-xl">
@@ -1079,6 +1195,16 @@ const ExpenseManager: React.FC = () => {
               <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Tarikh', 'Date')}</label>
               <input type="date" value={eDate} max={todayKey} onChange={e => setEDate(e.target.value)} className="input-field w-full" />
             </div>
+            {/* Only worth showing once there is somewhere for it to go */}
+            {goals.length > 0 && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Masuk ke tabung', 'Into a fund')}</label>
+                <select value={eGoal} onChange={e => setEGoal(e.target.value)} className="input-field w-full">
+                  <option value="">{tr('Tiada', 'None')}</option>
+                  {goals.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
+              </div>
+            )}
             <button onClick={saveExpense} className="w-full py-3 rounded-xl bg-emerald-500 text-[#ffffff] font-bold hover:bg-emerald-600">{eId ? tr('Simpan Perubahan', 'Save Changes') : tr('Simpan Perbelanjaan', 'Save Expense')}</button>
           </div>
         </div>
@@ -1177,6 +1303,112 @@ const ExpenseManager: React.FC = () => {
           </div>
         </div>
       ), document.body)}
+
+      {/* Goal add/edit modal */}
+      {showGForm && createPortal((
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowGForm(false)}>
+          <div className="bg-surface border border-text/10 rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-lg">{gForm.id ? tr('Sunting Tabung', 'Edit fund') : tr('Tambah Tabung', 'Add a fund')}</h3>
+              <button onClick={() => setShowGForm(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button>
+            </div>
+            <input autoFocus value={gForm.name} onChange={e => setGForm(f => ({ ...f, name: e.target.value }))} placeholder={tr('Nama (cth. Umrah)', 'Name (e.g. Umrah)')} className="input-field w-full" />
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Sasaran', 'Target')}</label>
+              <input type="number" value={gForm.target} onChange={e => setGForm(f => ({ ...f, target: e.target.value }))} placeholder="RM" className="input-field w-full font-mono" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Tarikh sasaran (pilihan)', 'Target date (optional)')}</label>
+              <input type="date" value={gForm.deadline} onChange={e => setGForm(f => ({ ...f, deadline: e.target.value }))} className="input-field w-full" />
+            </div>
+            <button onClick={saveGForm} className="w-full py-3 rounded-xl bg-emerald-500 text-[#ffffff] font-bold hover:bg-emerald-600">
+              {gForm.id ? tr('Simpan Perubahan', 'Save changes') : tr('Tambah Tabung', 'Add fund')}
+            </button>
+          </div>
+        </div>
+      ), document.body)}
+
+      {/* Goal detail sheet — what feeds it, and what has been dropped in by hand */}
+      {openGoal && createPortal((() => {
+        const g = goals.find(x => x.id === openGoal);
+        if (!g) return null;
+        const saved = savedFor(g.id);
+        const pct = g.target > 0 ? Math.min(100, (saved / g.target) * 100) : 0;
+        const mine = topups.filter(t => t.goalId === g.id);
+        const linkedExpenses = expenses.filter(e => e.goalId === g.id);
+        return (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setOpenGoal(null)}>
+            <div className="bg-surface border border-text/10 rounded-t-3xl w-full max-w-md max-h-[88dvh] flex flex-col animate-slide-up" onClick={e => e.stopPropagation()}>
+              <div className="flex items-start justify-between gap-2 p-5 pb-3 shrink-0 border-b border-text/5">
+                <div className="min-w-0">
+                  <h3 className="font-bold text-lg truncate">{g.name}</h3>
+                  <p className="text-xs text-muted font-mono" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    RM {fmt(saved)} {tr('daripada', 'of')} RM {fmt(g.target)} · {pct.toFixed(0)}%
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button onClick={() => { setOpenGoal(null); openGForm(g); }} aria-label={tr('Sunting', 'Edit')} className="p-2 text-muted hover:text-text"><Pencil size={16} /></button>
+                  <button onClick={() => deleteGoal(g)} aria-label={tr('Padam', 'Delete')} className="p-2 text-rose-400"><Trash2 size={16} /></button>
+                  <button onClick={() => setOpenGoal(null)} aria-label={tr('Tutup', 'Close')} className="p-2 text-muted hover:text-text"><X size={18} /></button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto overscroll-contain p-5 pt-4 space-y-5">
+                <div className="h-2 bg-text/10 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full bg-emerald-500 transition-all duration-700" style={{ width: `${pct}%` }} />
+                </div>
+
+                {/* Sources — the one place the link is edited */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Sumber', 'Sources')}</h4>
+                  {activeCommitments.length === 0 ? (
+                    <p className="text-xs text-muted">{tr('Belum ada komitmen untuk dipautkan.', 'No commitments to link yet.')}</p>
+                  ) : activeCommitments.map(c => {
+                    const linked = c.goalId === g.id;
+                    const elsewhere = !!c.goalId && !linked;
+                    return (
+                      <button key={c.id} onClick={() => linkCommitment(c, g.id)} className={`w-full flex items-center gap-3 p-2.5 rounded-xl border transition-colors text-left ${linked ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-text/[0.03] border-text/5 hover:border-text/15'}`}>
+                        <span className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${linked ? 'bg-emerald-500 border-emerald-500 text-[#ffffff]' : 'border-text/25 text-transparent'}`}><Check size={12} strokeWidth={3} /></span>
+                        <span className="flex-1 min-w-0">
+                          <span className="block text-sm font-medium truncate text-text/90">{c.title}</span>
+                          <span className="block text-[10px] text-muted truncate">
+                            RM {fmt(scheduledFor(c, currentMonth))} · {tr(`hari ${c.paymentDay}`, `day ${c.paymentDay}`)}
+                            {elsewhere ? ` · ${tr('masuk', 'feeds')} ${goals.find(x => x.id === c.goalId)?.name ?? ''}` : ''}
+                          </span>
+                        </span>
+                        {linked && <span className="font-mono text-xs font-bold text-emerald-400 light:text-emerald-600 shrink-0" style={{ fontVariantNumeric: 'tabular-nums' }}>RM {fmt(commitmentPaidTotal(c))}</span>}
+                      </button>
+                    );
+                  })}
+                  {linkedExpenses.length > 0 && (
+                    <p className="text-[10px] text-muted pt-1">
+                      {tr(`+ ${linkedExpenses.length} perbelanjaan dipautkan · RM ${fmt(linkedExpenses.reduce((s, e) => s + e.amount, 0))}`,
+                        `+ ${linkedExpenses.length} linked expenses · RM ${fmt(linkedExpenses.reduce((s, e) => s + e.amount, 0))}`)}
+                    </p>
+                  )}
+                </div>
+
+                {/* Top-ups — pure tally, deliberately outside the balance */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Tambah nilai', 'Top-ups')}</h4>
+                  <div className="flex gap-2">
+                    <input type="number" value={topupAmount} onChange={e => setTopupAmount(e.target.value)} placeholder="RM" className="input-field flex-1 font-mono py-2 text-sm" />
+                    <input type="date" value={topupDate} max={todayKey} onChange={e => setTopupDate(e.target.value)} className="input-field w-36 py-2 text-sm" />
+                    <button onClick={() => addTopup(g.id)} aria-label={tr('Tambah', 'Add')} className="px-3 rounded-xl bg-emerald-500 text-[#ffffff] font-bold hover:bg-emerald-600 shrink-0"><Plus size={18} /></button>
+                  </div>
+                  {mine.map(t => (
+                    <div key={t.id} className="flex items-center gap-2 py-1.5 border-t border-text/5">
+                      <span className="flex-1 text-[11px] text-muted">{fmtLongDate(t.date)}</span>
+                      <span className="font-mono text-xs font-bold text-emerald-400 light:text-emerald-600" style={{ fontVariantNumeric: 'tabular-nums' }}>+RM {fmt(t.amount)}</span>
+                      <button onClick={() => setTopups(prev => prev.filter(x => x.id !== t.id))} aria-label={tr('Padam', 'Delete')} className="p-1 text-rose-400 opacity-60 hover:opacity-100"><Trash2 size={12} /></button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })(), document.body)}
 
       {/* Delete commitment modal */}
       {delCommit && createPortal((
