@@ -120,7 +120,7 @@ const FIXTURES: Record<string, unknown> = {
       { id: 'com0002', title: 'Gym lama', amount: 120, paymentDay: 15, category: 'Other', archived: true, payments: {}, paidAmounts: {}, goalId: 'gol0001' },
     ],
     goals: [
-      { id: 'gol0001', name: 'Umrah', target: 12000, deadline: '2027-12-31', note: 'dua orang' },
+      { id: 'gol0001', name: 'Umrah', target: 12000, deadline: '2027-12-31', note: 'dua orang', photo: 'data:image/jpeg;base64,VVVV', photoPos: '50% 30%' },
       { id: 'gol0002', name: 'Tabung kecemasan', target: 5000 },
     ],
     topups: [
@@ -183,6 +183,7 @@ const FIXTURES: Record<string, unknown> = {
       startDate: '2025-11-02', endDate: '2025-11-12', budget: 9800,
       categories: { Flights: 3200, Food: 1800, Hotel: 3000 },
       bestLocation: 'Kyoto', cities: ['Tokyo', 'Kyoto', 'Osaka'], notes: 'nak pergi lagi',
+      photo: 'data:image/jpeg;base64,VVVV', photoPos: '40% 25%',   // the second trip has neither, covering the null path
       itinerary: [
         {
           id: 'day0001', label: 'Day 1 — Tokyo', timed: true,

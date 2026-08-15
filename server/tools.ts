@@ -350,7 +350,8 @@ export const TOOLS: Record<string, Descriptor> = {
            from commitment_payments where user_id = $1 order by month`, [uid]);
 
       const { rows: goals } = await q(
-        `select id, name, target::float8 as target, deadline::text as deadline, note
+        `select id, name, target::float8 as target, deadline::text as deadline, note, photo,
+                photo_pos as "photoPos"
            from savings_goals where user_id = $1 order by pos`, [uid]);
 
       const { rows: topups } = await q(
@@ -465,10 +466,10 @@ export const TOOLS: Record<string, Descriptor> = {
 
       if (knowsGoals) {
         await insertMany(q, 'savings_goals',
-          ['user_id', 'id', 'name', 'target', 'deadline', 'note', 'pos'],
+          ['user_id', 'id', 'name', 'target', 'deadline', 'note', 'photo', 'photo_pos', 'pos'],
           arr(blob?.goals).map((g, i) => [
             uid, String(g.id), String(g.name ?? ''), num(g.target),
-            g.deadline ?? null, g.note ?? null, i,
+            g.deadline ?? null, g.note ?? null, g.photo ?? null, g.photoPos ?? null, i,
           ]));
 
         await insertMany(q, 'savings_topups',
@@ -609,7 +610,8 @@ export const TOOLS: Record<string, Descriptor> = {
       const { rows: trips } = await q(
         `select id, country, flag, title, start_date::text as "startDate",
                 end_date::text as "endDate", budget::float8 as budget, categories,
-                best_location as "bestLocation", cities, notes
+                best_location as "bestLocation", cities, notes, photo,
+                photo_pos as "photoPos"
            from trips where user_id = $1 order by pos`, [uid]);
       const { rows: days } = await q(
         `select id, trip_id, label, timed
@@ -656,14 +658,14 @@ export const TOOLS: Record<string, Descriptor> = {
       const trips = arr(blob);
       await insertMany(q, 'trips',
         ['user_id', 'id', 'country', 'flag', 'title', 'start_date', 'end_date', 'budget',
-          'categories', 'best_location', 'cities', 'notes', 'pos'],
+          'categories', 'best_location', 'cities', 'notes', 'photo', 'photo_pos', 'pos'],
         trips.map((t, i) => [
           uid, String(t.id), String(t.country ?? ''), String(t.flag ?? ''),
           String(t.title ?? ''), t.startDate, t.endDate, num(t.budget),
           t.categories === undefined ? null : JSON.stringify(t.categories),
           t.bestLocation ?? null,
           t.cities === undefined ? null : arr(t.cities).map(String),
-          t.notes ?? null, i,
+          t.notes ?? null, t.photo ?? null, t.photoPos ?? null, i,
         ]));
 
       const days = trips.flatMap((t) => arr(t.itinerary).map((d, i) => ({ trip: t, day: d, i })));

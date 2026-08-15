@@ -1,21 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { store } from '../lib/store';
 import { useT, t as trs, getLang, locale } from '../lib/lang';
 import { AMOUNT_ORIGIN, scheduledFor, paidFor, commitmentPaidTotal, goalSaved } from '../lib/savings';
+import { downscaleFile } from '../lib/downscale';
+import { SearchBox } from '../components/SearchBox';
 import {
   Wallet, Plus, Trash2, Check, X, ChevronLeft, ChevronRight, ChevronDown, Pencil, RotateCcw,
   TrendingUp, TrendingDown, PieChart, ListChecks, CreditCard, Coins, CalendarDays,
   Eye, EyeOff,
   Utensils, ShoppingCart, Car, ShoppingBag, Receipt, HeartPulse, GraduationCap, Clapperboard,
   Plane, Gift, HeartHandshake, Sparkles, Baby, CircleEllipsis, Landmark, Repeat, Zap, ShieldCheck,
-  Home, Tag, Search, PiggyBank, LineChart
+  Home, Tag, PiggyBank, LineChart, Image as ImageIcon, Loader
 } from 'lucide-react';
 
 interface Expense { id: string; description: string; amount: number; category: string; date: string; goalId?: string; }
 // A savings goal is a tally, not a pot of its own: it counts money that already left through a
 // linked commitment or expense, plus top-ups that move nothing else.
-interface SavingsGoal { id: string; name: string; target: number; deadline?: string; note?: string; }
+// photoPos is a CSS object-position ('50% 30%'): the list crop is a narrow slice of a wide
+// photo, so the middle is frequently the wrong part of it.
+interface SavingsGoal { id: string; name: string; target: number; deadline?: string; note?: string; photo?: string; photoPos?: string; }
 interface Topup { id: string; goalId: string; date: string; amount: number; note?: string; }
 interface Income { id: string; title: string; amount: number; recurring: boolean; date: string; startMonth?: string; endMonth?: string; day?: number; }
 interface Commitment {
@@ -38,6 +42,9 @@ const HIDE_KEY = 'expense_manager_hide_balance';
 // stored data — the picker just reads whichever side the language switch is on.
 type CatDef = { id: string; ms: string; en: string; Icon: React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }> };
 const catLang = (): 'ms' | 'en' => getLang();
+
+// The only expense categories that can point into a savings goal — money set aside, not spent.
+const FUND_CATS = ['savings', 'invest'];
 
 const DEFAULT_EXPENSE_CATS: CatDef[] = [
   { id: 'food',      ms: 'Makanan & Minuman', en: 'Food & Dining',     Icon: Utensils },
@@ -109,6 +116,35 @@ const incomeActive = (i: Income, mk: string) => {
 };
 
 const catIcon = (id: string, defs: CatDef[]) => defs.find(d => d.id === id)?.Icon ?? Tag;
+
+// A savings goal's progress, with the figures written on the bar itself: what is in, how far
+// along, and what is left. The fill is kept translucent so `text-text` stays legible over both
+// the filled and unfilled halves, in either theme.
+const GoalBar = ({ saved, target }: { saved: number; target: number }) => {
+  const pct = target > 0 ? Math.min(100, (saved / target) * 100) : 0;
+  const left = Math.max(0, target - saved);
+  const done = saved >= target && target > 0;
+  return (
+    <div className="space-y-1">
+      <div className="relative h-7 rounded-lg bg-text/10 overflow-hidden border border-text/5">
+        <div
+          className={`absolute inset-y-0 left-0 transition-all duration-700 ${done ? 'bg-emerald-500/45' : 'bg-emerald-500/30'}`}
+          style={{ width: `${pct}%` }}
+        />
+        <div className="absolute inset-0 flex items-center justify-between px-2.5 text-[11px] font-bold text-text" style={{ fontVariantNumeric: 'tabular-nums' }}>
+          <span className="truncate">RM {fmt(saved)}</span>
+          <span className="shrink-0 pl-2">{pct.toFixed(0)}%</span>
+        </div>
+      </div>
+      <div className="flex items-baseline justify-between gap-2 text-[10px] text-muted" style={{ fontVariantNumeric: 'tabular-nums' }}>
+        <span>{trs('Sasaran', 'Target')} RM {fmt(target)}</span>
+        <span className={done ? 'font-bold text-emerald-400 light:text-emerald-600' : ''}>
+          {done ? trs('Tercapai!', 'Reached!') : trs(`Lagi RM ${fmt(left)}`, `RM ${fmt(left)} to go`)}
+        </span>
+      </div>
+    </div>
+  );
+};
 
 // Three-up figure strip, shared by the dashboard and the transaction tab
 const StatStrip = ({ items }: { items: { label: string; value: string; Icon: CatDef['Icon']; tone: string }[] }) => (
@@ -268,6 +304,11 @@ const ExpenseManager: React.FC = () => {
   const toggleBalance = () => setHideBalance(v => { store.setItem(HIDE_KEY, v ? '0' : '1'); return !v; });
   const masked = (n: number) => (hideBalance ? 'RM ••••' : `RM ${fmt(n)}`);
 
+  // Dashboard list filters — each narrows its own list only, never the figures above it
+  const [commitQuery, setCommitQuery] = useState('');
+  const [spendQuery, setSpendQuery] = useState('');
+  const [commitTabQuery, setCommitTabQuery] = useState('');
+
   useEffect(() => {
     const saved = store.getItem(STORAGE_KEY);
     if (saved) {
@@ -311,6 +352,13 @@ const ExpenseManager: React.FC = () => {
   // Commitments to show for the viewed month: ones still running that month, plus any
   // that were actually paid that month (keeps the history of ended ones intact).
   const monthCommitments = commitments.filter(c => !c.endMonth || viewMonth <= c.endMonth || !!c.payments[viewMonth]);
+  // Search narrows the checklist only — the Jumlah/Dibayar/Baki figures still describe the month
+  const shownCommitments = commitQuery.trim()
+    ? monthCommitments.filter(c => {
+        const q = commitQuery.trim().toLowerCase();
+        return c.title.toLowerCase().includes(q) || catLabel(c.category, commitOptions).toLowerCase().includes(q);
+      })
+    : monthCommitments;
   const monthExpenses = expenses.filter(e => monthOf(e.date) === viewMonth);
   const monthIncomes = incomes.filter(i => incomeActive(i, viewMonth));
   // Whether the income has actually been received (reached its pay day) in this month
@@ -345,7 +393,15 @@ const ExpenseManager: React.FC = () => {
     return inc - paid - exp;
   };
   const netTrend = Array.from({ length: 6 }, (_, k) => { const mk = addMonth(viewMonth, -(5 - k)); return { mk, net: netForMonth(mk) }; });
-  const netMaxAbs = Math.max(1, ...netTrend.map(d => Math.abs(d.net)));
+  // The baseline sits where zero actually falls, so six positive months use the full height
+  // instead of politely staying in the top half.
+  const netHi = Math.max(0, ...netTrend.map(d => d.net));
+  const netLo = Math.min(0, ...netTrend.map(d => d.net));
+  const netSpan = Math.max(1, netHi - netLo);
+  const netAvg = netTrend.reduce((s, d) => s + d.net, 0) / netTrend.length;
+  const netUp = netTrend.filter(d => d.net >= 0).length;
+  const netBest = netTrend.reduce((a, b) => (b.net > a.net ? b : a));
+  const netWorst = netTrend.reduce((a, b) => (b.net < a.net ? b : a));
   const compact = (n: number) => `${n < 0 ? '-' : '+'}${Math.abs(n) >= 1000 ? (Math.abs(n) / 1000).toFixed(1) + 'k' : Math.round(Math.abs(n))}`;
 
   const todayExpenses = expenses.filter(e => e.date === todayKey);
@@ -374,8 +430,11 @@ const ExpenseManager: React.FC = () => {
   const saveExpense = () => {
     const amount = parseFloat(eAmount);
     if (!eDesc.trim() || isNaN(amount) || amount <= 0) return;
-    // '' means not going into any fund — kept off the record entirely rather than stored empty
-    const fields = { description: eDesc.trim(), amount, category: eCat, date: eDate, ...(eGoal ? { goalId: eGoal } : { goalId: undefined }) };
+    // A fund only applies to a savings or investment expense, and '' means none — either way the key is left
+    // off the record rather than stored empty. Checked here as well as in the form so no path
+    // (adding a category, editing an older row) can leave a link behind that nothing displays.
+    const goalId = eGoal && FUND_CATS.includes(eCat) ? eGoal : undefined;
+    const fields = { description: eDesc.trim(), amount, category: eCat, date: eDate, goalId };
     setExpenses(prev => eId
       ? prev.map(x => x.id === eId ? { ...x, ...fields } : x)
       : [{ id: generateId(), ...fields }, ...prev]);
@@ -401,22 +460,32 @@ const ExpenseManager: React.FC = () => {
   };
 
   // --- Savings goals ---
-  const [gForm, setGForm] = useState<{ id: string | null; name: string; target: string; deadline: string }>({ id: null, name: '', target: '', deadline: '' });
+  const [gForm, setGForm] = useState<{ id: string | null; name: string; target: string; deadline: string; photo: string; px: number; py: number }>({ id: null, name: '', target: '', deadline: '', photo: '', px: 50, py: 50 });
+  const [goalPhotoBusy, setGoalPhotoBusy] = useState(false);
+  const goalPhotoRef = useRef<HTMLInputElement>(null);
   const [showGForm, setShowGForm] = useState(false);
   const [openGoal, setOpenGoal] = useState<string | null>(null); // the goal whose sheet is open
+  const [showSources, setShowSources] = useState(false);
   const [topupAmount, setTopupAmount] = useState('');
   const [topupDate, setTopupDate] = useState(todayKey);
 
   const openGForm = (g?: SavingsGoal) => {
+    const [px, py] = (g?.photoPos ?? '50% 50%').split(' ').map(v => parseInt(v) || 50);
     setGForm(g
-      ? { id: g.id, name: g.name, target: String(g.target), deadline: g.deadline ?? '' }
-      : { id: null, name: '', target: '', deadline: '' });
+      ? { id: g.id, name: g.name, target: String(g.target), deadline: g.deadline ?? '', photo: g.photo ?? '', px, py }
+      : { id: null, name: '', target: '', deadline: '', photo: '', px: 50, py: 50 });
     setShowGForm(true);
   };
   const saveGForm = () => {
     const target = parseFloat(gForm.target);
     if (!gForm.name.trim() || isNaN(target) || target <= 0) return;
-    const fields = { name: gForm.name.trim(), target, ...(gForm.deadline ? { deadline: gForm.deadline } : {}) };
+    const fields = {
+      name: gForm.name.trim(), target,
+      photo: gForm.photo || undefined,
+      // Only worth storing when it is not the default, and never without a photo to position
+      photoPos: gForm.photo && (gForm.px !== 50 || gForm.py !== 50) ? `${gForm.px}% ${gForm.py}%` : undefined,
+      ...(gForm.deadline ? { deadline: gForm.deadline } : {}),
+    };
     setGoals(prev => gForm.id
       ? prev.map(g => g.id === gForm.id ? { ...g, ...fields, ...(gForm.deadline ? {} : { deadline: undefined }) } : g)
       : [...prev, { id: generateId(), ...fields }]);
@@ -788,30 +857,44 @@ const ExpenseManager: React.FC = () => {
           <div className="glass-panel p-4 space-y-2">
             <h3 className="font-bold text-sm flex items-center gap-2 mb-1"><CreditCard size={16} className="text-amber-400" /> {tr('Komitmen', 'Commitments')}</h3>
             
+            {/* Follows the Baki card: these are the same figures, so they hide with it */}
             <div className="flex items-center justify-between text-[10px] font-bold text-muted bg-text/5 rounded-lg p-2 mb-3">
               <div className="text-center flex-1 border-r border-text/10">
-                {tr('Jumlah', 'Total')}<br/><span className="text-text text-xs">RM{fmt(totalCommitment)}</span>
+                {tr('Jumlah', 'Total')}<br/><span className={`text-xs ${hideBalance ? 'text-muted' : 'text-text'}`}>{masked(totalCommitment)}</span>
               </div>
               <div className="text-center flex-1 border-r border-text/10">
-                {tr('Dibayar', 'Paid')}<br/><span className="text-emerald-400 text-xs">RM{fmt(paidCommitment)}</span>
+                {tr('Dibayar', 'Paid')}<br/><span className={`text-xs ${hideBalance ? 'text-muted' : 'text-emerald-400 light:text-emerald-600'}`}>{masked(paidCommitment)}</span>
               </div>
               <div className="text-center flex-1">
-                {tr('Baki', 'Left')}<br/><span className="text-amber-400 text-xs">RM{fmt(totalCommitment - paidCommitment)}</span>
+                {tr('Baki', 'Left')}<br/><span className={`text-xs ${hideBalance ? 'text-muted' : 'text-amber-400 light:text-amber-600'}`}>{masked(totalCommitment - paidCommitment)}</span>
               </div>
             </div>
-            
-            {monthCommitments.length === 0 ? (
-              <p className="text-xs text-muted text-center py-3">{tr('Belum ada komitmen.', 'No commitments yet.')}</p>
-            ) : monthCommitments.map(c => {
+
+            {monthCommitments.length > 4 && (
+              <SearchBox value={commitQuery} onChange={setCommitQuery} placeholder={tr('Cari komitmen', 'Search commitments')} />
+            )}
+
+            {shownCommitments.length === 0 ? (
+              <p className="text-xs text-muted text-center py-3">
+                {commitQuery.trim()
+                  ? tr(`Tiada padanan untuk "${commitQuery.trim()}".`, `No match for "${commitQuery.trim()}".`)
+                  : tr('Belum ada komitmen.', 'No commitments yet.')}
+              </p>
+            ) : shownCommitments.map(c => {
               const paid = !!c.payments[viewMonth];
+              const color = catColor(c.category, commitOptions);
+              const Icon = catIcon(c.category, commitOptions);
               return (
-                <div key={c.id} className="flex items-center gap-3 py-1">
-                  <button onClick={() => paid ? undoPay(c.id) : openPay(c)} className={`w-6 h-6 rounded-md border-2 flex items-center justify-center shrink-0 ${paid ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-text/30 text-transparent'}`}><Check size={14} strokeWidth={3} /></button>
+                <div key={c.id} className="flex items-center gap-2.5 py-1">
+                  <button onClick={() => paid ? undoPay(c.id) : openPay(c)} aria-label={paid ? tr('Buat asal', 'Undo') : tr('Tanda dibayar', 'Mark paid')} className={`w-6 h-6 rounded-md border-2 flex items-center justify-center shrink-0 ${paid ? 'bg-emerald-500 border-emerald-500 text-[#ffffff]' : 'border-text/30 text-transparent'}`}><Check size={14} strokeWidth={3} /></button>
+                  <span className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center" style={{ backgroundColor: `${color}1f`, color }}>
+                    <Icon size={15} />
+                  </span>
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm font-medium truncate ${paid ? 'line-through text-text/50' : 'text-text/90'}`}>{c.title}</p>
-                    <p className="text-[10px] text-muted">{tr('Hari', 'Day')} {c.paymentDay} · {catLabel(c.category, commitOptions)}{paid ? tr(` · dibayar ${fmtDate(c.payments[viewMonth])}`, ` · paid ${fmtDate(c.payments[viewMonth])}`) : ''}</p>
+                    <p className="text-[10px] text-muted truncate">{tr('Hari', 'Day')} {c.paymentDay} · {catLabel(c.category, commitOptions)}{paid ? tr(` · dibayar ${fmtDate(c.payments[viewMonth])}`, ` · paid ${fmtDate(c.payments[viewMonth])}`) : ''}</p>
                   </div>
-                  <span className={`font-mono text-sm font-bold ${paid ? 'text-text/50' : 'text-amber-400 light:text-amber-600'}`}>RM {fmt(paid ? paidFor(c, viewMonth) : scheduledFor(c, viewMonth))}</span>
+                  <span className={`font-mono text-sm font-bold shrink-0 ${paid ? 'text-text/50' : 'text-amber-400 light:text-amber-600'}`}>RM {fmt(paid ? paidFor(c, viewMonth) : scheduledFor(c, viewMonth))}</span>
                 </div>
               );
             })}
@@ -831,16 +914,41 @@ const ExpenseManager: React.FC = () => {
             {(() => {
               const showMonth = isPastView || expScope === 'month';
               const list = showMonth ? [...monthExpenses].sort((a, b) => b.date.localeCompare(a.date)) : todayExpenses;
-              if (list.length === 0) return <p className="text-xs text-muted text-center py-3">{showMonth ? tr('Tiada perbelanjaan bulan ini.', 'No spending this month.') : tr('Tiada perbelanjaan hari ini.', 'No spending today.')}</p>;
-              return list.map(e => (
-                <div key={e.id} className="flex items-center gap-3 py-1">
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: catColor(e.category, expenseOptions) }} />
-                  <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate text-text/90">{e.description}</p><p className="text-[10px] text-muted">{catLabel(e.category, expenseOptions)}{showMonth ? ` · ${fmtDate(e.date)}` : ''}</p></div>
-                  <span className="font-mono text-sm font-bold text-rose-400 light:text-rose-600">−RM {fmt(e.amount)}</span>
-                  <button onClick={() => openExpense(e)} aria-label={tr('Sunting perbelanjaan', 'Edit expense')} className="text-muted opacity-60 hover:opacity-100 hover:text-text p-1"><Pencil size={13} /></button>
-                  <button onClick={() => deleteExpense(e)} aria-label={tr('Padam perbelanjaan', 'Delete expense')} className="text-rose-400 opacity-50 hover:opacity-100 p-1"><Trash2 size={13} /></button>
-                </div>
-              ));
+              const sq = spendQuery.trim().toLowerCase();
+              const shown = sq
+                ? list.filter(e => e.description.toLowerCase().includes(sq) || catLabel(e.category, expenseOptions).toLowerCase().includes(sq))
+                : list;
+              return (
+                <>
+                  {list.length > 4 && (
+                    <SearchBox value={spendQuery} onChange={setSpendQuery} placeholder={tr('Cari perbelanjaan', 'Search spending')} />
+                  )}
+                  {shown.length === 0 ? (
+                    <p className="text-xs text-muted text-center py-3">
+                      {sq
+                        ? tr(`Tiada padanan untuk "${spendQuery.trim()}".`, `No match for "${spendQuery.trim()}".`)
+                        : showMonth ? tr('Tiada perbelanjaan bulan ini.', 'No spending this month.') : tr('Tiada perbelanjaan hari ini.', 'No spending today.')}
+                    </p>
+                  ) : shown.map(e => {
+                    const color = catColor(e.category, expenseOptions);
+                    const Icon = catIcon(e.category, expenseOptions);
+                    return (
+                      <div key={e.id} className="flex items-center gap-2.5 py-1">
+                        <span className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center" style={{ backgroundColor: `${color}1f`, color }}>
+                          <Icon size={15} />
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate text-text/90">{e.description}</p>
+                          <p className="text-[10px] text-muted truncate">{catLabel(e.category, expenseOptions)}{showMonth ? ` · ${fmtDate(e.date)}` : ''}</p>
+                        </div>
+                        <span className="font-mono text-sm font-bold text-rose-400 light:text-rose-600 shrink-0">−RM {fmt(e.amount)}</span>
+                        <button onClick={() => openExpense(e)} aria-label={tr('Sunting perbelanjaan', 'Edit expense')} className="text-muted opacity-60 hover:opacity-100 hover:text-text p-1 shrink-0"><Pencil size={13} /></button>
+                        <button onClick={() => deleteExpense(e)} aria-label={tr('Padam perbelanjaan', 'Delete expense')} className="text-rose-400 opacity-50 hover:opacity-100 p-1 shrink-0"><Trash2 size={13} /></button>
+                      </div>
+                    );
+                  })}
+                </>
+              );
             })()}
           </div>
 
@@ -872,78 +980,181 @@ const ExpenseManager: React.FC = () => {
             </div>
           </div>
 
-          {/* 6-month net trend */}
-          <div className="glass-panel p-4 space-y-2">
-            <h3 className="font-bold text-sm flex items-center gap-2"><TrendingUp size={16} className="text-emerald-400" /> {tr('Trend Bersih 6 Bulan', '6-Month Net Trend')}</h3>
-            <div className="flex gap-1.5 items-stretch" style={{ height: 112 }}>
-              {netTrend.map(d => {
-                const h = Math.round((Math.abs(d.net) / netMaxAbs) * 46);
-                const isView = d.mk === viewMonth;
-                return (
-                  <div key={d.mk} className="flex-1 flex flex-col items-center min-w-0" title={`${monthLabel(d.mk)}: RM${fmt(d.net)}`}>
-                    <span className={`text-[8px] font-mono mb-0.5 ${d.net < 0 ? 'text-red-400' : 'text-emerald-400'}`}>{compact(d.net)}</span>
-                    <div className="relative w-full flex-1 flex flex-col">
-                      <div className="h-1/2 flex items-end justify-center">
-                        {d.net >= 0 && <div className="w-3/5 rounded-t" style={{ height: h, backgroundColor: 'rgb(52 211 153)' }} />}
-                      </div>
-                      <div className="h-1/2 flex items-start justify-center border-t border-text/15">
-                        {d.net < 0 && <div className="w-3/5 rounded-b" style={{ height: h, backgroundColor: 'rgb(248 113 113)' }} />}
-                      </div>
-                    </div>
-                    <span className={`text-[9px] mt-1 ${isView ? 'text-emerald-400 font-bold' : 'text-muted'}`}>{MONTHS()[parseInt(d.mk.slice(5, 7)) - 1].slice(0, 3)}</span>
+          {/* 6-month net trend — what was left over each month, and how that is trending */}
+          {(() => {
+            const H = 84;                                     // plot height in px
+            // Where zero actually falls. With nothing recorded at all, put it on the floor so the
+            // stub bars rest on the baseline rather than hanging off the top of the plot.
+            const zeroTop = netHi === 0 && netLo === 0 ? H : (netHi / netSpan) * H;
+            const avgTop = ((netHi - netAvg) / netSpan) * H;
+            // A number on every bar is noise. Only the extremes and the month you are looking at
+            // get one — those are the three a person actually reads off a six-bar chart.
+            const labelled = new Set([netBest.mk, netWorst.mk, viewMonth]);
+            return (
+              <div className="glass-panel p-4 space-y-3">
+                <div className="flex items-baseline justify-between gap-2">
+                  <h3 className="font-bold text-sm flex items-center gap-2">
+                    <TrendingUp size={16} className="text-emerald-400 light:text-emerald-600" /> {tr('Trend Bersih 6 Bulan', '6-Month Net Trend')}
+                  </h3>
+                  <span className="text-[10px] text-muted shrink-0">{tr(`${netUp}/6 bulan lebih`, `${netUp}/6 months up`)}</span>
+                </div>
+
+                <p className="text-[11px] text-muted">
+                  {tr('Purata', 'Average')}{' '}
+                  <span className={`font-mono font-bold ${hideBalance ? 'text-muted' : netAvg < 0 ? 'text-rose-400 light:text-rose-600' : 'text-emerald-400 light:text-emerald-600'}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {netAvg < 0 && !hideBalance ? '−' : ''}{masked(Math.abs(netAvg))}
+                  </span>{' '}
+                  {tr('sebulan', 'a month')}
+                </p>
+
+                <div className="relative" style={{ height: H }}>
+                  {/* Average reference, so each bar reads against the run rather than in isolation */}
+                  <div className="absolute left-0 right-0 border-t border-dashed border-text/25 pointer-events-none z-10" style={{ top: avgTop }} />
+                  {/* Zero */}
+                  <div className="absolute left-0 right-0 border-t border-text/20 pointer-events-none" style={{ top: zeroTop }} />
+
+                  <div className="absolute inset-0 flex gap-1.5">
+                    {netTrend.map(d => {
+                      const h = Math.max(2, Math.round((Math.abs(d.net) / netSpan) * H));
+                      const up = d.net >= 0;
+                      const isView = d.mk === viewMonth;
+                      return (
+                        <button
+                          key={d.mk}
+                          onClick={() => setViewMonth(d.mk)}
+                          title={`${monthLabel(d.mk)}: RM ${fmt(d.net)}`}
+                          aria-label={`${monthLabel(d.mk)}: RM ${fmt(d.net)}`}
+                          className="relative flex-1 min-w-0 group"
+                        >
+                          <span
+                            className={`absolute left-1/2 -translate-x-1/2 w-3/5 transition-all ${up ? 'rounded-t' : 'rounded-b'} ${
+                              isView
+                                ? (up ? 'bg-emerald-500' : 'bg-rose-500')
+                                : (up ? 'bg-emerald-400/70 light:bg-emerald-600/60' : 'bg-rose-400/70 light:bg-rose-600/60')
+                            } group-hover:opacity-100 opacity-90`}
+                            style={up ? { bottom: H - zeroTop, height: h } : { top: zeroTop, height: h }}
+                          />
+                          {labelled.has(d.mk) && !hideBalance && (
+                            <span
+                              className={`absolute left-1/2 -translate-x-1/2 text-[8px] font-mono whitespace-nowrap ${isView ? 'text-text font-bold' : 'text-muted'}`}
+                              style={up ? { bottom: H - zeroTop + h + 1 } : { top: zeroTop + h + 1 }}
+                            >
+                              {compact(d.net)}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
-          </div>
+                </div>
+
+                <div className="flex gap-1.5">
+                  {netTrend.map(d => (
+                    <span key={d.mk} className={`flex-1 text-center text-[9px] truncate ${d.mk === viewMonth ? 'text-emerald-400 light:text-emerald-600 font-bold' : 'text-muted'}`}>
+                      {MONTHS()[parseInt(d.mk.slice(5, 7)) - 1].slice(0, 3)}
+                    </span>
+                  ))}
+                </div>
+
+                <p className="text-[10px] text-muted">{tr('Ketuk bulan untuk lihat butirannya.', 'Tap a month to open it.')}</p>
+              </div>
+            );
+          })()}
         </div>
       )}
 
       {/* COMMITMENT */}
-      {tab === 'commitment' && (
-        <div className="space-y-3">
-          <button onClick={() => openCForm()} className="w-full py-3 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-emerald-500/50 hover:text-emerald-400 transition-all flex items-center justify-center"><Plus size={18} className="mr-2" /> {tr('Tambah Komitmen', 'Add a Commitment')}</button>
+      {tab === 'commitment' && (() => {
+        // Due order, not the order they happened to be typed in — this tab is a bill calendar.
+        const q = commitTabQuery.trim().toLowerCase();
+        const sorted = [...activeCommitments].sort((a, b) => a.paymentDay - b.paymentDay);
+        const shown = q
+          ? sorted.filter(c => c.title.toLowerCase().includes(q) || catLabel(c.category, commitOptions).toLowerCase().includes(q))
+          : sorted;
+        const paidCount = sorted.filter(c => c.payments[viewMonth]).length;
+        const monthlyTotal = sorted.reduce((s, c) => s + scheduledFor(c, viewMonth), 0);
+        return (
+          <div className="space-y-3">
+            <button onClick={() => openCForm()} className="w-full py-3 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-emerald-500/50 hover:text-emerald-400 transition-all flex items-center justify-center"><Plus size={18} className="mr-2" /> {tr('Tambah Komitmen', 'Add a Commitment')}</button>
 
-          {activeCommitments.map(c => {
-            const paid = !!c.payments[viewMonth];
-            return (
-              <div key={c.id} className="glass-panel p-4 space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="font-bold text-text/90 truncate">{c.title}</p>
-                    <p className="text-[11px] text-muted truncate">
-                      {tr('Hari', 'Day')} {c.paymentDay} · {catLabel(c.category, commitOptions)}
-                      {/* The link is only editable from the fund, so name it here to make it findable */}
-                      {c.goalId && goals.some(g => g.id === c.goalId) && (
-                        <span className="text-emerald-400 light:text-emerald-600"> · {tr('masuk', 'feeds')} {goals.find(g => g.id === c.goalId)!.name}</span>
-                      )}
-                    </p>
-                  </div>
-                  <span className="font-mono font-bold text-amber-400 shrink-0">RM{fmt(c.amount)}</span>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {paid ? (
-                    <>
-                      <span className="text-xs text-emerald-400 light:text-emerald-600 font-bold flex items-center gap-1"><Check size={14} /> {tr('Dibayar', 'Paid')} {fmtDate(c.payments[viewMonth])}{paidFor(c, viewMonth) !== scheduledFor(c, viewMonth) ? ` · RM ${fmt(paidFor(c, viewMonth))}` : ''}</span>
-                      <button onClick={() => undoPay(c.id)} className="text-xs px-2 py-1 rounded-lg bg-text/5 text-muted hover:text-text flex items-center gap-1"><RotateCcw size={12} /> {tr('Buat asal', 'Undo')}</button>
-                    </>
-                  ) : (
-                    <button onClick={() => openPay(c)} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold flex items-center gap-1"><Check size={13} /> {tr('Tanda dibayar', 'Mark as paid')}</button>
-                  )}
-                  <button onClick={() => openCForm(c)} className="text-xs px-2 py-1 rounded-lg bg-text/5 text-muted hover:text-text flex items-center gap-1 ml-auto"><Pencil size={12} /> {tr('Sunting', 'Edit')}</button>
-                  <button onClick={() => setDelCommit(c)} className="text-xs px-2 py-1 rounded-lg bg-rose-500/10 text-rose-400"><Trash2 size={12} /></button>
-                </div>
+            {sorted.length > 0 && (
+              <div className="flex items-center justify-between gap-2 px-1 text-[11px] text-muted">
+                <span>{tr(`${sorted.length} komitmen · ${paidCount} dibayar`, `${sorted.length} commitments · ${paidCount} paid`)}</span>
+                <span className={`font-mono font-bold ${hideBalance ? 'text-muted' : 'text-amber-400 light:text-amber-600'}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {masked(monthlyTotal)}{tr('/bulan', '/mo')}
+                </span>
               </div>
-            );
-          })}
-        </div>
-      )}
+            )}
+
+            {sorted.length > 4 && (
+              <SearchBox value={commitTabQuery} onChange={setCommitTabQuery} placeholder={tr('Cari komitmen', 'Search commitments')} />
+            )}
+
+            {shown.length === 0 && (
+              <p className="text-xs text-muted text-center py-6">
+                {q ? tr(`Tiada padanan untuk "${commitTabQuery.trim()}".`, `No match for "${commitTabQuery.trim()}".`) : tr('Belum ada komitmen.', 'No commitments yet.')}
+              </p>
+            )}
+
+            {shown.map(c => {
+              const paid = !!c.payments[viewMonth];
+              const color = catColor(c.category, commitOptions);
+              const Icon = catIcon(c.category, commitOptions);
+              const goal = c.goalId ? goals.find(g => g.id === c.goalId) : undefined;
+              // Only meaningful while looking at the month you are actually living in
+              const dueIn = viewMonth === currentMonth ? Math.min(c.paymentDay, daysInMonth(currentMonth)) - today.getDate() : null;
+              const late = !paid && dueIn !== null && dueIn < 0;
+              const soon = !paid && dueIn !== null && dueIn >= 0 && dueIn <= 7;
+              return (
+                <div key={c.id} className="glass-panel p-4 space-y-2.5">
+                  <div className="flex items-start gap-3">
+                    <span className="w-10 h-10 rounded-xl shrink-0 flex items-center justify-center" style={{ backgroundColor: `${color}1f`, color }}>
+                      <Icon size={18} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className={`font-bold truncate ${paid ? 'text-text/60' : 'text-text/90'}`}>{c.title}</p>
+                      <p className="text-[11px] text-muted truncate">
+                        {tr('Hari', 'Day')} {c.paymentDay} · {catLabel(c.category, commitOptions)}
+                        {/* The link is only editable from the fund, so name it here to make it findable */}
+                        {goal && <span className="text-emerald-400 light:text-emerald-600"> · {tr('masuk', 'feeds')} {goal.name}</span>}
+                      </p>
+                      {!paid && (late || soon) && (
+                        <p className={`text-[10px] font-bold mt-0.5 ${late ? 'text-rose-400 light:text-rose-600' : 'text-amber-400 light:text-amber-600'}`}>
+                          {late
+                            ? tr(`Lewat ${Math.abs(dueIn!)} hari`, `${Math.abs(dueIn!)} days late`)
+                            : dueIn === 0 ? tr('Kena bayar hari ini', 'Due today') : tr(`${dueIn} hari lagi`, `Due in ${dueIn} days`)}
+                        </p>
+                      )}
+                    </div>
+                    <span className={`font-mono font-bold shrink-0 ${paid ? 'text-text/50' : 'text-amber-400 light:text-amber-600'}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      RM {fmt(scheduledFor(c, viewMonth))}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {paid ? (
+                      <>
+                        <span className="text-xs text-emerald-400 light:text-emerald-600 font-bold flex items-center gap-1"><Check size={14} /> {tr('Dibayar', 'Paid')} {fmtDate(c.payments[viewMonth])}{paidFor(c, viewMonth) !== scheduledFor(c, viewMonth) ? ` · RM ${fmt(paidFor(c, viewMonth))}` : ''}</span>
+                        <button onClick={() => undoPay(c.id)} className="text-xs px-2 py-1 rounded-lg bg-text/5 text-muted hover:text-text flex items-center gap-1"><RotateCcw size={12} /> {tr('Buat asal', 'Undo')}</button>
+                      </>
+                    ) : (
+                      <button onClick={() => openPay(c)} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 light:text-emerald-700 border border-emerald-500/30 font-bold flex items-center gap-1"><Check size={13} /> {tr('Tanda dibayar', 'Mark as paid')}</button>
+                    )}
+                    <button onClick={() => openCForm(c)} aria-label={tr('Sunting', 'Edit')} className="text-xs px-2 py-1 rounded-lg bg-text/5 text-muted hover:text-text flex items-center gap-1 ml-auto"><Pencil size={12} /> {tr('Sunting', 'Edit')}</button>
+                    <button onClick={() => setDelCommit(c)} aria-label={tr('Berhentikan', 'Stop')} className="text-xs px-2 py-1 rounded-lg bg-rose-500/10 text-rose-400"><Trash2 size={12} /></button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* INCOME */}
       {tab === 'income' && (
         <div className="space-y-3">
           <div className="glass-panel p-4 space-y-3">
-            <input value={iTitle} onChange={e => setITitle(e.target.value)} placeholder={tr('Tajuk pendapatan (cth. Gaji)', 'Income title (e.g. Salary)')} className="input-field w-full" />
+            <input value={iTitle} onChange={e => setITitle(e.target.value)} placeholder={tr('Tajuk pendapatan (cth. Gaji)', 'Income title (e.g. Salary, Freelance)')} className="input-field w-full" />
             <div className="flex gap-2">
               <input type="number" value={iAmount} onChange={e => setIAmount(e.target.value)} placeholder={tr('Jumlah', 'Amount')} className="input-field flex-1 font-mono" />
               <button
@@ -1009,33 +1220,45 @@ const ExpenseManager: React.FC = () => {
             </p>
           ) : goals.map(g => {
             const saved = savedFor(g.id);
-            const pct = g.target > 0 ? Math.min(100, (saved / g.target) * 100) : 0;
             const feeders = commitments.filter(c => c.goalId === g.id);
             const done = saved >= g.target;
+            // The padding sits on the content, not the card, so the photo reaches the edge
+            // without negative margins pulling it past one.
             return (
-              <button key={g.id} onClick={() => setOpenGoal(g.id)} className="w-full text-left glass-panel p-4 space-y-2.5 hover:border-emerald-500/30 transition-colors">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="font-bold text-text/90 truncate flex items-center gap-1.5">
-                      {done && <Check size={14} className="text-emerald-400 light:text-emerald-600 shrink-0" />}{g.name}
-                    </p>
-                    <p className="text-[10px] text-muted">
-                      {feeders.length > 0
-                        ? tr(`${feeders.length} komitmen`, `${feeders.length} commitments`)
-                        : tr('Belum dipautkan', 'Nothing linked yet')}
-                      {g.deadline ? ` · ${fmtLongDate(g.deadline)}` : ''}
-                    </p>
+              <button key={g.id} onClick={() => { setOpenGoal(g.id); setShowSources(!commitments.some(c => c.goalId === g.id)); }} className="w-full text-left glass-panel hover:border-emerald-500/30 transition-colors overflow-hidden relative block">
+                <div className="flex items-stretch">
+                  {/* Below 360px the photo is dropped and the content takes the width back */}
+                  <div className={`min-w-0 flex-1 space-y-2.5 p-4 ${g.photo ? 'pr-[76px] max-[360px]:pr-4' : ''}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-bold text-text/90 truncate flex items-center gap-1.5">
+                          {done && <Check size={14} className="text-emerald-400 light:text-emerald-600 shrink-0" />}{g.name}
+                        </p>
+                        <p className="text-[10px] text-muted truncate">
+                          {feeders.length > 0
+                            ? tr(`${feeders.length} komitmen`, `${feeders.length} commitments`)
+                            : tr('Belum dipautkan', 'Nothing linked yet')}
+                          {g.deadline ? ` · ${fmtLongDate(g.deadline)}` : ''}
+                        </p>
+                      </div>
+                      {!g.photo && <ChevronRight size={16} className="text-muted shrink-0 mt-0.5" />}
+                    </div>
+
+                    <GoalBar saved={saved} target={g.target} />
                   </div>
-                  <span className="text-[10px] font-bold text-muted shrink-0" style={{ fontVariantNumeric: 'tabular-nums' }}>{pct.toFixed(0)}%</span>
-                </div>
 
-                <div className="h-2 bg-text/10 rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full transition-all duration-700 ${done ? 'bg-emerald-500' : 'bg-emerald-400/80'}`} style={{ width: `${pct}%` }} />
-                </div>
-
-                <div className="flex items-baseline justify-between gap-2 font-mono text-xs" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                  <span className="font-black text-emerald-400 light:text-emerald-600">RM {fmt(saved)}</span>
-                  <span className="text-muted">{tr('daripada', 'of')} RM {fmt(g.target)}</span>
+                  {/* Out of flow: as a flex child it could size itself from the image's own
+                      dimensions and drag the card past its column. */}
+                  {g.photo && (
+                    <img
+                      src={g.photo}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      style={{ objectPosition: g.photoPos ?? '50% 50%' }}
+                      className="absolute inset-y-0 right-0 w-16 h-full object-cover max-[360px]:hidden"
+                    />
+                  )}
                 </div>
               </button>
             );
@@ -1105,19 +1328,12 @@ const ExpenseManager: React.FC = () => {
               {foundTxns.length > 0 && <span className="text-[10px] text-muted shrink-0">{tr(`${foundTxns.length} transaksi`, `${foundTxns.length} transactions`)}</span>}
             </div>
 
-            <div className="relative mb-2">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
-              <input
+            <div className="mb-2">
+              <SearchBox
                 value={txQuery}
-                onChange={e => { setTxQuery(e.target.value); setTxLimit(TX_PAGE); }}
+                onChange={v => { setTxQuery(v); setTxLimit(TX_PAGE); }}
                 placeholder={tr('Cari nama atau kategori', 'Search a name or category')}
-                className="input-field w-full text-sm py-2 pl-9 pr-9"
               />
-              {txQuery && (
-                <button onClick={() => { setTxQuery(''); setTxLimit(TX_PAGE); }} aria-label={tr('Kosongkan carian', 'Clear the search')} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-muted hover:text-text">
-                  <X size={14} />
-                </button>
-              )}
             </div>
 
             {foundTxns.length === 0 ? (
@@ -1189,14 +1405,14 @@ const ExpenseManager: React.FC = () => {
             <input type="number" value={eAmount} onChange={e => setEAmount(e.target.value)} placeholder={tr('Jumlah (RM)', 'Amount (RM)')} className="input-field w-full font-mono text-lg" />
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Kategori', 'Category')}</label>
-              <CategoryPicker options={expenseOptions} value={eCat} onSelect={setECat} onAdd={addExpenseCat} onRemove={removeExpenseCat} defaults={DEFAULT_EXPENSE_CATS} accent={accent} />
+              <CategoryPicker options={expenseOptions} value={eCat} onSelect={(c: string) => { setECat(c); if (!FUND_CATS.includes(c)) setEGoal(''); }} onAdd={addExpenseCat} onRemove={removeExpenseCat} defaults={DEFAULT_EXPENSE_CATS} accent={accent} />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Tarikh', 'Date')}</label>
               <input type="date" value={eDate} max={todayKey} onChange={e => setEDate(e.target.value)} className="input-field w-full" />
             </div>
-            {/* Only worth showing once there is somewhere for it to go */}
-            {goals.length > 0 && (
+            {/* Only on a savings or investment expense, and only once there is a fund for it */}
+            {FUND_CATS.includes(eCat) && goals.length > 0 && (
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Masuk ke tabung', 'Into a fund')}</label>
                 <select value={eGoal} onChange={e => setEGoal(e.target.value)} className="input-field w-full">
@@ -1321,6 +1537,78 @@ const ExpenseManager: React.FC = () => {
               <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Tarikh sasaran (pilihan)', 'Target date (optional)')}</label>
               <input type="date" value={gForm.deadline} onChange={e => setGForm(f => ({ ...f, deadline: e.target.value }))} className="input-field w-full" />
             </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Gambar (pilihan)', 'Photo (optional)')}</label>
+              <input
+                type="file"
+                accept="image/*"
+                ref={goalPhotoRef}
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setGoalPhotoBusy(true);
+                  // Same 900/0.82 as a trip cover — big enough to stay sharp at 2x on a phone
+                  downscaleFile(file, 900, 0.82)
+                    .then(photo => setGForm(f => ({ ...f, photo })))
+                    .catch(() => {})
+                    .finally(() => setGoalPhotoBusy(false));
+                }}
+                className="hidden"
+                id="goal-photo"
+              />
+              {gForm.photo ? (
+                <div className="relative h-28 rounded-xl overflow-hidden border border-text/10">
+                  <img src={gForm.photo} alt="" style={{ objectPosition: `${gForm.px}% ${gForm.py}%` }} className="w-full h-full object-cover" />
+                  <div className="absolute top-2 right-2 flex gap-1.5">
+                    <label htmlFor="goal-photo" title={tr('Tukar gambar', 'Change photo')} className="p-1.5 rounded-lg bg-[#000]/50 text-[#ffffff]/80 hover:text-[#ffffff] backdrop-blur-md cursor-pointer">
+                      <Pencil size={14} />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => { setGForm(f => ({ ...f, photo: '' })); if (goalPhotoRef.current) goalPhotoRef.current.value = ''; }}
+                      aria-label={tr('Buang gambar', 'Remove photo')}
+                      className="p-1.5 rounded-lg bg-[#000]/50 text-[#ffffff]/80 hover:text-[#ffffff] backdrop-blur-md"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <label htmlFor="goal-photo" className="flex items-center justify-center gap-2 h-14 rounded-xl border border-dashed border-text/15 bg-text/5 text-muted text-sm cursor-pointer hover:text-text hover:bg-text/10 transition-colors">
+                  {goalPhotoBusy
+                    ? <><Loader size={18} className="animate-spin" /> {tr('Memproses…', 'Processing…')}</>
+                    : <><ImageIcon size={18} /> {tr('Pilih gambar', 'Choose a photo')}</>}
+                </label>
+              )}
+
+              {/* Reposition. The list crop is a narrow slice, so the preview beside the sliders is
+                  rendered at exactly the size the list uses — anything else would lie about it. */}
+              {gForm.photo && (
+                <div className="flex items-center gap-3 pt-1">
+                  <img
+                    src={gForm.photo}
+                    alt={tr('Pratonton senarai', 'List preview')}
+                    style={{ objectPosition: `${gForm.px}% ${gForm.py}%` }}
+                    className="w-20 h-24 rounded-lg object-cover shrink-0 border border-text/10"
+                  />
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <p className="text-[10px] text-muted">{tr('Geser untuk pilih bahagian gambar', 'Slide to choose the part that shows')}</p>
+                    <label className="flex items-center gap-2">
+                      <span className="text-[10px] text-muted w-4 shrink-0">↔</span>
+                      <input type="range" min={0} max={100} value={gForm.px} onChange={e => setGForm(f => ({ ...f, px: Number(e.target.value) }))} aria-label={tr('Kedudukan mendatar', 'Horizontal position')} className="w-full accent-emerald-500" />
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <span className="text-[10px] text-muted w-4 shrink-0">↕</span>
+                      <input type="range" min={0} max={100} value={gForm.py} onChange={e => setGForm(f => ({ ...f, py: Number(e.target.value) }))} aria-label={tr('Kedudukan menegak', 'Vertical position')} className="w-full accent-emerald-500" />
+                    </label>
+                    <button type="button" onClick={() => setGForm(f => ({ ...f, px: 50, py: 50 }))} className="text-[10px] text-muted hover:text-text underline">
+                      {tr('Set semula ke tengah', 'Reset to centre')}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
             <button onClick={saveGForm} className="w-full py-3 rounded-xl bg-emerald-500 text-[#ffffff] font-bold hover:bg-emerald-600">
               {gForm.id ? tr('Simpan Perubahan', 'Save changes') : tr('Tambah Tabung', 'Add fund')}
             </button>
@@ -1334,8 +1622,25 @@ const ExpenseManager: React.FC = () => {
         if (!g) return null;
         const saved = savedFor(g.id);
         const pct = g.target > 0 ? Math.min(100, (saved / g.target) * 100) : 0;
-        const mine = topups.filter(t => t.goalId === g.id);
         const linkedExpenses = expenses.filter(e => e.goalId === g.id);
+        // Every ringgit that reached this fund, whatever it came from, newest first. A commitment
+        // contributes once per month it was paid, at what that month actually cost.
+        type Feed = { key: string; date: string; label: string; from: string; amount: number; expense?: Expense; topupId?: string };
+        const feed: Feed[] = [
+          ...commitments.filter(c => c.goalId === g.id).flatMap(c =>
+            Object.entries(c.payments).map(([mk, d]) => ({
+              key: `c${c.id}${mk}`, date: d, label: c.title,
+              from: tr('Komitmen', 'Commitment'), amount: paidFor(c, mk),
+            }))),
+          ...linkedExpenses.map(e => ({
+            key: `e${e.id}`, date: e.date, label: e.description,
+            from: catLabel(e.category, expenseOptions), amount: e.amount, expense: e,
+          })),
+          ...topups.filter(t => t.goalId === g.id).map(t => ({
+            key: `t${t.id}`, date: t.date, label: tr('Tambah nilai', 'Top-up'),
+            from: tr('Manual', 'Manual'), amount: t.amount, topupId: t.id,
+          })),
+        ].sort((a, b) => b.date.localeCompare(a.date));
         return (
           <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setOpenGoal(null)}>
             <div className="bg-surface border border-text/10 rounded-t-3xl w-full max-w-md max-h-[88dvh] flex flex-col animate-slide-up" onClick={e => e.stopPropagation()}>
@@ -1354,14 +1659,19 @@ const ExpenseManager: React.FC = () => {
               </div>
 
               <div className="flex-1 overflow-y-auto overscroll-contain p-5 pt-4 space-y-5">
-                <div className="h-2 bg-text/10 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full bg-emerald-500 transition-all duration-700" style={{ width: `${pct}%` }} />
-                </div>
+                <GoalBar saved={saved} target={g.target} />
 
                 {/* Sources — the one place the link is edited */}
                 <div className="space-y-2">
-                  <h4 className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Sumber', 'Sources')}</h4>
-                  {activeCommitments.length === 0 ? (
+                  <button onClick={() => setShowSources(v => !v)} className="w-full flex items-center gap-2 text-left">
+                    <h4 className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Sumber', 'Sources')}</h4>
+                    <span className="text-[10px] text-muted">
+                      {tr(`${commitments.filter(c => c.goalId === g.id).length} daripada ${activeCommitments.length} komitmen`,
+                        `${commitments.filter(c => c.goalId === g.id).length} of ${activeCommitments.length} commitments`)}
+                    </span>
+                    <ChevronDown size={14} className={`ml-auto text-muted transition-transform ${showSources ? 'rotate-180' : ''}`} />
+                  </button>
+                  {!showSources ? null : activeCommitments.length === 0 ? (
                     <p className="text-xs text-muted">{tr('Belum ada komitmen untuk dipautkan.', 'No commitments to link yet.')}</p>
                   ) : activeCommitments.map(c => {
                     const linked = c.goalId === g.id;
@@ -1380,12 +1690,6 @@ const ExpenseManager: React.FC = () => {
                       </button>
                     );
                   })}
-                  {linkedExpenses.length > 0 && (
-                    <p className="text-[10px] text-muted pt-1">
-                      {tr(`+ ${linkedExpenses.length} perbelanjaan dipautkan · RM ${fmt(linkedExpenses.reduce((s, e) => s + e.amount, 0))}`,
-                        `+ ${linkedExpenses.length} linked expenses · RM ${fmt(linkedExpenses.reduce((s, e) => s + e.amount, 0))}`)}
-                    </p>
-                  )}
                 </div>
 
                 {/* Top-ups — pure tally, deliberately outside the balance */}
@@ -1396,11 +1700,36 @@ const ExpenseManager: React.FC = () => {
                     <input type="date" value={topupDate} max={todayKey} onChange={e => setTopupDate(e.target.value)} className="input-field w-36 py-2 text-sm" />
                     <button onClick={() => addTopup(g.id)} aria-label={tr('Tambah', 'Add')} className="px-3 rounded-xl bg-emerald-500 text-[#ffffff] font-bold hover:bg-emerald-600 shrink-0"><Plus size={18} /></button>
                   </div>
-                  {mine.map(t => (
-                    <div key={t.id} className="flex items-center gap-2 py-1.5 border-t border-text/5">
-                      <span className="flex-1 text-[11px] text-muted">{fmtLongDate(t.date)}</span>
-                      <span className="font-mono text-xs font-bold text-emerald-400 light:text-emerald-600" style={{ fontVariantNumeric: 'tabular-nums' }}>+RM {fmt(t.amount)}</span>
-                      <button onClick={() => setTopups(prev => prev.filter(x => x.id !== t.id))} aria-label={tr('Padam', 'Delete')} className="p-1 text-rose-400 opacity-60 hover:opacity-100"><Trash2 size={12} /></button>
+                </div>
+
+                {/* Where every ringgit came from */}
+                <div className="space-y-1">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <h4 className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Rekod', 'Record')}</h4>
+                    {feed.length > 0 && <span className="text-[10px] text-muted">{tr(`${feed.length} masukan`, `${feed.length} entries`)}</span>}
+                  </div>
+                  {feed.length === 0 ? (
+                    <p className="text-xs text-muted py-2">{tr('Belum ada apa-apa masuk lagi.', 'Nothing has gone in yet.')}</p>
+                  ) : feed.map(f => (
+                    <div key={f.key} className="flex items-center gap-2.5 py-2 border-t border-text/5">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate text-text/90">{f.label}</p>
+                        <p className="text-[10px] text-muted truncate">{fmtLongDate(f.date)} · {f.from}</p>
+                      </div>
+                      <span className="font-mono text-xs font-bold text-emerald-400 light:text-emerald-600 shrink-0" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        +RM {fmt(f.amount)}
+                      </span>
+                      {/* Expenses and top-ups belong to this fund, so they are managed here. A
+                          commitment payment belongs to the commitment — undo it on that tab. */}
+                      {f.expense && (
+                        <>
+                          <button onClick={() => { setOpenGoal(null); openExpense(f.expense); }} aria-label={tr('Sunting', 'Edit')} className="p-1 text-muted opacity-60 hover:opacity-100 hover:text-text shrink-0"><Pencil size={13} /></button>
+                          <button onClick={() => deleteExpense(f.expense!)} aria-label={tr('Padam', 'Delete')} className="p-1 text-rose-400 opacity-60 hover:opacity-100 shrink-0"><Trash2 size={13} /></button>
+                        </>
+                      )}
+                      {f.topupId && (
+                        <button onClick={() => setTopups(prev => prev.filter(x => x.id !== f.topupId))} aria-label={tr('Padam', 'Delete')} className="p-1 text-rose-400 opacity-60 hover:opacity-100 shrink-0"><Trash2 size={13} /></button>
+                      )}
                     </div>
                   ))}
                 </div>

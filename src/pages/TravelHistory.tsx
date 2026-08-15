@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { store } from '../lib/store';
+import { downscaleFile } from '../lib/downscale';
 import {
   Globe, Plus, Trash2, Pencil, X, Calendar, MapPin, Plane, Star,
-  Clock, Search, ArrowUpDown, Layers, TrendingUp, ZoomIn, ZoomOut, Maximize, Wallet, Map as MapIcon, ChevronUp, ChevronDown, Check, Backpack
+  Clock, Search, ArrowUpDown, Layers, TrendingUp, ZoomIn, ZoomOut, Maximize, Wallet, Map as MapIcon, ChevronUp, ChevronDown, Check, Backpack,
+  Image as ImageIcon, Loader
 } from 'lucide-react';
 import { COUNTRY_PATHS, COUNTRY_BOX, MAP_ALIAS, MAP_W, MAP_H, mapTarget, countryPath } from '../lib/worldMap';
 import { COUNTRIES, flagOf } from '../lib/countries';
 import { useT, t as trs, locale } from '../lib/lang';
+import { SearchBox } from '../components/SearchBox';
 
 
 // Faint silhouette of a country, used as a card background watermark
@@ -231,6 +234,8 @@ interface Trip {
   bestLocation?: string;
   cities?: string[];
   notes?: string;
+  photo?: string;      // one cover shot, downscaled to a data URL like every other tool's
+  photoPos?: string;   // CSS object-position — the banner and the timeline slice crop differently
   itinerary?: ItinDay[];
   checklist?: ChecklistItem[];
 }
@@ -238,6 +243,7 @@ interface Trip {
 const STORAGE_KEY = 'travel_history_data';
 const DEFAULT_CATS = ['Pengangkutan', 'Hotel', 'Makanan', 'Beli-belah', 'Hiburan', 'Lain-lain'];
 const TOTAL_COUNTRIES = 195; // recognised countries in the world
+const PAGE = 20;             // trips rendered per "show more" — cards carry an SVG and a photo, so all of them at once is not free
 
 const MONTHS_MS = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis'];
 const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -290,6 +296,101 @@ const makeSampleTrips = (): Trip[] => {
     mk('China', 2018, 9, 1, 8, 4100, { bestLocation: 'Tembok Besar', cities: ['Beijing', 'Shanghai'] }),
     mk('Egypt', 2021, 11, 3, 9, 6100, { bestLocation: 'Piramid Giza', cities: ['Cairo', 'Luxor'] }),
   ];
+};
+
+// Module level, not defined inside the page: a component re-created every render is a new type
+// to React, so every card unmounted and remounted on each keystroke of the search box — losing
+// the open/closed itinerary and re-decoding every photo.
+const TripCard: React.FC<{
+  t: Trip;
+  onEdit: (t: Trip) => void;
+  onDelete: (id: string) => void;
+  onExpenses: (t: Trip) => void;
+  onItinerary: (id: string) => void;
+  onChecklist: (id: string) => void;
+}> = ({ t, onEdit, onDelete, onExpenses, onItinerary, onChecklist }) => {
+  const tr = useT();
+  const [showItin, setShowItin] = useState(false);
+  const days = t.itinerary || [];
+  return (
+    <div className="glass-panel p-4 relative overflow-hidden">
+      <CountryBg country={t.country} />
+      <div className="relative z-10 space-y-2">
+      {/* Full-bleed cover: the card's own padding is cancelled so the photo meets its edges */}
+      {t.photo && (
+        <div className="-mx-4 -mt-4 mb-3 h-32 overflow-hidden">
+          <img src={t.photo} alt="" loading="lazy" decoding="async" style={{ objectPosition: t.photoPos ?? '50% 50%' }} className="w-full h-full object-cover" />
+        </div>
+      )}
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h4 className="font-bold text-text/90 truncate">{t.flag} {t.title}</h4>
+          <p className="text-[11px] text-muted flex items-center gap-1 mt-0.5"><Calendar size={11} /> {longDate(t.startDate)} – {longDate(t.endDate)}</p>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <button onClick={() => onEdit(t)} className="text-muted hover:text-text p-1"><Pencil size={14} /></button>
+          <button onClick={() => onDelete(t.id)} className="text-rose-400 opacity-60 hover:opacity-100 p-1"><Trash2 size={14} /></button>
+        </div>
+      </div>
+      <div className="flex items-center gap-3 flex-wrap text-xs">
+        {t.budget > 0 && <span className="font-mono font-bold text-cyan-400">RM{fmt(t.budget)}</span>}
+        {t.bestLocation && <span className="text-muted flex items-center gap-1"><Star size={12} /> {t.bestLocation}</span>}
+        {t.checklist && t.checklist.length > 0 && <span className="text-muted flex items-center gap-1"><Backpack size={12} /> {t.checklist.filter(i => i.done).length}/{t.checklist.length}</span>}
+      </div>
+      {t.categories && (
+        <div className="flex flex-wrap gap-1">
+          {Object.entries(t.categories).map(([k, v]) => (
+            <span key={k} className="text-[10px] px-1.5 py-0.5 rounded bg-text/5 text-muted">{k} RM{fmt(v)}</span>
+          ))}
+        </div>
+      )}
+      {t.cities && t.cities.length > 0 && (
+        <p className="text-[11px] text-muted flex items-center gap-1"><MapPin size={11} /> {t.cities.join(' · ')}</p>
+      )}
+      {t.notes && <p className="text-xs text-text/70 italic">“{t.notes}”</p>}
+
+      {/* Collapsible itinerary timeline */}
+      {days.length > 0 && (
+        <div>
+          <button onClick={() => setShowItin(s => !s)} className="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
+            <MapIcon size={13} /> {tr('Itinerari', 'Itinerary')} · {tr(`${days.length} hari`, `${days.length} days`)}
+            <ChevronDown size={14} className={`transition-transform ${showItin ? 'rotate-180' : ''}`} />
+          </button>
+          {showItin && (
+            <div className="mt-2 space-y-3">
+              {days.map(day => {
+                const acts = day.timed ? [...day.activities].sort((a, b) => (a.time || '').localeCompare(b.time || '')) : day.activities;
+                return (
+                  <div key={day.id}>
+                    <p className="text-[11px] font-bold text-text/80 mb-1">{day.label}</p>
+                    <div className="border-l-2 border-cyan-500/30 ml-1 pl-3 space-y-1.5">
+                      {acts.length === 0 ? (
+                        <p className="text-[11px] text-muted">{tr('Tiada aktiviti', 'No activities')}</p>
+                      ) : acts.map(a => (
+                        <div key={a.id} className="relative">
+                          <span className="absolute -left-[15.5px] top-1.5 w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                          <p className="text-xs text-text/80 leading-snug">
+                            {day.timed && a.time && <span className="font-mono text-cyan-400 mr-1.5">{a.time}</span>}{a.text}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="flex gap-1.5 pt-1">
+        <button onClick={() => onExpenses(t)} className="flex-1 py-2 rounded-lg bg-text/5 text-[11px] font-bold text-text/80 hover:bg-text/10 flex items-center justify-center gap-1"><Wallet size={13} /> {tr('Perbelanjaan', 'Spending')}</button>
+        <button onClick={() => onItinerary(t.id)} className="flex-1 py-2 rounded-lg bg-text/5 text-[11px] font-bold text-text/80 hover:bg-text/10 flex items-center justify-center gap-1"><MapIcon size={13} /> {tr('Itinerari', 'Itinerary')}</button>
+        <button onClick={() => onChecklist(t.id)} className="flex-1 py-2 rounded-lg bg-text/5 text-[11px] font-bold text-text/80 hover:bg-text/10 flex items-center justify-center gap-1"><Backpack size={13} /> {tr('Barang', 'Packing')}</button>
+      </div>
+      </div>
+    </div>
+  );
 };
 
 const TravelHistory: React.FC = () => {
@@ -350,12 +451,17 @@ const TravelHistory: React.FC = () => {
   const [fCities, setFCities] = useState<string[]>([]);
   const [cityDraft, setCityDraft] = useState('');
   const [fNotes, setFNotes] = useState('');
+  const [fPhoto, setFPhoto] = useState('');
+  const [fPx, setFPx] = useState(50);
+  const [fPy, setFPy] = useState(50);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [countrySearch, setCountrySearch] = useState('');
   const [error, setError] = useState('');
 
   const resetForm = () => {
     setEditId(null); setFCountry(''); setFFlag(''); setFTitle(''); setFStart(''); setFEnd('');
-    setFBest(''); setFCities([]); setCityDraft(''); setFNotes(''); setCountrySearch(''); setError('');
+    setFBest(''); setFCities([]); setCityDraft(''); setFNotes(''); setFPhoto(''); setFPx(50); setFPy(50); setCountrySearch(''); setError('');
   };
   // Accepts a pasted "Tokyo, Osaka" just as happily as one city at a time.
   const addCity = (raw: string) => {
@@ -368,7 +474,8 @@ const TravelHistory: React.FC = () => {
   const openEdit = (t: Trip) => {
     setEditId(t.id); setFCountry(t.country); setFFlag(t.flag); setFTitle(t.title);
     setFStart(t.startDate); setFEnd(t.endDate);
-    setFBest(t.bestLocation || ''); setFCities(t.cities || []); setCityDraft(''); setFNotes(t.notes || '');
+    setFBest(t.bestLocation || ''); setFCities(t.cities || []); setCityDraft(''); setFNotes(t.notes || ''); setFPhoto(t.photo || '');
+    { const [x, y] = (t.photoPos ?? '50% 50%').split(' ').map(v => parseInt(v) || 50); setFPx(x); setFPy(y); }
     setCountrySearch(''); setError(''); setShowForm(true);
   };
 
@@ -390,6 +497,11 @@ const TravelHistory: React.FC = () => {
       bestLocation: fBest.trim() || undefined,
       cities: cities.length ? cities : undefined,
       notes: fNotes.trim() || undefined,
+      // Dropping the key rather than storing '' is what actually frees the space: the trip is
+      // re-serialised on every save, so a removed photo leaves storage with it.
+      photo: fPhoto || undefined,
+      // Only stored when it is not the default, and never without a photo to position
+      photoPos: fPhoto && (fPx !== 50 || fPy !== 50) ? `${fPx}% ${fPy}%` : undefined,
       // Preserve expenses + itinerary + checklist, which are managed separately on the Trips tab
       budget: existing?.budget ?? 0,
       categories: existing?.categories,
@@ -499,90 +611,34 @@ const TravelHistory: React.FC = () => {
   // --- Listing ---
   const [sort, setSort] = useState<'latest' | 'oldest' | 'highest' | 'lowest'>('latest');
   const [groupBy, setGroupBy] = useState<'none' | 'country' | 'year'>('none');
-  const sortedTrips = [...trips].sort((a, b) => {
+  const [query, setQuery] = useState('');
+  const [tripLimit, setTripLimit] = useState(PAGE);
+  const [lineLimit, setLineLimit] = useState(PAGE);
+  const q = query.trim().toLowerCase();
+  const matches = (t: Trip) =>
+    [t.title, t.country, t.bestLocation, t.notes, yearOf(t.startDate), ...(t.cities || [])]
+      .some(v => v?.toLowerCase().includes(q));
+  const sortedTrips = (q ? trips.filter(matches) : trips).slice().sort((a, b) => {
     if (sort === 'latest') return b.startDate.localeCompare(a.startDate);
     if (sort === 'oldest') return a.startDate.localeCompare(b.startDate);
     if (sort === 'highest') return b.budget - a.budget;
     return a.budget - b.budget;
   });
+  // Only this slice is rendered. Group headers still total the full match set, so a group's
+  // figure doesn't shrink just because its later trips are below the fold.
+  const shownTrips = sortedTrips.slice(0, tripLimit);
+  const shownLine = sortedByDate.slice(0, lineLimit);
+  const moreBtn = (left: number, onClick: () => void) => (
+    <button onClick={onClick} className="w-full py-2.5 rounded-xl bg-text/5 text-muted hover:text-text text-xs font-bold transition-colors">
+      {tr(`Tunjuk ${Math.min(PAGE, left)} lagi · ${left} baki`, `Show ${Math.min(PAGE, left)} more · ${left} left`)}
+    </button>
+  );
 
-  const TripCard = ({ t }: { t: Trip }) => {
-    const [showItin, setShowItin] = useState(false);
-    const days = t.itinerary || [];
-    return (
-    <div className="glass-panel p-4 relative overflow-hidden">
-      <CountryBg country={t.country} />
-      <div className="relative z-10 space-y-2">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h4 className="font-bold text-text/90 truncate">{t.flag} {t.title}</h4>
-          <p className="text-[11px] text-muted flex items-center gap-1 mt-0.5"><Calendar size={11} /> {longDate(t.startDate)} – {longDate(t.endDate)}</p>
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <button onClick={() => openEdit(t)} className="text-muted hover:text-text p-1"><Pencil size={14} /></button>
-          <button onClick={() => deleteTrip(t.id)} className="text-rose-400 opacity-60 hover:opacity-100 p-1"><Trash2 size={14} /></button>
-        </div>
-      </div>
-      <div className="flex items-center gap-3 flex-wrap text-xs">
-        {t.budget > 0 && <span className="font-mono font-bold text-cyan-400">RM{fmt(t.budget)}</span>}
-        {t.bestLocation && <span className="text-muted flex items-center gap-1"><Star size={12} /> {t.bestLocation}</span>}
-        {t.checklist && t.checklist.length > 0 && <span className="text-muted flex items-center gap-1"><Backpack size={12} /> {t.checklist.filter(i => i.done).length}/{t.checklist.length}</span>}
-      </div>
-      {t.categories && (
-        <div className="flex flex-wrap gap-1">
-          {Object.entries(t.categories).map(([k, v]) => (
-            <span key={k} className="text-[10px] px-1.5 py-0.5 rounded bg-text/5 text-muted">{k} RM{fmt(v)}</span>
-          ))}
-        </div>
-      )}
-      {t.cities && t.cities.length > 0 && (
-        <p className="text-[11px] text-muted flex items-center gap-1"><MapPin size={11} /> {t.cities.join(' · ')}</p>
-      )}
-      {t.notes && <p className="text-xs text-text/70 italic">“{t.notes}”</p>}
+  // One place to build a card, so the three grouping branches stay one-liners.
+  const card = (t: Trip) => (
+    <TripCard key={t.id} t={t} onEdit={openEdit} onDelete={deleteTrip} onExpenses={openExpenses} onItinerary={setItinTripId} onChecklist={openChecklist} />
+  );
 
-      {/* Collapsible itinerary timeline */}
-      {days.length > 0 && (
-        <div>
-          <button onClick={() => setShowItin(s => !s)} className="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
-            <MapIcon size={13} /> {tr('Itinerari', 'Itinerary')} · {tr(`${days.length} hari`, `${days.length} days`)}
-            <ChevronDown size={14} className={`transition-transform ${showItin ? 'rotate-180' : ''}`} />
-          </button>
-          {showItin && (
-            <div className="mt-2 space-y-3">
-              {days.map(day => {
-                const acts = day.timed ? [...day.activities].sort((a, b) => (a.time || '').localeCompare(b.time || '')) : day.activities;
-                return (
-                  <div key={day.id}>
-                    <p className="text-[11px] font-bold text-text/80 mb-1">{day.label}</p>
-                    <div className="border-l-2 border-cyan-500/30 ml-1 pl-3 space-y-1.5">
-                      {acts.length === 0 ? (
-                        <p className="text-[11px] text-muted">{tr('Tiada aktiviti', 'No activities')}</p>
-                      ) : acts.map(a => (
-                        <div key={a.id} className="relative">
-                          <span className="absolute -left-[15.5px] top-1.5 w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                          <p className="text-xs text-text/80 leading-snug">
-                            {day.timed && a.time && <span className="font-mono text-cyan-400 mr-1.5">{a.time}</span>}{a.text}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="flex gap-1.5 pt-1">
-        <button onClick={() => openExpenses(t)} className="flex-1 py-2 rounded-lg bg-text/5 text-[11px] font-bold text-text/80 hover:bg-text/10 flex items-center justify-center gap-1"><Wallet size={13} /> {tr('Perbelanjaan', 'Spending')}</button>
-        <button onClick={() => setItinTripId(t.id)} className="flex-1 py-2 rounded-lg bg-text/5 text-[11px] font-bold text-text/80 hover:bg-text/10 flex items-center justify-center gap-1"><MapIcon size={13} /> {tr('Itinerari', 'Itinerary')}</button>
-        <button onClick={() => openChecklist(t.id)} className="flex-1 py-2 rounded-lg bg-text/5 text-[11px] font-bold text-text/80 hover:bg-text/10 flex items-center justify-center gap-1"><Backpack size={13} /> {tr('Barang', 'Packing')}</button>
-      </div>
-      </div>
-    </div>
-    );
-  };
 
   const filteredCountries = COUNTRIES.filter(c => c.name.toLowerCase().includes(countrySearch.toLowerCase()));
 
@@ -715,33 +771,49 @@ const TravelHistory: React.FC = () => {
                 </div>
               </div>
 
-              {groupBy === 'none' && sortedTrips.map(t => <TripCard key={t.id} t={t} />)}
+              <SearchBox
+                value={query}
+                onChange={v => { setQuery(v); setTripLimit(PAGE); }}
+                placeholder={tr('Cari negara, bandar, nota…', 'Search a country, city, note…')}
+              />
 
-          {groupBy === 'country' && uniqueCountries
-            .map(c => ({ c, list: sortedTrips.filter(t => t.country === c) }))
-            .sort((a, b) => b.list.reduce((s, t) => s + t.budget, 0) - a.list.reduce((s, t) => s + t.budget, 0))
-            .map(({ c, list }) => (
+              {sortedTrips.length === 0 ? (
+                <p className="text-xs text-muted text-center py-6">{tr(`Tiada padanan untuk "${query.trim()}".`, `No match for "${query.trim()}".`)}</p>
+              ) : (
+                <>
+                  {q && <p className="text-[10px] text-muted px-1">{tr(`${sortedTrips.length} padanan`, `${sortedTrips.length} matches`)}</p>}
+
+                  {groupBy === 'none' && shownTrips.map(card)}
+
+          {groupBy === 'country' && Array.from(new Set(shownTrips.map(t => t.country)))
+            .map(c => ({ c, list: shownTrips.filter(t => t.country === c), total: sortedTrips.filter(t => t.country === c).reduce((s, t) => s + t.budget, 0) }))
+            .sort((a, b) => b.total - a.total)
+            .map(({ c, list, total }) => (
               <div key={c} className="space-y-2">
                 <div className="flex items-center justify-between px-1">
                   <h3 className="font-bold text-sm">{list[0].flag} {c}</h3>
-                  <span className="text-xs font-mono text-cyan-400">RM{fmt(list.reduce((s, t) => s + t.budget, 0))}</span>
+                  <span className="text-xs font-mono text-cyan-400">RM{fmt(total)}</span>
                 </div>
-                {list.map(t => <TripCard key={t.id} t={t} />)}
+                {list.map(card)}
               </div>
             ))}
 
-          {groupBy === 'year' && Array.from(new Set(sortedTrips.map(t => yearOf(t.startDate)))).sort((a, b) => b.localeCompare(a)).map(yr => {
-            const list = sortedTrips.filter(t => yearOf(t.startDate) === yr);
+          {groupBy === 'year' && Array.from(new Set(shownTrips.map(t => yearOf(t.startDate)))).sort((a, b) => b.localeCompare(a)).map(yr => {
+            const list = shownTrips.filter(t => yearOf(t.startDate) === yr);
             return (
               <div key={yr} className="space-y-2">
                 <div className="flex items-center justify-between px-1">
                   <h3 className="font-bold text-sm">{yr}</h3>
-                  <span className="text-xs font-mono text-cyan-400">RM{fmt(list.reduce((s, t) => s + t.budget, 0))}</span>
+                  <span className="text-xs font-mono text-cyan-400">RM{fmt(sortedTrips.filter(t => yearOf(t.startDate) === yr).reduce((s, t) => s + t.budget, 0))}</span>
                 </div>
-                {list.map(t => <TripCard key={t.id} t={t} />)}
+                {list.map(card)}
               </div>
             );
           })}
+
+                  {sortedTrips.length > tripLimit && moreBtn(sortedTrips.length - tripLimit, () => setTripLimit(n => n + PAGE))}
+                </>
+              )}
             </>
           )}
         </div>
@@ -751,25 +823,42 @@ const TravelHistory: React.FC = () => {
           <div className="text-center p-8 text-muted text-sm border border-dashed border-text/10 rounded-2xl">{tr('Belum ada perjalanan direkod. Tambah perjalanan pertama anda di tab Perjalanan!', 'No trips recorded yet. Add your first one from the Trips tab!')}</div>
         ) : (
         <div className="space-y-4">
-          {Array.from(new Set(sortedByDate.map(t => yearOf(t.startDate)))).sort((a, b) => b.localeCompare(a)).map(yr => (
+          {Array.from(new Set(shownLine.map(t => yearOf(t.startDate)))).sort((a, b) => b.localeCompare(a)).map(yr => (
             <div key={yr} className="flex gap-3">
               <div className="shrink-0 w-12 text-right"><span className="text-lg font-black text-cyan-400">{yr}</span></div>
               <div className="flex-1 border-l-2 border-text/10 pl-4 space-y-2 pb-2">
-                {sortedByDate.filter(t => yearOf(t.startDate) === yr).map(t => (
+                {shownLine.filter(t => yearOf(t.startDate) === yr).map(t => (
                   <div key={t.id} className="relative">
                     <span className="absolute -left-[22px] top-1.5 w-2.5 h-2.5 rounded-full bg-cyan-400 ring-4 ring-background" />
-                    <button onClick={() => openEdit(t)} className="text-left w-full glass-panel p-3 hover:bg-text/5 transition-colors relative overflow-hidden">
+                    {/* The photo is positioned absolutely rather than laid out in the row: as a
+                        flex child it was free to size itself from the image's own dimensions and
+                        push the card wider than its column. Out of flow it cannot, and the text
+                        simply reserves the width it occupies. */}
+                    <button onClick={() => openEdit(t)} className="text-left w-full glass-panel hover:bg-text/5 transition-colors relative overflow-hidden block">
                       <CountryBg country={t.country} />
-                      <div className="relative z-10">
-                        <p className="font-bold text-sm text-text/90">{t.flag} {t.title}</p>
-                        <p className="text-[11px] text-muted">{longDate(t.startDate)} – {longDate(t.endDate)}{t.budget > 0 ? ` · RM${fmt(t.budget)}` : ''}</p>
+                      {/* Below 360px there is no room for both, so the photo goes and the text
+                          takes the width back rather than being squeezed to nothing. */}
+                      <div className={`relative z-10 p-3 ${t.photo ? 'pr-[68px] max-[360px]:pr-3' : ''}`}>
+                        <p className="font-bold text-sm text-text/90 truncate">{t.flag} {t.title}</p>
+                        <p className="text-[11px] text-muted truncate">{longDate(t.startDate)} – {longDate(t.endDate)}{t.budget > 0 ? ` · RM${fmt(t.budget)}` : ''}</p>
                       </div>
+                      {t.photo && (
+                        <img
+                          src={t.photo}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          style={{ objectPosition: t.photoPos ?? '50% 50%' }}
+                          className="absolute inset-y-0 right-0 z-10 w-14 h-full object-cover max-[360px]:hidden"
+                        />
+                      )}
                     </button>
                   </div>
                 ))}
               </div>
             </div>
           ))}
+          {sortedByDate.length > lineLimit && moreBtn(sortedByDate.length - lineLimit, () => setLineLimit(n => n + PAGE))}
         </div>
         )
       )}
@@ -852,6 +941,81 @@ const TravelHistory: React.FC = () => {
               )}
             </div>
             <div className="space-y-1"><label className="text-[10px] font-bold text-muted uppercase">{tr('Nota (pilihan)', 'Note (optional)')}</label><input value={fNotes} onChange={e => setFNotes(e.target.value)} placeholder={tr('cth. Musim sakura', 'e.g. Cherry blossom season')} className="input-field w-full text-sm" /></div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-muted uppercase">{tr('Gambar (pilihan)', 'Photo (optional)')}</label>
+              <input
+                type="file"
+                accept="image/*"
+                ref={photoInputRef}
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setPhotoBusy(true);
+                  // 900px at 0.82 — a cover this wide is read at 2x on a phone, and the app's
+                  // usual 600/0.7 shows it. Roughly 100–200KB once base64'd, in line with the
+                  // receipt photos in Asset Warranty.
+                  downscaleFile(file, 900, 0.82)
+                    .then(setFPhoto)
+                    .catch(() => {})
+                    .finally(() => setPhotoBusy(false));
+                }}
+                className="hidden"
+                id="trip-photo"
+              />
+              {fPhoto ? (
+                <div className="relative h-32 rounded-xl overflow-hidden border border-text/10">
+                  <img src={fPhoto} alt="" style={{ objectPosition: `${fPx}% ${fPy}%` }} className="w-full h-full object-cover" />
+                  <div className="absolute top-2 right-2 flex gap-1.5">
+                    <label htmlFor="trip-photo" title={tr('Tukar gambar', 'Change photo')} className="p-1.5 rounded-lg bg-[#000]/50 text-[#fff]/80 hover:text-[#fff] backdrop-blur-md cursor-pointer">
+                      <Pencil size={14} />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => { setFPhoto(''); if (photoInputRef.current) photoInputRef.current.value = ''; }}
+                      aria-label={tr('Buang gambar', 'Remove photo')}
+                      className="p-1.5 rounded-lg bg-[#000]/50 text-[#fff]/80 hover:text-[#fff] backdrop-blur-md"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <label
+                  htmlFor="trip-photo"
+                  className="flex items-center justify-center gap-2 h-16 rounded-xl border border-dashed border-text/15 bg-text/5 text-muted text-sm cursor-pointer hover:text-text hover:bg-text/10 transition-colors"
+                >
+                  {photoBusy
+                    ? <><Loader size={18} className="animate-spin" /> {tr('Memproses…', 'Processing…')}</>
+                    : <><ImageIcon size={18} /> {tr('Pilih gambar', 'Choose a photo')}</>}
+                </label>
+              )}
+
+              {/* Reposition. The photo is cropped two different ways, so both previews are shown
+                  at the exact shapes used — a wide banner on the card, a narrow slice in the
+                  timeline. One setting drives both. */}
+              {fPhoto && (
+                <div className="flex items-center gap-3 pt-1">
+                  <div className="flex gap-1.5 shrink-0">
+                    <img src={fPhoto} alt={tr('Pratonton kad', 'Card preview')} style={{ objectPosition: `${fPx}% ${fPy}%` }} className="w-24 h-14 rounded-lg object-cover border border-text/10" />
+                    <img src={fPhoto} alt={tr('Pratonton garis masa', 'Timeline preview')} style={{ objectPosition: `${fPx}% ${fPy}%` }} className="w-9 h-14 rounded-lg object-cover border border-text/10" />
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <label className="flex items-center gap-2">
+                      <span className="text-[10px] text-muted w-4 shrink-0">↔</span>
+                      <input type="range" min={0} max={100} value={fPx} onChange={e => setFPx(Number(e.target.value))} aria-label={tr('Kedudukan mendatar', 'Horizontal position')} className="w-full accent-cyan-500" />
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <span className="text-[10px] text-muted w-4 shrink-0">↕</span>
+                      <input type="range" min={0} max={100} value={fPy} onChange={e => setFPy(Number(e.target.value))} aria-label={tr('Kedudukan menegak', 'Vertical position')} className="w-full accent-cyan-500" />
+                    </label>
+                    <button type="button" onClick={() => { setFPx(50); setFPy(50); }} className="text-[10px] text-muted hover:text-text underline">
+                      {tr('Set semula ke tengah', 'Reset to centre')}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             <p className="text-[10px] text-muted">{tr('Tambah perbelanjaan dan itinerari dari kad perjalanan di tab Perjalanan.', 'Add spending and an itinerary from the trip card in the Trips tab.')}</p>
             {error && <p className="text-xs text-red-400">{error}</p>}
