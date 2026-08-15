@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  ShieldAlert, Plus, Trash2, Pencil, X, RotateCw, Check,
+  ShieldAlert, Plus, Trash2, Pencil, X, RotateCw, Check, Search,
   BookUser, CarFront, IdCard, Fingerprint, HeartPulse, Plane, FileText,
 } from 'lucide-react';
 import { store } from '../lib/store';
@@ -86,7 +86,7 @@ const todayStr = () => {
 };
 
 const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' });
+  new Date(iso).toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' });
 
 /**
  * The chevron strip printed along the bottom of a passport data page. Not a real machine-readable
@@ -114,6 +114,10 @@ const DocumentExpiry: React.FC = () => {
   const [fType, setFType] = useState(DOC_TYPES[0].name);
   const [fTitle, setFTitle] = useState('');
   const [fDate, setFDate] = useState('');
+
+  // Search / filter
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState('all');
 
   // Renew sheet
   const [renewing, setRenewing] = useState<ExpiryDocument | null>(null);
@@ -173,6 +177,17 @@ const DocumentExpiry: React.FC = () => {
     .map(doc => ({ doc, days: daysUntil(doc.expiryDate) }))
     .sort((a, b) => a.days - b.days);
 
+  // Only the types actually saved get a chip — chips for documents you don't own are dead weight.
+  // Deleting the last document of the filtered type drops its chip, so the filter falls back to Semua.
+  const usedTypes = DOC_TYPES.filter(t => documents.some(d => d.type === t.name));
+  const active = usedTypes.some(t => t.name === filter) ? filter : 'all';
+
+  // Search and filter narrow the list only — the counts in the subtitle stay the truth about everything saved
+  const q = query.trim().toLowerCase();
+  const shown = sorted.filter(({ doc }) =>
+    (active === 'all' || doc.type === active)
+    && (!q || (doc.customTitle || '').toLowerCase().includes(q) || typeOf(doc.type).label.toLowerCase().includes(q)));
+
   const expiredCount = sorted.filter(d => d.days < 0).length;
   const dueCount = sorted.filter(d => d.days >= 0 && toneOf(d.days) === 'due').length;
 
@@ -223,8 +238,45 @@ const DocumentExpiry: React.FC = () => {
         <Plus size={20} className="mr-2" /> Tambah Dokumen
       </button>
 
+      {documents.length > 1 && (
+        <div className="space-y-2">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+            <input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Cari nama atau jenis"
+              aria-label="Cari dokumen"
+              className="input-field w-full text-sm py-2 pl-9 pr-9"
+            />
+            {query && (
+              <button onClick={() => setQuery('')} aria-label="Kosongkan carian" className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-muted hover:text-text">
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          {usedTypes.length > 1 && (
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5 -mx-1 px-1">
+              {[{ name: 'all', label: 'Semua', Icon: null }, ...usedTypes].map(({ name, label, Icon }) => (
+                <button
+                  key={name}
+                  onClick={() => setFilter(name)}
+                  aria-pressed={active === name}
+                  className={`flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors ${
+                    active === name ? 'bg-rose-600 text-[#fff]' : 'bg-text/5 text-muted hover:text-text'
+                  }`}
+                >
+                  {Icon && <Icon size={13} />}{label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="space-y-3">
-        {sorted.map(({ doc, days }) => {
+        {shown.map(({ doc, days }) => {
           const tone = TONE[toneOf(days)];
           const { Icon } = typeOf(doc.type);
           const title = doc.customTitle || typeOf(doc.type).label;
@@ -309,9 +361,11 @@ const DocumentExpiry: React.FC = () => {
           );
         })}
 
-        {documents.length === 0 && (
+        {shown.length === 0 && (
           <div className="text-center p-8 text-muted text-sm border border-dashed border-text/10 rounded-2xl">
-            Takde dokumen lagi. Tambah pasport, roadtax atau lesen untuk dapat amaran sebelum tamat tempoh.
+            {documents.length === 0
+              ? 'Takde dokumen lagi. Tambah pasport, roadtax atau lesen untuk dapat amaran sebelum tamat tempoh.'
+              : 'Takde dokumen yang padan dengan carian ni.'}
           </div>
         )}
       </div>
