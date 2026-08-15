@@ -4,8 +4,17 @@ import { PDFDocument, rgb, degrees, StandardFonts } from 'pdf-lib';
 import { Camera, Download, RefreshCw, Check, X, Upload, Settings2, Type, ChevronDown } from 'lucide-react';
 import Cropper from 'react-cropper';
 import 'cropperjs/dist/cropper.css';
+import { useT, t as tr } from '../lib/lang';
+
+// Watermark presets. A function, not a const: the first one is the default value seeded into the
+// text field, so it has to be built in the language the reader actually has selected.
+const WM_PRESETS = () => tr(
+  ['UNTUK KEGUNAAN PERSENDIRIAN SAHAJA', 'UNTUK KEGUNAAN BANK SAHAJA', 'UNTUK PERMOHONAN PINJAMAN'],
+  ['FOR PERSONAL USE ONLY', 'FOR BANK USE ONLY', 'FOR LOAN APPLICATION ONLY'],
+);
 
 const ICScanner: React.FC = () => {
+  const tl = useT();
   const [frontImage, setFrontImage] = useState<string | null>(null);
   const [backImage, setBackImage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -16,7 +25,7 @@ const ICScanner: React.FC = () => {
 
   // Watermark States
   const [wmEnabled, setWmEnabled] = useState(false);
-  const [wmText, setWmText] = useState('UNTUK KEGUNAAN PERSENDIRIAN SAHAJA');
+  const [wmText, setWmText] = useState(() => WM_PRESETS()[0]);
   const [wmColor, setWmColor] = useState('#000000');
   const [wmSize, setWmSize] = useState(10);
   const [wmRotation, setWmRotation] = useState(-30);
@@ -31,7 +40,7 @@ const ICScanner: React.FC = () => {
     setWmThickness(1);
     setWmOffset({ x: -15, y: 55 });
     setWmColor('#000000');
-    setWmText('UNTUK KEGUNAAN PERSENDIRIAN SAHAJA');
+    setWmText(WM_PRESETS()[0]);
   };
   const [showWmAdvanced, setShowWmAdvanced] = useState(false);
 
@@ -244,7 +253,7 @@ const ICScanner: React.FC = () => {
       }
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Gagal menjana PDF. Pastikan gambar anda dalam format JPEG atau PNG.');
+      alert(tr('Gagal menjana PDF. Pastikan gambar anda dalam format JPEG atau PNG.', 'Could not generate the PDF. Make sure your images are JPEG or PNG.'));
     } finally {
       setIsGenerating(false);
     }
@@ -262,8 +271,8 @@ const ICScanner: React.FC = () => {
         <>
           <img src={image} alt={title} className="absolute inset-0 w-full h-full object-cover opacity-80" />
           <div className="absolute bottom-2 right-2 flex space-x-2 bg-black/60 p-2 rounded-lg backdrop-blur-sm z-10">
-            <button onClick={(e) => { e.stopPropagation(); onCamera(); }} className="p-1.5 hover:text-primary transition-colors text-text" title="Ambil Semula Gambar"><Camera size={16} /></button>
-            <button onClick={(e) => { e.stopPropagation(); onFile(); }} className="p-1.5 hover:text-primary transition-colors text-text" title="Muat Naik Semula"><Upload size={16} /></button>
+            <button onClick={(e) => { e.stopPropagation(); onCamera(); }} className="p-1.5 hover:text-primary transition-colors text-text" title={tl('Ambil Semula Gambar', 'Retake the photo')}><Camera size={16} /></button>
+            <button onClick={(e) => { e.stopPropagation(); onFile(); }} className="p-1.5 hover:text-primary transition-colors text-text" title={tl('Muat Naik Semula', 'Upload again')}><Upload size={16} /></button>
           </div>
         </>
       ) : (
@@ -272,11 +281,11 @@ const ICScanner: React.FC = () => {
           <div className="flex space-x-4">
             <button onClick={(e) => { e.stopPropagation(); onCamera(); }} className="flex flex-col items-center p-3 bg-text/5 rounded-xl hover:bg-text/10 transition-colors border border-text/10">
               <Camera className="text-primary mb-2" size={24} />
-              <span className="text-xs font-medium">Kamera</span>
+              <span className="text-xs font-medium">{tl('Kamera', 'Camera')}</span>
             </button>
             <button onClick={(e) => { e.stopPropagation(); onFile(); }} className="flex flex-col items-center p-3 bg-text/5 rounded-xl hover:bg-text/10 transition-colors border border-text/10">
               <Upload className="text-primary mb-2" size={24} />
-              <span className="text-xs font-medium">Masukkan Gambar</span>
+              <span className="text-xs font-medium">{tl('Masukkan Gambar', 'Pick a Photo')}</span>
             </button>
           </div>
         </>
@@ -290,7 +299,7 @@ const ICScanner: React.FC = () => {
         <h2 className="text-2xl font-bold">IC Palang</h2>
         {(frontImage || backImage) && (
           <button onClick={reset} className="text-xs text-muted hover:text-text transition-colors">
-            Set Semula
+            {tl('Set Semula', 'Reset')}
           </button>
         )}
       </div>
@@ -313,7 +322,7 @@ const ICScanner: React.FC = () => {
           onChange={(e) => handleImageUpload(e, 'front')} 
         />
         <UploadBox 
-          title="Bahagian Depan" 
+          title={tl('Bahagian Depan', 'Front Side')} 
           image={frontImage} 
           onCamera={() => {
             if (frontCameraRef.current) frontCameraRef.current.value = '';
@@ -342,7 +351,7 @@ const ICScanner: React.FC = () => {
           onChange={(e) => handleImageUpload(e, 'back')} 
         />
         <UploadBox 
-          title="Bahagian Belakang" 
+          title={tl('Bahagian Belakang', 'Back Side')} 
           image={backImage} 
           onCamera={() => {
             if (backCameraRef.current) backCameraRef.current.value = '';
@@ -359,7 +368,7 @@ const ICScanner: React.FC = () => {
         <div className="glass-panel p-4 space-y-4">
           <div>
             <div className="flex justify-between items-center mb-2">
-              <label className="text-sm font-medium text-text/90">Saiz Cetakan Kad</label>
+              <label className="text-sm font-medium text-text/90">{tl('Saiz Cetakan Kad', 'Card Print Size')}</label>
               <span className="text-xs text-primary font-bold bg-primary/10 px-2 py-1 rounded-md">
                 {Math.round(cardScale * 100)}%
               </span>
@@ -376,7 +385,7 @@ const ICScanner: React.FC = () => {
           </div>
 
           <div className="mt-6">
-            <p className="text-xs text-muted mb-2 text-center">Pratonton Cetakan A4 Langsung</p>
+            <p className="text-xs text-muted mb-2 text-center">{tl('Pratonton Cetakan A4 Langsung', 'Live A4 Print Preview')}</p>
             <div 
               className="w-full max-w-[240px] mx-auto bg-[#f8fafc] rounded shadow-2xl relative overflow-hidden ring-1 ring-text/10 touch-none" 
               style={{ aspectRatio: '1 / 1.414' }}
@@ -419,7 +428,7 @@ const ICScanner: React.FC = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Type className="text-primary" size={18} />
-            <h3 className="font-semibold text-text/90">Tambah Tera Air (Palang)</h3>
+            <h3 className="font-semibold text-text/90">{tl('Tambah Tera Air (Palang)', 'Add a Watermark (Palang)')}</h3>
           </div>
           <button 
             onClick={() => setWmEnabled(!wmEnabled)}
@@ -432,16 +441,16 @@ const ICScanner: React.FC = () => {
         {wmEnabled && (
           <div className="space-y-4 animate-slide-up mt-4 pt-4 border-t border-text/10">
             <div>
-              <label className="block text-sm text-muted mb-2">Teks Tera Air</label>
+              <label className="block text-sm text-muted mb-2">{tl('Teks Tera Air', 'Watermark Text')}</label>
               <input 
                 type="text" 
                 value={wmText}
                 onChange={(e) => setWmText(e.target.value)}
                 className="input-field w-full"
-                placeholder="cth. UNTUK KEGUNAAN PERSENDIRIAN SAHAJA"
+                placeholder={tl('cth. UNTUK KEGUNAAN PERSENDIRIAN SAHAJA', 'e.g. FOR PERSONAL USE ONLY')}
               />
               <div className="flex flex-wrap gap-2 mt-2">
-                {['UNTUK KEGUNAAN PERSENDIRIAN SAHAJA', 'UNTUK KEGUNAAN BANK SAHAJA', 'UNTUK PERMOHONAN PINJAMAN'].map(t => (
+                {WM_PRESETS().map(t => (
                   <button key={t} onClick={() => setWmText(t)} className="text-[10px] bg-text/5 hover:bg-text/10 px-2 py-1 rounded">
                     {t}
                   </button>
@@ -450,7 +459,7 @@ const ICScanner: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-between">
-              <label className="text-sm text-muted">Warna</label>
+              <label className="text-sm text-muted">{tl('Warna', 'Colour')}</label>
               <div className="flex space-x-2">
                 {['#000000', '#EF4444', '#3B82F6', '#10B981', '#ffffff'].map(c => (
                   <button 
@@ -469,36 +478,36 @@ const ICScanner: React.FC = () => {
                 className="flex items-center text-xs text-primary hover:text-primary/80 transition-colors"
               >
                 <Settings2 size={14} className="mr-1" />
-                <span>Tetapan Lanjutan</span>
+                <span>{tl('Tetapan Lanjutan', 'Advanced Settings')}</span>
                 <ChevronDown size={14} className={`ml-1 transition-transform ${showWmAdvanced ? 'rotate-180' : ''}`} />
               </button>
               
               <button onClick={resetWmSettings} className="text-[10px] text-muted hover:text-text transition-colors underline">
-                Set Semula Kedudukan & Tetapan
+                {tl('Set Semula Kedudukan & Tetapan', 'Reset Position & Settings')}
               </button>
             </div>
               
               {showWmAdvanced && (
                 <div className="grid grid-cols-2 gap-4 mt-4 bg-black/20 p-3 rounded-xl border border-text/5">
                   <div>
-                    <label className="block text-[10px] text-muted mb-1">Saiz ({wmSize}px)</label>
+                    <label className="block text-[10px] text-muted mb-1">{tl('Saiz', 'Size')} ({wmSize}px)</label>
                     <input type="range" min="5" max="14" value={wmSize} onChange={(e) => setWmSize(parseInt(e.target.value))} className="w-full accent-primary" />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-muted mb-1">Putaran ({wmRotation}°)</label>
+                    <label className="block text-[10px] text-muted mb-1">{tl('Putaran', 'Rotation')} ({wmRotation}°)</label>
                     <input type="range" min="-90" max="90" value={wmRotation} onChange={(e) => setWmRotation(parseInt(e.target.value))} className="w-full accent-primary" />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-muted mb-1">Kelegapan ({Math.round(wmOpacity * 100)}%)</label>
+                    <label className="block text-[10px] text-muted mb-1">{tl('Kelegapan', 'Opacity')} ({Math.round(wmOpacity * 100)}%)</label>
                     <input type="range" min="0.1" max="1.0" step="0.1" value={wmOpacity} onChange={(e) => setWmOpacity(parseFloat(e.target.value))} className="w-full accent-primary" />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-muted mb-1">Ketebalan ({wmThickness}px)</label>
+                    <label className="block text-[10px] text-muted mb-1">{tl('Ketebalan', 'Thickness')} ({wmThickness}px)</label>
                     <input type="range" min="1" max="4" value={wmThickness} onChange={(e) => setWmThickness(parseInt(e.target.value))} className="w-full accent-primary" />
                   </div>
                 </div>
               )}
-            <p className="text-[10px] text-muted italic">Tip: Anda boleh seret tera air terus pada pratonton di atas untuk alihkannya!</p>
+            <p className="text-[10px] text-muted italic">{tl('Tip: Anda boleh seret tera air terus pada pratonton di atas untuk alihkannya!', 'Tip: drag the watermark right on the preview above to move it!')}</p>
           </div>
         )}
       </div>
@@ -513,17 +522,17 @@ const ICScanner: React.FC = () => {
         ) : (
           <Download />
         )}
-        <span>{isGenerating ? 'Menjana...' : 'Jana & Muat Turun PDF'}</span>
+        <span>{isGenerating ? tl('Menjana...', 'Generating...') : tl('Jana & Muat Turun PDF', 'Generate & Download PDF')}</span>
       </button>
 
       <p className="text-xs text-center text-muted">
-        Semua pemprosesan dibuat secara setempat pada peranti anda. Tiada gambar dimuat naik ke mana-mana pelayan.
+        {tl('Semua pemprosesan dibuat secara setempat pada peranti anda. Tiada gambar dimuat naik ke mana-mana pelayan.', 'Everything is processed locally on your device. No image is uploaded to any server.')}
       </p>
 
       {croppingImage && createPortal(
         <div className="fixed inset-0 z-[100] bg-background flex flex-col animate-fade-in">
           <div className="flex-1 min-h-0 relative bg-black/80 flex flex-col">
-            <h3 className="text-center py-4 font-semibold text-text">Laraskan Kawasan Potong</h3>
+            <h3 className="text-center py-4 font-semibold text-text">{tl('Laraskan Kawasan Potong', 'Adjust the Crop Area')}</h3>
             <div className="flex-1 min-h-0 overflow-hidden">
               <Cropper
                 src={croppingImage}
@@ -547,7 +556,7 @@ const ICScanner: React.FC = () => {
               className="btn-secondary flex-1 flex items-center justify-center space-x-2 py-4"
             >
               <X size={20} />
-              <span>Batal</span>
+              <span>{tl('Batal', 'Cancel')}</span>
             </button>
             <button 
               onClick={() => {
@@ -563,7 +572,7 @@ const ICScanner: React.FC = () => {
               className="btn-primary flex-1 flex items-center justify-center space-x-2 py-4"
             >
               <Check size={20} />
-              <span>Simpan Potongan</span>
+              <span>{tl('Simpan Potongan', 'Save the Crop')}</span>
             </button>
           </div>
         </div>

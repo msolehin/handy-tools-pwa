@@ -305,7 +305,8 @@ describe('store: signed in', () => {
 
     assert.deepEqual(announced.map((a) => a.kind), ['offline'],
       'the user is told, rather than left assuming it saved');
-    assert.match(announced[0].message, /No internet detected/);
+    // Malay is the default language, so that is what the store announces here.
+    assert.match(announced[0].message, /Tiada internet/);
     assert.equal(store.pendingCount(), 0, 'nothing is queued — a record only counts once it lands');
     assert.equal(localStorage.getItem('acct:tenancy_data'), '{"items":[]}',
       'the mirror still holds the last state that genuinely reached the account');
@@ -502,7 +503,7 @@ describe('store: signed in', () => {
     await new Promise((r) => setTimeout(r, 20));
 
     assert.deepEqual(kinds(), ['loaded']);
-    assert.match(announced[0].message, /loaded successfully \(2 tools\)/);
+    assert.match(announced[0].message, /dimuatkan \(2 alat\)/);
   });
 
   test('data comes back after signing out and back in on the same account', async () => {

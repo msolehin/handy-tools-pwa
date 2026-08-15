@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Home, MoreHorizontal, X, Sun, Moon, Settings, Check, Bell, ChevronUp, ChevronDown, Download,
+  Home, MoreHorizontal, X, Settings, Check, Bell, ChevronUp, ChevronDown, Download,
   UserRound, CalendarClock
 } from 'lucide-react';
 import { DEFAULT_TOOLS } from '../pages/Home';
 import AccountPanel from './AccountPanel';
+import Preferences from './Preferences';
 import FeedbackForm from './FeedbackForm';
 import NotificationSettings from './NotificationSettings';
 import { ToolRail, HorizonPanel } from './DesktopShell';
@@ -16,7 +17,7 @@ import GuestNotice from './GuestNotice';
 import SyncToast from './SyncToast';
 import { getUser, subscribe, type User } from '../lib/auth';
 import { store } from '../lib/store';
-import { useTheme } from '../lib/theme';
+import { useLang, useT, type Lang } from '../lib/lang';
 
 interface NavAlert {
   id: string;
@@ -71,18 +72,32 @@ const NavAlertBg: React.FC<{ alert: NavAlert }> = ({ alert }) => {
   return null;
 };
 
-const ALERT_PREFIX: Record<string, string> = {
-  document: 'Renew',
-  event: 'Event',
-  subscription: 'Due',
-  water: 'Hydration',
-  debt: 'Owe',
-  expense: 'This month',
-  habit: 'Habits',
-  warranty: 'Warranty',
+const ALERT_PREFIX: Record<Lang, Record<string, string>> = {
+  ms: {
+    document: 'Perbaharui',
+    event: 'Acara',
+    subscription: 'Kena bayar',
+    water: 'Hidrasi',
+    debt: 'Hutang',
+    expense: 'Bulan ini',
+    habit: 'Tabiat',
+    warranty: 'Waranti',
+  },
+  en: {
+    document: 'Renew',
+    event: 'Event',
+    subscription: 'Due',
+    water: 'Hydration',
+    debt: 'Owe',
+    expense: 'This month',
+    habit: 'Habits',
+    warranty: 'Warranty',
+  },
 };
 
 const Layout: React.FC = () => {
+  const t = useT();
+  const lang = useLang();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [authUser, setAuthUser] = useState<User | null>(getUser());
@@ -109,9 +124,6 @@ const Layout: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('pinnedTools', JSON.stringify(pinnedToolPaths));
   }, [pinnedToolPaths]);
-
-  // Shared with the landing page's toggle, which renders outside this component.
-  const [isLightMode, toggleTheme] = useTheme();
 
   // Duit Raya / Angpao manager swaps its name + colour based on the saved theme
   const readDuitRayaTheme = (): 'raya' | 'angpao' => {
@@ -300,7 +312,7 @@ const Layout: React.FC = () => {
         title: tool.title
       };
     }),
-    { to: "#settings", icon: Settings, emoji: '', label: "Customize", title: "Customize", iconBgClass: "bg-slate-500/20 text-slate-400" }
+    { to: "#settings", icon: Settings, emoji: '', label: t('Tetapan', 'Settings'), title: t('Tetapan', 'Settings'), iconBgClass: "bg-slate-500/20 text-slate-400" }
   ];
 
   // Check if current route is in the "more" menu so we can highlight the "Others" tab
@@ -332,25 +344,18 @@ const Layout: React.FC = () => {
                 <button
                   onClick={handleInstall}
                   className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-primary/15 text-primary hover:bg-primary/25 transition-colors border border-primary/30 text-xs font-bold active:scale-90"
-                  aria-label="Install App"
-                  title="Install App"
+                  aria-label={t('Pasang App', 'Install App')}
+                  title={t('Pasang App', 'Install App')}
                 >
                   <Download size={16} />
-                  <span>Install</span>
+                  <span>{t('Pasang', 'Install')}</span>
                 </button>
               )}
               <button
-                onClick={toggleTheme}
-                className="p-2 rounded-xl bg-surface/50 text-muted hover:text-primary transition-colors border border-text/10"
-                aria-label="Toggle Theme"
-              >
-                {isLightMode ? <Moon size={18} /> : <Sun size={18} />}
-              </button>
-              <button
                 onClick={() => setShowSettings(true)}
                 className="p-2 rounded-xl bg-surface/50 text-muted hover:text-primary transition-colors border border-text/10 overflow-hidden"
-                aria-label={authUser ? 'Account' : 'Sign in'}
-                title={authUser ? authUser.email : 'Sign in to save'}
+                aria-label={authUser ? t('Akaun', 'Account') : t('Log masuk', 'Sign in')}
+                title={authUser ? authUser.email : t('Log masuk untuk simpan', 'Sign in to save')}
               >
                 {authUser?.picture
                   ? <img src={authUser.picture} alt="" className="w-[18px] h-[18px] rounded-full" />
@@ -365,7 +370,7 @@ const Layout: React.FC = () => {
           <GuestNotice onSignIn={() => setShowSettings(true)} />
           {/* Each tool is its own chunk now. The header and the nav stay put while one loads. */}
           <Suspense fallback={
-            <div className="flex justify-center py-20" role="status" aria-label="Memuatkan">
+            <div className="flex justify-center py-20" role="status" aria-label={t('Memuatkan', 'Loading')}>
               <div className="w-6 h-6 rounded-full border-2 border-text/15 border-t-text/50 animate-spin motion-reduce:animate-none" />
             </div>
           }>
@@ -379,7 +384,7 @@ const Layout: React.FC = () => {
           <div className="max-w-md mx-auto mb-4 px-4">
             {location.pathname !== '/app' && (
               <div className="flex justify-center mb-1.5">
-                <button onClick={() => setNavHidden(true)} className="px-4 py-0.5 rounded-full bg-surface/90 border border-text/10 text-muted hover:text-text shadow-sm" aria-label="Hide menu" title="Hide menu">
+                <button onClick={() => setNavHidden(true)} className="px-4 py-0.5 rounded-full bg-surface/90 border border-text/10 text-muted hover:text-text shadow-sm" aria-label={t('Sembunyi menu', 'Hide menu')} title={t('Sembunyi menu', 'Hide menu')}>
                   <ChevronDown size={16} />
                 </button>
               </div>
@@ -394,8 +399,8 @@ const Layout: React.FC = () => {
                 {animOn && hasAlerts && currentAlert && <NavAlertBg alert={currentAlert} />}
                 <button
                   onClick={() => setShowHorizon(true)}
-                  aria-label="Buka semua tarikh akan datang"
-                  title="Yang tengah kejar"
+                  aria-label={t('Buka semua tarikh akan datang', 'Open every upcoming date')}
+                  title={t('Yang tengah kejar', "What's chasing you")}
                   className="relative shrink-0 z-10 active:scale-95 transition-transform"
                 >
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${hasAlerts ? 'bg-yellow-500/15 text-yellow-400' : 'bg-text/10 text-muted'}`}>
@@ -409,15 +414,15 @@ const Layout: React.FC = () => {
                   <button onClick={() => currentAlert && navigate(currentAlert.to)} className="flex-1 min-w-0 text-left overflow-hidden relative z-10">
                     <div key={notifIndex} className={notifDir === 'up' ? 'notif-up-anim' : 'notif-down-anim'}>
                       <p className="text-[9px] uppercase tracking-wider text-muted font-bold">
-                        {ALERT_PREFIX[currentAlert?.type] || 'Alert'} · {notifIndex + 1}/{alerts.length}
+                        {ALERT_PREFIX[lang][currentAlert?.type] || t('Peringatan', 'Alert')} · {notifIndex + 1}/{alerts.length}
                       </p>
                       <p className="text-sm font-bold truncate text-text/90">{currentAlert?.title}{currentAlert?.subtitle ? ` · ${currentAlert.subtitle}` : ''}</p>
                     </div>
                   </button>
                 ) : (
                   <div className="flex-1 min-w-0 relative z-10">
-                    <p className="text-[9px] uppercase tracking-wider text-muted font-bold">Notifications</p>
-                    <p className="text-sm font-bold truncate text-text/70">You're all caught up 🎉</p>
+                    <p className="text-[9px] uppercase tracking-wider text-muted font-bold">{t('Notifikasi', 'Notifications')}</p>
+                    <p className="text-sm font-bold truncate text-text/70">{t('Semua dah selesai 🎉', "You're all caught up 🎉")}</p>
                   </div>
                 )}
                 {hasAlerts && (
@@ -445,7 +450,7 @@ const Layout: React.FC = () => {
                 }
               >
                 <Home size={22} />
-                <span className="text-[9px] mt-1 font-medium truncate w-full text-center">Home</span>
+                <span className="text-[9px] mt-1 font-medium truncate w-full text-center">{t('Utama', 'Home')}</span>
               </NavLink>
               {pinnedToolPaths.map(path => {
                 const tool = moreTools.find(t => t.to === path);
@@ -491,7 +496,7 @@ const Layout: React.FC = () => {
               >
                 {showMoreMenu ? <X size={22} /> : <MoreHorizontal size={22} />}
                 <span className="text-[9px] mt-1 font-medium truncate w-full text-center">
-                  {showMoreMenu ? 'Close' : 'Others'}
+                  {showMoreMenu ? t('Tutup', 'Close') : t('Lain-lain', 'Others')}
                 </span>
               </button>
             </div>
@@ -507,7 +512,7 @@ const Layout: React.FC = () => {
             onClick={() => setShowHorizon(false)}
             role="dialog"
             aria-modal="true"
-            aria-label="Yang tengah kejar"
+            aria-label={t('Yang tengah kejar', "What's chasing you")}
           >
             <div
               className="w-full max-w-md rounded-t-3xl border border-text/10 bg-surface animate-slide-up motion-reduce:animate-none flex flex-col max-h-[75dvh]"
@@ -516,7 +521,7 @@ const Layout: React.FC = () => {
               <div className="flex items-center gap-2 border-b border-text/10 px-4 py-3.5 shrink-0">
                 <CalendarClock size={16} className="text-primary" />
                 <h2 className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted">
-                  Yang tengah kejar
+                  {t('Yang tengah kejar', "What's chasing you")}
                 </h2>
                 {horizon.length > 0 && (
                   <span className="rounded-full bg-text/[0.07] px-2 py-0.5 text-[11px] font-bold text-text"
@@ -526,7 +531,7 @@ const Layout: React.FC = () => {
                 )}
                 <button
                   onClick={() => setShowHorizon(false)}
-                  aria-label="Tutup"
+                  aria-label={t('Tutup', 'Close')}
                   className="ml-auto p-1 text-muted hover:text-text"
                 >
                   <X size={20} />
@@ -544,9 +549,9 @@ const Layout: React.FC = () => {
           <button
             onClick={() => setNavHidden(false)}
             className="fixed bottom-3 sm:absolute sm:bottom-3 left-1/2 -translate-x-1/2 z-40 px-4 py-1.5 rounded-full bg-surface/95 border border-text/10 text-muted hover:text-text shadow-lg flex items-center gap-1.5 animate-fade-in"
-            aria-label="Show menu"
+            aria-label={t('Tunjuk menu', 'Show menu')}
           >
-            <ChevronUp size={16} /> <span className="text-xs font-bold">Menu</span>
+            <ChevronUp size={16} /> <span className="text-xs font-bold">{t('Menu', 'Menu')}</span>
           </button>
         )}
 
@@ -563,7 +568,7 @@ const Layout: React.FC = () => {
             <div className="fixed bottom-0 sm:absolute sm:bottom-0 left-0 right-0 z-30 max-w-md mx-auto animate-slide-up">
               <div className="glass-panel border-x-0 border-b-0 rounded-t-3xl rounded-b-none shadow-2xl bg-background/95 max-h-[85dvh] sm:max-h-[min(760px,80dvh)] flex flex-col">
                 <div className="flex justify-between items-center p-6 pb-4 shrink-0">
-                  <h3 className="text-xl font-bold">More Tools</h3>
+                  <h3 className="text-xl font-bold">{t('Lagi Alat', 'More Tools')}</h3>
                 </div>
 
                 <div className="grid grid-cols-4 gap-y-6 gap-x-2 p-6 pt-0 pb-28 overflow-y-auto overscroll-contain">
@@ -639,13 +644,13 @@ const Layout: React.FC = () => {
               <div className="glass-panel border-x-0 border-b-0 rounded-t-3xl rounded-b-none shadow-2xl bg-background/95 max-h-[88dvh] sm:max-h-[min(760px,80dvh)] flex flex-col">
                 <div className="flex justify-between items-center gap-3 px-5 pt-5 pb-3 sm:pt-6 shrink-0 border-b border-text/5">
                   <div className="min-w-0">
-                    <h3 className="text-lg font-bold">Settings</h3>
-                    <p className="text-xs text-muted mt-0.5 truncate">Your account and quick access bar.</p>
+                    <h3 className="text-lg font-bold">{t('Tetapan', 'Settings')}</h3>
+                    <p className="text-xs text-muted mt-0.5 truncate">{t('Akaun dan bar akses pantas anda.', 'Your account and quick access bar.')}</p>
                   </div>
                   <button
                     onClick={() => setShowSettings(false)}
                     className="p-2 bg-text/5 rounded-full text-muted hover:text-text transition-colors shrink-0"
-                    aria-label="Tutup"
+                    aria-label={t('Tutup', 'Close')}
                   >
                     <X size={20} />
                   </button>
@@ -653,15 +658,16 @@ const Layout: React.FC = () => {
 
                 <div className="flex-1 overflow-y-auto p-4 pb-28 space-y-2 overscroll-contain">
                   <AccountPanel />
+                  <Preferences />
                   <FeedbackForm />
                   <NotificationSettings />
 
                   {/* The old sheet heading lived up top and described only this list, so it
                       moved down here once the account block took the first slot. */}
                   <div className="pt-5 pb-1 px-1">
-                    <h4 className="text-sm font-bold text-text">Customize Menu</h4>
+                    <h4 className="text-sm font-bold text-text">{t('Sesuaikan Menu', 'Customize Menu')}</h4>
                     <p className="text-xs text-muted mt-0.5">
-                      Select 3 to 4 tools for your quick access bar.
+                      {t('Pilih 3 hingga 4 alat untuk bar akses pantas anda.', 'Select 3 to 4 tools for your quick access bar.')}
                     </p>
                   </div>
 
@@ -676,7 +682,7 @@ const Layout: React.FC = () => {
                         onClick={() => {
                           if (isSelected) {
                             if (pinnedToolPaths.length <= 3) {
-                              alert("You must pin at least 3 tools to your navigation bar.");
+                              alert(t('Anda perlu pin sekurang-kurangnya 3 alat pada bar navigasi.', 'You must pin at least 3 tools to your navigation bar.'));
                               return;
                             }
                             setPinnedToolPaths(prev => prev.filter(p => p !== tool.to));

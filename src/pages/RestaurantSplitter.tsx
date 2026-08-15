@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Receipt, Plus, X, Trash2, Percent, RefreshCw, Calculator } from 'lucide-react';
+import { useT, t as trs } from '../lib/lang';
 
 interface FoodItem {
   id: string;
@@ -20,12 +21,13 @@ interface TaxFee {
   isActive: boolean;
 }
 
-const DEFAULT_TAXES: TaxFee[] = [
-  { id: 'sc', name: 'Caj Perkhidmatan', rate: 10, isActive: true },
+const defaultTaxes = (): TaxFee[] => [
+  { id: 'sc', name: trs('Caj Perkhidmatan', 'Service Charge'), rate: 10, isActive: true },
   { id: 'sst', name: 'SST', rate: 6, isActive: true },
 ];
 
 const RestaurantSplitter: React.FC = () => {
+  const tr = useT();
   const [people, setPeople] = useState<Person[]>(() => {
     const saved = localStorage.getItem('rs_people');
     return saved ? JSON.parse(saved) : [];
@@ -33,7 +35,7 @@ const RestaurantSplitter: React.FC = () => {
 
   const [taxes, setTaxes] = useState<TaxFee[]>(() => {
     const saved = localStorage.getItem('rs_taxes');
-    return saved ? JSON.parse(saved) : DEFAULT_TAXES;
+    return saved ? JSON.parse(saved) : defaultTaxes();
   });
 
   const [newPersonName, setNewPersonName] = useState('');
@@ -44,7 +46,7 @@ const RestaurantSplitter: React.FC = () => {
   useEffect(() => { localStorage.setItem('rs_taxes', JSON.stringify(taxes)); }, [taxes]);
 
   const handleReset = () => {
-    if (window.confirm("Kosongkan semua orang dan item?")) {
+    if (window.confirm(trs('Kosongkan semua orang dan item?', 'Clear every person and item?'))) {
       setPeople([]);
       setNewPersonName('');
     }
@@ -153,7 +155,7 @@ const RestaurantSplitter: React.FC = () => {
             type="text" 
             value={itemName}
             onChange={(e) => setItemName(e.target.value)}
-            placeholder="Nama makanan/minuman"
+            placeholder={tr('Nama makanan/minuman', 'Food or drink name')}
             className="input-field flex-1 text-sm py-2"
           />
           <input 
@@ -183,13 +185,13 @@ const RestaurantSplitter: React.FC = () => {
             </div>
           ))}
           {person.items.length === 0 && (
-            <p className="text-center text-xs text-muted py-2">Belum ada item</p>
+            <p className="text-center text-xs text-muted py-2">{tr('Belum ada item', 'No items yet')}</p>
           )}
         </div>
 
         <div className="bg-surface border border-text/10 rounded-xl p-3 text-sm">
           <div className="flex justify-between text-muted mb-1">
-            <span>Jumlah kecil:</span>
+            <span>{tr('Jumlah kecil:', 'Subtotal:')}</span>
             <span className="font-mono">RM{pSubtotal.toFixed(2)}</span>
           </div>
           <div className="space-y-1 mb-2">
@@ -204,7 +206,7 @@ const RestaurantSplitter: React.FC = () => {
             })}
           </div>
           <div className="flex justify-between font-bold text-text pt-2 border-t border-text/10">
-            <span>Perlu Bayar:</span>
+            <span>{tr('Perlu Bayar:', 'They pay:')}</span>
             <span className="text-primary font-mono">RM{pTotal.toFixed(2)}</span>
           </div>
         </div>
@@ -237,18 +239,18 @@ const RestaurantSplitter: React.FC = () => {
         
         <div className="flex justify-between items-end relative z-10">
           <div>
-            <p className="text-sm text-muted mb-1">Jumlah Besar</p>
+            <p className="text-sm text-muted mb-1">{tr('Jumlah Besar', 'Grand Total')}</p>
             <h3 className="text-3xl font-bold text-text font-mono">RM{grandTotal.toFixed(2)}</h3>
           </div>
           <div className="text-right">
-            <p className="text-sm text-muted mb-1 flex items-center justify-end"><Calculator size={12} className="mr-1"/> Jumlah kecil</p>
+            <p className="text-sm text-muted mb-1 flex items-center justify-end"><Calculator size={12} className="mr-1"/> {tr('Jumlah kecil', 'Subtotal')}</p>
             <h3 className="text-xl font-bold text-text/80 font-mono">RM{subtotal.toFixed(2)}</h3>
           </div>
         </div>
 
         {totalTaxes > 0 && (
           <div className="mt-4 pt-4 border-t border-text/10 relative z-10 flex flex-wrap gap-2 text-xs text-muted">
-            <span className="bg-text/5 px-2 py-1 rounded-md">Jumlah Cukai: <span className="font-mono">RM{totalTaxes.toFixed(2)}</span></span>
+            <span className="bg-text/5 px-2 py-1 rounded-md">{tr('Jumlah Cukai', 'Total Tax')}: <span className="font-mono">RM{totalTaxes.toFixed(2)}</span></span>
             {taxes.filter(t => t.isActive).map(t => (
               <span key={t.id} className="bg-text/5 px-2 py-1 rounded-md">
                 {t.name} ({t.rate}%): <span className="font-mono">RM{(subtotal * (t.rate / 100)).toFixed(2)}</span>
@@ -260,7 +262,7 @@ const RestaurantSplitter: React.FC = () => {
 
       {/* Tax Settings Panel */}
       <div className="glass-panel p-5 border-text/10">
-        <h3 className="font-semibold mb-4 flex items-center"><Percent size={18} className="mr-2 text-rose-400" /> Tetapan Cukai & Caj</h3>
+        <h3 className="font-semibold mb-4 flex items-center"><Percent size={18} className="mr-2 text-rose-400" /> {tr('Tetapan Cukai & Caj', 'Tax & Charge Settings')}</h3>
         
         <div className="space-y-3 mb-6">
           {taxes.map(tax => (
@@ -298,7 +300,7 @@ const RestaurantSplitter: React.FC = () => {
             type="text" 
             value={newTaxName}
             onChange={(e) => setNewTaxName(e.target.value)}
-            placeholder="Nama cukai baru"
+            placeholder={tr('Nama cukai baru', 'New tax name')}
             className="input-field flex-1 text-sm"
           />
           <input 
@@ -307,7 +309,7 @@ const RestaurantSplitter: React.FC = () => {
             min="0"
             value={newTaxRate}
             onChange={(e) => setNewTaxRate(e.target.value)}
-            placeholder="Kadar %"
+            placeholder={tr('Kadar %', 'Rate %')}
             className="input-field w-20 text-center text-sm"
           />
           <button type="submit" disabled={!newTaxName || !newTaxRate} className="px-3 bg-text/10 hover:bg-text/20 text-text rounded-xl transition-colors disabled:opacity-50">
@@ -323,7 +325,7 @@ const RestaurantSplitter: React.FC = () => {
             type="text" 
             value={newPersonName}
             onChange={(e) => setNewPersonName(e.target.value)}
-            placeholder="Tambah nama orang..."
+            placeholder={tr('Tambah nama orang...', 'Add a person...')}
             className="input-field flex-1"
           />
           <button type="submit" disabled={!newPersonName} className="p-3 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 rounded-xl transition-colors disabled:opacity-50 flex items-center">
@@ -340,7 +342,7 @@ const RestaurantSplitter: React.FC = () => {
         {people.length === 0 && (
           <div className="text-center p-10 border border-dashed border-text/10 rounded-2xl">
             <Users size={32} className="mx-auto text-muted mb-3 opacity-50" />
-            <p className="text-muted">Tambah orang di atas untuk mula bahagi bil.</p>
+            <p className="text-muted">{tr('Tambah orang di atas untuk mula bahagi bil.', 'Add people above to start splitting the bill.')}</p>
           </div>
         )}
       </div>

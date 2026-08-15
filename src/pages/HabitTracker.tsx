@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Trash2, Check, CalendarDays, LayoutGrid, ListChecks, ChevronLeft, ChevronRight, X, Pencil, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
 import { store } from '../lib/store';
+import { useT } from '../lib/lang';
 
 interface Habit {
   id: string;
@@ -14,8 +15,11 @@ const STORAGE_KEY = 'habit_tracker_data';
 
 const PRESET_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899'];
 const PRESET_EMOJIS = ['🔥', '💧', '🏃', '📚', '🧘', '💪', '🥗', '😴', '🚭', '🎯', '✍️', '🧹'];
-const MONTHS = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis'];
-const WEEKDAYS = ['A', 'I', 'S', 'R', 'K', 'J', 'S'];
+const MONTHS_MS = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis'];
+const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+// Ahad, Isnin, Selasa… vs Sun, Mon, Tue… — single letters, so both lists have their own initials.
+const WEEKDAYS_MS = ['A', 'I', 'S', 'R', 'K', 'J', 'S'];
+const WEEKDAYS_EN = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 const NUM = { fontVariantNumeric: 'tabular-nums' } as const;
 
@@ -66,6 +70,9 @@ const computeStreaks = (dates: string[]) => {
 };
 
 const HabitTracker: React.FC = () => {
+  const t = useT();
+  const MONTHS = t(MONTHS_MS, MONTHS_EN);
+  const WEEKDAYS = t(WEEKDAYS_MS, WEEKDAYS_EN);
   const [habits, setHabits] = useState<Habit[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [tab, setTab] = useState<'single' | 'weekly' | 'yearly'>('single');
@@ -108,9 +115,9 @@ const HabitTracker: React.FC = () => {
 
   const addHabit = () => {
     const name = newName.trim();
-    if (!name) { setError('Masukkan nama tabiat'); return; }
+    if (!name) { setError(t('Masukkan nama tabiat', 'Enter a habit name')); return; }
     if (habits.some(h => h.name.toLowerCase() === name.toLowerCase())) {
-      setError('Tabiat dengan nama ini sudah wujud');
+      setError(t('Tabiat dengan nama ini sudah wujud', 'A habit with this name already exists'));
       return;
     }
     setHabits(prev => [...prev, { id: generateId(), name, color: newColor, emoji: newEmoji.trim() || undefined, completedDates: [] }]);
@@ -123,16 +130,16 @@ const HabitTracker: React.FC = () => {
 
   const deleteHabit = (id: string) => {
     const h = habits.find(x => x.id === id);
-    if (h && !window.confirm(`Padam "${h.name}"? Sejarahnya akan hilang.`)) return;
+    if (h && !window.confirm(t(`Padam "${h.name}"? Sejarahnya akan hilang.`, `Delete "${h.name}"? Its history goes with it.`))) return;
     setHabits(prev => prev.filter(x => x.id !== id));
   };
 
   const startEdit = (h: Habit) => { setEditingId(h.id); setEditName(h.name); setEditColor(h.color); setEditEmoji(h.emoji || ''); setEditError(''); };
   const saveEdit = () => {
     const name = editName.trim();
-    if (!name) { setEditError('Masukkan nama'); return; }
+    if (!name) { setEditError(t('Masukkan nama', 'Enter a name')); return; }
     if (habits.some(h => h.id !== editingId && h.name.toLowerCase() === name.toLowerCase())) {
-      setEditError('Nama sudah wujud');
+      setEditError(t('Nama sudah wujud', 'That name is already taken'));
       return;
     }
     setHabits(prev => prev.map(h => h.id === editingId ? { ...h, name, color: editColor, emoji: editEmoji.trim() || undefined } : h));
@@ -169,7 +176,7 @@ const HabitTracker: React.FC = () => {
     return (
       <div className="flex items-baseline gap-1.5" title={`Streak sebelum ini: ${last} hari`}>
         <span className="text-lg font-extrabold leading-none" style={{ ...NUM, color: habit.color }}>{current}</span>
-        <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted">hari berturut</span>
+        <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted">{t('hari berturut', 'day streak')}</span>
         <span className="ml-auto text-[11px] text-muted shrink-0" style={NUM}>{habit.completedDates.length} jumlah</span>
       </div>
     );
@@ -177,7 +184,7 @@ const HabitTracker: React.FC = () => {
 
   // Seven bars = the last week at a glance, so the daily tab answers "am I slipping?" without a tab switch.
   const Last7 = ({ habit }: { habit: Habit }) => (
-    <div className="flex gap-1 mt-3" title="7 hari lepas">
+    <div className="flex gap-1 mt-3" title={t('7 hari lepas', 'Last 7 days')}>
       {last7.map(d => {
         const on = habit.completedDates.includes(toKey(d));
         return <span key={toKey(d)} className="h-1.5 flex-1 rounded-full transition-colors" style={{ backgroundColor: on ? habit.color : 'rgba(148,163,184,0.2)' }} />;
@@ -253,7 +260,7 @@ const HabitTracker: React.FC = () => {
         <div className="min-w-0">
           <h1 className="text-2xl font-extrabold text-text leading-tight tracking-tight">Habit Tracker</h1>
           <p className={`text-sm ${habits.length && doneToday === habits.length ? 'font-semibold text-violet-500 light:text-violet-700' : 'text-muted'}`}>
-            {habits.length ? `${doneToday} daripada ${habits.length} siap hari ni` : 'Bina streak anda'}
+            {habits.length ? t(`${doneToday} daripada ${habits.length} siap hari ni`, `${doneToday} of ${habits.length} done today`) : t('Bina streak anda', 'Build your streak')}
           </p>
         </div>
       </div>
@@ -272,15 +279,15 @@ const HabitTracker: React.FC = () => {
             </div>
           </div>
           <div className="min-w-0 flex-1">
-            <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-muted">Hari ini</span>
+            <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-muted">{t('Hari ini', 'Today')}</span>
             <p className="text-lg font-extrabold leading-tight tracking-tight text-text">
-              {doneToday === habits.length ? 'Semua siap! 🎉' : doneToday === 0 ? 'Jom mula 💪' : `${habits.length - doneToday} lagi untuk habis`}
+              {doneToday === habits.length ? t('Semua siap! 🎉', 'All done! 🎉') : doneToday === 0 ? t('Jom mula 💪', "Let's get started 💪") : t(`${habits.length - doneToday} lagi untuk habis`, `${habits.length - doneToday} left to finish`)}
             </p>
             <div className="flex items-center gap-1.5 mt-2 text-[11px]">
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-500 light:text-orange-700 font-bold" style={NUM}>
                 🔥 {bestStreak}
               </span>
-              <span className="text-muted truncate">streak terpanjang yang masih hidup</span>
+              <span className="text-muted truncate">{t('streak terpanjang yang masih hidup', 'longest streak still alive')}</span>
             </div>
           </div>
         </div>
@@ -292,7 +299,7 @@ const HabitTracker: React.FC = () => {
         // name field scrolls to it down there before the animation settles.
         <div className="glass-panel p-5 space-y-4 border-violet-500/30 animate-fade-in">
           <div className="flex items-center justify-between">
-            <h3 className="text-xl font-extrabold tracking-tight">Tabiat Baru</h3>
+            <h3 className="text-xl font-extrabold tracking-tight">{t('Tabiat Baru', 'New Habit')}</h3>
             <button onClick={() => { setIsAdding(false); setError(''); }} className="p-1 text-muted hover:text-text"><X size={18} /></button>
           </div>
           {/* Live preview — the emoji and colour choices below only mean something once you see the card they build. */}
@@ -301,31 +308,31 @@ const HabitTracker: React.FC = () => {
               {newEmoji || <span className="text-base font-extrabold">{(newName.trim()[0] || '?').toUpperCase()}</span>}
             </span>
             <div className="min-w-0">
-              <p className={`font-bold truncate leading-tight ${newName.trim() ? 'text-text' : 'text-muted'}`}>{newName.trim() || 'Nama tabiat'}</p>
+              <p className={`font-bold truncate leading-tight ${newName.trim() ? 'text-text' : 'text-muted'}`}>{newName.trim() || t('Nama tabiat', 'Habit name')}</p>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-lg font-extrabold leading-none" style={{ ...NUM, color: newColor }}>0</span>
-                <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted">hari berturut</span>
+                <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted">{t('hari berturut', 'day streak')}</span>
               </div>
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-[10px] font-bold text-muted uppercase tracking-[0.18em]">Nama tabiat</label>
+            <label className="block text-[10px] font-bold text-muted uppercase tracking-[0.18em]">{t('Nama tabiat', 'Habit name')}</label>
             <input
               type="text"
               value={newName}
               ref={focusNoScroll}
               onChange={e => { setNewName(e.target.value); setError(''); }}
               onKeyDown={e => { if (e.key === 'Enter') addHabit(); }}
-              placeholder="cth. Minum air, Baca 10 muka surat"
+              placeholder={t('cth. Minum air, Baca 10 muka surat', 'e.g. Drink water, Read 10 pages')}
               className="input-field w-full"
             />
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-[10px] font-bold text-muted uppercase tracking-[0.18em]">Emoji <span className="text-text/25">pilihan</span></label>
-              {newEmoji && <button onClick={() => setNewEmoji('')} className="text-[11px] font-bold text-muted hover:text-text">Buang</button>}
+              <label className="text-[10px] font-bold text-muted uppercase tracking-[0.18em]">Emoji <span className="text-text/25">{t('pilihan', 'optional')}</span></label>
+              {newEmoji && <button onClick={() => setNewEmoji('')} className="text-[11px] font-bold text-muted hover:text-text">{t('Buang', 'Remove')}</button>}
             </div>
             <div className="grid grid-cols-6 gap-1.5">
               {PRESET_EMOJIS.map(em => (
@@ -342,7 +349,7 @@ const HabitTracker: React.FC = () => {
               type="text"
               value={newEmoji}
               onChange={e => setNewEmoji(lastEmoji(e.target.value))}
-              placeholder="…atau taip sendiri 🙂"
+              placeholder={t('…atau taip sendiri 🙂', '…or type your own 🙂')}
               autoCapitalize="none"
               autoComplete="off"
               className="input-field w-full text-sm py-2"
@@ -350,20 +357,20 @@ const HabitTracker: React.FC = () => {
           </div>
 
           <div className="space-y-2">
-            <label className="block text-[10px] font-bold text-muted uppercase tracking-[0.18em]">Warna</label>
+            <label className="block text-[10px] font-bold text-muted uppercase tracking-[0.18em]">{t('Warna', 'Colour')}</label>
             <div className="grid grid-cols-9 gap-2">
               {PRESET_COLORS.map(c => (
                 <button
                   key={c}
                   onClick={() => setNewColor(c)}
-                  aria-label={`Warna ${c}`}
+                  aria-label={t(`Warna ${c}`, `Colour ${c}`)}
                   className="aspect-square rounded-full flex items-center justify-center transition-transform active:scale-90"
                   style={{ backgroundColor: c, boxShadow: newColor === c ? `0 0 0 2px rgb(var(--color-surface)), 0 0 0 4px ${c}` : undefined }}
                 >
                   {newColor === c && <Check size={14} strokeWidth={4} className="text-[#fff]" />}
                 </button>
               ))}
-              <label className="aspect-square rounded-full border-2 border-dashed border-text/30 flex items-center justify-center cursor-pointer relative overflow-hidden hover:border-text/50" title="Warna tersuai">
+              <label className="aspect-square rounded-full border-2 border-dashed border-text/30 flex items-center justify-center cursor-pointer relative overflow-hidden hover:border-text/50" title={t('Warna tersuai', 'Custom colour')}>
                 <Plus size={12} className="text-muted" />
                 <input type="color" value={newColor} onChange={e => setNewColor(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" />
               </label>
@@ -376,7 +383,7 @@ const HabitTracker: React.FC = () => {
             disabled={!newName.trim()}
             className="w-full py-3.5 rounded-xl bg-violet-500 hover:bg-violet-600 text-[#fff] font-bold transition-all active:scale-95 shadow-lg shadow-violet-500/25 disabled:opacity-40 disabled:shadow-none disabled:active:scale-100"
           >
-            Tambah Tabiat
+            {t('Tambah Tabiat', 'Add Habit')}
           </button>
         </div>
       ) : (
@@ -384,21 +391,21 @@ const HabitTracker: React.FC = () => {
           onClick={() => setIsAdding(true)}
           className="w-full py-4 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-violet-500/50 hover:text-violet-500 light:hover:text-violet-700 transition-all flex items-center justify-center"
         >
-          <Plus size={20} className="mr-2" /> Tambah Tabiat
+          <Plus size={20} className="mr-2" /> {t('Tambah Tabiat', 'Add a habit')}
         </button>
       )}
 
       {habits.length === 0 ? (
         <div className="text-center px-6 py-10 border border-dashed border-text/15 rounded-2xl">
           <div className="text-4xl mb-3">🔥</div>
-          <p className="text-lg font-extrabold tracking-tight text-text">Belum ada tabiat</p>
-          <p className="text-sm text-muted mt-1">Tambah satu dan tanda ia setiap hari — streak bermula esok.</p>
+          <p className="text-lg font-extrabold tracking-tight text-text">{t('Belum ada tabiat', 'No habits yet')}</p>
+          <p className="text-sm text-muted mt-1">{t('Tambah satu dan tanda ia setiap hari — streak bermula esok.', 'Add one and tick it each day — the streak starts tomorrow.')}</p>
         </div>
       ) : (
         <>
           {/* Tabs */}
           <div className="grid grid-cols-3 gap-1 p-1 bg-text/5 rounded-xl">
-            {([['single', 'Harian', ListChecks], ['weekly', 'Mingguan', CalendarDays], ['yearly', 'Tahunan', LayoutGrid]] as const).map(([key, label, Icon]) => (
+            {([['single', t('Harian', 'Daily'), ListChecks], ['weekly', t('Mingguan', 'Weekly'), CalendarDays], ['yearly', t('Tahunan', 'Yearly'), LayoutGrid]] as const).map(([key, label, Icon]) => (
               <button
                 key={key}
                 onClick={() => setTab(key)}
@@ -419,7 +426,7 @@ const HabitTracker: React.FC = () => {
                     onClick={() => { setIsReordering(r => !r); setEditingId(null); }}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isReordering ? 'bg-violet-500/20 text-violet-400 border border-violet-500/40' : 'bg-text/5 text-muted hover:text-text'}`}
                   >
-                    <ArrowUpDown size={14} /> {isReordering ? 'Siap' : 'Susun'}
+                    <ArrowUpDown size={14} /> {isReordering ? t('Siap', 'Done') : t('Susun', 'Reorder')}
                   </button>
                 </div>
               )}
@@ -454,29 +461,29 @@ const HabitTracker: React.FC = () => {
                             onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditingId(null); }}
                             className="input-field py-1.5 text-sm flex-1 min-w-0"
                           />
-                          <button onClick={saveEdit} aria-label="Simpan" className="p-2 rounded-lg bg-violet-500/20 text-violet-500 light:text-violet-700 hover:bg-violet-500/30 shrink-0"><Check size={16} /></button>
-                          <button onClick={() => setEditingId(null)} aria-label="Batal" className="p-2 rounded-lg bg-text/5 text-muted hover:text-text shrink-0"><X size={16} /></button>
+                          <button onClick={saveEdit} aria-label={t('Simpan', 'Save')} className="p-2 rounded-lg bg-violet-500/20 text-violet-500 light:text-violet-700 hover:bg-violet-500/30 shrink-0"><Check size={16} /></button>
+                          <button onClick={() => setEditingId(null)} aria-label={t('Batal', 'Cancel')} className="p-2 rounded-lg bg-text/5 text-muted hover:text-text shrink-0"><X size={16} /></button>
                         </div>
                         <div className="grid grid-cols-9 gap-1.5">
                           {PRESET_COLORS.map(c => (
                             <button
                               key={c}
                               onClick={() => setEditColor(c)}
-                              aria-label={`Warna ${c}`}
+                              aria-label={t(`Warna ${c}`, `Colour ${c}`)}
                               className="aspect-square rounded-full flex items-center justify-center transition-transform active:scale-90"
                               style={{ backgroundColor: c, boxShadow: editColor === c ? `0 0 0 2px rgb(var(--color-surface)), 0 0 0 4px ${c}` : undefined }}
                             >
                               {editColor === c && <Check size={12} strokeWidth={4} className="text-[#fff]" />}
                             </button>
                           ))}
-                          <label className="aspect-square rounded-full border-2 border-dashed border-text/30 flex items-center justify-center cursor-pointer relative overflow-hidden hover:border-text/50" title="Warna tersuai">
+                          <label className="aspect-square rounded-full border-2 border-dashed border-text/30 flex items-center justify-center cursor-pointer relative overflow-hidden hover:border-text/50" title={t('Warna tersuai', 'Custom colour')}>
                             <Plus size={10} className="text-muted" />
                             <input type="color" value={editColor} onChange={e => setEditColor(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" />
                           </label>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-bold text-muted uppercase tracking-[0.18em]">Emoji</span>
-                          {editEmoji && <button onClick={() => setEditEmoji('')} className="text-[11px] font-bold text-muted hover:text-text">Buang</button>}
+                          {editEmoji && <button onClick={() => setEditEmoji('')} className="text-[11px] font-bold text-muted hover:text-text">{t('Buang', 'Remove')}</button>}
                         </div>
                         <div className="grid grid-cols-6 gap-1.5">
                           {PRESET_EMOJIS.map(em => (
@@ -493,7 +500,7 @@ const HabitTracker: React.FC = () => {
                           type="text"
                           value={editEmoji}
                           onChange={e => setEditEmoji(lastEmoji(e.target.value))}
-                          placeholder="…atau taip sendiri 🙂"
+                          placeholder={t('…atau taip sendiri 🙂', '…or type your own 🙂')}
                           autoCapitalize="none"
                           autoComplete="off"
                           className="input-field w-full text-sm py-2"
@@ -505,7 +512,7 @@ const HabitTracker: React.FC = () => {
                         <div className="flex items-center gap-1.5">
                           <h4 className="font-bold text-text truncate leading-tight">{habit.name}</h4>
                           {!isReordering && (
-                            <button onClick={() => startEdit(habit)} aria-label={`Sunting ${habit.name}`} className="text-muted hover:text-text shrink-0 transition-colors" title="Sunting nama"><Pencil size={13} /></button>
+                            <button onClick={() => startEdit(habit)} aria-label={t(`Sunting ${habit.name}`, `Edit ${habit.name}`)} className="text-muted hover:text-text shrink-0 transition-colors" title={t('Sunting nama', 'Edit the name')}><Pencil size={13} /></button>
                           )}
                         </div>
                         <StreakRow habit={habit} />
@@ -518,8 +525,8 @@ const HabitTracker: React.FC = () => {
                       </div>
                     ) : editingId !== habit.id && (
                       <>
-                        <Tick done={done} color={habit.color} onClick={() => toggleDate(habit.id, todayKey)} label="Tanda hari ini" />
-                        <button onClick={() => deleteHabit(habit.id)} aria-label={`Padam ${habit.name}`} className="text-muted hover:text-rose-500 p-2 bg-text/5 hover:bg-rose-500/10 rounded-lg transition-colors shrink-0">
+                        <Tick done={done} color={habit.color} onClick={() => toggleDate(habit.id, todayKey)} label={t('Tanda hari ini', "Tick today")} />
+                        <button onClick={() => deleteHabit(habit.id)} aria-label={t(`Padam ${habit.name}`, `Delete ${habit.name}`)} className="text-muted hover:text-rose-500 p-2 bg-text/5 hover:bg-rose-500/10 rounded-lg transition-colors shrink-0">
                           <Trash2 size={16} />
                         </button>
                       </>
@@ -536,12 +543,12 @@ const HabitTracker: React.FC = () => {
           {tab === 'weekly' && (
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-2">
-                <button onClick={() => setWeekOffset(o => o - 1)} aria-label="Minggu sebelum" className="p-2 rounded-lg bg-text/5 text-muted hover:text-text shrink-0"><ChevronLeft size={18} /></button>
+                <button onClick={() => setWeekOffset(o => o - 1)} aria-label={t('Minggu sebelum', 'Previous week')} className="p-2 rounded-lg bg-text/5 text-muted hover:text-text shrink-0"><ChevronLeft size={18} /></button>
                 <div className="text-center min-w-0">
-                  <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-muted">{weekOffset === 0 ? 'Minggu ini' : `${Math.abs(weekOffset)} minggu lepas`}</span>
+                  <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-muted">{weekOffset === 0 ? t('Minggu ini', 'This week') : t(`${Math.abs(weekOffset)} minggu lepas`, `${Math.abs(weekOffset)} weeks ago`)}</span>
                   <span className="block text-sm font-extrabold tracking-tight text-text truncate" style={NUM}>{weekLabel}</span>
                 </div>
-                <button onClick={() => setWeekOffset(o => Math.min(0, o + 1))} disabled={weekOffset >= 0} aria-label="Minggu seterusnya" className="p-2 rounded-lg bg-text/5 text-muted hover:text-text disabled:opacity-30 shrink-0"><ChevronRight size={18} /></button>
+                <button onClick={() => setWeekOffset(o => Math.min(0, o + 1))} disabled={weekOffset >= 0} aria-label={t('Minggu seterusnya', 'Next week')} className="p-2 rounded-lg bg-text/5 text-muted hover:text-text disabled:opacity-30 shrink-0"><ChevronRight size={18} /></button>
               </div>
               {habits.map(habit => (
                 <div key={habit.id} className="glass-panel p-4 space-y-3">
@@ -591,7 +598,7 @@ const HabitTracker: React.FC = () => {
           {tab === 'yearly' && (
             <div className="space-y-4">
               <div className="flex items-center gap-2.5">
-                <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted">Ringkasan</span>
+                <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted">{t('Ringkasan', 'Summary')}</span>
                 <span className="text-sm font-extrabold text-text" style={NUM}>{year}</span>
                 <div className="h-px flex-1 bg-text/10" />
               </div>
@@ -609,11 +616,11 @@ const HabitTracker: React.FC = () => {
                         <h4 className="font-bold text-text truncate leading-tight">{habit.name}</h4>
                         <StreakRow habit={habit} />
                       </div>
-                      <Tick done={done} color={habit.color} size={36} onClick={() => toggleDate(habit.id, todayKey)} label="Tanda hari ini" />
+                      <Tick done={done} color={habit.color} size={36} onClick={() => toggleDate(habit.id, todayKey)} label={t('Tanda hari ini', "Tick today")} />
                     </div>
                     <div className="flex items-baseline gap-2 pt-1">
                       <span className="text-3xl font-extrabold leading-none" style={{ ...NUM, color: habit.color }}>{daysThisYear}</span>
-                      <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted">hari ditanda dalam {year}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted">{t(`hari ditanda dalam ${year}`, `days ticked in ${year}`)}</span>
                     </div>
                     <div className="overflow-x-auto custom-scrollbar pb-1" data-year-scroll>
                       <div style={{ width: weeksCount * STEP }}>
@@ -651,7 +658,7 @@ const HabitTracker: React.FC = () => {
                         </div>
                       </div>
                     </div>
-                    <p className="text-[10px] text-muted leading-relaxed">Hanya hari ini boleh ditanda di sini. Guna <span className="font-bold text-text/70">Mingguan</span> untuk ubah hari lepas.</p>
+                    <p className="text-[10px] text-muted leading-relaxed">{t('Hanya hari ini boleh ditanda di sini. Guna', 'Only today can be ticked here. Use')} <span className="font-bold text-text/70">{t('Mingguan', 'Weekly')}</span> {t('untuk ubah hari lepas.', 'to change past days.')}</p>
                   </div>
                 );
               })}

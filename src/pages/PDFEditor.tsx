@@ -6,6 +6,7 @@ import 'react-pdf/dist/Page/TextLayer.css';
 import { db } from '../db';
 import { FileUp, Download, Trash2, Plus, Type, Image as ImageIcon, ChevronLeft, ChevronRight, X, FileSignature, ZoomIn, ZoomOut } from 'lucide-react';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { useT } from '../lib/lang';
 
 // Set up worker for react-pdf
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -27,6 +28,7 @@ type PDFItem = {
 };
 
 const PDFEditor = () => {
+  const t = useT();
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [numPages, setNumPages] = useState<number>(0);
   const [pageNumber, setPageNumber] = useState<number>(1);
@@ -330,12 +332,12 @@ const PDFEditor = () => {
           <div className="w-20 h-20 bg-blue-500/10 rounded-full flex items-center justify-center mb-6">
             <FileUp className="w-10 h-10 text-blue-500" />
           </div>
-          <h3 className="text-xl font-bold mb-2">Muat Naik Dokumen</h3>
+          <h3 className="text-xl font-bold mb-2">{t('Muat Naik Dokumen', 'Upload a Document')}</h3>
           <p className="text-sm text-muted mb-8 max-w-[250px]">
-            Tambah tandatangan dan teks pada mana-mana PDF terus dalam pelayar anda.
+            {t('Tambah tandatangan dan teks pada mana-mana PDF terus dalam pelayar anda.', 'Add signatures and text to any PDF, right here in your browser.')}
           </p>
           <label className="px-8 py-3 bg-primary text-white font-bold rounded-2xl cursor-pointer hover:scale-105 transition-transform shadow-lg shadow-primary/30">
-            Pilih Fail PDF
+            {t('Pilih Fail PDF', 'Choose a PDF File')}
             <input type="file" className="hidden" accept=".pdf" onChange={handleFileUpload} />
           </label>
         </div>
@@ -370,7 +372,7 @@ const PDFEditor = () => {
                 <button 
                   onClick={() => setScale(Math.max(0.5, scale - 0.25))}
                   className="p-1 hover:bg-text/5 rounded-md text-text transition-colors"
-                  title="Zum Keluar"
+                  title={t('Zum Keluar', 'Zoom Out')}
                 >
                   <ZoomOut size={16} />
                 </button>
@@ -380,7 +382,7 @@ const PDFEditor = () => {
                 <button 
                   onClick={() => setScale(Math.min(3, scale + 0.25))}
                   className="p-1 hover:bg-text/5 rounded-md text-text transition-colors"
-                  title="Zum Masuk"
+                  title={t('Zum Masuk', 'Zoom In')}
                 >
                   <ZoomIn size={16} />
                 </button>
@@ -469,7 +471,7 @@ const PDFEditor = () => {
                     ) : (
                       <img 
                         src={item.content} 
-                        alt="Tandatangan" 
+                        alt={t('Tandatangan', 'Signature')} 
                         style={{ width: `${120 * scale * currentItemScale}px`, height: 'auto' }}
                         draggable={false}
                         className="pointer-events-none" 
@@ -490,7 +492,7 @@ const PDFEditor = () => {
                     {/* Resize Handle */}
                     <div 
                       className="resize-handle absolute -bottom-1 -right-1 w-3 h-3 bg-primary border border-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm z-20 cursor-nwse-resize"
-                      title="Seret untuk ubah saiz"
+                      title={t('Seret untuk ubah saiz', 'Drag to resize')}
                     />
                   </div>
                 )})}
@@ -502,7 +504,7 @@ const PDFEditor = () => {
                 onClick={downloadPdf}
                 className="flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 transition-transform active:scale-95 shadow-md shadow-primary/20"
               >
-                <Download size={16} /> Simpan & Muat Turun
+                <Download size={16} /> {t('Simpan & Muat Turun', 'Save & Download')}
               </button>
             </div>
           </div>
@@ -514,13 +516,13 @@ const PDFEditor = () => {
                 onClick={() => setActiveTab('text')}
                 className={`flex-1 py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeTab === 'text' ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'}`}
               >
-                <Type size={16} /> Tambah Teks
+                <Type size={16} /> {t('Tambah Teks', 'Add Text')}
               </button>
               <button
                 onClick={() => setActiveTab('signatures')}
                 className={`flex-1 py-2 px-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeTab === 'signatures' ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'}`}
               >
-                <ImageIcon size={16} /> Tambah Tandatangan
+                <ImageIcon size={16} /> {t('Tambah Tandatangan', 'Add Signature')}
               </button>
             </div>
 
@@ -529,7 +531,7 @@ const PDFEditor = () => {
                 <div className="bg-surface/50 p-4 rounded-xl border border-text/5 space-y-3">
                   <input
                     type="text"
-                    placeholder="Masukkan teks baru..."
+                    placeholder={t('Masukkan teks baru...', 'Enter new text...')}
                     value={newText}
                     onChange={(e) => setNewText(e.target.value)}
                     className="w-full bg-background border border-text/10 rounded-xl px-4 py-3 text-sm font-medium text-text focus:outline-none focus:border-primary transition-colors"
@@ -568,31 +570,31 @@ const PDFEditor = () => {
                         disabled={!newText.trim()}
                         className="px-4 py-1.5 bg-primary text-white disabled:opacity-50 hover:bg-primary/90 rounded-lg text-xs font-bold transition-colors shadow-sm"
                       >
-                        Masukkan
+                        {t('Masukkan', 'Insert')}
                       </button>
                       <button
                         onClick={saveTextSnippet}
                         disabled={!newText.trim()}
                         className="px-4 py-1.5 bg-surface border border-text/10 text-text disabled:opacity-50 hover:bg-text/5 rounded-lg text-xs font-bold transition-colors"
                       >
-                        Simpan
+                        {t('Simpan', 'Save')}
                       </button>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <h3 className="font-bold text-xs text-muted uppercase tracking-wider pl-1">Teks Disimpan</h3>
+                  <h3 className="font-bold text-xs text-muted uppercase tracking-wider pl-1">{t('Teks Disimpan', 'Saved Text')}</h3>
                   {savedTexts.length === 0 ? (
                     <div className="text-center py-6 border border-dashed border-text/20 rounded-xl">
-                      <p className="text-sm text-muted font-medium">Tiada teks disimpan.</p>
+                      <p className="text-sm text-muted font-medium">{t('Tiada teks disimpan.', 'No saved text yet.')}</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
                       {savedTexts.map(text => (
                         <div key={text.id} className="flex items-center justify-between p-3 bg-surface border border-text/5 rounded-xl">
                           <div className="truncate flex-1 flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full border border-black/10 shrink-0" style={{ backgroundColor: text.color || '#000000' }} title={`Warna: ${text.color}`} />
+                            <div className="w-3 h-3 rounded-full border border-black/10 shrink-0" style={{ backgroundColor: text.color || '#000000' }} title={t(`Warna: ${text.color}`, `Colour: ${text.color}`)} />
                             <span 
                               className="text-text" 
                               style={{ fontFamily: text.fontFamily, fontSize: '14px' }}
@@ -605,7 +607,7 @@ const PDFEditor = () => {
                               onClick={() => addItemToPdf(text, 'text')}
                               className="p-1.5 text-blue-500 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg transition-colors font-bold text-xs flex items-center gap-1"
                             >
-                              <Plus size={14} /> Masukkan
+                              <Plus size={14} /> {t('Masukkan', 'Insert')}
                             </button>
                             <button
                               onClick={() => text.id && db.pdfTexts.delete(text.id)}
@@ -627,16 +629,16 @@ const PDFEditor = () => {
                 <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-text/20 rounded-xl cursor-pointer bg-surface hover:bg-surface/80 transition-colors">
                   <div className="flex items-center justify-center gap-2">
                     <FileUp className="w-5 h-5 text-muted" />
-                    <p className="text-sm text-text font-bold">Muat naik tandatangan baru</p>
+                    <p className="text-sm text-text font-bold">{t('Muat naik tandatangan baru', 'Upload a new signature')}</p>
                   </div>
                   <input type="file" className="hidden" accept="image/png, image/jpeg" onChange={handleSignatureUpload} />
                 </label>
 
                 <div className="space-y-2">
-                  <h3 className="font-bold text-xs text-muted uppercase tracking-wider pl-1">Tandatangan Disimpan</h3>
+                  <h3 className="font-bold text-xs text-muted uppercase tracking-wider pl-1">{t('Tandatangan Disimpan', 'Saved Signatures')}</h3>
                   {savedSignatures.length === 0 ? (
                     <div className="text-center py-6 border border-dashed border-text/20 rounded-xl">
-                      <p className="text-sm text-muted font-medium">Tiada tandatangan disimpan.</p>
+                      <p className="text-sm text-muted font-medium">{t('Tiada tandatangan disimpan.', 'No saved signatures yet.')}</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 gap-3 max-h-48 overflow-y-auto">
@@ -648,7 +650,7 @@ const PDFEditor = () => {
                               onClick={() => addItemToPdf(sig, 'signature')}
                               className="p-1.5 bg-blue-500 text-white rounded-lg hover:scale-105 transition-transform text-xs font-bold flex items-center gap-1"
                             >
-                              <Plus size={14} /> Masukkan
+                              <Plus size={14} /> {t('Masukkan', 'Insert')}
                             </button>
                             <button
                               onClick={() => sig.id && db.pdfSignatures.delete(sig.id)}

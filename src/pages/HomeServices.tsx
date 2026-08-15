@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { store } from '../lib/store';
 import { downscaleFile } from '../lib/downscale';
+import { useT, t as trs, locale } from '../lib/lang';
 import { 
   Home as HomeIcon, Plus, Trash2, Pencil, X, CalendarClock, ChevronDown, ChevronUp, Search, Check, Trash, Image as ImageIcon
 } from 'lucide-react';
@@ -34,9 +35,13 @@ interface HomeData {
 
 const STORAGE_KEY = 'home_services_data';
 const TITLES_KEY = 'home_custom_titles';
-const DEFAULT_TITLES = ['Cuci Aircond', 'Tukar Penapis Air', 'Baiki Paip', 'Kawalan Serangga', 'Cuci Am', 'Baiki Bumbung'];
+const defaultTitles = () => trs(
+  ['Cuci Aircond', 'Tukar Penapis Air', 'Baiki Paip', 'Kawalan Serangga', 'Cuci Am', 'Baiki Bumbung'],
+  ['Aircon Service', 'Water Filter Change', 'Plumbing Repair', 'Pest Control', 'General Cleaning', 'Roof Repair'],
+);
 
-const MON = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogos', 'Sep', 'Okt', 'Nov', 'Dis'];
+const MON_MS = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogos', 'Sep', 'Okt', 'Nov', 'Dis'];
+const MON_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const generateId = () => Math.random().toString(36).substring(2, 9);
 const pad = (n: number) => String(n).padStart(2, '0');
 const todayStr = () => {
@@ -46,7 +51,7 @@ const todayStr = () => {
 
 const formatDate = (dateStr: string) => {
   const d = new Date(dateStr);
-  return d.toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
 // Hook to handle clicking outside to close dropdowns
@@ -67,6 +72,7 @@ function useOutsideClick(ref: React.RefObject<HTMLElement | null>, callback: () 
 }
 
 const HomeServices: React.FC = () => {
+  const tr = useT();
   const [data, setData] = useState<HomeData>({ assets: [], events: [] });
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -152,7 +158,7 @@ const HomeServices: React.FC = () => {
   };
 
   const deleteAsset = (id: string) => {
-    if (window.confirm('Padam rumah ni dan semua sejarah servisnya?')) {
+    if (window.confirm(trs('Padam rumah ni dan semua sejarah servisnya?', 'Delete this house and all of its service history?'))) {
       setData(prev => ({
         assets: prev.assets.filter(a => a.id !== id),
         events: prev.events.filter(e => e.assetId !== id)
@@ -201,7 +207,7 @@ const HomeServices: React.FC = () => {
     
     // Auto-save custom title if it doesn't exist
     const trimmedTitle = fTitle.trim();
-    if (!DEFAULT_TITLES.includes(trimmedTitle) && !customTitles.includes(trimmedTitle)) {
+    if (!defaultTitles().includes(trimmedTitle) && !customTitles.includes(trimmedTitle)) {
       setCustomTitles(prev => [...prev, trimmedTitle]);
     }
     
@@ -230,7 +236,7 @@ const HomeServices: React.FC = () => {
   };
 
   const deleteEvent = (id: string) => {
-    if (window.confirm("Padam rekod servis ni?")) {
+    if (window.confirm(trs('Padam rekod servis ni?', 'Delete this service record?'))) {
       setData(prev => ({ ...prev, events: prev.events.filter(e => e.id !== id) }));
     }
   };
@@ -262,12 +268,12 @@ const HomeServices: React.FC = () => {
     setExpandedEvents(prev => prev.includes(id) ? prev.filter(e => e !== id) : [...prev, id]);
   };
 
-  const allTitles = [...DEFAULT_TITLES, ...customTitles];
+  const allTitles = [...defaultTitles(), ...customTitles];
   const filteredTitles = allTitles.filter(t => t.toLowerCase().includes(fTitle.toLowerCase()));
 
   const removeCustomTitle = (e: React.MouseEvent, title: string) => {
     e.stopPropagation();
-    if (window.confirm(`Padam nama servis "${title}"?`)) {
+    if (window.confirm(trs(`Padam nama servis "${title}"?`, `Delete the service name "${title}"?`))) {
       setCustomTitles(prev => prev.filter(t => t !== title));
     }
   };
@@ -279,8 +285,8 @@ const HomeServices: React.FC = () => {
           <HomeIcon size={24} />
         </div>
         <div>
-          <h2 className="text-2xl font-bold">Servis Rumah</h2>
-          <p className="text-sm text-muted">Rekod baiki & kos rumah</p>
+          <h2 className="text-2xl font-bold">{tr('Servis Rumah', 'Home Services')}</h2>
+          <p className="text-sm text-muted">{tr('Rekod baiki & kos rumah', 'Home repairs and their costs')}</p>
         </div>
       </div>
 
@@ -305,12 +311,12 @@ const HomeServices: React.FC = () => {
             <div className={`relative flex items-center justify-between p-4 ${currentAsset?.photo ? 'min-h-[92px] [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]' : ''}`}>
             {currentAsset ? (
               <div className="text-left min-w-0">
-                <p className={`text-xs font-bold uppercase tracking-wider mb-0.5 ${currentAsset.photo ? 'text-[#fff]/75' : 'text-muted'}`}>Rumah sekarang</p>
+                <p className={`text-xs font-bold uppercase tracking-wider mb-0.5 ${currentAsset.photo ? 'text-[#fff]/75' : 'text-muted'}`}>{tr('Rumah sekarang', 'Current house')}</p>
                 <p className={`font-bold text-lg truncate ${currentAsset.photo ? 'text-[#fff]' : 'text-teal-500 light:text-teal-700'}`}>{currentAsset.name}</p>
                 {currentAsset.location && <p className={`text-xs truncate ${currentAsset.photo ? 'text-[#fff]/85' : 'text-text/80'}`}>{currentAsset.location}</p>}
               </div>
             ) : (
-              <p className="font-bold text-muted">Pilih rumah...</p>
+              <p className="font-bold text-muted">{tr('Pilih rumah...', 'Choose a house...')}</p>
             )}
             <ChevronDown className={`shrink-0 ${currentAsset?.photo ? 'text-[#fff]/80' : 'text-muted'}`} />
             </div>
@@ -326,7 +332,7 @@ const HomeServices: React.FC = () => {
             className="w-full py-4 rounded-xl border-2 border-dashed border-white/20 text-muted hover:text-teal-400 hover:border-teal-400/50 transition-colors flex flex-col items-center gap-2"
           >
             <Plus size={24} /> 
-            <span className="font-bold">Tambah rumah pertama</span>
+            <span className="font-bold">{tr('Tambah rumah pertama', 'Add your first house')}</span>
           </button>
         )}
       </div>
@@ -335,7 +341,7 @@ const HomeServices: React.FC = () => {
         data.assets.length > 0 && (
           <div className="glass-panel p-8 text-center flex flex-col items-center">
             <HomeIcon size={32} className="text-muted mb-3 opacity-50" />
-            <p className="text-muted text-sm">Pilih rumah untuk lihat sejarah servis.</p>
+            <p className="text-muted text-sm">{tr('Pilih rumah untuk lihat sejarah servis.', 'Choose a house to see its service history.')}</p>
           </div>
         )
       ) : (
@@ -344,7 +350,7 @@ const HomeServices: React.FC = () => {
             onClick={() => openEventForm()}
             className="w-full py-4 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-teal-500/50 hover:text-teal-500 light:hover:text-teal-700 transition-all flex items-center justify-center"
           >
-            <Plus size={20} className="mr-2" /> Tambah Servis
+            <Plus size={20} className="mr-2" /> {tr('Tambah Servis', 'Add a Service')}
           </button>
 
           {serviceTitles.length > 0 && (
@@ -361,7 +367,7 @@ const HomeServices: React.FC = () => {
                   <span className={`truncate text-sm font-bold ${
                     activeFilter === 'all' ? 'text-muted' : 'text-teal-500 light:text-teal-700'
                   }`}>
-                    {activeFilter === 'all' ? 'Semua servis' : activeFilter}
+                    {activeFilter === 'all' ? tr('Semua servis', 'All services') : activeFilter}
                   </span>
                 </span>
                 <span className="flex items-center gap-2 shrink-0">
@@ -376,7 +382,7 @@ const HomeServices: React.FC = () => {
                     autoFocus
                     value={filterQuery}
                     onChange={e => setFilterQuery(e.target.value)}
-                    placeholder="Cari servis..."
+                    placeholder={tr('Cari servis...', 'Search services...')}
                     className="w-full px-3 py-2 mb-1 bg-background/50 border border-text/10 rounded-lg text-sm text-text placeholder-muted focus:outline-none focus:border-teal-500/50"
                   />
                   <div className="max-h-48 overflow-y-auto">
@@ -390,14 +396,14 @@ const HomeServices: React.FC = () => {
                             activeFilter === title ? 'text-teal-500 light:text-teal-700 font-bold' : 'text-text'
                           }`}
                         >
-                          <span className="truncate">{title === 'all' ? 'Semua servis' : title}</span>
+                          <span className="truncate">{title === 'all' ? tr('Semua servis', 'All services') : title}</span>
                           <span className="text-xs text-muted shrink-0">
                             {title === 'all' ? assetEvents.length : assetEvents.filter(e => e.title === title).length}
                           </span>
                         </button>
                       ))}
                     {filterQuery.trim() && !serviceTitles.some(t => t.toLowerCase().includes(filterQuery.toLowerCase())) && (
-                      <p className="px-3 py-3 text-xs text-muted">Takde servis sepadan “{filterQuery.trim()}”.</p>
+                      <p className="px-3 py-3 text-xs text-muted">{tr('Takde servis sepadan', 'No service matches')} “{filterQuery.trim()}”.</p>
                     )}
                   </div>
                 </div>
@@ -408,9 +414,9 @@ const HomeServices: React.FC = () => {
           {assetEvents.length === 0 ? (
             <div className="glass-panel p-8 text-center flex flex-col items-center">
               <CalendarClock size={32} className="text-muted mb-3 opacity-50" />
-              <p className="text-muted text-sm mb-4">Takde sejarah servis untuk rumah ni.</p>
+              <p className="text-muted text-sm mb-4">{tr('Takde sejarah servis untuk rumah ni.', 'No service history for this house yet.')}</p>
               <button onClick={() => openEventForm()} className="px-4 py-2 bg-teal-500/20 text-teal-500 light:text-teal-700 rounded-lg font-bold hover:bg-teal-500/30 transition-colors text-sm">
-                Tambah servis pertama
+                {tr('Tambah servis pertama', 'Add the first service')}
               </button>
             </div>
           ) : (
@@ -428,7 +434,7 @@ const HomeServices: React.FC = () => {
                         {Number(event.date.slice(8, 10))}
                       </span>
                       <span className="text-[8px] font-bold uppercase tracking-wider text-muted leading-none mt-0.5">
-                        {MON[Number(event.date.slice(5, 7)) - 1]}
+                        {tr(MON_MS, MON_EN)[Number(event.date.slice(5, 7)) - 1]}
                       </span>
                     </div>
 
@@ -439,8 +445,8 @@ const HomeServices: React.FC = () => {
                           <p className="font-mono text-xs text-muted mt-0.5 truncate">{formatDate(event.date)}</p>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
-                          <button onClick={() => openEventForm(event)} aria-label="Ubah rekod" className="p-1.5 text-muted hover:text-teal-500 rounded-lg bg-text/5"><Pencil size={14} /></button>
-                          <button onClick={() => deleteEvent(event.id)} aria-label="Padam rekod" className="p-1.5 text-muted hover:text-rose-500 rounded-lg bg-text/5"><Trash2 size={14} /></button>
+                          <button onClick={() => openEventForm(event)} aria-label={tr('Ubah rekod', 'Edit record')} className="p-1.5 text-muted hover:text-teal-500 rounded-lg bg-text/5"><Pencil size={14} /></button>
+                          <button onClick={() => deleteEvent(event.id)} aria-label={tr('Padam rekod', 'Delete record')} className="p-1.5 text-muted hover:text-rose-500 rounded-lg bg-text/5"><Trash2 size={14} /></button>
                         </div>
                       </div>
 
@@ -456,12 +462,12 @@ const HomeServices: React.FC = () => {
                             <p className={`text-xs font-bold flex items-center gap-1 ${
                               event.nextDone ? 'text-muted line-through' : 'text-rose-500 light:text-rose-700'
                             }`}>
-                              <CalendarClock size={12} /> Seterusnya: {formatDate(event.nextServiceDate)}
+                              <CalendarClock size={12} /> {tr('Seterusnya', 'Next')}: {formatDate(event.nextServiceDate)}
                             </p>
                             <button
                               onClick={() => toggleNextDone(event.id)}
                               aria-pressed={!!event.nextDone}
-                              title={event.nextDone ? 'Tap kalau belum buat lagi' : 'Tap kalau dah buat servis ni'}
+                              title={event.nextDone ? tr('Tap kalau belum buat lagi', 'Tap if it has not been done yet') : tr('Tap kalau dah buat servis ni', 'Tap once this service is done')}
                               className={`px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors flex items-center gap-1 ${
                                 event.nextDone
                                   ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-500 light:text-emerald-700'
@@ -469,7 +475,7 @@ const HomeServices: React.FC = () => {
                               }`}
                             >
                               {event.nextDone && <Check size={11} strokeWidth={3} />}
-                              {event.nextDone ? 'Dah buat' : 'Dah buat?'}
+                              {event.nextDone ? tr('Dah buat', 'Done') : tr('Dah buat?', 'Done?')}
                             </button>
                           </div>
                         )}
@@ -478,13 +484,13 @@ const HomeServices: React.FC = () => {
                         <div>
                           <button onClick={() => toggleExpand(event.id)} className="text-xs flex items-center gap-1 text-muted hover:text-text transition-colors py-1">
                             {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                            {isExpanded ? 'Tutup butiran' : 'Lihat butiran'}
+                            {isExpanded ? tr('Tutup butiran', 'Hide details') : tr('Lihat butiran', 'See details')}
                           </button>
                           
                           {isExpanded && (
                             <div className="mt-3 pt-3 border-t border-white/5 space-y-3 animate-slide-up">
                               <div>
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">Nota</p>
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">{tr('Nota', 'Notes')}</p>
                                 <p className="text-sm text-text/80 bg-black/20 p-2.5 rounded-lg border border-white/5 whitespace-pre-wrap">{event.notes}</p>
                               </div>
                             </div>
@@ -505,7 +511,7 @@ const HomeServices: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowAssetSelector(false)}>
           <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 flex flex-col max-h-[80vh] shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4 shrink-0">
-              <h3 className="font-bold text-lg">Pilih rumah</h3>
+              <h3 className="font-bold text-lg">{tr('Pilih rumah', 'Choose a house')}</h3>
               <button onClick={() => setShowAssetSelector(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button>
             </div>
             
@@ -515,14 +521,14 @@ const HomeServices: React.FC = () => {
                 autoFocus
                 value={assetSearchQuery} 
                 onChange={e => setAssetSearchQuery(e.target.value)} 
-                placeholder="Cari rumah..." 
+                placeholder={tr('Cari rumah...', 'Search houses...')} 
                 className="input-field w-full pl-10" 
               />
             </div>
 
             <div className="overflow-y-auto space-y-2 custom-scrollbar pb-2">
               {filteredAssets.length === 0 ? (
-                <p className="text-center text-muted text-sm py-4">Takde rumah dijumpai.</p>
+                <p className="text-center text-muted text-sm py-4">{tr('Takde rumah dijumpai.', 'No house found.')}</p>
               ) : (
                 filteredAssets.map(asset => (
                   <div key={asset.id} className={`flex items-center justify-between p-3 rounded-xl border ${selectedAssetId === asset.id ? 'border-teal-500 bg-teal-500/10' : 'border-white/5 bg-black/20 hover:border-white/10'} transition-colors cursor-pointer`} onClick={() => { setSelectedAssetId(asset.id); setShowAssetSelector(false); }}>
@@ -542,7 +548,7 @@ const HomeServices: React.FC = () => {
 
             <div className="shrink-0 pt-4 border-t border-white/5 mt-auto">
               <button onClick={() => { setShowAssetSelector(false); setEditAssetId(null); setAssetName(''); setAssetLocation(''); setShowAssetForm(true); }} className="w-full py-3 rounded-xl border border-dashed border-white/20 text-teal-400 font-bold hover:bg-teal-500/10 transition-colors flex items-center justify-center gap-2">
-                <Plus size={18} /> Tambah rumah baru
+                <Plus size={18} /> {tr('Tambah rumah baru', 'Add a new house')}
               </button>
             </div>
           </div>
@@ -554,22 +560,22 @@ const HomeServices: React.FC = () => {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowAssetForm(false)}>
           <div className="bg-surface border border-text/10 rounded-3xl w-full max-w-sm p-5 space-y-4 shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-lg">{editAssetId ? 'Sunting' : 'Tambah'} Rumah</h3>
+              <h3 className="font-bold text-lg">{editAssetId ? tr('Sunting Rumah', 'Edit House') : tr('Tambah Rumah', 'Add House')}</h3>
               <button onClick={() => setShowAssetForm(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button>
             </div>
             
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Nama rumah</label>
-              <input autoFocus value={assetName} onChange={e => setAssetName(e.target.value)} placeholder="cth. Rumah Setapak" className="input-field w-full" />
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Nama rumah', 'House name')}</label>
+              <input autoFocus value={assetName} onChange={e => setAssetName(e.target.value)} placeholder={tr('cth. Rumah Setapak', 'e.g. Setapak house')} className="input-field w-full" />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Lokasi/Unit (pilihan)</label>
-              <input value={assetLocation} onChange={e => setAssetLocation(e.target.value)} placeholder="cth. Blok A, Unit 12" className="input-field w-full" />
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Lokasi/Unit (pilihan)', 'Location/Unit (optional)')}</label>
+              <input value={assetLocation} onChange={e => setAssetLocation(e.target.value)} placeholder={tr('cth. Blok A, Unit 12', 'e.g. Block A, Unit 12')} className="input-field w-full" />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Gambar (pilihan)</label>
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Gambar (pilihan)', 'Photo (optional)')}</label>
               <input
                 type="file"
                 accept="image/*"
@@ -588,7 +594,7 @@ const HomeServices: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => { setAssetPhoto(''); if (assetFileRef.current) assetFileRef.current.value = ''; }}
-                    aria-label="Buang gambar"
+                    aria-label={tr('Buang gambar', 'Remove photo')}
                     className="absolute top-2 right-2 p-1.5 rounded-lg bg-[#000]/50 text-[#fff]/80 hover:text-[#fff] backdrop-blur-md"
                   >
                     <X size={14} />
@@ -599,13 +605,13 @@ const HomeServices: React.FC = () => {
                   htmlFor="asset-photo"
                   className="flex items-center justify-center gap-2 h-14 rounded-xl border border-dashed border-text/15 bg-text/5 text-muted text-sm cursor-pointer hover:text-text hover:bg-text/10 transition-colors"
                 >
-                  <ImageIcon size={18} /> Pilih gambar
+                  <ImageIcon size={18} /> {tr('Pilih gambar', 'Choose a photo')}
                 </label>
               )}
             </div>
 
             <button onClick={saveAsset} disabled={!assetName.trim()} className="w-full py-3 rounded-xl bg-teal-500 text-white font-bold hover:bg-teal-600 disabled:opacity-50 mt-2">
-              Simpan rumah
+              {tr('Simpan rumah', 'Save house')}
             </button>
           </div>
         </div>
@@ -616,19 +622,19 @@ const HomeServices: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowEventForm(false)}>
           <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 flex flex-col max-h-[90vh] shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4 shrink-0">
-              <h3 className="font-bold text-lg">{fId ? 'Sunting' : 'Tambah'} Rekod Servis</h3>
+              <h3 className="font-bold text-lg">{fId ? tr('Sunting Rekod Servis', 'Edit Service Record') : tr('Tambah Rekod Servis', 'Add Service Record')}</h3>
               <button onClick={() => setShowEventForm(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button>
             </div>
             
             <div className="overflow-y-auto pr-1 space-y-4 custom-scrollbar pb-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Tarikh</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Tarikh', 'Date')}</label>
                 <input type="date" value={fDate} onChange={e => setFDate(e.target.value)} className="input-field w-full" />
               </div>
 
               {/* Dynamic Service Title Dropdown */}
               <div className="space-y-1.5 relative" ref={dropdownRef}>
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Jenis servis</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Jenis servis', 'Service type')}</label>
                 <div className="relative">
                   <input 
                     value={fTitle} 
@@ -637,7 +643,7 @@ const HomeServices: React.FC = () => {
                       setShowTitleDropdown(true);
                     }} 
                     onFocus={() => setShowTitleDropdown(true)}
-                    placeholder="Cari atau taip servis sendiri..." 
+                    placeholder={tr('Cari atau taip servis sendiri...', 'Search or type your own service...')} 
                     className="input-field w-full pr-8" 
                   />
                   <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-muted pointer-events-none" size={16} />
@@ -658,7 +664,7 @@ const HomeServices: React.FC = () => {
                             <button 
                               onClick={(e) => removeCustomTitle(e, title)} 
                               className="text-muted hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                              title="Padam servis sendiri"
+                              title={tr('Padam servis sendiri', 'Delete this custom service')}
                             >
                               <Trash size={14} />
                             </button>
@@ -671,7 +677,7 @@ const HomeServices: React.FC = () => {
                         onClick={() => { setShowTitleDropdown(false); }}
                         className="px-3 py-2 text-sm hover:bg-teal-500/10 text-teal-400 rounded-lg cursor-pointer flex items-center gap-2 border-t border-white/5 mt-1"
                       >
-                        <Plus size={14} /> Tambah "{fTitle.trim()}" sebagai baru
+                        <Plus size={14} /> {tr(`Tambah "${fTitle.trim()}" sebagai baru`, `Add "${fTitle.trim()}" as new`)}
                       </div>
                     )}
                   </div>
@@ -679,25 +685,25 @@ const HomeServices: React.FC = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Jumlah kos (RM)</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Jumlah kos (RM)', 'Total cost (RM)')}</label>
                 <input type="number" min="0" step="0.01" value={fTotalCost} onChange={e => setFTotalCost(e.target.value)} placeholder="0.00" className="input-field w-full text-xl font-bold" />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Tarikh servis seterusnya (pilihan)</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Tarikh servis seterusnya (pilihan)', 'Next service date (optional)')}</label>
                 <input type="date" value={fNextDate} onChange={e => setFNextDate(e.target.value)} className="input-field w-full text-rose-400" />
-                <p className="text-[10px] text-muted">Set tarikh untuk dapat peringatan di skrin Utama.</p>
+                <p className="text-[10px] text-muted">{tr('Set tarikh untuk dapat peringatan di skrin Utama.', 'Set a date to get a reminder on the Home screen.')}</p>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Nota (pilihan)</label>
-                <textarea value={fNotes} onChange={e => setFNotes(e.target.value)} placeholder="Kontraktor kata check paip 2 tahun lagi" className="input-field w-full h-16 resize-none py-2" />
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Nota (pilihan)', 'Notes (optional)')}</label>
+                <textarea value={fNotes} onChange={e => setFNotes(e.target.value)} placeholder={tr('Kontraktor kata check paip 2 tahun lagi', 'Contractor said to check the pipes in 2 years')} className="input-field w-full h-16 resize-none py-2" />
               </div>
             </div>
 
             <div className="shrink-0 pt-4 border-t border-white/5">
               <button onClick={saveEvent} disabled={!fTitle.trim() || !fDate} className="w-full py-3 rounded-xl bg-teal-500 text-white font-bold hover:bg-teal-600 disabled:opacity-50">
-                Simpan rekod servis
+                {tr('Simpan rekod servis', 'Save service record')}
               </button>
             </div>
           </div>

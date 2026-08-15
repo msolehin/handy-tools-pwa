@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Bell, Mail } from 'lucide-react';
 import { getUser, subscribe, type User } from '../lib/auth';
+import { useT, t as tr } from '../lib/lang';
 
 const urlBase64ToUint8Array = (base64: string) => {
   const padded = (base64 + '='.repeat((4 - base64.length % 4) % 4))
@@ -51,6 +52,7 @@ function Row({ icon: Icon, title, desc, on, onChange, disabled }: RowProps) {
 }
 
 export default function NotificationSettings() {
+  const t = useT();
   const [user, setUser] = useState<User | null>(getUser());
   const [email, setEmail] = useState(true);
   const [push, setPush] = useState(false);
@@ -96,23 +98,23 @@ export default function NotificationSettings() {
     }
 
     if (iosNeedsInstall()) {
-      setNote('Pasang SenangKit ke skrin utama dulu, baru boleh terima notifikasi.');
+      setNote(tr('Pasang SenangKit ke skrin utama dulu, baru boleh terima notifikasi.', 'Install SenangKit to your home screen first, then notifications can be turned on.'));
       return;
     }
     if (!('Notification' in window) || !('serviceWorker' in navigator)) {
-      setNote('Pelayar ini tak sokong notifikasi.');
+      setNote(tr('Pelayar ini tak sokong notifikasi.', "This browser doesn't support notifications."));
       return;
     }
 
     setBusy(true);
     try {
       if (await Notification.requestPermission() !== 'granted') {
-        setNote('Notifikasi disekat. Benarkan dalam tetapan pelayar.');
+        setNote(tr('Notifikasi disekat. Benarkan dalam tetapan pelayar.', 'Notifications are blocked. Allow them in your browser settings.'));
         return;
       }
 
       const { key } = await fetch('/api/push/key').then((r) => r.json());
-      if (!key) { setNote('Notifikasi belum disediakan di server.'); return; }
+      if (!key) { setNote(tr('Notifikasi belum disediakan di server.', 'Notifications are not set up on the server yet.')); return; }
 
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.subscribe({
@@ -125,10 +127,10 @@ export default function NotificationSettings() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(sub.toJSON()),
       });
-      if (!res.ok) { setNote('Gagal daftar notifikasi. Cuba lagi.'); return; }
+      if (!res.ok) { setNote(tr('Gagal daftar notifikasi. Cuba lagi.', "Couldn't register for notifications. Try again.")); return; }
       setPush(true);
     } catch {
-      setNote('Gagal daftar notifikasi. Cuba lagi.');
+      setNote(tr('Gagal daftar notifikasi. Cuba lagi.', "Couldn't register for notifications. Try again."));
     } finally {
       setBusy(false);
     }
@@ -137,15 +139,15 @@ export default function NotificationSettings() {
   return (
     <div className="space-y-2">
       <div className="pt-5 pb-1 px-1">
-        <h4 className="text-sm font-bold text-text">Peringatan</h4>
-        <p className="text-xs text-muted mt-0.5">30, 7 dan 1 hari sebelum sesuatu tamat tempoh.</p>
+        <h4 className="text-sm font-bold text-text">{t('Peringatan', 'Reminders')}</h4>
+        <p className="text-xs text-muted mt-0.5">{t('30, 7 dan 1 hari sebelum sesuatu tamat tempoh.', '30, 7 and 1 day before something expires.')}</p>
       </div>
 
-      <Row icon={Mail} title="Emel" desc={user.email} on={email} onChange={toggleEmail} />
+      <Row icon={Mail} title={t('Emel', 'Email')} desc={user.email} on={email} onChange={toggleEmail} />
       <Row
         icon={Bell}
-        title="Notifikasi"
-        desc={configured ? 'Terus ke telefon anda' : 'Belum disediakan'}
+        title={t('Notifikasi', 'Push notifications')}
+        desc={configured ? t('Terus ke telefon anda', 'Straight to your phone') : t('Belum disediakan', 'Not set up yet')}
         on={push}
         onChange={togglePush}
         disabled={busy || !configured}

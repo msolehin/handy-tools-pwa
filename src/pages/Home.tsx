@@ -30,7 +30,8 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 
 // The registry now lives in lib; re-exported so existing importers keep working.
-import { DEFAULT_TOOLS, HOT_IDS, CORE_TOOLS, EXTRA_TOOLS, duitRayaLook } from '../lib/tools';
+import { DEFAULT_TOOLS, HOT_IDS, CORE_TOOLS, EXTRA_TOOLS, duitRayaLook, toolDesc, categoryLabel } from '../lib/tools';
+import { useLang, useT, t as tr, locale, type Lang } from '../lib/lang';
 export { DEFAULT_TOOLS, HOT_IDS };
 
 
@@ -47,9 +48,15 @@ const NEW_TOOLS: Record<string, string> = {
   '/tenancy': '2026-07-30',
 };
 const NEW_DAYS = 7;
-const ALERT_TYPE_LABEL: Record<string, string> = {
-  document: 'Dokumen', event: 'Acara', commitment: 'Komitmen', water: 'Air',
-  debt: 'Hutang', expense: 'Belanja', habit: 'Tabiat', warranty: 'Waranti', service: 'Servis',
+const ALERT_TYPE_LABEL: Record<Lang, Record<string, string>> = {
+  ms: {
+    document: 'Dokumen', event: 'Acara', commitment: 'Komitmen', water: 'Air',
+    debt: 'Hutang', expense: 'Belanja', habit: 'Tabiat', warranty: 'Waranti', service: 'Servis',
+  },
+  en: {
+    document: 'Document', event: 'Event', commitment: 'Commitment', water: 'Water',
+    debt: 'Debt', expense: 'Spending', habit: 'Habits', warranty: 'Warranty', service: 'Service',
+  },
 };
 const badgeFor = (id: string): 'new' | 'hot' | null => {
   const launch = NEW_TOOLS[id];
@@ -67,6 +74,7 @@ const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisab
     isDragging
   } = useSortable({ id: sortableId || tool.id, disabled: forceDisableDrag || !isReordering });
 
+  useLang();  // desc + category come from the registry, so this re-renders on a switch
   const navigate = useNavigate();
   const [favAnim, setFavAnim] = useState(false);
 
@@ -111,7 +119,7 @@ const SortableToolCard = ({ tool, sortableId, viewMode, isReordering, forceDisab
   // Duit Raya / Angpao card swaps its look based on the saved theme
   const raya = tool.id === '/duit-raya' ? duitRayaLook() : null;
   const displayTitle = raya?.title ?? tool.title;
-  const displayDesc = raya?.desc ?? tool.desc;
+  const displayDesc = raya ? tr(raya.desc, raya.descEn) : toolDesc(tool);
   const displayIconBg = raya?.iconBgClass ?? tool.iconBgClass;
   const festiveEmoji = raya?.emoji ?? null;
 
@@ -408,6 +416,8 @@ const waveSvg1 = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' v
 const waveSvg2 = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 88.7'%3E%3Cpath d='M800 56.9c-155.5 0-204.9-50-405.5-49.9-200 0-250 49.9-394.5 49.9v31.8h800v-.2-31.6z' fill='%233b82f6' opacity='0.6'/%3E%3C/svg%3E`;
 
 const Home: React.FC = () => {
+  const t = useT();
+  const lang = useLang();
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<'list' | 'grid' | 'category' | 'alphabet'>(() => {
     return (localStorage.getItem('home_view_mode') as 'list' | 'grid' | 'category' | 'alphabet') || 'list';
@@ -666,7 +676,7 @@ const Home: React.FC = () => {
         const data = JSON.parse(expStr);
         const now = new Date();
         const mk = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        const fmtRM = (n: number) => n.toLocaleString('ms-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const fmtRM = (n: number) => n.toLocaleString(locale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         
         const rawExpenses = (data.expenses || [])
           .filter((e: any) => typeof e.date === 'string' && e.date.slice(0, 7) === mk)
@@ -708,7 +718,7 @@ const Home: React.FC = () => {
           newAlerts.push({
             id: 'expense',
             type: 'expense',
-            title: `Belanja RM${fmtRM(spent)}`,
+            title: tr(`Belanja RM${fmtRM(spent)}`, `Spent RM${fmtRM(spent)}`),
             daysLeft: 0,
             percentage: income > 0 ? Math.min(100, Math.round((spent / income) * 100)) : (spent > 0 ? 100 : 0),
             to: '/expense-manager'
@@ -732,7 +742,7 @@ const Home: React.FC = () => {
             newAlerts.push({
               id: 'habit',
               type: 'habit',
-              title: `${left} lagi hari ini`,
+              title: tr(`${left} lagi hari ini`, `${left} left today`),
               daysLeft: 0,
               percentage: Math.round((done / total) * 100),
               to: '/habit-tracker'
@@ -777,7 +787,7 @@ const Home: React.FC = () => {
               newAlerts.push({
                 id: `v-service-${s.id}`,
                 type: 'service',
-                title: `Kenderaan: ${s.title}`,
+                title: `${tr('Kenderaan', 'Vehicle')}: ${s.title}`,
                 daysLeft: days,
                 to: '/vehicle-services'
               });
@@ -800,7 +810,7 @@ const Home: React.FC = () => {
               newAlerts.push({
                 id: `h-service-${s.id}`,
                 type: 'service',
-                title: `Rumah: ${s.title}`,
+                title: `${tr('Rumah', 'Home')}: ${s.title}`,
                 daysLeft: days,
                 to: '/home-services'
               });
@@ -835,7 +845,9 @@ const Home: React.FC = () => {
 
     newAlerts.sort((a, b) => a.daysLeft - b.daysLeft);
     setAlerts(newAlerts);
-  }, []);
+    // Some alert titles are built here rather than at render, so switching language has to
+    // rebuild them — otherwise the strip keeps yesterday's language until the next mount.
+  }, [lang]);
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -916,7 +928,7 @@ const Home: React.FC = () => {
               onClick={() => setIsAlertsExpanded(!isAlertsExpanded)}
             >
               <Bell size={18} className="text-yellow-400 animate-pulse" />
-              <h3 className="font-bold text-sm">Perlu Tindakan <span className="text-muted text-xs font-normal ml-1">({alerts.length})</span></h3>
+              <h3 className="font-bold text-sm">{t('Perlu Tindakan', 'Action Needed')} <span className="text-muted text-xs font-normal ml-1">({alerts.length})</span></h3>
             </div>
             <div className="flex items-center gap-1.5">
               {alerts.length > 1 && (
@@ -924,7 +936,7 @@ const Home: React.FC = () => {
                   onClick={() => { setAlertsReorder(r => !r); setIsAlertsExpanded(true); }}
                   className={`px-2 py-1 rounded-full text-[10px] font-bold transition-colors flex items-center gap-1 ${alertsReorder ? 'bg-yellow-500/20 text-yellow-400' : 'bg-text/5 text-muted hover:text-text'}`}
                 >
-                  <ArrowUpDown size={13} /> {alertsReorder ? 'Siap' : 'Susun'}
+                  <ArrowUpDown size={13} /> {alertsReorder ? t('Siap', 'Done') : t('Susun', 'Reorder')}
                 </button>
               )}
               <button onClick={() => setIsAlertsExpanded(!isAlertsExpanded)} className="p-1 rounded-full bg-text/5 hover:bg-text/10 text-muted transition-colors">
@@ -1027,7 +1039,7 @@ const Home: React.FC = () => {
                   )}
                   <div className="flex-1 min-w-0">
                   <p className="font-bold text-[13px] text-text truncate leading-tight">
-                    {alert.type === 'document' ? 'Perbaharui: ' : alert.type === 'commitment' ? 'Bayar: ' : alert.type === 'water' ? 'Air: ' : alert.type === 'debt' ? 'Hutang: ' : alert.type === 'habit' ? 'Tabiat: ' : alert.type === 'warranty' ? 'Waranti: ' : ''}{alert.title}
+                    {alert.type === 'document' ? t('Perbaharui: ', 'Renew: ') : alert.type === 'commitment' ? t('Bayar: ', 'Pay: ') : alert.type === 'water' ? t('Air: ', 'Water: ') : alert.type === 'debt' ? t('Hutang: ', 'Debt: ') : alert.type === 'habit' ? t('Tabiat: ', 'Habits: ') : alert.type === 'warranty' ? t('Waranti: ', 'Warranty: ') : ''}{alert.title}
                   </p>
                   <p className={`text-[11px] font-medium leading-tight truncate ${
                     alert.type === 'document'
@@ -1040,12 +1052,12 @@ const Home: React.FC = () => {
                       : alert.type === 'warranty' ? 'text-orange-400'
                       : 'text-pink-400'
                   }`}>
-                    <span className="text-text/50 font-bold uppercase tracking-wider text-[10px]">{alert.type === 'service' && alert.daysLeft < 0 ? 'Lewat' : ALERT_TYPE_LABEL[alert.type]} · </span>
-                    {alert.type === 'water' ? 'Minum lagi!' : alert.type === 'debt' ? 'Perlu tindakan' : alert.type === 'expense' ? `${alert.percentage ?? 0}% pendapatan dibelanja` : alert.type === 'habit' ? `${alert.percentage ?? 0}% siap` : alert.daysLeft < 0
-                      ? (alert.type === 'service' ? `Lewat ${Math.abs(alert.daysLeft)} hari` : `Tamat ${Math.abs(alert.daysLeft)} hari lepas`)
+                    <span className="text-text/50 font-bold uppercase tracking-wider text-[10px]">{alert.type === 'service' && alert.daysLeft < 0 ? t('Lewat', 'Overdue') : ALERT_TYPE_LABEL[lang][alert.type]} · </span>
+                    {alert.type === 'water' ? t('Minum lagi!', 'Drink more!') : alert.type === 'debt' ? t('Perlu tindakan', 'Needs attention') : alert.type === 'expense' ? t(`${alert.percentage ?? 0}% pendapatan dibelanja`, `${alert.percentage ?? 0}% of income spent`) : alert.type === 'habit' ? t(`${alert.percentage ?? 0}% siap`, `${alert.percentage ?? 0}% done`) : alert.daysLeft < 0
+                      ? (alert.type === 'service' ? t(`Lewat ${Math.abs(alert.daysLeft)} hari`, `${Math.abs(alert.daysLeft)} days overdue`) : t(`Tamat ${Math.abs(alert.daysLeft)} hari lepas`, `Expired ${Math.abs(alert.daysLeft)} days ago`))
                       : alert.daysLeft === 0
-                        ? 'Hari ini!'
-                        : `${alert.daysLeft} Hari Lagi`}
+                        ? t('Hari ini!', 'Today!')
+                        : t(`${alert.daysLeft} Hari Lagi`, `${alert.daysLeft} Days Left`)}
                   </p>
                   </div>
                 </div>
@@ -1063,8 +1075,8 @@ const Home: React.FC = () => {
 
       <div className="flex items-end justify-between mt-4 mb-4">
         <section>
-          <h2 className="text-3xl font-bold mb-1">Selamat Datang</h2>
-          <p className="text-muted text-sm pr-4">Pilih alat di bawah untuk mula. Berfungsi sepenuhnya luar talian.</p>
+          <h2 className="text-3xl font-bold mb-1">{t('Selamat Datang', 'Welcome')}</h2>
+          <p className="text-muted text-sm pr-4">{t('Pilih alat di bawah untuk mula. Berfungsi sepenuhnya luar talian.', 'Pick a tool below to start. Works fully offline.')}</p>
         </section>
         <div className="flex flex-col items-end space-y-2">
             {/* Reorder Button */}
@@ -1074,14 +1086,14 @@ const Home: React.FC = () => {
                   onClick={() => {
                     const next = !animationsEnabled;
                     setAnimationsEnabled(next);
-                    showToast(next ? '✨ Animasi dihidupkan' : '⏸️ Animasi dimatikan');
+                    showToast(next ? t('✨ Animasi dihidupkan', '✨ Animations on') : t('⏸️ Animasi dimatikan', '⏸️ Animations off'));
                   }}
                   className={`p-2 rounded-xl transition-all border flex items-center justify-center active:scale-90 ${
                     animationsEnabled
                       ? 'bg-blue-500/20 border-blue-500/50 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.3)]'
                       : 'bg-surface border-text/10 text-muted hover:bg-text/5 hover:text-text'
                   }`}
-                  title="Hidup/Matikan Animasi"
+                  title={t('Hidup/Matikan Animasi', 'Toggle animations')}
                 >
                   <Sparkles size={20} className={animationsEnabled ? 'animate-pulse' : ''} />
                 </button>
@@ -1094,7 +1106,7 @@ const Home: React.FC = () => {
                       ? 'bg-rose-500/20 border-rose-500/50 text-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.3)]' 
                       : 'bg-surface border-text/10 text-muted hover:bg-text/5 hover:text-text'
                   }`}
-                  title="Susun Kegemaran"
+                  title={t('Susun Kegemaran', 'Reorder favourites')}
                 >
                   <ArrowUpDown size={20} className={isReordering ? 'animate-pulse' : ''} />
                 </button>
@@ -1105,16 +1117,16 @@ const Home: React.FC = () => {
             {/* View Mode Toggle */}
             <div className="flex bg-text/5 p-1 rounded-xl">
               <button
-                onClick={() => { setViewMode('list'); showToast('📋 Paparan senarai'); }}
+                onClick={() => { setViewMode('list'); showToast(t('📋 Paparan senarai', '📋 List view')); }}
                 className={`p-2 rounded-lg transition-all active:scale-90 ${viewMode === 'list' ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'}`}
-                title="Paparan Senarai"
+                title={t('Paparan Senarai', 'List view')}
               >
                 <List size={18} />
               </button>
               <button
-                onClick={() => { setViewMode('grid'); showToast('▦ Paparan grid'); }}
+                onClick={() => { setViewMode('grid'); showToast(t('▦ Paparan grid', '▦ Grid view')); }}
                 className={`p-2 rounded-lg transition-all active:scale-90 ${viewMode === 'grid' ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'}`}
-                title="Paparan Grid"
+                title={t('Paparan Grid', 'Grid view')}
               >
                 <LayoutGrid size={18} />
               </button>
@@ -1122,10 +1134,10 @@ const Home: React.FC = () => {
                 onClick={() => {
                   setViewMode('category');
                   setIsReordering(false); // disable reordering in category mode
-                  showToast('🗂️ Paparan kategori');
+                  showToast(t('🗂️ Paparan kategori', '🗂️ Category view'));
                 }}
                 className={`p-2 rounded-lg transition-all active:scale-90 ${viewMode === 'category' ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'}`}
-                title="Paparan Kategori"
+                title={t('Paparan Kategori', 'Category view')}
               >
                 <Layers size={18} />
               </button>
@@ -1133,10 +1145,10 @@ const Home: React.FC = () => {
                 onClick={() => {
                   setViewMode('alphabet');
                   setIsReordering(false); // disable reordering in alphabet mode
-                  showToast('🔤 Disusun A–Z');
+                  showToast(t('🔤 Disusun A–Z', '🔤 Sorted A–Z'));
                 }}
                 className={`p-2 rounded-lg transition-all active:scale-90 ${viewMode === 'alphabet' ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'}`}
-                title="Susun A–Z"
+                title={t('Susun A–Z', 'Sort A–Z')}
               >
                 <ArrowDownAZ size={18} />
               </button>
@@ -1148,9 +1160,9 @@ const Home: React.FC = () => {
                 {([2, 3] as const).map(n => (
                   <button
                     key={n}
-                    onClick={() => { setGridCols(n); showToast(`▦ ${n} lajur`); }}
+                    onClick={() => { setGridCols(n); showToast(t(`▦ ${n} lajur`, `▦ ${n} columns`)); }}
                     className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all active:scale-90 ${gridCols === n ? 'bg-surface text-text shadow-sm' : 'text-muted hover:text-text'}`}
-                    title={`${n} lajur`}
+                    title={t(`${n} lajur`, `${n} columns`)}
                   >
                     x{n}
                   </button>
@@ -1167,7 +1179,7 @@ const Home: React.FC = () => {
           </div>
           <input 
             type="text" 
-            placeholder="Cari alat..." 
+            placeholder={t('Cari alat...', 'Search tools...')} 
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
@@ -1180,7 +1192,7 @@ const Home: React.FC = () => {
         {isReordering && (
           <div className="mb-4 flex items-center gap-2 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm font-medium animate-fade-in">
             <ArrowUpDown size={16} className="shrink-0 animate-pulse" />
-            <span>Seret &amp; lepas kegemaran anda untuk susun semula. Tekan butang sekali lagi bila dah siap.</span>
+            <span>{t('Seret & lepas kegemaran anda untuk susun semula. Tekan butang sekali lagi bila dah siap.', 'Drag and drop your favourites to reorder. Press the button again when you are done.')}</span>
           </div>
         )}
 
@@ -1200,7 +1212,7 @@ const Home: React.FC = () => {
                   <div key={cat!} className="space-y-4">
                     <div className="flex items-center space-x-3 px-1">
                       <div className="h-px bg-text/10 flex-1"></div>
-                      <h3 className="text-sm font-bold text-muted uppercase tracking-widest">{cat}</h3>
+                      <h3 className="text-sm font-bold text-muted uppercase tracking-widest">{categoryLabel(cat)}</h3>
                       <div className="h-px bg-text/10 flex-1"></div>
                     </div>
                     <div className={`grid ${gridColClass} gap-4`}>
@@ -1221,7 +1233,7 @@ const Home: React.FC = () => {
             <div className="space-y-4 animate-fade-in">
               <div className="flex items-center space-x-3 px-1">
                 <div className="h-px bg-text/10 flex-1"></div>
-                <h3 className="text-sm font-bold text-muted uppercase tracking-widest">Semua Alat (A–Z)</h3>
+                <h3 className="text-sm font-bold text-muted uppercase tracking-widest">{t('Semua Alat (A–Z)', 'All Tools (A–Z)')}</h3>
                 <div className="h-px bg-text/10 flex-1"></div>
               </div>
               <div className={`grid ${gridColClass} gap-4`}>
@@ -1249,7 +1261,7 @@ const Home: React.FC = () => {
                 <div className="space-y-4">
                   <div className="flex items-center space-x-3 px-1">
                     <div className="h-px bg-text/10 flex-1"></div>
-                    <h3 className="text-sm font-bold text-muted uppercase tracking-widest">❤️ Kegemaran</h3>
+                    <h3 className="text-sm font-bold text-muted uppercase tracking-widest">{t('❤️ Kegemaran', '❤️ Favourites')}</h3>
                     <div className="h-px bg-text/10 flex-1"></div>
                   </div>
                   <div className={viewMode === 'list' ? "grid gap-4" : `grid ${gridColClass} gap-4`}>
@@ -1289,16 +1301,16 @@ const Home: React.FC = () => {
                       className="text-sm font-bold text-muted uppercase tracking-widest flex items-center gap-1.5 hover:text-text transition-colors"
                       aria-expanded={!recentMinimized}
                     >
-                      🕒 Alat Terkini
+                      {t('🕒 Alat Terkini', '🕒 Recent Tools')}
                       <span className={`transition-transform duration-200 ${recentMinimized ? '' : 'rotate-180'}`}>▾</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setRecentTools([])}
                       className="text-[10px] font-bold text-muted uppercase tracking-widest hover:text-red-500 transition-colors"
-                      title="Kosongkan alat terkini"
+                      title={t('Kosongkan alat terkini', 'Clear recent tools')}
                     >
-                      Kosongkan
+                      {t('Kosongkan', 'Clear')}
                     </button>
                     <div className="h-px bg-text/10 flex-1"></div>
                   </div>
@@ -1338,7 +1350,7 @@ const Home: React.FC = () => {
                 {!searchQuery && (
                   <div className="flex items-center space-x-3 px-1">
                     <div className="h-px bg-text/10 flex-1"></div>
-                    <h3 className="text-sm font-bold text-muted uppercase tracking-widest">Semua Alat</h3>
+                    <h3 className="text-sm font-bold text-muted uppercase tracking-widest">{t('Semua Alat', 'All Tools')}</h3>
                     <div className="h-px bg-text/10 flex-1"></div>
                   </div>
                 )}
@@ -1364,7 +1376,7 @@ const Home: React.FC = () => {
                 <div className="space-y-4">
                   <div className="flex items-center space-x-3 px-1">
                     <div className="h-px bg-text/10 flex-1"></div>
-                    <h3 className="text-sm font-bold text-muted uppercase tracking-widest">Lain-lain</h3>
+                    <h3 className="text-sm font-bold text-muted uppercase tracking-widest">{t('Lain-lain', 'Others')}</h3>
                     <div className="h-px bg-text/10 flex-1"></div>
                   </div>
                   <div className={viewMode === 'list' ? "grid gap-4" : `grid ${gridColClass} gap-4`}>

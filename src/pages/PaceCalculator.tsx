@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Timer, Activity, Footprints, RefreshCw } from 'lucide-react';
+import { useT, t as tr } from '../lib/lang';
 
 type Mode = 'pace' | 'time' | 'distance';
 
 const distances = [
-  { label: '5K', km: '5' },
-  { label: '10K', km: '10' },
-  { label: 'Separuh Maraton', km: '21.0975' },
-  { label: 'Maraton Penuh', km: '42.195' },
+  { ms: '5K', en: '5K', km: '5' },
+  { ms: '10K', en: '10K', km: '10' },
+  { ms: 'Separuh Maraton', en: 'Half Marathon', km: '21.0975' },
+  { ms: 'Maraton Penuh', en: 'Full Marathon', km: '42.195' },
 ];
 
 const PaceCalculator: React.FC = () => {
+  const t = useT();
   const [mode, setMode] = useState<Mode>(() => localStorage.getItem('pc_mode') as Mode || 'pace');
 
   const [timeHrs, setTimeHrs] = useState(() => localStorage.getItem('pc_timeHrs') || '');
@@ -31,7 +33,7 @@ const PaceCalculator: React.FC = () => {
   useEffect(() => { localStorage.setItem('pc_paceSecs', paceSecs); }, [paceSecs]);
 
   const handleReset = () => {
-    if (window.confirm("Set semula semua input Kira Pace?")) {
+    if (window.confirm(tr('Set semula semua input Kira Pace?', 'Reset every Kira Pace input?'))) {
       setMode('pace');
       setTimeHrs('');
       setTimeMins('');
@@ -124,20 +126,20 @@ const PaceCalculator: React.FC = () => {
           onClick={handleReset}
           className="text-xs flex items-center text-muted hover:text-text transition-colors"
         >
-          <RefreshCw size={12} className="mr-1" /> Set Semula
+          <RefreshCw size={12} className="mr-1" /> {t('Set Semula', 'Reset')}
         </button>
       </div>
 
       <div className="glass-panel p-4">
-        <label className="block text-sm font-medium text-muted mb-2">Apa yang anda mahu kira?</label>
+        <label className="block text-sm font-medium text-muted mb-2">{t('Apa yang anda mahu kira?', 'What do you want to work out?')}</label>
         <select 
           value={mode} 
           onChange={(e) => setMode(e.target.value as Mode)}
           className="w-full bg-background border border-text/10 rounded-xl px-4 py-3 text-text focus:outline-none focus:border-primary transition-colors appearance-none"
         >
           <option value="pace">Pace (min/km)</option>
-          <option value="time">Masa (jj:mm:ss)</option>
-          <option value="distance">Jarak (km)</option>
+          <option value="time">{t('Masa (jj:mm:ss)', 'Time (hh:mm:ss)')}</option>
+          <option value="distance">{t('Jarak (km)', 'Distance (km)')}</option>
         </select>
       </div>
 
@@ -146,12 +148,12 @@ const PaceCalculator: React.FC = () => {
         <div className={`glass-panel p-4 transition-opacity duration-300 ${mode === 'time' ? 'opacity-60 border-primary/30' : 'border-text/10'}`}>
           <div className="flex items-center space-x-2 mb-3">
             <Timer className="text-primary" size={18} />
-            <h3 className="font-semibold">Masa</h3>
-            {mode === 'time' && <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded ml-2">Dikira automatik</span>}
+            <h3 className="font-semibold">{t('Masa', 'Time')}</h3>
+            {mode === 'time' && <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded ml-2">{t('Dikira automatik', 'Calculated for you')}</span>}
           </div>
           <div className="flex space-x-2">
             <div className="flex-1">
-              <label className="block text-xs text-muted mb-1 text-center">Jam</label>
+              <label className="block text-xs text-muted mb-1 text-center">{t('Jam', 'Hours')}</label>
               <input 
                 type="number" 
                 min="0"
@@ -164,7 +166,7 @@ const PaceCalculator: React.FC = () => {
             </div>
             <div className="flex items-center justify-center pt-5 font-bold">:</div>
             <div className="flex-1">
-              <label className="block text-xs text-muted mb-1 text-center">Minit</label>
+              <label className="block text-xs text-muted mb-1 text-center">{t('Minit', 'Minutes')}</label>
               <input 
                 type="number" 
                 min="0" max="59"
@@ -177,7 +179,7 @@ const PaceCalculator: React.FC = () => {
             </div>
             <div className="flex items-center justify-center pt-5 font-bold">:</div>
             <div className="flex-1">
-              <label className="block text-xs text-muted mb-1 text-center">Saat</label>
+              <label className="block text-xs text-muted mb-1 text-center">{t('Saat', 'Seconds')}</label>
               <input 
                 type="number" 
                 min="0" max="59"
@@ -195,8 +197,8 @@ const PaceCalculator: React.FC = () => {
         <div className={`glass-panel p-4 transition-opacity duration-300 ${mode === 'distance' ? 'opacity-60 border-primary/30' : 'border-text/10'}`}>
           <div className="flex items-center space-x-2 mb-3">
             <Footprints className="text-secondary" size={18} />
-            <h3 className="font-semibold">Jarak (km)</h3>
-            {mode === 'distance' && <span className="text-xs bg-secondary/20 text-secondary px-2 py-0.5 rounded ml-2">Dikira automatik</span>}
+            <h3 className="font-semibold">{t('Jarak (km)', 'Distance (km)')}</h3>
+            {mode === 'distance' && <span className="text-xs bg-secondary/20 text-secondary px-2 py-0.5 rounded ml-2">{t('Dikira automatik', 'Calculated for you')}</span>}
           </div>
           <input 
             type="number" 
@@ -205,14 +207,14 @@ const PaceCalculator: React.FC = () => {
             value={distanceKm}
             onChange={(e) => setDistanceKm(e.target.value)}
             readOnly={mode === 'distance'}
-            placeholder="cth. 5.00"
+            placeholder={t('cth. 5.00', 'e.g. 5.00')}
             className="input-field text-xl py-3 px-4 mb-3 font-mono"
           />
           
           <div className="grid grid-cols-4 gap-2">
             {distances.map(d => (
               <button
-                key={d.label}
+                key={d.km}
                 disabled={mode === 'distance'}
                 onClick={() => setDistanceKm(d.km)}
                 className={`text-xs py-2 px-1 rounded-lg border font-medium transition-colors ${
@@ -221,7 +223,7 @@ const PaceCalculator: React.FC = () => {
                     : 'bg-text/5 border-text/10 text-muted hover:bg-text/10'
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
-                {d.label}
+                {t(d.ms, d.en)}
               </button>
             ))}
           </div>
@@ -232,11 +234,11 @@ const PaceCalculator: React.FC = () => {
           <div className="flex items-center space-x-2 mb-3">
             <Activity className="text-accent" size={18} />
             <h3 className="font-semibold">Pace (min/km)</h3>
-            {mode === 'pace' && <span className="text-xs bg-accent/20 text-accent px-2 py-0.5 rounded ml-2">Dikira automatik</span>}
+            {mode === 'pace' && <span className="text-xs bg-accent/20 text-accent px-2 py-0.5 rounded ml-2">{t('Dikira automatik', 'Calculated for you')}</span>}
           </div>
           <div className="flex space-x-4 max-w-[60%] mx-auto">
             <div className="flex-1">
-              <label className="block text-xs text-muted mb-1 text-center">Minit</label>
+              <label className="block text-xs text-muted mb-1 text-center">{t('Minit', 'Minutes')}</label>
               <input 
                 type="number" 
                 min="0" max="59"
@@ -249,7 +251,7 @@ const PaceCalculator: React.FC = () => {
             </div>
             <div className="flex items-center justify-center pt-5 font-bold text-2xl">:</div>
             <div className="flex-1">
-              <label className="block text-xs text-muted mb-1 text-center">Saat</label>
+              <label className="block text-xs text-muted mb-1 text-center">{t('Saat', 'Seconds')}</label>
               <input 
                 type="number" 
                 min="0" max="59"

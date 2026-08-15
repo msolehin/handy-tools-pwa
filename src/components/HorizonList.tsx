@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CalendarClock } from 'lucide-react';
 import { DEFAULT_TOOLS } from '../lib/tools';
 import { byMonth, horizonTone, daysUntil, type HorizonItem } from '../lib/horizon';
+import { useT } from '../lib/lang';
 
 /**
  * The deadline horizon, rendered once and shown in two places: the desktop side panel, and a sheet
@@ -22,13 +23,15 @@ const TONE_PILL = {
 // looks like the tool it came from — same chip you clicked in the rail.
 const TOOL_BY_ROUTE = new Map(DEFAULT_TOOLS.map((t) => [t.to, t]));
 
-const MONTHS = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogos', 'Sept', 'Okt', 'Nov', 'Dis'];
-const monthLabel = (month: string) => {
+const MONTHS_MS = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogos', 'Sept', 'Okt', 'Nov', 'Dis'];
+const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const monthLabel = (month: string, months: string[]) => {
   const [year, m] = month.split('-');
-  return `${MONTHS[Number(m) - 1]} ${year}`;
+  return `${months[Number(m) - 1]} ${year}`;
 };
 
 const HorizonRow: React.FC<{ item: HorizonItem; onPick?: () => void }> = ({ item, onPick }) => {
+  const t = useT();
   const navigate = useNavigate();
   const days = daysUntil(item.date);
   const tone = horizonTone(days);
@@ -48,12 +51,12 @@ const HorizonRow: React.FC<{ item: HorizonItem; onPick?: () => void }> = ({ item
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium text-text">{item.label}</span>
           <span className="block truncate text-[11px] text-muted">
-            {item.tool} · {Number(item.date.slice(8, 10))}hb
+            {item.tool} · {t(`${Number(item.date.slice(8, 10))}hb`, `day ${Number(item.date.slice(8, 10))}`)}
           </span>
         </span>
         <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${TONE_PILL[tone]}`}
               style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {days < 0 ? `Lewat ${-days}h` : days === 0 ? 'Hari ni' : `${days}h`}
+          {days < 0 ? t(`Lewat ${-days}h`, `${-days}d late`) : days === 0 ? t('Hari ni', 'Today') : t(`${days}h`, `${days}d`)}
         </span>
       </button>
     </li>
@@ -61,13 +64,14 @@ const HorizonRow: React.FC<{ item: HorizonItem; onPick?: () => void }> = ({ item
 };
 
 export const HorizonList: React.FC<{ items: HorizonItem[]; onPick?: () => void }> = ({ items, onPick }) => {
+  const t = useT();
   const groups = byMonth(items);
 
   if (groups.length === 0) {
     return (
       <p className="px-2 py-6 text-sm leading-relaxed text-muted">
-        Tiada tarikh akan datang lagi. Simpan satu rekod bertarikh — roadtax, warranty, servis —
-        dan ia muncul di sini.
+        {t('Tiada tarikh akan datang lagi. Simpan satu rekod bertarikh — roadtax, warranty, servis — dan ia muncul di sini.',
+           'No upcoming dates yet. Save one dated record — roadtax, a warranty, a service — and it shows up here.')}
       </p>
     );
   }
@@ -77,7 +81,7 @@ export const HorizonList: React.FC<{ items: HorizonItem[]; onPick?: () => void }
       {groups.map((group) => (
         <div key={group.month} className="mb-2">
           <p className="px-2 pb-1 pt-2 text-[10px] font-bold uppercase tracking-[0.16em] text-muted">
-            {monthLabel(group.month)}
+            {monthLabel(group.month, t(MONTHS_MS, MONTHS_EN))}
           </p>
           <ul>
             {group.items.map((item) => <HorizonRow key={item.key} item={item} onPick={onPick} />)}

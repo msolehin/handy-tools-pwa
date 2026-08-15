@@ -4,6 +4,7 @@ import { Calendar, Plus, X, Image as ImageIcon, Trash2, Pencil, Check } from 'lu
 import { downscaleFile } from '../lib/downscale';
 import { store } from '../lib/store';
 import { daysUntil } from '../lib/horizon';
+import { useT, t as tr, locale } from '../lib/lang';
 
 interface CountdownEvent {
   id: string;
@@ -19,9 +20,10 @@ interface CountdownEvent {
 const hueOf = (title: string) => [...title].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
 
 const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString('ms-MY', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+  new Date(iso).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
 
 const Countdown: React.FC = () => {
+  const t = useT();
   const [events, setEvents] = useState<CountdownEvent[]>(() => {
     const saved = store.getItem('cd_events');
     return saved ? JSON.parse(saved) : [];
@@ -77,7 +79,7 @@ const Countdown: React.FC = () => {
   };
 
   const removeEvent = (event: CountdownEvent) => {
-    if (window.confirm(`Padam countdown ke ${event.title}?`)) {
+    if (window.confirm(tr(`Padam countdown ke ${event.title}?`, `Delete the countdown to ${event.title}?`))) {
       setEvents(prev => prev.filter(ev => ev.id !== event.id));
     }
   };
@@ -87,10 +89,12 @@ const Countdown: React.FC = () => {
   const passed = dated.filter(d => d.days < 0).sort((a, b) => b.days - a.days);
 
   const subtitle = events.length === 0
-    ? 'Percutian, majlis kahwin, hari terakhir kerja'
+    ? t('Percutian, majlis kahwin, hari terakhir kerja', 'Holidays, weddings, your last day at work')
     : upcoming.length === 0
-      ? 'Tiada apa di hadapan — tambah yang seterusnya'
-      : `Seterusnya dalam ${upcoming[0].days === 0 ? 'hari ini' : `${upcoming[0].days} hari`}`;
+      ? t('Tiada apa di hadapan — tambah yang seterusnya', 'Nothing ahead — add the next one')
+      : upcoming[0].days === 0
+        ? t('Seterusnya hari ini', 'Next one is today')
+        : t(`Seterusnya dalam ${upcoming[0].days} hari`, `Next one in ${upcoming[0].days} days`);
 
   const actions = (event: CountdownEvent, onDark: boolean) => (
     // z-10: the poster's text block is `relative` and comes later in the DOM, so without this it
@@ -98,7 +102,7 @@ const Countdown: React.FC = () => {
     <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
       <button
         onClick={() => openForm(event)}
-        aria-label={`Sunting ${event.title}`}
+        aria-label={t(`Sunting ${event.title}`, `Edit ${event.title}`)}
         className={`p-2 rounded-lg backdrop-blur-md transition-colors ${
           onDark ? 'bg-[#000]/55 text-[#fff] hover:bg-[#000]/75'
             : 'bg-text/5 text-muted hover:text-text hover:bg-text/10'
@@ -108,7 +112,7 @@ const Countdown: React.FC = () => {
       </button>
       <button
         onClick={() => removeEvent(event)}
-        aria-label={`Padam ${event.title}`}
+        aria-label={t(`Padam ${event.title}`, `Delete ${event.title}`)}
         className={`p-2 rounded-lg backdrop-blur-md transition-colors ${
           onDark ? 'bg-[#000]/55 text-[#fff] hover:text-rose-300 hover:bg-[#000]/75'
             : 'bg-text/5 text-muted hover:text-rose-500 hover:bg-rose-500/10'
@@ -135,7 +139,7 @@ const Countdown: React.FC = () => {
         onClick={() => openForm()}
         className="w-full py-4 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-pink-500/50 hover:text-pink-500 light:hover:text-pink-700 transition-all flex items-center justify-center"
       >
-        <Plus size={20} className="mr-2" /> Tambah Countdown
+        <Plus size={20} className="mr-2" /> {t('Tambah Countdown', 'Add a countdown')}
       </button>
 
       <div className="space-y-4">
@@ -171,10 +175,10 @@ const Countdown: React.FC = () => {
                   {event.title}
                 </p>
                 <p className="font-extrabold leading-[0.85] tracking-tight text-[#fff] text-6xl mt-1">
-                  {days === 0 ? 'Hari Ini' : days}
+                  {days === 0 ? t('Hari Ini', 'Today') : days}
                 </p>
                 <p className="text-xs text-[#fff]/90 mt-2">
-                  {days === 0 ? formatDate(event.targetDate) : `hari · ${formatDate(event.targetDate)}`}
+                  {days === 0 ? formatDate(event.targetDate) : `${t('hari', 'days')} · ${formatDate(event.targetDate)}`}
                 </p>
               </div>
             </div>
@@ -183,7 +187,7 @@ const Countdown: React.FC = () => {
 
         {events.length === 0 && (
           <div className="text-center p-8 text-muted text-sm border border-dashed border-text/10 rounded-2xl">
-            Belum ada apa-apa untuk dikira. Tambah percutian, majlis kahwin, hari terakhir kerja.
+            {t('Belum ada apa-apa untuk dikira. Tambah percutian, majlis kahwin, hari terakhir kerja.', 'Nothing to count down to yet. Add a holiday, a wedding, your last day at work.')}
           </div>
         )}
       </div>
@@ -191,13 +195,13 @@ const Countdown: React.FC = () => {
       {passed.length > 0 && (
         <div className="space-y-2">
           <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted px-1">
-            Sudah Lepas · {passed.length}
+            {t('Sudah Lepas', 'Already Passed')} · {passed.length}
           </h3>
           {passed.map(({ event, days }) => (
             <div key={event.id} className="glass-panel relative p-3 pr-24 flex items-center gap-3">
               <div className="w-11 h-11 rounded-xl bg-text/5 flex flex-col items-center justify-center shrink-0">
                 <span className="font-mono text-sm font-bold text-muted leading-none">{Math.abs(days)}</span>
-                <span className="text-[8px] uppercase tracking-wider text-muted">hari</span>
+                <span className="text-[8px] uppercase tracking-wider text-muted">{t('hari', 'days')}</span>
               </div>
               <div className="min-w-0">
                 <p className="font-bold text-text/70 truncate">{event.title}</p>
@@ -215,31 +219,31 @@ const Countdown: React.FC = () => {
           onClick={() => setShowForm(false)}
           role="dialog"
           aria-modal="true"
-          aria-label={fId ? 'Sunting countdown' : 'Tambah countdown'}
+          aria-label={fId ? t('Sunting countdown', 'Edit countdown') : t('Tambah countdown', 'Add countdown')}
         >
           <div
             className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up motion-reduce:animate-none"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-lg">{fId ? 'Sunting countdown' : 'Tambah countdown'}</h3>
-              <button onClick={() => setShowForm(false)} aria-label="Tutup" className="p-1 text-muted hover:text-text"><X size={20} /></button>
+              <h3 className="font-bold text-lg">{fId ? t('Sunting countdown', 'Edit countdown') : t('Tambah countdown', 'Add countdown')}</h3>
+              <button onClick={() => setShowForm(false)} aria-label={t('Tutup', 'Close')} className="p-1 text-muted hover:text-text"><X size={20} /></button>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="cd-title">Acara</label>
+              <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="cd-title">{t('Acara', 'Event')}</label>
               <input
                 id="cd-title"
                 autoFocus
                 value={fTitle}
                 onChange={e => setFTitle(e.target.value)}
-                placeholder="cth. Balik kampung, Kahwin, Peperiksaan"
+                placeholder={t('cth. Balik kampung, Kahwin, Peperiksaan', 'e.g. Trip home, Wedding, Exams')}
                 className="input-field w-full"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="cd-date">Tarikh</label>
+              <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="cd-date">{t('Tarikh', 'Date')}</label>
               <input
                 id="cd-date"
                 type="date"
@@ -250,20 +254,20 @@ const Countdown: React.FC = () => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Gambar (pilihan)</label>
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">{t('Gambar (pilihan)', 'Photo (optional)')}</label>
               <input type="file" accept="image/*" onChange={handleImageUpload} ref={fileInputRef} className="hidden" id="cd-image-upload" />
               {fImage ? (
                 <div className="relative h-28 rounded-xl overflow-hidden border border-text/10">
                   <img src={fImage} alt="" className="w-full h-full object-cover" />
                   <button
                     onClick={clearImage}
-                    aria-label="Buang gambar"
+                    aria-label={t('Buang gambar', 'Remove photo')}
                     className="absolute top-2 right-2 p-1.5 rounded-lg bg-[#000]/50 text-[#fff]/80 hover:text-[#fff] backdrop-blur-md"
                   >
                     <X size={14} />
                   </button>
                   <span className="absolute bottom-2 left-2 flex items-center gap-1 text-[11px] font-bold text-[#fff]/90 bg-[#000]/50 px-2 py-1 rounded-lg backdrop-blur-md">
-                    <Check size={12} /> Gambar ditambah
+                    <Check size={12} /> {t('Gambar ditambah', 'Photo added')}
                   </span>
                 </div>
               ) : (
@@ -271,7 +275,7 @@ const Countdown: React.FC = () => {
                   htmlFor="cd-image-upload"
                   className="flex items-center justify-center gap-2 h-16 rounded-xl border border-dashed border-text/15 bg-text/5 text-muted text-sm cursor-pointer hover:text-text hover:bg-text/10 transition-colors"
                 >
-                  <ImageIcon size={18} /> Pilih gambar
+                  <ImageIcon size={18} /> {t('Pilih gambar', 'Choose a photo')}
                 </label>
               )}
             </div>
@@ -281,7 +285,7 @@ const Countdown: React.FC = () => {
               disabled={!canSave}
               className="w-full py-3 rounded-xl bg-pink-600 text-[#fff] font-bold hover:bg-pink-700 disabled:opacity-50 disabled:pointer-events-none"
             >
-              {fId ? 'Simpan Perubahan' : 'Mula Kira Detik'}
+              {fId ? t('Simpan Perubahan', 'Save Changes') : t('Mula Kira Detik', 'Start Counting')}
             </button>
           </div>
         </div>

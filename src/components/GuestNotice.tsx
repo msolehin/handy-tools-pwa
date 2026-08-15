@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { CloudOff } from 'lucide-react';
 import { SYNCED_ROUTES } from '../lib/store';
 import { getUser, subscribe, type User } from '../lib/auth';
+import { useT } from '../lib/lang';
 
 /**
  * Warns a signed-out user, on the tools that keep records, that what they type here lives in
@@ -13,6 +14,7 @@ import { getUser, subscribe, type User } from '../lib/auth';
  * than none because it reads as "handled".
  */
 const GuestNotice: React.FC<{ onSignIn: () => void }> = ({ onSignIn }) => {
+  const t = useT();
   const [user, setUser] = useState<User | null>(getUser());
   useEffect(() => subscribe(setUser), []);
   const { pathname } = useLocation();
@@ -23,14 +25,14 @@ const GuestNotice: React.FC<{ onSignIn: () => void }> = ({ onSignIn }) => {
     <div className="mb-4 flex items-center gap-3 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25">
       <CloudOff size={18} className="text-amber-500 shrink-0" />
       <p className="text-xs text-text/80 leading-snug flex-1">
-        <span className="font-semibold">Not saved.</span>{' '}
-        You can add entries to try the tool, but they disappear as soon as you refresh.
+        <span className="font-semibold">{t('Tidak disimpan.', 'Not saved.')}</span>{' '}
+        {t('Anda boleh tambah rekod untuk cuba alat ini, tetapi ia hilang sebaik sahaja anda refresh.', 'You can add entries to try the tool, but they disappear as soon as you refresh.')}
       </p>
       <button
         onClick={onSignIn}
         className="shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-600 hover:bg-amber-500/30 transition-colors border border-amber-500/30"
       >
-        Sign in
+        {t('Log masuk', 'Sign in')}
       </button>
     </div>
   );

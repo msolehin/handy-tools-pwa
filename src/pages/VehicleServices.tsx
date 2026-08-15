@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { store } from '../lib/store';
 import { downscaleFile } from '../lib/downscale';
+import { useT, t as trs, locale } from '../lib/lang';
 import { 
   CarFront, Plus, Trash2, Pencil, X, CalendarClock, ChevronDown, ChevronUp, MapPin, Search, Check, Trash, Image as ImageIcon
 } from 'lucide-react';
@@ -44,9 +45,15 @@ interface VehicleData {
 
 const STORAGE_KEY = 'vehicle_services_data';
 const TITLES_KEY = 'vehicle_custom_titles';
-const DEFAULT_TITLES = ['Tukar Minyak Hitam', 'Tukar Brek', 'Servis Aircond', 'Tukar Tayar', 'Tukar Bateri', 'Servis Penuh'];
+// Seeded into the saved title list on first use, so it follows the reader's language. Titles
+// the user has typed themselves are their data and are never rewritten.
+const defaultTitles = () => trs(
+  ['Tukar Minyak Hitam', 'Tukar Brek', 'Servis Aircond', 'Tukar Tayar', 'Tukar Bateri', 'Servis Penuh'],
+  ['Engine Oil Change', 'Brake Change', 'Aircon Service', 'Tyre Change', 'Battery Change', 'Full Service'],
+);
 
-const MON = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogos', 'Sep', 'Okt', 'Nov', 'Dis'];
+const MON_MS = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogos', 'Sep', 'Okt', 'Nov', 'Dis'];
+const MON_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const generateId = () => Math.random().toString(36).substring(2, 9);
 const pad = (n: number) => String(n).padStart(2, '0');
 const todayStr = () => {
@@ -56,7 +63,7 @@ const todayStr = () => {
 
 const formatDate = (dateStr: string) => {
   const d = new Date(dateStr);
-  return d.toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
 // Hook to handle clicking outside to close dropdowns
@@ -77,6 +84,7 @@ function useOutsideClick(ref: React.RefObject<HTMLElement | null>, callback: () 
 }
 
 const VehicleServices: React.FC = () => {
+  const tr = useT();
   const [data, setData] = useState<VehicleData>({ assets: [], events: [] });
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -168,7 +176,7 @@ const VehicleServices: React.FC = () => {
   };
 
   const deleteAsset = (id: string) => {
-    if (window.confirm('Padam kenderaan ni dan semua sejarah servisnya?')) {
+    if (window.confirm(trs('Padam kenderaan ni dan semua sejarah servisnya?', 'Delete this vehicle and all of its service history?'))) {
       setData(prev => ({
         assets: prev.assets.filter(a => a.id !== id),
         events: prev.events.filter(e => e.assetId !== id)
@@ -234,7 +242,7 @@ const VehicleServices: React.FC = () => {
     
     // Auto-save custom title if it doesn't exist
     const trimmedTitle = fTitle.trim();
-    if (!DEFAULT_TITLES.includes(trimmedTitle) && !customTitles.includes(trimmedTitle)) {
+    if (!defaultTitles().includes(trimmedTitle) && !customTitles.includes(trimmedTitle)) {
       setCustomTitles(prev => [...prev, trimmedTitle]);
     }
     
@@ -269,7 +277,7 @@ const VehicleServices: React.FC = () => {
   };
 
   const deleteEvent = (id: string) => {
-    if (window.confirm("Padam rekod servis ni?")) {
+    if (window.confirm(trs('Padam rekod servis ni?', 'Delete this service record?'))) {
       setData(prev => ({ ...prev, events: prev.events.filter(e => e.id !== id) }));
     }
   };
@@ -301,12 +309,12 @@ const VehicleServices: React.FC = () => {
     setExpandedEvents(prev => prev.includes(id) ? prev.filter(e => e !== id) : [...prev, id]);
   };
 
-  const allTitles = [...DEFAULT_TITLES, ...customTitles];
+  const allTitles = [...defaultTitles(), ...customTitles];
   const filteredTitles = allTitles.filter(t => t.toLowerCase().includes(fTitle.toLowerCase()));
 
   const removeCustomTitle = (e: React.MouseEvent, title: string) => {
     e.stopPropagation();
-    if (window.confirm(`Padam nama servis "${title}"?`)) {
+    if (window.confirm(trs(`Padam nama servis "${title}"?`, `Delete the service name "${title}"?`))) {
       setCustomTitles(prev => prev.filter(t => t !== title));
     }
   };
@@ -318,8 +326,8 @@ const VehicleServices: React.FC = () => {
           <CarFront size={24} />
         </div>
         <div>
-          <h2 className="text-2xl font-bold">Servis Kenderaan</h2>
-          <p className="text-sm text-muted">Rekod servis & kos kenderaan</p>
+          <h2 className="text-2xl font-bold">{tr('Servis Kenderaan', 'Vehicle Services')}</h2>
+          <p className="text-sm text-muted">{tr('Rekod servis & kos kenderaan', 'Vehicle service history and costs')}</p>
         </div>
       </div>
 
@@ -344,12 +352,12 @@ const VehicleServices: React.FC = () => {
             <div className={`relative flex items-center justify-between p-4 ${currentAsset?.photo ? 'min-h-[92px] [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]' : ''}`}>
               {currentAsset ? (
                 <div className="min-w-0">
-                  <p className={`text-xs font-bold uppercase tracking-wider mb-0.5 ${currentAsset.photo ? 'text-[#fff]/75' : 'text-muted'}`}>Kenderaan sekarang</p>
+                  <p className={`text-xs font-bold uppercase tracking-wider mb-0.5 ${currentAsset.photo ? 'text-[#fff]/75' : 'text-muted'}`}>{tr('Kenderaan sekarang', 'Current vehicle')}</p>
                   <p className={`font-bold text-lg truncate ${currentAsset.photo ? 'text-[#fff]' : 'text-amber-500 light:text-amber-700'}`}>{currentAsset.name}</p>
-                  <p className={`text-xs truncate ${currentAsset.photo ? 'text-[#fff]/85' : 'text-text/80'}`}>{currentAsset.plate || 'Tiada plat'}</p>
+                  <p className={`text-xs truncate ${currentAsset.photo ? 'text-[#fff]/85' : 'text-text/80'}`}>{currentAsset.plate || tr('Tiada plat', 'No plate')}</p>
                 </div>
               ) : (
-                <p className="font-bold text-muted">Pilih kenderaan...</p>
+                <p className="font-bold text-muted">{tr('Pilih kenderaan...', 'Choose a vehicle...')}</p>
               )}
               <ChevronDown className={`shrink-0 ${currentAsset?.photo ? 'text-[#fff]/80' : 'text-muted'}`} />
             </div>
@@ -364,7 +372,7 @@ const VehicleServices: React.FC = () => {
             className="w-full py-4 rounded-xl border-2 border-dashed border-white/20 text-muted hover:text-amber-400 hover:border-amber-400/50 transition-colors flex flex-col items-center gap-2"
           >
             <Plus size={24} /> 
-            <span className="font-bold">Tambah kenderaan pertama</span>
+            <span className="font-bold">{tr('Tambah kenderaan pertama', 'Add your first vehicle')}</span>
           </button>
         )}
       </div>
@@ -373,7 +381,7 @@ const VehicleServices: React.FC = () => {
         data.assets.length > 0 && (
           <div className="glass-panel p-8 text-center flex flex-col items-center">
             <CarFront size={32} className="text-muted mb-3 opacity-50" />
-            <p className="text-muted text-sm">Pilih kenderaan untuk lihat sejarah servis.</p>
+            <p className="text-muted text-sm">{tr('Pilih kenderaan untuk lihat sejarah servis.', 'Choose a vehicle to see its service history.')}</p>
           </div>
         )
       ) : (
@@ -382,7 +390,7 @@ const VehicleServices: React.FC = () => {
             onClick={() => openEventForm()}
             className="w-full py-4 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-amber-500/50 hover:text-amber-500 light:hover:text-amber-700 transition-all flex items-center justify-center"
           >
-            <Plus size={20} className="mr-2" /> Tambah Servis
+            <Plus size={20} className="mr-2" /> {tr('Tambah Servis', 'Add a Service')}
           </button>
 
           {serviceTitles.length > 0 && (
@@ -399,7 +407,7 @@ const VehicleServices: React.FC = () => {
                   <span className={`truncate text-sm font-bold ${
                     activeFilter === 'all' ? 'text-muted' : 'text-amber-500 light:text-amber-700'
                   }`}>
-                    {activeFilter === 'all' ? 'Semua servis' : activeFilter}
+                    {activeFilter === 'all' ? tr('Semua servis', 'All services') : activeFilter}
                   </span>
                 </span>
                 <span className="flex items-center gap-2 shrink-0">
@@ -414,7 +422,7 @@ const VehicleServices: React.FC = () => {
                     autoFocus
                     value={filterQuery}
                     onChange={e => setFilterQuery(e.target.value)}
-                    placeholder="Cari servis..."
+                    placeholder={tr('Cari servis...', 'Search services...')}
                     className="w-full px-3 py-2 mb-1 bg-background/50 border border-text/10 rounded-lg text-sm text-text placeholder-muted focus:outline-none focus:border-amber-500/50"
                   />
                   <div className="max-h-48 overflow-y-auto">
@@ -428,14 +436,14 @@ const VehicleServices: React.FC = () => {
                             activeFilter === title ? 'text-amber-500 light:text-amber-700 font-bold' : 'text-text'
                           }`}
                         >
-                          <span className="truncate">{title === 'all' ? 'Semua servis' : title}</span>
+                          <span className="truncate">{title === 'all' ? tr('Semua servis', 'All services') : title}</span>
                           <span className="text-xs text-muted shrink-0">
                             {title === 'all' ? assetEvents.length : assetEvents.filter(e => e.title === title).length}
                           </span>
                         </button>
                       ))}
                     {filterQuery.trim() && !serviceTitles.some(t => t.toLowerCase().includes(filterQuery.toLowerCase())) && (
-                      <p className="px-3 py-3 text-xs text-muted">Takde servis sepadan “{filterQuery.trim()}”.</p>
+                      <p className="px-3 py-3 text-xs text-muted">{tr('Takde servis sepadan', 'No service matches')} “{filterQuery.trim()}”.</p>
                     )}
                   </div>
                 </div>
@@ -446,9 +454,9 @@ const VehicleServices: React.FC = () => {
           {assetEvents.length === 0 ? (
             <div className="glass-panel p-8 text-center flex flex-col items-center">
               <CalendarClock size={32} className="text-muted mb-3 opacity-50" />
-              <p className="text-muted text-sm mb-4">Takde sejarah servis untuk kenderaan ni.</p>
+              <p className="text-muted text-sm mb-4">{tr('Takde sejarah servis untuk kenderaan ni.', 'No service history for this vehicle yet.')}</p>
               <button onClick={() => openEventForm()} className="px-4 py-2 bg-amber-500/20 text-amber-500 light:text-amber-700 rounded-lg font-bold hover:bg-amber-500/30 transition-colors text-sm">
-                Tambah servis pertama
+                {tr('Tambah servis pertama', 'Add the first service')}
               </button>
             </div>
           ) : (
@@ -466,7 +474,7 @@ const VehicleServices: React.FC = () => {
                         {Number(event.date.slice(8, 10))}
                       </span>
                       <span className="text-[8px] font-bold uppercase tracking-wider text-muted leading-none mt-0.5">
-                        {MON[Number(event.date.slice(5, 7)) - 1]}
+                        {tr(MON_MS, MON_EN)[Number(event.date.slice(5, 7)) - 1]}
                       </span>
                     </div>
 
@@ -477,8 +485,8 @@ const VehicleServices: React.FC = () => {
                           <p className="font-mono text-xs text-muted mt-0.5 truncate">{formatDate(event.date)}{event.mileage ? ` \u00b7 ${event.mileage}` : ''}</p>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
-                          <button onClick={() => openEventForm(event)} aria-label="Ubah rekod" className="p-1.5 text-muted hover:text-amber-500 rounded-lg bg-text/5"><Pencil size={14} /></button>
-                          <button onClick={() => deleteEvent(event.id)} aria-label="Padam rekod" className="p-1.5 text-muted hover:text-rose-500 rounded-lg bg-text/5"><Trash2 size={14} /></button>
+                          <button onClick={() => openEventForm(event)} aria-label={tr('Ubah rekod', 'Edit record')} className="p-1.5 text-muted hover:text-amber-500 rounded-lg bg-text/5"><Pencil size={14} /></button>
+                          <button onClick={() => deleteEvent(event.id)} aria-label={tr('Padam rekod', 'Delete record')} className="p-1.5 text-muted hover:text-rose-500 rounded-lg bg-text/5"><Trash2 size={14} /></button>
                         </div>
                       </div>
 
@@ -494,12 +502,12 @@ const VehicleServices: React.FC = () => {
                             <p className={`text-xs font-bold flex items-center gap-1 ${
                               event.nextDone ? 'text-muted line-through' : 'text-rose-500 light:text-rose-700'
                             }`}>
-                              <CalendarClock size={12} /> Seterusnya: {formatDate(event.nextServiceDate)}
+                              <CalendarClock size={12} /> {tr('Seterusnya', 'Next')}: {formatDate(event.nextServiceDate)}
                             </p>
                             <button
                               onClick={() => toggleNextDone(event.id)}
                               aria-pressed={!!event.nextDone}
-                              title={event.nextDone ? 'Tap kalau belum buat lagi' : 'Tap kalau dah buat servis ni'}
+                              title={event.nextDone ? tr('Tap kalau belum buat lagi', 'Tap if it has not been done yet') : tr('Tap kalau dah buat servis ni', 'Tap once this service is done')}
                               className={`px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors flex items-center gap-1 ${
                                 event.nextDone
                                   ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-500 light:text-emerald-700'
@@ -507,7 +515,7 @@ const VehicleServices: React.FC = () => {
                               }`}
                             >
                               {event.nextDone && <Check size={11} strokeWidth={3} />}
-                              {event.nextDone ? 'Dah buat' : 'Dah buat?'}
+                              {event.nextDone ? tr('Dah buat', 'Done') : tr('Dah buat?', 'Done?')}
                             </button>
                           </div>
                         )}
@@ -516,14 +524,14 @@ const VehicleServices: React.FC = () => {
                         <div>
                           <button onClick={() => toggleExpand(event.id)} className="text-xs flex items-center gap-1 text-muted hover:text-text transition-colors py-1">
                             {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                            {isExpanded ? 'Tutup butiran' : 'Lihat butiran'}
+                            {isExpanded ? tr('Tutup butiran', 'Hide details') : tr('Lihat butiran', 'See details')}
                           </button>
                           
                           {isExpanded && (
                             <div className="mt-3 pt-3 border-t border-white/5 space-y-3 animate-slide-up">
                               {event.address && (
                                 <div>
-                                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">Alamat bengkel</p>
+                                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">{tr('Alamat bengkel', 'Workshop address')}</p>
                                   <p className="text-sm text-text/80 bg-black/20 p-2.5 rounded-lg border border-white/5 whitespace-pre-wrap flex items-start gap-2">
                                     <MapPin size={16} className="text-amber-400 shrink-0 mt-0.5" />
                                     {event.address}
@@ -532,7 +540,7 @@ const VehicleServices: React.FC = () => {
                               )}
                               {!event.isLumpsum && event.items.length > 0 && (
                                 <div>
-                                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-2">Senarai item</p>
+                                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-2">{tr('Senarai item', 'Itemised list')}</p>
                                   <div className="space-y-1.5 bg-black/20 p-2.5 rounded-lg border border-white/5">
                                     {event.items.map(item => (
                                       <div key={item.id} className="flex justify-between text-sm">
@@ -545,7 +553,7 @@ const VehicleServices: React.FC = () => {
                               )}
                               {event.notes && (
                                 <div>
-                                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">Nota</p>
+                                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">{tr('Nota', 'Notes')}</p>
                                   <p className="text-sm text-text/80 bg-black/20 p-2.5 rounded-lg border border-white/5 whitespace-pre-wrap">{event.notes}</p>
                                 </div>
                               )}
@@ -567,7 +575,7 @@ const VehicleServices: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowAssetSelector(false)}>
           <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 flex flex-col max-h-[80vh] shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4 shrink-0">
-              <h3 className="font-bold text-lg">Pilih kenderaan</h3>
+              <h3 className="font-bold text-lg">{tr('Pilih kenderaan', 'Choose a vehicle')}</h3>
               <button onClick={() => setShowAssetSelector(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button>
             </div>
             
@@ -577,20 +585,20 @@ const VehicleServices: React.FC = () => {
                 autoFocus
                 value={assetSearchQuery} 
                 onChange={e => setAssetSearchQuery(e.target.value)} 
-                placeholder="Cari kenderaan..." 
+                placeholder={tr('Cari kenderaan...', 'Search vehicles...')} 
                 className="input-field w-full pl-10" 
               />
             </div>
 
             <div className="overflow-y-auto space-y-2 custom-scrollbar pb-2">
               {filteredAssets.length === 0 ? (
-                <p className="text-center text-muted text-sm py-4">Takde kenderaan dijumpai.</p>
+                <p className="text-center text-muted text-sm py-4">{tr('Takde kenderaan dijumpai.', 'No vehicle found.')}</p>
               ) : (
                 filteredAssets.map(asset => (
                   <div key={asset.id} className={`flex items-center justify-between p-3 rounded-xl border ${selectedAssetId === asset.id ? 'border-amber-500 bg-amber-500/10' : 'border-white/5 bg-black/20 hover:border-white/10'} transition-colors cursor-pointer`} onClick={() => { setSelectedAssetId(asset.id); setShowAssetSelector(false); }}>
                     <div>
                       <p className={`font-bold ${selectedAssetId === asset.id ? 'text-amber-400' : 'text-text'}`}>{asset.name}</p>
-                      <p className="text-xs text-muted">{asset.plate || 'Tiada plat'}</p>
+                      <p className="text-xs text-muted">{asset.plate || tr('Tiada plat', 'No plate')}</p>
                     </div>
                     <div className="flex items-center gap-1">
                       {selectedAssetId === asset.id && <Check size={18} className="text-amber-400 mr-1" />}
@@ -604,7 +612,7 @@ const VehicleServices: React.FC = () => {
 
             <div className="shrink-0 pt-4 border-t border-white/5 mt-auto">
               <button onClick={() => { setShowAssetSelector(false); setEditAssetId(null); setAssetName(''); setAssetPlate(''); setShowAssetForm(true); }} className="w-full py-3 rounded-xl border border-dashed border-white/20 text-amber-400 font-bold hover:bg-amber-500/10 transition-colors flex items-center justify-center gap-2">
-                <Plus size={18} /> Tambah kenderaan baru
+                <Plus size={18} /> {tr('Tambah kenderaan baru', 'Add a new vehicle')}
               </button>
             </div>
           </div>
@@ -616,22 +624,22 @@ const VehicleServices: React.FC = () => {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowAssetForm(false)}>
           <div className="bg-surface border border-text/10 rounded-3xl w-full max-w-sm p-5 space-y-4 shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-lg">{editAssetId ? 'Sunting' : 'Tambah'} Kenderaan</h3>
+              <h3 className="font-bold text-lg">{editAssetId ? tr('Sunting Kenderaan', 'Edit Vehicle') : tr('Tambah Kenderaan', 'Add Vehicle')}</h3>
               <button onClick={() => setShowAssetForm(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button>
             </div>
             
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Nama kenderaan</label>
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Nama kenderaan', 'Vehicle name')}</label>
               <input autoFocus value={assetName} onChange={e => setAssetName(e.target.value)} placeholder="cth. Honda Civic" className="input-field w-full" />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Nombor plat (pilihan)</label>
-              <input value={assetPlate} onChange={e => setAssetPlate(e.target.value)} placeholder="cth. VHA 1234" className="input-field w-full uppercase" />
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Nombor plat (pilihan)', 'Plate number (optional)')}</label>
+              <input value={assetPlate} onChange={e => setAssetPlate(e.target.value)} placeholder={tr('cth. VHA 1234', 'e.g. VHA 1234')} className="input-field w-full uppercase" />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Gambar (pilihan)</label>
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Gambar (pilihan)', 'Photo (optional)')}</label>
               <input
                 type="file"
                 accept="image/*"
@@ -650,7 +658,7 @@ const VehicleServices: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => { setAssetPhoto(''); if (assetFileRef.current) assetFileRef.current.value = ''; }}
-                    aria-label="Buang gambar"
+                    aria-label={tr('Buang gambar', 'Remove photo')}
                     className="absolute top-2 right-2 p-1.5 rounded-lg bg-[#000]/50 text-[#fff]/80 hover:text-[#fff] backdrop-blur-md"
                   >
                     <X size={14} />
@@ -661,13 +669,13 @@ const VehicleServices: React.FC = () => {
                   htmlFor="asset-photo"
                   className="flex items-center justify-center gap-2 h-14 rounded-xl border border-dashed border-text/15 bg-text/5 text-muted text-sm cursor-pointer hover:text-text hover:bg-text/10 transition-colors"
                 >
-                  <ImageIcon size={18} /> Pilih gambar
+                  <ImageIcon size={18} /> {tr('Pilih gambar', 'Choose a photo')}
                 </label>
               )}
             </div>
 
             <button onClick={saveAsset} disabled={!assetName.trim()} className="w-full py-3 rounded-xl bg-amber-500 text-white font-bold hover:bg-amber-600 disabled:opacity-50 mt-2">
-              Simpan kenderaan
+              {tr('Simpan kenderaan', 'Save vehicle')}
             </button>
           </div>
         </div>
@@ -678,25 +686,25 @@ const VehicleServices: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowEventForm(false)}>
           <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 flex flex-col max-h-[90vh] shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4 shrink-0">
-              <h3 className="font-bold text-lg">{fId ? 'Sunting' : 'Tambah'} Rekod Servis</h3>
+              <h3 className="font-bold text-lg">{fId ? tr('Sunting Rekod Servis', 'Edit Service Record') : tr('Tambah Rekod Servis', 'Add Service Record')}</h3>
               <button onClick={() => setShowEventForm(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button>
             </div>
             
             <div className="overflow-y-auto pr-1 space-y-4 custom-scrollbar pb-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-muted uppercase tracking-wider">Tarikh</label>
+                  <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Tarikh', 'Date')}</label>
                   <input type="date" value={fDate} onChange={e => setFDate(e.target.value)} className="input-field w-full" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-muted uppercase tracking-wider">Perbatuan (pilihan)</label>
-                  <input type="text" value={fMileage} onChange={e => setFMileage(e.target.value)} placeholder="cth. 50,000 km" className="input-field w-full" />
+                  <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Perbatuan (pilihan)', 'Mileage (optional)')}</label>
+                  <input type="text" value={fMileage} onChange={e => setFMileage(e.target.value)} placeholder={tr('cth. 50,000 km', 'e.g. 50,000 km')} className="input-field w-full" />
                 </div>
               </div>
 
               {/* Dynamic Service Title Dropdown */}
               <div className="space-y-1.5 relative" ref={dropdownRef}>
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Jenis servis</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Jenis servis', 'Service type')}</label>
                 <div className="relative">
                   <input 
                     value={fTitle} 
@@ -705,7 +713,7 @@ const VehicleServices: React.FC = () => {
                       setShowTitleDropdown(true);
                     }} 
                     onFocus={() => setShowTitleDropdown(true)}
-                    placeholder="Cari atau taip servis sendiri..." 
+                    placeholder={tr('Cari atau taip servis sendiri...', 'Search or type your own service...')} 
                     className="input-field w-full pr-8" 
                   />
                   <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-muted pointer-events-none" size={16} />
@@ -726,7 +734,7 @@ const VehicleServices: React.FC = () => {
                             <button 
                               onClick={(e) => removeCustomTitle(e, title)} 
                               className="text-muted hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                              title="Padam servis sendiri"
+                              title={tr('Padam servis sendiri', 'Delete this custom service')}
                             >
                               <Trash size={14} />
                             </button>
@@ -739,7 +747,7 @@ const VehicleServices: React.FC = () => {
                         onClick={() => { setShowTitleDropdown(false); }}
                         className="px-3 py-2 text-sm hover:bg-amber-500/10 text-amber-400 rounded-lg cursor-pointer flex items-center gap-2 border-t border-white/5 mt-1"
                       >
-                        <Plus size={14} /> Tambah "{fTitle.trim()}" sebagai baru
+                        <Plus size={14} /> {tr(`Tambah "${fTitle.trim()}" sebagai baru`, `Add "${fTitle.trim()}" as new`)}
                       </div>
                     )}
                   </div>
@@ -747,31 +755,31 @@ const VehicleServices: React.FC = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Alamat bengkel (pilihan)</label>
-                <textarea value={fAddress} onChange={e => setFAddress(e.target.value)} placeholder="Nama atau alamat bengkel..." className="input-field w-full h-16 resize-none py-2" />
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Alamat bengkel (pilihan)', 'Workshop address (optional)')}</label>
+                <textarea value={fAddress} onChange={e => setFAddress(e.target.value)} placeholder={tr('Nama atau alamat bengkel...', 'Workshop name or address...')} className="input-field w-full h-16 resize-none py-2" />
               </div>
 
               <div className="pt-2 border-t border-white/5 space-y-3">
                 <div className="flex bg-black/20 p-1 rounded-xl">
                   <button type="button" onClick={() => setFIsLumpsum(true)} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors ${fIsLumpsum ? 'bg-amber-500 text-white shadow' : 'text-muted hover:text-text'}`}>
-                    Kos sekaligus
+                    {tr('Kos sekaligus', 'Lump sum')}
                   </button>
                   <button type="button" onClick={() => setFIsLumpsum(false)} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors ${!fIsLumpsum ? 'bg-amber-500 text-white shadow' : 'text-muted hover:text-text'}`}>
-                    Senarai item
+                    {tr('Senarai item', 'Itemised')}
                   </button>
                 </div>
 
                 {fIsLumpsum ? (
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-muted uppercase tracking-wider">Jumlah kos (RM)</label>
+                    <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Jumlah kos (RM)', 'Total cost (RM)')}</label>
                     <input type="number" min="0" step="0.01" value={fTotalCost} onChange={e => setFTotalCost(e.target.value)} placeholder="0.00" className="input-field w-full text-xl font-bold" />
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-muted uppercase tracking-wider">Item servis</label>
+                    <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Item servis', 'Service items')}</label>
                     {fItems.map((item, idx) => (
                       <div key={item.id} className="flex items-center gap-2">
-                        <input value={item.name} onChange={e => updateItem(item.id, 'name', e.target.value)} placeholder="Nama item" className="input-field flex-1" />
+                        <input value={item.name} onChange={e => updateItem(item.id, 'name', e.target.value)} placeholder={tr('Nama item', 'Item name')} className="input-field flex-1" />
                         <div className="relative w-24 shrink-0">
                           <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted text-xs">RM</span>
                           <input type="number" min="0" step="0.01" value={item.cost === 0 && idx === fItems.length - 1 ? '' : item.cost} onChange={e => updateItem(item.id, 'cost', parseFloat(e.target.value) || 0)} className="input-field w-full pl-7 pr-2" />
@@ -780,11 +788,11 @@ const VehicleServices: React.FC = () => {
                       </div>
                     ))}
                     <button onClick={addItem} className="w-full py-2 border border-dashed border-white/20 rounded-xl text-amber-400 font-bold hover:bg-amber-500/10 text-sm flex items-center justify-center gap-1">
-                      <Plus size={16} /> Tambah item
+                      <Plus size={16} /> {tr('Tambah item', 'Add an item')}
                     </button>
                     
                     <div className="flex justify-between items-center p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl mt-2">
-                      <span className="text-sm font-bold text-emerald-400">Jumlah Dikira:</span>
+                      <span className="text-sm font-bold text-emerald-400">{tr('Jumlah Dikira:', 'Calculated Total:')}</span>
                       <span className="text-lg font-bold text-emerald-400 font-mono">RM {calcTotal().toFixed(2)}</span>
                     </div>
                   </div>
@@ -792,20 +800,20 @@ const VehicleServices: React.FC = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Tarikh servis seterusnya (pilihan)</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Tarikh servis seterusnya (pilihan)', 'Next service date (optional)')}</label>
                 <input type="date" value={fNextDate} onChange={e => setFNextDate(e.target.value)} className="input-field w-full text-rose-400" />
-                <p className="text-[10px] text-muted">Set tarikh untuk dapat peringatan di skrin Utama.</p>
+                <p className="text-[10px] text-muted">{tr('Set tarikh untuk dapat peringatan di skrin Utama.', 'Set a date to get a reminder on the Home screen.')}</p>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Nota (pilihan)</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Nota (pilihan)', 'Notes (optional)')}</label>
                 <textarea value={fNotes} onChange={e => setFNotes(e.target.value)} placeholder="Mekanik kata check brek lain kali" className="input-field w-full h-16 resize-none py-2" />
               </div>
             </div>
 
             <div className="shrink-0 pt-4 border-t border-white/5">
               <button onClick={saveEvent} disabled={!fTitle.trim() || !fDate} className="w-full py-3 rounded-xl bg-amber-500 text-white font-bold hover:bg-amber-600 disabled:opacity-50">
-                Simpan rekod servis
+                {tr('Simpan rekod servis', 'Save service record')}
               </button>
             </div>
           </div>

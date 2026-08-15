@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { store } from '../lib/store';
 import { daysUntil, horizonTone, renewedDate } from '../lib/horizon';
+import { useT, t as tr, locale } from '../lib/lang';
 
 interface ExpiryDocument {
   id: string;
@@ -18,26 +19,27 @@ interface ExpiryDocument {
  * `months` is the usual renewal term, used to pre-fill the renew sheet.
  *
  * `name` is what gets stored on the record, so it stays in English forever — renaming it would
- * orphan every document already saved. `label` is the only thing shown.
+ * orphan every document already saved. `ms`/`en` are the only things shown.
  */
 const DOC_TYPES = [
-  { name: 'Passport', label: 'Pasport', Icon: BookUser, months: 60 },
-  { name: 'Roadtax', label: 'Roadtax', Icon: CarFront, months: 12 },
-  { name: 'Driving License', label: 'Lesen Memandu', Icon: IdCard, months: 12 },
-  { name: 'Identity Card', label: 'Kad Pengenalan', Icon: Fingerprint, months: 120 },
-  { name: 'Medical Card', label: 'Kad Perubatan', Icon: HeartPulse, months: 12 },
-  { name: 'Visa', label: 'Visa', Icon: Plane, months: 12 },
-  { name: 'Custom', label: 'Lain-lain', Icon: FileText, months: 12 },
+  { name: 'Passport', ms: 'Pasport', en: 'Passport', Icon: BookUser, months: 60 },
+  { name: 'Roadtax', ms: 'Roadtax', en: 'Roadtax', Icon: CarFront, months: 12 },
+  { name: 'Driving License', ms: 'Lesen Memandu', en: 'Driving Licence', Icon: IdCard, months: 12 },
+  { name: 'Identity Card', ms: 'Kad Pengenalan', en: 'Identity Card', Icon: Fingerprint, months: 120 },
+  { name: 'Medical Card', ms: 'Kad Perubatan', en: 'Medical Card', Icon: HeartPulse, months: 12 },
+  { name: 'Visa', ms: 'Visa', en: 'Visa', Icon: Plane, months: 12 },
+  { name: 'Custom', ms: 'Lain-lain', en: 'Other', Icon: FileText, months: 12 },
 ];
 
 const typeOf = (name: string) => DOC_TYPES.find(t => t.name === name) ?? DOC_TYPES[DOC_TYPES.length - 1];
+const labelOf = (name: string) => { const d = typeOf(name); return tr(d.ms, d.en); };
 
 const RENEW_PRESETS = [
-  { label: '6 bln', months: 6 },
-  { label: '1 thn', months: 12 },
-  { label: '2 thn', months: 24 },
-  { label: '3 thn', months: 36 },
-  { label: '5 thn', months: 60 },
+  { ms: '6 bln', en: '6 mo', months: 6 },
+  { ms: '1 thn', en: '1 yr', months: 12 },
+  { ms: '2 thn', en: '2 yr', months: 24 },
+  { ms: '3 thn', en: '3 yr', months: 36 },
+  { ms: '5 thn', en: '5 yr', months: 60 },
 ];
 
 type Tone = 'expired' | 'due' | 'valid';
@@ -75,9 +77,9 @@ const toneOf = (days: number): Tone =>
   days < 0 ? 'expired' : horizonTone(days) === 'emerald' ? 'valid' : 'due';
 
 const statusText = (days: number) =>
-  days < 0 ? `Dah tamat ${Math.abs(days)} hari lepas`
-    : days === 0 ? 'Tamat hari ni'
-      : `Tinggal ${days} hari`;
+  days < 0 ? tr(`Dah tamat ${Math.abs(days)} hari lepas`, `Expired ${Math.abs(days)} days ago`)
+    : days === 0 ? tr('Tamat hari ni', 'Expires today')
+      : tr(`Tinggal ${days} hari`, `${days} days left`);
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const todayStr = () => {
@@ -86,7 +88,7 @@ const todayStr = () => {
 };
 
 const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' });
+  new Date(iso).toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' });
 
 /**
  * The chevron strip printed along the bottom of a passport data page. Not a real machine-readable
@@ -99,6 +101,7 @@ const mrz = (title: string, expiry: string) => {
 };
 
 const DocumentExpiry: React.FC = () => {
+  const t = useT();
   const [documents, setDocuments] = useState<ExpiryDocument[]>(() => {
     const saved = store.getItem('de_documents');
     return saved ? JSON.parse(saved) : [];
@@ -167,8 +170,8 @@ const DocumentExpiry: React.FC = () => {
   };
 
   const removeDocument = (doc: ExpiryDocument) => {
-    const name = doc.customTitle || typeOf(doc.type).label;
-    if (window.confirm(`Padam ${name}?`)) {
+    const name = doc.customTitle || labelOf(doc.type);
+    if (window.confirm(tr(`Padam ${name}?`, `Delete ${name}?`))) {
       setDocuments(prev => prev.filter(d => d.id !== doc.id));
     }
   };
@@ -187,17 +190,17 @@ const DocumentExpiry: React.FC = () => {
   const q = query.trim().toLowerCase();
   const shown = sorted.filter(({ doc }) =>
     (active === 'all' || doc.type === active)
-    && (!q || (doc.customTitle || '').toLowerCase().includes(q) || typeOf(doc.type).label.toLowerCase().includes(q)));
+    && (!q || (doc.customTitle || '').toLowerCase().includes(q) || labelOf(doc.type).toLowerCase().includes(q)));
 
   const expiredCount = sorted.filter(d => d.days < 0).length;
   const dueCount = sorted.filter(d => d.days >= 0 && toneOf(d.days) === 'due').length;
 
   const subtitle = documents.length === 0
-    ? 'Pasport, roadtax, lesen — sebelum tamat tempoh'
+    ? t('Pasport, roadtax, lesen — sebelum tamat tempoh', 'Passport, roadtax, licence — before they run out')
     : [
-      expiredCount && `${expiredCount} dah tamat`,
-      dueCount && `${dueCount} hampir tamat`,
-    ].filter(Boolean).join(' · ') || `Semua ${documents.length} masih sah`;
+      expiredCount && t(`${expiredCount} dah tamat`, `${expiredCount} expired`),
+      dueCount && t(`${dueCount} hampir tamat`, `${dueCount} expiring soon`),
+    ].filter(Boolean).join(' · ') || t(`Semua ${documents.length} masih sah`, `All ${documents.length} still valid`);
 
   const sheet = (title: string, body: React.ReactNode) => createPortal((
     <div
@@ -213,7 +216,7 @@ const DocumentExpiry: React.FC = () => {
       >
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-lg">{title}</h3>
-          <button onClick={closeSheets} aria-label="Tutup" className="p-1 text-muted hover:text-text"><X size={20} /></button>
+          <button onClick={closeSheets} aria-label={t('Tutup', 'Close')} className="p-1 text-muted hover:text-text"><X size={20} /></button>
         </div>
         {body}
       </div>
@@ -236,7 +239,7 @@ const DocumentExpiry: React.FC = () => {
         onClick={() => openForm()}
         className="w-full py-4 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-rose-500/50 hover:text-rose-500 light:hover:text-rose-700 transition-all flex items-center justify-center"
       >
-        <Plus size={20} className="mr-2" /> Tambah Dokumen
+        <Plus size={20} className="mr-2" /> {t('Tambah Dokumen', 'Add a document')}
       </button>
 
       {documents.length > 1 && (
@@ -246,12 +249,12 @@ const DocumentExpiry: React.FC = () => {
             <input
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Cari nama atau jenis"
-              aria-label="Cari dokumen"
+              placeholder={t('Cari nama atau jenis', 'Search a name or type')}
+              aria-label={t('Cari dokumen', 'Search documents')}
               className="input-field w-full text-sm py-2 pl-9 pr-9"
             />
             {query && (
-              <button onClick={() => setQuery('')} aria-label="Kosongkan carian" className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-muted hover:text-text">
+              <button onClick={() => setQuery('')} aria-label={t('Kosongkan carian', 'Clear the search')} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-muted hover:text-text">
                 <X size={14} />
               </button>
             )}
@@ -263,12 +266,12 @@ const DocumentExpiry: React.FC = () => {
               <select
                 value={active}
                 onChange={e => setFilter(e.target.value)}
-                aria-label="Tapis ikut jenis"
+                aria-label={t('Tapis ikut jenis', 'Filter by type')}
                 className="input-field w-full pl-8 py-2 text-sm appearance-none"
               >
-                <option value="all">Semua jenis</option>
-                {usedTypes.map(({ name, label }) => (
-                  <option key={name} value={name}>{label}</option>
+                <option value="all">{t('Semua jenis', 'All types')}</option>
+                {usedTypes.map(({ name, ms, en }) => (
+                  <option key={name} value={name}>{t(ms, en)}</option>
                 ))}
               </select>
             </div>
@@ -280,7 +283,7 @@ const DocumentExpiry: React.FC = () => {
         {shown.map(({ doc, days }) => {
           const tone = TONE[toneOf(days)];
           const { Icon } = typeOf(doc.type);
-          const title = doc.customTitle || typeOf(doc.type).label;
+          const title = doc.customTitle || labelOf(doc.type);
 
           return (
             <div key={doc.id} className={`glass-panel relative overflow-hidden p-4 transition-shadow ${tone.glow}`}>
@@ -306,10 +309,10 @@ const DocumentExpiry: React.FC = () => {
                 </div>
                 <div className="min-w-0 flex-1">
                   <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-muted truncate">
-                    {doc.type === 'Custom' ? 'Dokumen' : typeOf(doc.type).label}
+                    {doc.type === 'Custom' ? t('Dokumen', 'Document') : labelOf(doc.type)}
                   </span>
                   <h3 className="font-bold text-text truncate leading-tight">{title}</h3>
-                  <p className="font-mono text-xs text-muted">Tamat {formatDate(doc.expiryDate)}</p>
+                  <p className="font-mono text-xs text-muted">{t('Tamat', 'Expires')} {formatDate(doc.expiryDate)}</p>
                 </div>
               </div>
 
@@ -324,7 +327,7 @@ const DocumentExpiry: React.FC = () => {
                     {Math.abs(days)}
                   </p>
                   <p className={`text-[10px] font-bold uppercase tracking-[0.16em] mt-1.5 ${tone.text}`}>
-                    {days < 0 ? 'hari lewat' : days === 0 ? 'tamat hari ni' : 'hari lagi'}
+                    {days < 0 ? t('hari lewat', 'days overdue') : days === 0 ? t('tamat hari ni', 'expires today') : t('hari lagi', 'days left')}
                   </p>
                 </div>
 
@@ -333,18 +336,18 @@ const DocumentExpiry: React.FC = () => {
                     onClick={() => openRenew(doc)}
                     className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-colors ${tone.btn}`}
                   >
-                    <RotateCw size={14} /> Perbaharui
+                    <RotateCw size={14} /> {t('Perbaharui', 'Renew')}
                   </button>
                   <button
                     onClick={() => openForm(doc)}
-                    aria-label={`Sunting ${title}`}
+                    aria-label={t(`Sunting ${title}`, `Edit ${title}`)}
                     className="p-2 text-muted hover:text-text bg-text/5 hover:bg-text/10 rounded-lg transition-colors"
                   >
                     <Pencil size={16} />
                   </button>
                   <button
                     onClick={() => removeDocument(doc)}
-                    aria-label={`Padam ${title}`}
+                    aria-label={t(`Padam ${title}`, `Delete ${title}`)}
                     className="p-2 text-muted hover:text-rose-500 bg-text/5 hover:bg-rose-500/10 rounded-lg transition-colors"
                   >
                     <Trash2 size={16} />
@@ -365,18 +368,18 @@ const DocumentExpiry: React.FC = () => {
         {shown.length === 0 && (
           <div className="text-center p-8 text-muted text-sm border border-dashed border-text/10 rounded-2xl">
             {documents.length === 0
-              ? 'Takde dokumen lagi. Tambah pasport, roadtax atau lesen untuk dapat amaran sebelum tamat tempoh.'
-              : 'Takde dokumen yang padan dengan carian ni.'}
+              ? t('Takde dokumen lagi. Tambah pasport, roadtax atau lesen untuk dapat amaran sebelum tamat tempoh.', 'No documents yet. Add a passport, roadtax or licence to be warned before it runs out.')
+              : t('Takde dokumen yang padan dengan carian ni.', 'No document matches this search.')}
           </div>
         )}
       </div>
 
-      {showForm && sheet(fId ? 'Ubah dokumen' : 'Tambah dokumen', (
+      {showForm && sheet(fId ? t('Ubah dokumen', 'Edit document') : t('Tambah dokumen', 'Add document'), (
         <>
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-muted uppercase tracking-wider">Jenis</label>
+            <label className="text-xs font-bold text-muted uppercase tracking-wider">{t('Jenis', 'Type')}</label>
             <div className="grid grid-cols-3 gap-2">
-              {DOC_TYPES.map(({ name, label, Icon }) => (
+              {DOC_TYPES.map(({ name, ms, en, Icon }) => (
                 <button
                   key={name}
                   onClick={() => setFType(name)}
@@ -386,7 +389,7 @@ const DocumentExpiry: React.FC = () => {
                   }`}
                 >
                   <Icon size={16} className="shrink-0" />
-                  <span className="truncate">{label}</span>
+                  <span className="truncate">{t(ms, en)}</span>
                 </button>
               ))}
             </div>
@@ -394,20 +397,20 @@ const DocumentExpiry: React.FC = () => {
 
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="de-label">
-              Nama {fType === 'Custom' ? '' : '(pilihan)'}
+              {t('Nama', 'Name')} {fType === 'Custom' ? '' : t('(pilihan)', '(optional)')}
             </label>
             <input
               id="de-label"
               value={fTitle}
               onChange={e => setFTitle(e.target.value)}
-              placeholder={fType === 'Custom' ? 'cth. Sijil MyKKP' : `cth. Myvi WWW 1234`}
+              placeholder={fType === 'Custom' ? t('cth. Sijil MyKKP', 'e.g. MyKKP certificate') : t('cth. Myvi WWW 1234', 'e.g. Myvi WWW 1234')}
               className="input-field w-full"
             />
-            <p className="text-[10px] text-muted">Bagi nama supaya dua dokumen sama jenis tak keliru.</p>
+            <p className="text-[10px] text-muted">{t('Bagi nama supaya dua dokumen sama jenis tak keliru.', 'Name it so two documents of the same type do not get mixed up.')}</p>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="de-date">Tamat pada</label>
+            <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="de-date">{t('Tamat pada', 'Expires on')}</label>
             <input
               id="de-date"
               type="date"
@@ -422,38 +425,38 @@ const DocumentExpiry: React.FC = () => {
             disabled={!canSaveForm}
             className="w-full py-3 rounded-xl bg-rose-600 text-[#fff] font-bold hover:bg-rose-700 disabled:opacity-50 disabled:pointer-events-none"
           >
-            {fId ? 'Simpan perubahan' : 'Simpan dokumen'}
+            {fId ? t('Simpan perubahan', 'Save changes') : t('Simpan dokumen', 'Save document')}
           </button>
         </>
       ))}
 
-      {renewing && sheet(`Perbaharui ${renewing.customTitle || typeOf(renewing.type).label}`, (
+      {renewing && sheet(t(`Perbaharui ${renewing.customTitle || labelOf(renewing.type)}`, `Renew ${renewing.customTitle || labelOf(renewing.type)}`), (
         <>
           <p className="text-sm text-muted">
-            Tamat {formatDate(renewing.expiryDate)} — {statusText(daysUntil(renewing.expiryDate)).toLowerCase()}.
-            {daysUntil(renewing.expiryDate) >= 0 && ' Tempoh baru bermula pada hari ia tamat.'}
+            {t('Tamat', 'Expires')} {formatDate(renewing.expiryDate)} — {statusText(daysUntil(renewing.expiryDate)).toLowerCase()}.
+            {daysUntil(renewing.expiryDate) >= 0 && t(' Tempoh baru bermula pada hari ia tamat.', ' The new term starts the day it expires.')}
           </p>
 
           <div className="grid grid-cols-5 gap-1.5">
-            {RENEW_PRESETS.map(({ label, months }) => {
+            {RENEW_PRESETS.map(({ ms, en, months }) => {
               const date = renewedDate(renewing.expiryDate, months);
               return (
                 <button
-                  key={label}
+                  key={months}
                   onClick={() => setRenewDate(date)}
                   aria-pressed={renewDate === date}
                   className={`py-2 rounded-lg text-xs font-bold transition-colors ${
                     renewDate === date ? 'bg-rose-600 text-[#fff]' : 'bg-text/5 text-muted hover:text-text'
                   }`}
                 >
-                  {label}
+                  {t(ms, en)}
                 </button>
               );
             })}
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="de-renew">Tarikh tamat baru</label>
+            <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="de-renew">{t('Tarikh tamat baru', 'New expiry date')}</label>
             <input
               id="de-renew"
               type="date"
@@ -469,7 +472,7 @@ const DocumentExpiry: React.FC = () => {
             disabled={!renewDate}
             className="w-full py-3 rounded-xl bg-rose-600 text-[#fff] font-bold hover:bg-rose-700 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
           >
-            <Check size={18} /> Simpan tarikh baru
+            <Check size={18} /> {t('Simpan tarikh baru', 'Save the new date')}
           </button>
         </>
       ))}

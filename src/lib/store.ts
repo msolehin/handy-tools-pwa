@@ -12,6 +12,7 @@
 
 // Explicit .ts extension so `node --test` can resolve this too (Vite handles it either way).
 import { getUser, setUser, subscribe as subscribeToAuth, type User } from './auth.ts';
+import { t } from './lang.ts';
 
 /**
  * Every outcome the user is told about, from one place. Pages don't announce their own saves:
@@ -129,7 +130,7 @@ export const store = {
     // write that arrives once we're back online look like a no-op above, and the edit would be
     // swallowed for good. The store holds only what genuinely reached the account.
     if (signedIn && !navigator.onLine) {
-      announce('offline', 'No internet detected. Nothing was saved — reconnect and try again.');
+      announce('offline', t('Tiada internet. Tiada apa disimpan — sambung semula dan cuba lagi.', 'No internet detected. Nothing was saved — reconnect and try again.'));
       return;
     }
 
@@ -149,7 +150,7 @@ export const store = {
     if (!SYNCED_KEYS.has(key)) { localStorage.removeItem(key); return; }
 
     if (signedIn && !navigator.onLine) {
-      announce('offline', 'No internet detected. Nothing was deleted — reconnect and try again.');
+      announce('offline', t('Tiada internet. Tiada apa dipadam — sambung semula dan cuba lagi.', 'No internet detected. Nothing was deleted — reconnect and try again.'));
       return;
     }
 
@@ -194,7 +195,7 @@ export async function flush(): Promise<void> {
         localStorage.removeItem(UID_KEY);
         localStorage.removeItem(USER_KEY);
         setUser(null);
-        announce('error', 'Your session expired. Sign in again to keep saving.');
+        announce('error', t('Sesi anda telah tamat. Log masuk semula untuk terus menyimpan.', 'Your session expired. Sign in again to keep saving.'));
         return;
       }
 
@@ -205,7 +206,7 @@ export async function flush(): Promise<void> {
         window.dispatchEvent(new CustomEvent('store:conflict', {
           detail: { key, rev: conflict.rev, data: conflict.data },
         }));
-        announce('error', 'This was changed on another device. Not saved yet.');
+        announce('error', t('Ini telah diubah pada peranti lain. Belum disimpan.', 'This was changed on another device. Not saved yet.'));
         continue;
       }
 
@@ -219,14 +220,14 @@ export async function flush(): Promise<void> {
       backoff = Math.min(backoff * 2, 60_000);
       flushTimer = setTimeout(() => { void flush(); }, backoff);
       localStorage.setItem(DIRTY_KEY, JSON.stringify([...dirty]));
-      announce('error', "Couldn't save to your account. Retrying…");
+      announce('error', t('Gagal simpan ke akaun anda. Cuba semula…', "Couldn't save to your account. Retrying…"));
       return; // leave this key and the rest dirty; try again later
     }
   }
 
   backoff = 1000;
   localStorage.setItem(DIRTY_KEY, JSON.stringify([...dirty]));
-  if (pushed) announce('saved', 'Saved to your account.');
+  if (pushed) announce('saved', t('Disimpan ke akaun anda.', 'Saved to your account.'));
 }
 
 /**
@@ -397,8 +398,8 @@ export async function bootstrap(): Promise<void> {
   if (wasGuest || changed) {
     const tools = Object.keys(payload.data).length;
     announce('loaded', tools
-      ? `Signed in. Your data loaded successfully (${tools} tools).`
-      : 'Signed in. This account has no saved data yet.');
+      ? t(`Log masuk berjaya. Data anda dimuatkan (${tools} alat).`, `Signed in. Your data loaded successfully (${tools} tools).`)
+      : t('Log masuk berjaya. Akaun ini belum ada data tersimpan.', 'Signed in. This account has no saved data yet.'));
   }
 }
 
@@ -499,5 +500,5 @@ window.addEventListener('online', () => {
   void (pulled ? flush() : bootstrap());
 });
 window.addEventListener('offline', () => {
-  if (signedIn) announce('offline', 'No internet detected. Changes cannot be saved right now.');
+  if (signedIn) announce('offline', t('Tiada internet. Perubahan tidak boleh disimpan sekarang.', 'No internet detected. Changes cannot be saved right now.'));
 });

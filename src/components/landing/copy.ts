@@ -1,12 +1,14 @@
 // Landing-page copy in both languages. Deliberately a plain object, not an i18n framework —
-// spec §10 rules one out, and this is one page. The app itself keeps its own voice (Malay tool
-// names, English body) and is unaffected by this toggle.
+// spec §10 rules one out. Long-form prose belongs in a block like this; the app's own labels use
+// the `t('ms', 'en')` pairs from lib/lang, which now owns the language state this page reads.
 //
 // `ms` is the source of truth: COPY is typed so `en` fails to compile if it misses a key.
 
-import { useEffect, useState } from 'react';
+// Explicit .ts extension so `node --test` can resolve this too (Vite handles it either way).
+import { getLang, setLang, useLang, type Lang } from '../../lib/lang.ts';
 
-export type Lang = 'ms' | 'en';
+export { getLang, setLang };
+export type { Lang };
 
 const ms = {
   nav: { openApp: 'Buka app', theme: (light: boolean): string => (light ? 'Mod gelap' : 'Mod cerah') },
@@ -524,25 +526,8 @@ const en: typeof ms = {
 
 export const COPY: Record<Lang, typeof ms> = { ms, en };
 
-const LANG_KEY = 'landing_lang';
-const listeners = new Set<(l: Lang) => void>();
-
-export const getLang = (): Lang =>
-  localStorage.getItem(LANG_KEY) === 'en' ? 'en' : 'ms'; // Malay by default — the audience
-
-export function setLang(next: Lang) {
-  localStorage.setItem(LANG_KEY, next);
-  document.documentElement.lang = next === 'ms' ? 'ms' : 'en';
-  for (const fn of listeners) fn(next);
-}
-
 /** Current language, its copy, and a setter. Shared across every landing component. */
 export function useCopy() {
-  const [lang, setLocal] = useState<Lang>(getLang);
-  useEffect(() => {
-    document.documentElement.lang = lang === 'ms' ? 'ms' : 'en';
-    listeners.add(setLocal);
-    return () => { listeners.delete(setLocal); };
-  }, [lang]);
+  const lang = useLang();
   return { lang, t: COPY[lang], setLang };
 }

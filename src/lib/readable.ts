@@ -1,5 +1,6 @@
 // Turning a stored value into something a person can read off a screen at a glance.
 import { daysUntil } from './horizon.ts';
+import { t } from './lang.ts';
 
 /**
  * Long numbers are read four digits at a time — the way they are printed on a card or a bill.
@@ -20,8 +21,9 @@ export const maskDigits = (v: string) =>
 export const relativeDay = (iso: string, now = new Date()) => {
   const days = daysUntil(iso, now);
   const n = Math.abs(days);
-  const span = n < 31 ? `${n} hari`
-    : n < 365 ? `${Math.round(n / 30)} bulan`
-      : `${(n / 365).toFixed(n < 730 ? 1 : 0)} tahun`;
-  return days === 0 ? 'Hari ini' : days > 0 ? `${span} lagi` : `${span} lalu`;
+  const span = n < 31 ? t(`${n} hari`, `${n} day${n === 1 ? '' : 's'}`)
+    : n < 365 ? t(`${Math.round(n / 30)} bulan`, `${Math.round(n / 30)} month${Math.round(n / 30) === 1 ? '' : 's'}`)
+      : t(`${(n / 365).toFixed(n < 730 ? 1 : 0)} tahun`, `${(n / 365).toFixed(n < 730 ? 1 : 0)} years`);
+  if (days === 0) return t('Hari ini', 'Today');
+  return days > 0 ? t(`${span} lagi`, `in ${span}`) : t(`${span} lalu`, `${span} ago`);
 };

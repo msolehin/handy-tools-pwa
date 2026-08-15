@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Home, CalendarClock, Search } from 'lucide-react';
-import { MAIN_TOOLS, SIDE_TOOLS, duitRayaLook } from '../lib/tools';
+import { MAIN_TOOLS, SIDE_TOOLS, duitRayaLook, categoryLabel } from '../lib/tools';
+import { useT } from '../lib/lang';
 import { HorizonList } from './HorizonList';
 import { useHorizon } from '../lib/useHorizon';
 
@@ -62,12 +63,13 @@ const RailGroup: React.FC<{ heading: string; tools: typeof MAIN_TOOLS }> = ({ he
 );
 
 export const ToolRail: React.FC = () => {
+  const t = useT();
   const [query, setQuery] = useState('');
   const q = query.trim().toLowerCase();
   // Description and category too, so "roadtax" finds Document Expiry and "duit" finds the money
   // tools — the names are Malay but what you remember about a tool often isn't its name.
   const match = (tool: typeof MAIN_TOOLS[number]) =>
-    !q || `${tool.title} ${tool.desc} ${tool.category} ${tool.id === '/duit-raya' ? 'angpao raya' : ''}`
+    !q || `${tool.title} ${tool.desc} ${tool.descEn ?? ''} ${tool.category} ${categoryLabel(tool.category)} ${tool.id === '/duit-raya' ? 'angpao raya' : ''}`
       .toLowerCase().includes(q);
 
   const main = MAIN_TOOLS.filter(match);
@@ -75,7 +77,7 @@ export const ToolRail: React.FC = () => {
 
   return (
     <nav
-      aria-label="Tools"
+      aria-label={t('Alat', 'Tools')}
       className="hidden w-60 shrink-0 flex-col overflow-hidden rounded-3xl border border-text/10 bg-surface/40 p-2.5 lg:flex"
     >
       <div className="relative mb-1.5">
@@ -84,8 +86,8 @@ export const ToolRail: React.FC = () => {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Cari alat"
-          aria-label="Cari alat"
+          placeholder={t('Cari alat', 'Search tools')}
+          aria-label={t('Cari alat', 'Search tools')}
           className="w-full rounded-xl border border-text/10 bg-background/60 py-2 pl-9 pr-3 text-sm text-text placeholder:text-muted focus:border-primary/50 focus:outline-none"
         />
       </div>
@@ -102,16 +104,16 @@ export const ToolRail: React.FC = () => {
             <span className="rounded-lg bg-primary/15 p-1.5 text-primary">
               <Home size={15} />
             </span>
-            <span>Semua alat</span>
+            <span>{t('Semua alat', 'All tools')}</span>
           </NavLink>
         )}
 
-        <RailGroup heading="Simpan rekod" tools={main} />
-        <RailGroup heading="Alat lain" tools={side} />
+        <RailGroup heading={t('Simpan rekod', 'Keeps records')} tools={main} />
+        <RailGroup heading={t('Alat lain', 'Other tools')} tools={side} />
 
         {q && main.length + side.length === 0 && (
           <p className="px-2.5 py-6 text-sm leading-relaxed text-muted">
-            Tiada alat sepadan “{query}”.
+            {t('Tiada alat sepadan', 'No tool matches')} “{query}”.
           </p>
         )}
       </div>
@@ -120,17 +122,18 @@ export const ToolRail: React.FC = () => {
 };
 
 export const HorizonPanel: React.FC = () => {
+  const t = useT();
   const items = useHorizon();
 
   return (
     <aside
-      aria-label="Tarikh akan datang"
+      aria-label={t('Tarikh akan datang', 'Upcoming dates')}
       className="hidden w-72 shrink-0 flex-col overflow-hidden rounded-3xl border border-text/10 bg-surface/40 lg:flex"
     >
       <div className="flex items-center gap-2 border-b border-text/10 px-4 py-3.5">
         <CalendarClock size={16} className="text-primary" />
         <h2 className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted">
-          Yang tengah kejar
+          {t('Yang tengah kejar', "What's chasing you")}
         </h2>
         {items.length > 0 && (
           <span className="ml-auto rounded-full bg-text/[0.07] px-2 py-0.5 text-[11px] font-bold text-text"

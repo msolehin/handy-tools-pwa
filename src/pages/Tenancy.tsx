@@ -5,6 +5,7 @@ import { store } from '../lib/store';
 import { waNumber } from '../lib/phone';
 import { addMonths, daysUntil, nextDueDate } from '../lib/horizon';
 import CategoryChips from '../components/CategoryChips';
+import { useT, t as tr, locale } from '../lib/lang';
 
 interface Contract {
   id: string;
@@ -22,7 +23,12 @@ interface Contract {
 }
 
 const STORAGE_KEY = 'tenancy_data';
-const DEFAULT_CATS = ['Sewa', 'Internet', 'Telefon', 'Perkhidmatan', 'Lain-lain'];
+const DEFAULT_CATS_MS = ['Sewa', 'Internet', 'Telefon', 'Perkhidmatan', 'Lain-lain'];
+const DEFAULT_CATS_EN = ['Rent', 'Internet', 'Phone', 'Services', 'Other'];
+// Categories are user data the moment they are saved, so only a fresh install seeds them in the
+// reader's language — and the "can't delete a built-in" guard has to know both lists.
+const defaultCats = () => tr(DEFAULT_CATS_MS, DEFAULT_CATS_EN);
+const isSeedCat = (c: string) => DEFAULT_CATS_MS.includes(c) || DEFAULT_CATS_EN.includes(c);
 const CAT_COLORS = ['#14b8a6', '#3b82f6', '#8b5cf6', '#f97316', '#22c55e', '#eab308', '#ef4444', '#ec4899'];
 const catColor = (cat: string, all: string[]) => CAT_COLORS[Math.max(0, all.indexOf(cat)) % CAT_COLORS.length];
 const generateId = () => Math.random().toString(36).substring(2, 9);
@@ -75,8 +81,9 @@ const TONE: Record<Tone, { ink: string; pill: string; bar: string; btn: string }
 const toneOf = (days: number): Tone => (days < 0 ? 'expired' : days <= 60 ? 'due' : 'valid');
 
 const Tenancy: React.FC = () => {
+  const t = useT();
   const [items, setItems] = useState<Contract[]>([]);
-  const [categories, setCategories] = useState<string[]>(DEFAULT_CATS);
+  const [categories, setCategories] = useState<string[]>(defaultCats);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
@@ -99,7 +106,7 @@ const Tenancy: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [fId, setFId] = useState<string | null>(null);
   const [fTitle, setFTitle] = useState('');
-  const [fCat, setFCat] = useState(DEFAULT_CATS[0]);
+  const [fCat, setFCat] = useState(() => defaultCats()[0]);
   const [fParty, setFParty] = useState('');
   const [fPhone, setFPhone] = useState('');
   const [fAddress, setFAddress] = useState('');
@@ -143,7 +150,7 @@ const Tenancy: React.FC = () => {
     } else {
       setFId(null);
       setFTitle('');
-      setFCat(categories[0] || 'Lain-lain');
+      setFCat(categories[0] || defaultCats()[4]);
       setFParty('');
       setFPhone('');
       setFAddress('');
@@ -182,11 +189,11 @@ const Tenancy: React.FC = () => {
   };
 
   const deleteItem = (id: string) => {
-    if (window.confirm('Padam kontrak ini?')) setItems(prev => prev.filter(i => i.id !== id));
+    if (window.confirm(tr('Padam kontrak ini?', 'Delete this contract?'))) setItems(prev => prev.filter(i => i.id !== id));
   };
 
   const renewYear = (item: Contract) => {
-    if (window.confirm(`Lanjutkan '${item.title}' selama setahun?`)) {
+    if (window.confirm(tr(`Lanjutkan '${item.title}' selama setahun?`, `Extend '${item.title}' by a year?`))) {
       setItems(prev => prev.map(i => i.id === item.id ? { ...i, startDate: i.endDate, endDate: addYearToDate(i.endDate) } : i));
     }
   };
@@ -198,18 +205,18 @@ const Tenancy: React.FC = () => {
   };
 
   const removeCat = (c: string) => {
-    if (DEFAULT_CATS.includes(c)) {
-      alert('Kategori asal tidak boleh dipadam.');
+    if (isSeedCat(c)) {
+      alert(tr('Kategori asal tidak boleh dipadam.', 'The built-in categories cannot be deleted.'));
       return;
     }
-    if (window.confirm(`Padam kategori '${c}'?`)) {
+    if (window.confirm(tr(`Padam kategori '${c}'?`, `Delete the '${c}' category?`))) {
       setCategories(prev => prev.filter(cat => cat !== c));
-      if (fCat === c) setFCat(categories.find(cat => cat !== c) || 'Lain-lain');
+      if (fCat === c) setFCat(categories.find(cat => cat !== c) || defaultCats()[4]);
     }
   };
 
   const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' });
+    new Date(dateStr).toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' });
 
   const sorted = [...items]
     .map(item => ({ item, days: daysUntil(item.endDate) }))
@@ -220,10 +227,10 @@ const Tenancy: React.FC = () => {
   const endingCount = sorted.filter(s => toneOf(s.days) !== 'valid').length;
 
   const subtitle = items.length === 0
-    ? 'Sewaan, kontrak & pembaharuan'
+    ? t('Sewaan, kontrak & pembaharuan', 'Tenancies, contracts & renewals')
     : endingCount
-      ? `${endingCount} perlu diperbaharui`
-      : `${items.length} kontrak, semua aktif`;
+      ? t(`${endingCount} perlu diperbaharui`, `${endingCount} need renewing`)
+      : t(`${items.length} kontrak, semua aktif`, `${items.length} contracts, all active`);
 
   return (
     <div className="space-y-5 animate-fade-in pb-12">
@@ -242,14 +249,14 @@ const Tenancy: React.FC = () => {
       {monthlyTotal > 0 && (
         <div className="glass-panel flex items-stretch divide-x divide-text/10 overflow-hidden">
           <div className="flex-1 p-4">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted">Komitmen bulanan</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted">{t('Komitmen bulanan', 'Monthly commitment')}</p>
             <p className="text-3xl font-extrabold leading-none mt-1.5 text-teal-500 light:text-teal-700" style={{ fontVariantNumeric: 'tabular-nums' }}>
               <span className="text-base align-top mr-0.5 opacity-70">RM</span>{moneyShort(monthlyTotal)}
             </p>
           </div>
           {depositTotal > 0 && (
             <div className="flex-1 p-4">
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted">Deposit dipegang</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted">{t('Deposit dipegang', 'Deposits held')}</p>
               <p className="text-3xl font-extrabold leading-none mt-1.5 text-text/80" style={{ fontVariantNumeric: 'tabular-nums' }}>
                 <span className="text-base align-top mr-0.5 opacity-70">RM</span>{moneyShort(depositTotal)}
               </p>
@@ -262,7 +269,7 @@ const Tenancy: React.FC = () => {
         onClick={() => openForm()}
         className="w-full py-4 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-teal-500/50 hover:text-teal-500 light:hover:text-teal-700 transition-all flex items-center justify-center"
       >
-        <Plus size={20} className="mr-2" /> Tambah Kontrak
+        <Plus size={20} className="mr-2" /> {t('Tambah Kontrak', 'Add a contract')}
       </button>
 
       <div className="space-y-3">
@@ -281,7 +288,7 @@ const Tenancy: React.FC = () => {
                   <h3 className="font-bold text-lg leading-tight truncate">{item.title}</h3>
                 </div>
                 <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${tone.pill}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
-                  {days < 0 ? `Tamat ${Math.abs(days)}h lepas` : days === 0 ? 'Tamat hari ni' : `${days} hari lagi`}
+                  {days < 0 ? t(`Tamat ${Math.abs(days)}h lepas`, `Ended ${Math.abs(days)}d ago`) : days === 0 ? t('Tamat hari ni', 'Ends today') : t(`${days} hari lagi`, `${days} days left`)}
                 </span>
               </div>
 
@@ -311,13 +318,13 @@ const Tenancy: React.FC = () => {
                 <div className="mt-3 flex items-end justify-between gap-3">
                   <p className="text-3xl font-extrabold leading-none" style={{ fontVariantNumeric: 'tabular-nums' }}>
                     <span className="text-base align-top mr-0.5 text-muted">RM</span>{moneyShort(item.amount)}
-                    <span className="ml-1 text-xs font-bold text-muted">/bulan</span>
+                    <span className="ml-1 text-xs font-bold text-muted">{t('/bulan', '/month')}</span>
                   </p>
                   <span
                     className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${dueIn <= 3 ? 'bg-amber-500/15 text-amber-500 light:text-amber-700' : 'bg-text/5 text-muted'}`}
                     style={{ fontVariantNumeric: 'tabular-nums' }}
                   >
-                    {dueIn === 0 ? `Bayar hari ni` : `${item.dueDay}hb · ${dueIn} hari`}
+                    {dueIn === 0 ? t('Bayar hari ni', 'Due today') : t(`${item.dueDay}hb · ${dueIn} hari`, `Day ${item.dueDay} · ${dueIn} days`)}
                   </span>
                 </div>
               )}
@@ -336,7 +343,7 @@ const Tenancy: React.FC = () => {
               {(item.deposit > 0 || item.address || item.notes) && (
                 <div className="mt-3 space-y-1 border-t border-text/10 pt-3 text-xs text-muted">
                   {item.deposit > 0 && (
-                    <p>Deposit dipegang <span className="font-bold text-text/80">{money(item.deposit)}</span></p>
+                    <p>{t('Deposit dipegang', 'Deposit held')} <span className="font-bold text-text/80">{money(item.deposit)}</span></p>
                   )}
                   {item.address && (
                     <p className="flex items-start gap-1.5">
@@ -358,18 +365,18 @@ const Tenancy: React.FC = () => {
                   onClick={() => renewYear(item)}
                   className={`flex flex-1 items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-colors ${tone.btn}`}
                 >
-                  <RotateCw size={14} /> Dah renew — lanjut 1 tahun
+                  <RotateCw size={14} /> {t('Dah renew — lanjut 1 tahun', 'Renewed — extend by 1 year')}
                 </button>
                 <button
                   onClick={() => openForm(item)}
-                  aria-label={`Sunting ${item.title}`}
+                  aria-label={t(`Sunting ${item.title}`, `Edit ${item.title}`)}
                   className="p-2 text-muted hover:text-text bg-text/5 hover:bg-text/10 rounded-lg transition-colors"
                 >
                   <Pencil size={16} />
                 </button>
                 <button
                   onClick={() => deleteItem(item.id)}
-                  aria-label={`Padam ${item.title}`}
+                  aria-label={t(`Padam ${item.title}`, `Delete ${item.title}`)}
                   className="p-2 text-muted hover:text-rose-500 bg-text/5 hover:bg-rose-500/10 rounded-lg transition-colors"
                 >
                   <Trash2 size={16} />
@@ -381,8 +388,8 @@ const Tenancy: React.FC = () => {
 
         {items.length === 0 && (
           <div className="text-center p-8 text-muted text-sm border border-dashed border-text/10 rounded-2xl">
-            Takde kontrak lagi. Simpan sewa rumah, plan internet atau kontrak perkhidmatan — dapat
-            amaran sebelum ia tamat.
+            {t('Takde kontrak lagi. Simpan sewa rumah, plan internet atau kontrak perkhidmatan — dapat amaran sebelum ia tamat.',
+               'No contracts yet. Save a house rent, an internet plan or a service contract — and be warned before it ends.')}
           </div>
         )}
       </div>
@@ -393,53 +400,53 @@ const Tenancy: React.FC = () => {
           onClick={() => setShowForm(false)}
           role="dialog"
           aria-modal="true"
-          aria-label={`${fId ? 'Sunting' : 'Tambah'} kontrak`}
+          aria-label={fId ? t('Sunting kontrak', 'Edit contract') : t('Tambah kontrak', 'Add contract')}
         >
           <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up motion-reduce:animate-none max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-lg">{fId ? 'Sunting' : 'Tambah'} Kontrak</h3>
-              <button onClick={() => setShowForm(false)} aria-label="Tutup" className="p-1 text-muted hover:text-text"><X size={20} /></button>
+              <h3 className="font-bold text-lg">{fId ? t('Sunting Kontrak', 'Edit Contract') : t('Tambah Kontrak', 'Add Contract')}</h3>
+              <button onClick={() => setShowForm(false)} aria-label={t('Tutup', 'Close')} className="p-1 text-muted hover:text-text"><X size={20} /></button>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Tajuk</label>
-              <input autoFocus value={fTitle} onChange={e => setFTitle(e.target.value)} placeholder="cth. Rumah Sewa Setapak" className="input-field w-full" />
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">{t('Tajuk', 'Title')}</label>
+              <input autoFocus value={fTitle} onChange={e => setFTitle(e.target.value)} placeholder={t('cth. Rumah Sewa Setapak', 'e.g. Setapak rental house')} className="input-field w-full" />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Mula</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">{t('Mula', 'Starts')}</label>
                 <input type="date" value={fStart} onChange={e => setFStart(e.target.value)} className="input-field w-full" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Tamat</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">{t('Tamat', 'Ends')}</label>
                 <input type="date" value={fEnd} onChange={e => setFEnd(e.target.value)} className="input-field w-full" />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Bulanan (RM)</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">{t('Bulanan (RM)', 'Monthly (RM)')}</label>
                 <input type="number" inputMode="decimal" value={fAmount} onChange={e => setFAmount(e.target.value)} placeholder="0.00" className="input-field w-full" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Hari Bayaran</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">{t('Hari Bayaran', 'Payment Day')}</label>
                 <input type="number" min="1" max="31" value={fDueDay} onChange={e => setFDueDay(e.target.value)} className="input-field w-full" />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Deposit (RM)</label>
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">{t('Deposit (RM)', 'Deposit (RM)')}</label>
               <input type="number" inputMode="decimal" value={fDeposit} onChange={e => setFDeposit(e.target.value)} placeholder="0.00" className="input-field w-full" />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Tuan Rumah / Penyedia</label>
-                <input value={fParty} onChange={e => setFParty(e.target.value)} placeholder="Nama" className="input-field w-full" />
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">{t('Tuan Rumah / Penyedia', 'Landlord / Provider')}</label>
+                <input value={fParty} onChange={e => setFParty(e.target.value)} placeholder={t('Nama', 'Name')} className="input-field w-full" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="tn-phone">Telefon</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="tn-phone">{t('Telefon', 'Phone')}</label>
                 <input
                   id="tn-phone"
                   type="tel"
@@ -458,34 +465,34 @@ const Tenancy: React.FC = () => {
             {fPhone.trim() && (
               <p className={`text-[11px] -mt-2 ${phoneOk ? 'text-muted' : 'text-rose-500 light:text-rose-700'}`}>
                 {phoneOk
-                  ? <>WhatsApp akan buka <span className="font-mono">+{phoneOk}</span></>
-                  : 'Nombor tak lengkap — WhatsApp tak boleh dibuka. Contoh: 012-345 6789'}
+                  ? <>{t('WhatsApp akan buka', 'WhatsApp will open')} <span className="font-mono">+{phoneOk}</span></>
+                  : t('Nombor tak lengkap — WhatsApp tak boleh dibuka. Contoh: 012-345 6789', 'Incomplete number — WhatsApp cannot open. Example: 012-345 6789')}
               </p>
             )}
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="tn-address">Alamat (Pilihan)</label>
+              <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="tn-address">{t('Alamat (Pilihan)', 'Address (Optional)')}</label>
               <textarea
                 id="tn-address"
                 value={fAddress}
                 onChange={e => setFAddress(e.target.value)}
-                placeholder="cth. No 12, Jalan Setapak 3, 53000 Kuala Lumpur"
+                placeholder={t('cth. No 12, Jalan Setapak 3, 53000 Kuala Lumpur', 'e.g. No 12, Jalan Setapak 3, 53000 Kuala Lumpur')}
                 className="input-field w-full h-16 resize-none py-2"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Kategori</label>
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">{t('Kategori', 'Category')}</label>
               <CategoryChips cats={categories} value={fCat} onSelect={setFCat} onAdd={addCat} onRemove={removeCat} accent="rgb(20 184 166)" />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-muted uppercase tracking-wider">Nota (Pilihan)</label>
-              <textarea value={fNotes} onChange={e => setFNotes(e.target.value)} placeholder="cth. deposit 2 bulan, 1 bulan utiliti" className="input-field w-full h-20 resize-none py-2" />
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">{t('Nota (Pilihan)', 'Note (Optional)')}</label>
+              <textarea value={fNotes} onChange={e => setFNotes(e.target.value)} placeholder={t('cth. deposit 2 bulan, 1 bulan utiliti', 'e.g. 2 months deposit, 1 month utilities')} className="input-field w-full h-20 resize-none py-2" />
             </div>
 
             <button onClick={saveForm} disabled={!fTitle.trim() || !fEnd} className="w-full py-3 rounded-xl bg-teal-500 text-white font-bold hover:bg-teal-600 disabled:opacity-50 disabled:pointer-events-none">
-              Simpan
+              {t('Simpan', 'Save')}
             </button>
           </div>
         </div>

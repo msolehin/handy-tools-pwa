@@ -5,6 +5,7 @@ import {
   ShieldCheck, ShieldAlert, ShieldX, Activity, LayoutDashboard, List,
   Laptop, Car, Sofa, Wrench, Package, Zap, Search, Pencil
 } from 'lucide-react';
+import { useT, t as trs, locale } from '../lib/lang';
 import { downscaleFile, shrinkExisting } from '../lib/downscale';
 import { store as syncStore } from '../lib/store';
 import { addMonths } from '../lib/horizon';
@@ -23,16 +24,28 @@ export interface AssetItem {
   receiptPhoto?: string; // Base64 string
 }
 
+// The category string is stored on the item and keys the icon and tone maps below, so it stays
+// Malay as data. Only the label shown on screen switches.
 const CATEGORIES = ['Elektronik', 'Perkakas Rumah', 'Kenderaan', 'Perabot', 'Peralatan', 'Lain-lain'];
+const CATEGORY_EN: Record<string, string> = {
+  Elektronik: 'Electronics',
+  'Perkakas Rumah': 'Appliances',
+  Kenderaan: 'Vehicles',
+  Perabot: 'Furniture',
+  Peralatan: 'Tools',
+  'Lain-lain': 'Other',
+};
+const catLabel = (c: string) => trs(c, CATEGORY_EN[c] ?? c);
+const ADD_OWN = () => trs('Tambah Sendiri...', 'Add your own...');
 const WARRANTY_DURATIONS = [
-  { label: '3 Bulan', value: 3 },
-  { label: '6 Bulan', value: 6 },
-  { label: '1 Tahun', value: 12 },
-  { label: '2 Tahun', value: 24 },
-  { label: '3 Tahun', value: 36 },
-  { label: '5 Tahun', value: 60 },
-  { label: '10 Tahun', value: 120 },
-  { label: 'Tarikh Sendiri', value: 0 },
+  { ms: '3 Bulan', en: '3 Months', value: 3 },
+  { ms: '6 Bulan', en: '6 Months', value: 6 },
+  { ms: '1 Tahun', en: '1 Year', value: 12 },
+  { ms: '2 Tahun', en: '2 Years', value: 24 },
+  { ms: '3 Tahun', en: '3 Years', value: 36 },
+  { ms: '5 Tahun', en: '5 Years', value: 60 },
+  { ms: '10 Tahun', en: '10 Years', value: 120 },
+  { ms: 'Tarikh Sendiri', en: 'Custom Date', value: 0 },
 ];
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
@@ -60,14 +73,15 @@ const getCategoryTone = (c: string) => CATEGORY_TONE[c] || CATEGORY_TONE['Lain-l
 
 // One source of truth for the three warranty states — card rail, bar, number and chips all read it.
 const STATUS_TONE = {
-  active: { text: 'text-emerald-500 light:text-emerald-700', bar: 'bg-emerald-500', soft: 'bg-emerald-500/15 text-emerald-500 light:text-emerald-700', unit: 'hari lagi' },
-  'expiring-soon': { text: 'text-orange-500 light:text-orange-700', bar: 'bg-orange-500', soft: 'bg-orange-500/15 text-orange-500 light:text-orange-700', unit: 'hari lagi' },
-  expired: { text: 'text-rose-500 light:text-rose-700', bar: 'bg-rose-500', soft: 'bg-rose-500/15 text-rose-500 light:text-rose-700', unit: 'hari lewat' },
+  active: { text: 'text-emerald-500 light:text-emerald-700', bar: 'bg-emerald-500', soft: 'bg-emerald-500/15 text-emerald-500 light:text-emerald-700', unit: ['hari lagi', 'days left'] },
+  'expiring-soon': { text: 'text-orange-500 light:text-orange-700', bar: 'bg-orange-500', soft: 'bg-orange-500/15 text-orange-500 light:text-orange-700', unit: ['hari lagi', 'days left'] },
+  expired: { text: 'text-rose-500 light:text-rose-700', bar: 'bg-rose-500', soft: 'bg-rose-500/15 text-rose-500 light:text-rose-700', unit: ['hari lewat', 'days overdue'] },
 } as const;
 
 const NUM = { fontVariantNumeric: 'tabular-nums' } as const;
 
 export default function AssetWarrantyTracker() {
+  const t = useT();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'assets' | 'expired'>('dashboard');
   const [items, setItems] = useState<AssetItem[]>(() => {
     const saved = syncStore.getItem('asset_warranty_tracker_data');
@@ -182,7 +196,7 @@ export default function AssetWarrantyTracker() {
   };
 
   const handleDelete = (id: string) => {
-    if (window.confirm('Anda pasti mahu padam aset ini?')) {
+    if (window.confirm(trs('Anda pasti mahu padam aset ini?', 'Delete this asset?'))) {
       setItems(items.filter(i => i.id !== id));
     }
   };
@@ -225,10 +239,10 @@ export default function AssetWarrantyTracker() {
     return Math.min(100, Math.max(0, ((now - start) / (end - start)) * 100));
   };
 
-  const formatRM = (val: number) => `RM${val.toLocaleString('ms-MY', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+  const formatRM = (val: number) => `RM${val.toLocaleString(locale(), { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('ms-MY', {
+    return new Date(dateStr).toLocaleDateString(locale(), {
       day: 'numeric',
       month: 'short',
       year: 'numeric'
@@ -261,9 +275,9 @@ export default function AssetWarrantyTracker() {
     .sort((a, b) => getDaysLeft(b.expiryDate) - getDaysLeft(a.expiryDate));
 
   const TABS = [
-    { key: 'dashboard', label: 'Papan Pemuka', Icon: LayoutDashboard, count: undefined },
-    { key: 'assets', label: 'Aset', Icon: List, count: activeItems.length },
-    { key: 'expired', label: 'Tamat', Icon: Clock, count: expiredItems.length },
+    { key: 'dashboard', label: t('Papan Pemuka', 'Dashboard'), Icon: LayoutDashboard, count: undefined },
+    { key: 'assets', label: t('Aset', 'Assets'), Icon: List, count: activeItems.length },
+    { key: 'expired', label: t('Tamat', 'Expired'), Icon: Clock, count: expiredItems.length },
   ] as const;
 
   // Reusable asset row used in Assets / Expired tabs.
@@ -285,7 +299,7 @@ export default function AssetWarrantyTracker() {
 
           {/* Tap-anywhere to edit, as before; keyboard users get the labelled Pencil button below. */}
           <div className="min-w-0 flex-1 cursor-pointer" onClick={() => handleEdit(item)}>
-            <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-muted truncate">{item.category}</span>
+            <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-muted truncate">{catLabel(item.category)}</span>
             <h3 className="font-bold text-text truncate leading-tight">{item.name}</h3>
             <p className="text-xs text-muted truncate mt-0.5" style={NUM}>
               <span className="font-mono">{formatRM(item.purchasePrice)}</span>{item.store ? ` · ${item.store}` : ''}
@@ -297,7 +311,7 @@ export default function AssetWarrantyTracker() {
               {Math.abs(days)}
             </span>
             <span className={`block text-[10px] font-bold uppercase tracking-[0.16em] mt-1.5 ${tone.text}`}>
-              {days === 0 ? 'tamat hari ni' : tone.unit}
+              {days === 0 ? t('tamat hari ni', 'expires today') : t(tone.unit[0], tone.unit[1])}
             </span>
           </div>
         </div>
@@ -316,14 +330,14 @@ export default function AssetWarrantyTracker() {
           <div className="flex items-center gap-1 shrink-0">
             <button
               onClick={() => handleEdit(item)}
-              aria-label={`Sunting ${item.name}`}
+              aria-label={t(`Sunting ${item.name}`, `Edit ${item.name}`)}
               className="p-2 text-muted hover:text-orange-500 bg-text/5 hover:bg-orange-500/10 rounded-lg transition-colors"
             >
               <Pencil size={16} />
             </button>
             <button
               onClick={() => handleDelete(item.id)}
-              aria-label={`Padam ${item.name}`}
+              aria-label={t(`Padam ${item.name}`, `Delete ${item.name}`)}
               className="p-2 text-muted hover:text-rose-500 bg-text/5 hover:bg-rose-500/10 rounded-lg transition-colors"
             >
               <Trash2 size={16} />
@@ -354,8 +368,8 @@ export default function AssetWarrantyTracker() {
             <h1 className="text-2xl font-extrabold text-text leading-tight tracking-tight">Asset & Warranty</h1>
             <p className={`text-sm ${expiringSoonItems.length ? 'font-semibold text-orange-500 light:text-orange-700' : 'text-muted'}`}>
               {expiringSoonItems.length
-                ? `${expiringSoonItems.length} waranti hampir tamat`
-                : 'Rekod barang berharga & waranti'}
+                ? t(`${expiringSoonItems.length} waranti hampir tamat`, `${expiringSoonItems.length} warranties expiring soon`)
+                : t('Rekod barang berharga & waranti', 'Your valuables and their warranties')}
             </p>
           </div>
         </div>
@@ -388,7 +402,7 @@ export default function AssetWarrantyTracker() {
           onClick={() => setIsAdding(true)}
           className="w-full py-4 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-orange-500/50 hover:text-orange-500 light:hover:text-orange-700 transition-all flex items-center justify-center"
         >
-          <Plus size={20} className="mr-2" /> Tambah Aset
+          <Plus size={20} className="mr-2" /> {t('Tambah Aset', 'Add an Asset')}
         </button>
       )}
 
@@ -397,11 +411,11 @@ export default function AssetWarrantyTracker() {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold flex items-center gap-2 text-text">
               <Plus className="text-orange-500" />
-              {editingItem ? 'Sunting Aset' : 'Tambah Aset Baru'}
+              {editingItem ? t('Sunting Aset', 'Edit Asset') : t('Tambah Aset Baru', 'Add a New Asset')}
             </h2>
             <button
               onClick={resetForm}
-              aria-label="Tutup borang"
+              aria-label={t('Tutup borang', 'Close the form')}
               className="p-2 bg-text/5 hover:bg-text/10 text-muted rounded-full transition-colors"
             >
               <X size={20} />
@@ -410,7 +424,7 @@ export default function AssetWarrantyTracker() {
 
           <form onSubmit={handleSave} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-2">Nama Item *</label>
+              <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-2">{t('Nama Item', 'Item Name')} *</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted">
                   <Tag size={18} />
@@ -421,7 +435,7 @@ export default function AssetWarrantyTracker() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 bg-surface border border-text/10 rounded-xl text-text focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-all"
-                  placeholder="cth. MacBook Pro, Air Fryer"
+                  placeholder={t('cth. MacBook Pro, Air Fryer', 'e.g. MacBook Pro, Air Fryer')}
                 />
               </div>
             </div>
@@ -429,28 +443,28 @@ export default function AssetWarrantyTracker() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-xs font-bold text-muted uppercase tracking-wider">Kategori</label>
+                  <label className="block text-xs font-bold text-muted uppercase tracking-wider">{t('Kategori', 'Category')}</label>
                   {customCategories.includes(category) && (
                     <button
                       type="button"
                       onClick={() => {
-                        if (window.confirm(`Padam kategori sendiri "${category}"?`)) {
+                        if (window.confirm(trs(`Padam kategori sendiri "${category}"?`, `Delete the custom category "${category}"?`))) {
                           setCustomCategories(customCategories.filter(c => c !== category));
                           setCategory(CATEGORIES[0]);
                         }
                       }}
                       className="text-[10px] font-bold text-rose-500 hover:text-rose-600 uppercase tracking-wider"
                     >
-                      Padam
+                      {t('Padam', 'Delete')}
                     </button>
                   )}
                 </div>
-                {category === 'Tambah Sendiri...' ? (
+                {category === ADD_OWN() ? (
                   <div className="relative flex items-center">
                     <input
                       type="text"
                       autoFocus
-                      placeholder="Taip nama kategori sendiri..."
+                      placeholder={t('Taip nama kategori sendiri...', 'Type your own category name...')}
                       className="w-full px-4 py-3 bg-surface border border-text/10 rounded-xl text-text focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-all"
                       onBlur={(e) => {
                         const val = e.target.value.trim();
@@ -477,12 +491,13 @@ export default function AssetWarrantyTracker() {
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full px-4 py-3 bg-surface border border-text/10 rounded-xl text-text focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-all appearance-none"
                   >
-                    {[...CATEGORIES, ...customCategories, 'Tambah Sendiri...'].map(c => <option key={c} value={c}>{c}</option>)}
+                    {[...CATEGORIES, ...customCategories].map(c => <option key={c} value={c}>{catLabel(c)}</option>)}
+                    <option value={ADD_OWN()}>{ADD_OWN()}</option>
                   </select>
                 )}
               </div>
               <div>
-                <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-2">Harga (RM) *</label>
+                <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-2">{t('Harga (RM)', 'Price (RM)')} *</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted">
                     <DollarSign size={18} />
@@ -503,7 +518,7 @@ export default function AssetWarrantyTracker() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-2">Tarikh Beli *</label>
+                <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-2">{t('Tarikh Beli', 'Purchase Date')} *</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted">
                     <Calendar size={18} />
@@ -518,19 +533,19 @@ export default function AssetWarrantyTracker() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-2">Waranti</label>
+                <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-2">{t('Waranti', 'Warranty')}</label>
                 <select
                   value={warrantyDuration}
                   onChange={(e) => setWarrantyDuration(Number(e.target.value))}
                   className="w-full px-4 py-3 bg-surface border border-text/10 rounded-xl text-text focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-all appearance-none"
                 >
-                  {WARRANTY_DURATIONS.map(w => <option key={w.label} value={w.value}>{w.label}</option>)}
+                  {WARRANTY_DURATIONS.map(w => <option key={w.value} value={w.value}>{t(w.ms, w.en)}</option>)}
                 </select>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-2">Tarikh Tamat *</label>
+              <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-2">{t('Tarikh Tamat', 'Expiry Date')} *</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted">
                   <ShieldAlert size={18} />
@@ -544,12 +559,12 @@ export default function AssetWarrantyTracker() {
                   className="w-full pl-10 pr-4 py-3 bg-surface border border-text/10 rounded-xl text-text focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-all disabled:opacity-50 disabled:bg-text/5"
                 />
               </div>
-              {warrantyDuration > 0 && <p className="text-xs text-muted mt-1 px-1">Dikira automatik dari tarikh beli</p>}
+              {warrantyDuration > 0 && <p className="text-xs text-muted mt-1 px-1">{t('Dikira automatik dari tarikh beli', 'Worked out from the purchase date')}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-2">Nombor Siri</label>
+                <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-2">{t('Nombor Siri', 'Serial Number')}</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted">
                     <Activity size={18} />
@@ -559,12 +574,12 @@ export default function AssetWarrantyTracker() {
                     value={serialNumber}
                     onChange={(e) => setSerialNumber(e.target.value)}
                     className="w-full pl-10 pr-4 py-3 bg-surface border border-text/10 rounded-xl text-text focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-all"
-                    placeholder="Pilihan"
+                    placeholder={t('Pilihan', 'Optional')}
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-2">Kedai</label>
+                <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-2">{t('Kedai', 'Store')}</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted">
                     <Store size={18} />
@@ -574,14 +589,14 @@ export default function AssetWarrantyTracker() {
                     value={store}
                     onChange={(e) => setStore(e.target.value)}
                     className="w-full pl-10 pr-4 py-3 bg-surface border border-text/10 rounded-xl text-text focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-all"
-                    placeholder="cth. Harvey Norman"
+                    placeholder={t('cth. Harvey Norman', 'e.g. Harvey Norman')}
                   />
                 </div>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-2">Nota</label>
+              <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-2">{t('Nota', 'Notes')}</label>
               <div className="relative">
                 <div className="absolute top-3 left-3 flex items-start pointer-events-none text-muted">
                   <FileText size={18} />
@@ -590,16 +605,16 @@ export default function AssetWarrantyTracker() {
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 bg-surface border border-text/10 rounded-xl text-text focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-all min-h-[80px]"
-                  placeholder="Butiran tambahan..."
+                  placeholder={t('Butiran tambahan...', 'Any extra details...')}
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-2">Gambar Resit</label>
+              <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-2">{t('Gambar Resit', 'Receipt Photo')}</label>
               {receiptPhoto ? (
                 <div className="relative inline-block w-full h-40 rounded-xl overflow-hidden border border-text/10">
-                  <img src={receiptPhoto} alt="Resit" className="w-full h-full object-cover" />
+                  <img src={receiptPhoto} alt={t('Resit', 'Receipt')} className="w-full h-full object-cover" />
                   <button
                     type="button"
                     onClick={removeImage}
@@ -614,7 +629,7 @@ export default function AssetWarrantyTracker() {
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <Camera size={24} className="mb-2" />
-                  <span className="text-sm font-medium">Tekan untuk muat naik resit</span>
+                  <span className="text-sm font-medium">{t('Tekan untuk muat naik resit', 'Tap to upload a receipt')}</span>
                   <input
                     type="file"
                     accept="image/*"
@@ -631,7 +646,7 @@ export default function AssetWarrantyTracker() {
               className="w-full py-4 bg-orange-500 text-white rounded-xl font-bold text-lg hover:shadow-lg hover:shadow-orange-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
             >
               <CheckCircle size={20} />
-              {editingItem ? 'Simpan Perubahan' : 'Tambah Aset'}
+              {editingItem ? t('Simpan Perubahan', 'Save Changes') : t('Tambah Aset', 'Add Asset')}
             </button>
           </form>
         </div>
@@ -646,13 +661,13 @@ export default function AssetWarrantyTracker() {
                 <div className="relative z-10">
                   <div className="flex items-center gap-2 text-muted mb-2">
                     <DollarSign size={14} className="text-orange-500" />
-                    <span className="text-[10px] font-bold uppercase tracking-[0.18em]">Jumlah Nilai Portfolio</span>
+                    <span className="text-[10px] font-bold uppercase tracking-[0.18em]">{t('Jumlah Nilai Portfolio', 'Total Portfolio Value')}</span>
                   </div>
                   <div className="text-5xl font-extrabold text-text leading-none tracking-tight font-mono" style={NUM}>
                     {formatRM(totalAssetsValue)}
                   </div>
                   <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted mt-2.5" style={NUM}>
-                    {items.length} item direkod
+                    {t(`${items.length} item direkod`, `${items.length} items recorded`)}
                   </div>
 
                   {totalAssetsValue > 0 && (
@@ -663,10 +678,10 @@ export default function AssetWarrantyTracker() {
                       </div>
                       <div className="flex items-center justify-between gap-3 mt-2.5 text-[11px] font-bold" style={NUM}>
                         <span className="flex items-center gap-1.5 text-emerald-500 light:text-emerald-700 truncate">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" /> Dilindungi <span className="font-mono">{formatRM(underWarrantyValue)}</span>
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" /> {t('Dilindungi', 'Covered')} <span className="font-mono">{formatRM(underWarrantyValue)}</span>
                         </span>
                         <span className="flex items-center gap-1.5 text-rose-500 light:text-rose-700 truncate">
-                          <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" /> Tamat <span className="font-mono">{formatRM(expiredWarrantyValue)}</span>
+                          <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" /> {t('Tamat', 'Expired')} <span className="font-mono">{formatRM(expiredWarrantyValue)}</span>
                         </span>
                       </div>
                     </div>
@@ -677,9 +692,9 @@ export default function AssetWarrantyTracker() {
               {/* Stat chips — three states at a glance, each a shortcut into its list */}
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { n: activeItems.length - expiringSoonItems.length, label: 'Selamat', Icon: ShieldCheck, tone: STATUS_TONE.active, tab: 'assets' as const },
-                  { n: expiringSoonItems.length, label: 'Hampir tamat', Icon: ShieldAlert, tone: STATUS_TONE['expiring-soon'], tab: 'assets' as const },
-                  { n: expiredItems.length, label: 'Tamat', Icon: ShieldX, tone: STATUS_TONE.expired, tab: 'expired' as const },
+                  { n: activeItems.length - expiringSoonItems.length, label: t('Selamat', 'Safe'), Icon: ShieldCheck, tone: STATUS_TONE.active, tab: 'assets' as const },
+                  { n: expiringSoonItems.length, label: t('Hampir tamat', 'Expiring soon'), Icon: ShieldAlert, tone: STATUS_TONE['expiring-soon'], tab: 'assets' as const },
+                  { n: expiredItems.length, label: t('Tamat', 'Expired'), Icon: ShieldX, tone: STATUS_TONE.expired, tab: 'expired' as const },
                 ].map(({ n, label, Icon, tone, tab }) => (
                   <button
                     key={label}
@@ -701,8 +716,8 @@ export default function AssetWarrantyTracker() {
               <div className="glass-panel p-5">
                 <div className="flex items-center gap-2 mb-4 text-orange-500 light:text-orange-700">
                   <AlertTriangle size={20} className={expiringSoonItems.length > 0 ? 'animate-pulse' : ''} />
-                  <h3 className="font-extrabold text-lg text-text tracking-tight">Hampir Tamat</h3>
-                  <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted">30 hari</span>
+                  <h3 className="font-extrabold text-lg text-text tracking-tight">{t('Hampir Tamat', 'Expiring Soon')}</h3>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted">{t('30 hari', '30 days')}</span>
                   {expiringSoonItems.length > 0 && (
                     <span className="ml-auto px-2 py-0.5 rounded-full bg-orange-500/15 text-xs font-bold" style={NUM}>
                       {expiringSoonItems.length}
@@ -727,7 +742,7 @@ export default function AssetWarrantyTracker() {
                             <div className="font-bold text-text truncate leading-tight">{item.name}</div>
                             <div className="text-xs text-muted flex items-center gap-1 mt-0.5 truncate">
                               <Store size={12} className="shrink-0" />
-                              {item.store || 'Kedai tidak diketahui'}
+                              {item.store || t('Kedai tidak diketahui', 'Store not recorded')}
                             </div>
                           </div>
                           <div className="text-right shrink-0">
@@ -743,7 +758,7 @@ export default function AssetWarrantyTracker() {
                 ) : (
                   <div className="text-center py-8 text-muted bg-surface/50 rounded-xl border border-dashed border-text/10">
                     <ShieldCheck size={32} className="mx-auto mb-2 opacity-50" />
-                    <p className="font-medium text-sm">Tiada item hampir tamat.</p>
+                    <p className="font-medium text-sm">{t('Tiada item hampir tamat.', 'Nothing expiring soon.')}</p>
                   </div>
                 )}
               </div>
@@ -762,7 +777,7 @@ export default function AssetWarrantyTracker() {
                     type="text"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Cari aset..."
+                    placeholder={t('Cari aset...', 'Search assets...')}
                     className="w-full pl-10 pr-4 py-3 bg-surface border border-text/10 rounded-xl text-text focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-all"
                   />
                 </div>
@@ -770,8 +785,8 @@ export default function AssetWarrantyTracker() {
 
               {filteredActive.length > 0 ? (
                 ([
-                  { key: 'expiring-soon', label: 'Perlu perhatian' },
-                  { key: 'active', label: 'Selamat' },
+                  { key: 'expiring-soon', label: t('Perlu perhatian', 'Needs attention') },
+                  { key: 'active', label: t('Selamat', 'Safe') },
                 ] as const).map(({ key, label }) => {
                   const group = filteredActive.filter(i => getWarrantyStatus(i.expiryDate) === key);
                   if (group.length === 0) return null;
@@ -785,15 +800,15 @@ export default function AssetWarrantyTracker() {
               ) : activeItems.length > 0 ? (
                 <div className="glass-panel p-8 text-center text-muted">
                   <Search size={28} className="mx-auto mb-2 opacity-50" />
-                  <p className="text-sm font-medium">Tiada aset sepadan “{search}”.</p>
+                  <p className="text-sm font-medium">{t('Tiada aset sepadan', 'No asset matches')} “{search}”.</p>
                 </div>
               ) : (
                 <div className="glass-panel p-10 text-center flex flex-col items-center">
                   <div className="w-16 h-16 bg-orange-500/10 rounded-full flex items-center justify-center text-orange-500 mb-4">
                     <Box size={32} />
                   </div>
-                  <h3 className="text-lg font-bold text-text mb-2">Tiada aset aktif</h3>
-                  <p className="text-sm text-muted max-w-xs mx-auto">Rekod barang berharga anda dan tempoh warantinya.</p>
+                  <h3 className="text-lg font-bold text-text mb-2">{t('Tiada aset aktif', 'No active assets')}</h3>
+                  <p className="text-sm text-muted max-w-xs mx-auto">{t('Rekod barang berharga anda dan tempoh warantinya.', 'Record your valuables and how long they are covered for.')}</p>
                 </div>
               )}
             </div>
@@ -811,7 +826,7 @@ export default function AssetWarrantyTracker() {
                     type="text"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Cari yang tamat..."
+                    placeholder={t('Cari yang tamat...', 'Search expired...')}
                     className="w-full pl-10 pr-4 py-3 bg-surface border border-text/10 rounded-xl text-text focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-all"
                   />
                 </div>
@@ -822,15 +837,15 @@ export default function AssetWarrantyTracker() {
               ) : expiredItems.length > 0 ? (
                 <div className="glass-panel p-8 text-center text-muted">
                   <Search size={28} className="mx-auto mb-2 opacity-50" />
-                  <p className="text-sm font-medium">Tiada item tamat sepadan “{search}”.</p>
+                  <p className="text-sm font-medium">{t('Tiada item tamat sepadan', 'No expired item matches')} “{search}”.</p>
                 </div>
               ) : (
                 <div className="glass-panel p-10 text-center flex flex-col items-center">
                   <div className="w-16 h-16 bg-rose-500/10 rounded-full flex items-center justify-center text-rose-500 mb-4">
                     <ShieldCheck size={32} />
                   </div>
-                  <h3 className="text-lg font-bold text-text mb-2">Tiada waranti tamat</h3>
-                  <p className="text-sm text-muted">Semua aset anda masih dalam tempoh waranti.</p>
+                  <h3 className="text-lg font-bold text-text mb-2">{t('Tiada waranti tamat', 'No expired warranties')}</h3>
+                  <p className="text-sm text-muted">{t('Semua aset anda masih dalam tempoh waranti.', 'Every asset is still under warranty.')}</p>
                 </div>
               )}
             </div>

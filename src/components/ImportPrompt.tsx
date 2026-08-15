@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { UploadCloud, Smartphone } from 'lucide-react';
 import { pendingImport, runImport, skipImport, TOOL_LABELS } from '../lib/store';
 import { getUser, subscribe } from '../lib/auth';
+import { useT } from '../lib/lang';
 
 /**
  * Shown once, after the first sign-in on a device that already held records. Declining is
  * safe: nothing on the device is deleted either way.
  */
 const ImportPrompt: React.FC = () => {
+  const t = useT();
   const [keys, setKeys] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,9 +37,9 @@ const ImportPrompt: React.FC = () => {
               <Smartphone size={22} />
             </div>
             <div>
-              <h3 className="text-lg font-bold">Bring your data with you?</h3>
+              <h3 className="text-lg font-bold">{t('Bawa data anda sekali?', 'Bring your data with you?')}</h3>
               <p className="text-xs text-muted mt-1">
-                This device already has records your account hasn't seen.
+                {t('Peranti ini sudah ada rekod yang akaun anda belum lihat.', "This device already has records your account hasn't seen.")}
               </p>
             </div>
           </div>
@@ -58,7 +60,7 @@ const ImportPrompt: React.FC = () => {
               disabled={busy}
               className="flex-1 py-3 rounded-xl bg-text/5 text-text font-bold hover:bg-text/10 transition-colors disabled:opacity-50"
             >
-              Keep on this device
+              {t('Simpan pada peranti ini', 'Keep on this device')}
             </button>
             <button
               onClick={async () => {
@@ -67,18 +69,18 @@ const ImportPrompt: React.FC = () => {
                 const ok = await runImport();
                 setBusy(false);
                 if (ok) setKeys([]);
-                else setError('Upload failed. Your data is still safe on this device — try again.');
+                else setError(t('Muat naik gagal. Data anda masih selamat pada peranti ini — cuba lagi.', 'Upload failed. Your data is still safe on this device — try again.'));
               }}
               disabled={busy}
               className="flex-1 py-3 rounded-xl bg-primary text-white font-bold shadow-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
             >
               <UploadCloud size={18} />
-              {busy ? 'Uploading…' : 'Add to account'}
+              {busy ? t('Memuat naik…', 'Uploading…') : t('Tambah ke akaun', 'Add to account')}
             </button>
           </div>
 
           <p className="text-[11px] text-muted text-center">
-            Either way, nothing on this device is deleted.
+            {t('Apa pun pilihan anda, tiada apa pada peranti ini dipadam.', 'Either way, nothing on this device is deleted.')}
           </p>
         </div>
       </div>

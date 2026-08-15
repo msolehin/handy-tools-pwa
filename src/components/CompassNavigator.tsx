@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowUp, X, Compass, AlertCircle } from 'lucide-react';
+import { useT } from '../lib/lang';
 
 // Haversine formula for distance
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -38,6 +39,7 @@ interface Props {
 }
 
 export const CompassNavigator: React.FC<Props> = ({ targetLat, targetLng, onClose }) => {
+  const tr = useT();
   const [distance, setDistance] = useState<number | null>(null);
   const [bearing, setBearing] = useState<number | null>(null);
   const [heading, setHeading] = useState<number | null>(null);
@@ -64,7 +66,7 @@ export const CompassNavigator: React.FC<Props> = ({ targetLat, targetLng, onClos
         if (permission === 'granted') {
           window.addEventListener('deviceorientation', handleOrientation);
         } else {
-          setError("Kebenaran kompas ditolak.");
+          setError(tr('Kebenaran kompas ditolak.', 'Compass permission denied.'));
         }
       } else {
         window.addEventListener('deviceorientationabsolute', handleOrientation);
@@ -93,7 +95,7 @@ export const CompassNavigator: React.FC<Props> = ({ targetLat, targetLng, onClos
       setWatchId(id);
       setStarted(true);
     } catch (err: any) {
-      setError(err.message || "Gagal memulakan navigasi");
+      setError(err.message || tr('Gagal memulakan navigasi', "Couldn't start navigation"));
     }
   };
 
@@ -121,12 +123,12 @@ export const CompassNavigator: React.FC<Props> = ({ targetLat, targetLng, onClos
           <div className="mx-auto w-16 h-16 bg-primary/20 text-primary flex items-center justify-center rounded-2xl">
             <Compass size={32} />
           </div>
-          <h2 className="text-xl font-bold">Mula Navigasi Dalam App</h2>
+          <h2 className="text-xl font-bold">{tr('Mula Navigasi Dalam App', 'Start in-app navigation')}</h2>
           <p className="text-muted text-sm">
-            Ini akan guna kompas dan lokasi peranti anda untuk pandu anda kembali ke tempat parking.
+            {tr('Ini akan guna kompas dan lokasi peranti anda untuk pandu anda kembali ke tempat parking.', "This uses your device's compass and location to guide you back to where you parked.")}
           </p>
           <button onClick={startNavigation} className="btn-primary w-full py-4 text-lg">
-            Mula Kompas
+            {tr('Mula Kompas', 'Start compass')}
           </button>
           {error && <p className="text-red-400 text-sm">{error}</p>}
         </div>
@@ -158,16 +160,16 @@ export const CompassNavigator: React.FC<Props> = ({ targetLat, targetLng, onClos
               </div>
 
               <div className="text-center space-y-2 glass-panel p-6 w-full max-w-sm">
-                <p className="text-muted uppercase tracking-widest text-xs font-semibold">Jarak ke kenderaan</p>
+                <p className="text-muted uppercase tracking-widest text-xs font-semibold">{tr('Jarak ke kenderaan', 'Distance to vehicle')}</p>
                 {distance !== null ? (
                   <div className="text-5xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                    {distance < 10 ? 'Dah sampai!' : `${Math.round(distance)}m`}
+                    {distance < 10 ? tr('Dah sampai!', 'You have arrived!') : `${Math.round(distance)}m`}
                   </div>
                 ) : (
-                  <div className="text-2xl font-bold text-text animate-pulse">Mengira...</div>
+                  <div className="text-2xl font-bold text-text animate-pulse">{tr('Mengira...', 'Calculating...')}</div>
                 )}
                 <p className="text-xs text-muted pt-2">
-                  Ikut anak panah. Ia berputar mengikut kompas peranti anda.
+                  {tr('Ikut anak panah. Ia berputar mengikut kompas peranti anda.', "Follow the arrow. It turns with your device's compass.")}
                 </p>
               </div>
             </>

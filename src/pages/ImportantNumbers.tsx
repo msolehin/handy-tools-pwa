@@ -7,6 +7,7 @@ import {
 import CategoryChips from '../components/CategoryChips';
 import { daysUntil, horizonTone } from '../lib/horizon';
 import { groupDigits, maskDigits, relativeDay } from '../lib/readable';
+import { useT, t as tr, locale } from '../lib/lang';
 
 interface ImportantNumber {
   id: string;
@@ -21,13 +22,16 @@ interface ImportantNumber {
 }
 
 const STORAGE_KEY = 'important_numbers_data';
-const DEFAULT_CATS = ['Utiliti', 'Internet', 'Insurans', 'Keahlian', 'Bank', 'Lain-lain'];
+const DEFAULT_CATS_MS = ['Utiliti', 'Internet', 'Insurans', 'Keahlian', 'Bank', 'Lain-lain'];
+const DEFAULT_CATS_EN = ['Utilities', 'Internet', 'Insurance', 'Memberships', 'Bank', 'Other'];
+const defaultCats = () => tr(DEFAULT_CATS_MS, DEFAULT_CATS_EN);
+const isSeedCat = (c: string) => DEFAULT_CATS_MS.includes(c) || DEFAULT_CATS_EN.includes(c);
 const CAT_COLORS = ['#3b82f6', '#22c55e', '#f97316', '#ec4899', '#8b5cf6', '#14b8a6', '#eab308', '#ef4444', '#06b6d4', '#a855f7'];
 const catColor = (cat: string, all: string[]) => CAT_COLORS[Math.max(0, all.indexOf(cat)) % CAT_COLORS.length];
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
 const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' });
+  new Date(iso).toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' });
 
 /**
  * A date here can be historic — the day an account was opened — so a passed date is simply neutral,
@@ -44,8 +48,9 @@ const dateTone = (iso: string) => {
 };
 
 const ImportantNumbers: React.FC = () => {
+  const t = useT();
   const [items, setItems] = useState<ImportantNumber[]>([]);
-  const [categories, setCategories] = useState<string[]>(DEFAULT_CATS);
+  const [categories, setCategories] = useState<string[]>(defaultCats);
   const [search, setSearch] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -70,7 +75,7 @@ const ImportantNumbers: React.FC = () => {
   // Form State
   const [showForm, setShowForm] = useState(false);
   const [fId, setFId] = useState<string | null>(null);
-  const [fCat, setFCat] = useState(DEFAULT_CATS[0]);
+  const [fCat, setFCat] = useState(() => defaultCats()[0]);
   const [fName, setFName] = useState('');
   const [fValue, setFValue] = useState('');
   const [fDate, setFDate] = useState('');
@@ -98,7 +103,7 @@ const ImportantNumbers: React.FC = () => {
       setFHidden(item.isHidden || false);
     } else {
       setFId(null);
-      setFCat(categories[0] || 'Lain-lain');
+      setFCat(categories[0] || defaultCats()[5]);
       setFName('');
       setFValue('');
       setFDate('');
@@ -133,7 +138,7 @@ const ImportantNumbers: React.FC = () => {
   };
 
   const deleteItem = (id: string) => {
-    if (window.confirm("Padam rekod ini?")) {
+    if (window.confirm(tr('Padam rekod ini?', 'Delete this record?'))) {
       setItems(prev => prev.filter(i => i.id !== id));
     }
   };
@@ -145,13 +150,13 @@ const ImportantNumbers: React.FC = () => {
   };
 
   const removeCat = (c: string) => {
-    if (DEFAULT_CATS.includes(c)) {
-      alert("Kategori asal tidak boleh dipadam.");
+    if (isSeedCat(c)) {
+      alert(tr('Kategori asal tidak boleh dipadam.', 'The built-in categories cannot be deleted.'));
       return;
     }
-    if (window.confirm(`Padam kategori '${c}'?`)) {
+    if (window.confirm(tr(`Padam kategori '${c}'?`, `Delete the '${c}' category?`))) {
       setCategories(prev => prev.filter(cat => cat !== c));
-      if (fCat === c) setFCat(categories.find(cat => cat !== c) || 'Lain-lain');
+      if (fCat === c) setFCat(categories.find(cat => cat !== c) || defaultCats()[5]);
     }
   };
 
@@ -192,8 +197,9 @@ const ImportantNumbers: React.FC = () => {
   const numberCount = items.filter(i => i.value).length;
   const dateCount = items.filter(i => i.date).length;
   const subtitle = items.length === 0
-    ? 'Akaun, polisi, ID & tarikh'
-    : [numberCount && `${numberCount} nombor`, dateCount && `${dateCount} tarikh`]
+    ? t('Akaun, polisi, ID & tarikh', 'Accounts, policies, IDs & dates')
+    : [numberCount && t(`${numberCount} nombor`, `${numberCount} numbers`),
+       dateCount && t(`${dateCount} tarikh`, `${dateCount} dates`)]
       .filter(Boolean).join(' · ');
 
   return (
@@ -214,13 +220,13 @@ const ImportantNumbers: React.FC = () => {
           type="text"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Cari nama, nombor, tarikh atau kategori"
+          placeholder={t('Cari nama, nombor, tarikh atau kategori', 'Search a name, number, date or category')}
           className="input-field pl-10 pr-10 w-full"
         />
         {search && (
           <button
             onClick={() => setSearch('')}
-            aria-label="Kosongkan carian"
+            aria-label={t('Kosongkan carian', 'Clear the search')}
             className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-muted hover:text-text"
           >
             <X size={16} />
@@ -232,20 +238,20 @@ const ImportantNumbers: React.FC = () => {
         onClick={() => openForm()}
         className="w-full py-4 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-fuchsia-500/50 hover:text-fuchsia-500 light:hover:text-fuchsia-700 transition-all flex items-center justify-center"
       >
-        <Plus size={20} className="mr-2" /> Tambah Rekod
+        <Plus size={20} className="mr-2" /> {t('Tambah Rekod', 'Add a record')}
       </button>
 
       <div className="space-y-6">
         {items.length === 0 ? (
           <div className="glass-panel p-8 text-center flex flex-col items-center">
             <BookOpen size={32} className="text-muted mb-3" />
-            <p className="text-sm font-bold text-text">Fail nombor anda masih kosong.</p>
+            <p className="text-sm font-bold text-text">{t('Fail nombor anda masih kosong.', 'Your number file is still empty.')}</p>
             <p className="text-muted text-sm mt-1 max-w-xs">
-              Simpan nombor akaun TNB, polisi insurans atau tarikh renew — sekali taip, senang cari.
+              {t('Simpan nombor akaun TNB, polisi insurans atau tarikh renew — sekali taip, senang cari.', 'Save a TNB account number, an insurance policy or a renewal date — type it once, find it easily.')}
             </p>
           </div>
         ) : filtered.length === 0 ? (
-          <p className="text-muted text-center py-4 text-sm">Tiada padanan untuk “{search}”.</p>
+          <p className="text-muted text-center py-4 text-sm">{t('Tiada padanan untuk', 'No match for')} “{search}”.</p>
         ) : (
           sortedCategories.map(cat => {
             const color = catColor(cat, categories);
@@ -275,8 +281,8 @@ const ImportantNumbers: React.FC = () => {
                             {item.notes && <p className="text-[11px] text-muted line-clamp-2 mt-0.5">{item.notes}</p>}
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
-                            <button onClick={() => openForm(item)} aria-label={`Sunting ${item.name}`} className="p-1.5 text-muted hover:text-text bg-text/5 hover:bg-text/10 rounded-lg transition-colors"><Pencil size={14} /></button>
-                            <button onClick={() => deleteItem(item.id)} aria-label={`Padam ${item.name}`} className="p-1.5 text-muted hover:text-rose-500 bg-text/5 hover:bg-rose-500/10 rounded-lg transition-colors"><Trash2 size={14} /></button>
+                            <button onClick={() => openForm(item)} aria-label={t(`Sunting ${item.name}`, `Edit ${item.name}`)} className="p-1.5 text-muted hover:text-text bg-text/5 hover:bg-text/10 rounded-lg transition-colors"><Pencil size={14} /></button>
+                            <button onClick={() => deleteItem(item.id)} aria-label={t(`Padam ${item.name}`, `Delete ${item.name}`)} className="p-1.5 text-muted hover:text-rose-500 bg-text/5 hover:bg-rose-500/10 rounded-lg transition-colors"><Trash2 size={14} /></button>
                           </div>
                         </div>
 
@@ -292,15 +298,15 @@ const ImportantNumbers: React.FC = () => {
                               {item.isHidden ? maskDigits(item.value) : groupDigits(item.value)}
                             </span>
                             <div className="ml-auto flex items-center gap-1 shrink-0 pl-2 border-l border-text/10">
-                              <button onClick={() => toggleVisibility(item.id)} aria-label={item.isHidden ? `Papar ${item.name}` : `Sembunyi ${item.name}`} className="p-2 text-muted hover:text-text rounded-lg transition-colors">
+                              <button onClick={() => toggleVisibility(item.id)} aria-label={item.isHidden ? t(`Papar ${item.name}`, `Show ${item.name}`) : t(`Sembunyi ${item.name}`, `Hide ${item.name}`)} className="p-2 text-muted hover:text-text rounded-lg transition-colors">
                                 {item.isHidden ? <Eye size={16} /> : <EyeOff size={16} />}
                               </button>
                               <button
                                 onClick={() => copyToClipboard(item.id, item.value)}
-                                aria-label={`Salin ${item.name}`}
+                                aria-label={t(`Salin ${item.name}`, `Copy ${item.name}`)}
                                 className="h-9 flex items-center gap-1.5 px-2.5 text-xs font-bold text-fuchsia-500 light:text-fuchsia-700 bg-fuchsia-500/10 hover:bg-fuchsia-500/20 rounded-lg transition-colors"
                               >
-                                {copied ? <><Check size={16} /> Disalin</> : <Copy size={16} />}
+                                {copied ? <><Check size={16} /> {t('Disalin', 'Copied')}</> : <Copy size={16} />}
                               </button>
                             </div>
                           </div>
@@ -332,7 +338,7 @@ const ImportantNumbers: React.FC = () => {
           onClick={() => setShowForm(false)}
           role="dialog"
           aria-modal="true"
-          aria-label={fId ? 'Sunting rekod' : 'Tambah rekod'}
+          aria-label={fId ? t('Sunting rekod', 'Edit record') : t('Tambah rekod', 'Add record')}
         >
           {/* The sheet is a column with a fixed head and foot: the fields scroll between them, so
               Save stays reachable no matter how many categories have been added. */}
@@ -341,14 +347,14 @@ const ImportantNumbers: React.FC = () => {
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between shrink-0 px-5 pt-5 pb-3">
-              <h3 className="font-extrabold text-lg">{fId ? 'Sunting' : 'Tambah'} {fKind === 'number' ? 'nombor' : 'tarikh'}</h3>
-              <button onClick={() => setShowForm(false)} aria-label="Tutup" className="p-1 text-muted hover:text-text"><X size={20} /></button>
+              <h3 className="font-extrabold text-lg">{fId ? t('Sunting', 'Edit') : t('Tambah', 'Add')} {fKind === 'number' ? t('nombor', 'number') : t('tarikh', 'date')}</h3>
+              <button onClick={() => setShowForm(false)} aria-label={t('Tutup', 'Close')} className="p-1 text-muted hover:text-text"><X size={20} /></button>
             </div>
 
             <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
               {/* Kind leads: it decides what the record is, and every field under it changes shape. */}
               <div className="flex p-1 bg-text/5 rounded-xl gap-1">
-                {([['number', 'Nombor', Hash], ['date', 'Tarikh', CalendarDays]] as const).map(([kind, label, Icon]) => (
+                {([['number', t('Nombor', 'Number'), Hash], ['date', t('Tarikh', 'Date'), CalendarDays]] as const).map(([kind, label, Icon]) => (
                   <button
                     key={kind}
                     onClick={() => setFKind(kind)}
@@ -363,14 +369,14 @@ const ImportantNumbers: React.FC = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="in-name">Nama akaun / penyedia</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="in-name">{t('Nama akaun / penyedia', 'Account / provider name')}</label>
                 <input
                   id="in-name"
                   autoFocus
                   value={fName}
                   onChange={e => setFName(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') saveForm(); }}
-                  placeholder={fKind === 'number' ? 'cth. TNB, Unifi, Insurans AIA' : 'cth. Renew polisi AIA'}
+                  placeholder={fKind === 'number' ? t('cth. TNB, Unifi, Insurans AIA', 'e.g. TNB, Unifi, AIA Insurance') : t('cth. Renew polisi AIA', 'e.g. Renew the AIA policy')}
                   className="input-field w-full"
                 />
               </div>
@@ -378,20 +384,20 @@ const ImportantNumbers: React.FC = () => {
               {fKind === 'number' ? (
                 <>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="in-value">Nombor / ID</label>
+                    <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="in-value">{t('Nombor / ID', 'Number / ID')}</label>
                     <input
                       id="in-value"
                       value={fValue}
                       onChange={e => setFValue(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') saveForm(); }}
-                      placeholder="cth. 1234567890"
+                      placeholder={t('cth. 1234567890', 'e.g. 1234567890')}
                       className="input-field w-full font-mono"
                     />
                     {/* The list groups digits and can mask them. Showing the result here is what makes
                         the toggle below self-explanatory — you see what hiding does before saving. */}
                     {fValue.trim() && (
                       <p className="pt-0.5 text-[11px] text-muted">
-                        Papar sebagai{' '}
+                        {t('Papar sebagai', 'Shown as')}{' '}
                         <span className="font-mono text-sm font-semibold tracking-[0.06em] text-fuchsia-500 light:text-fuchsia-700">
                           {fHidden ? maskDigits(fValue.trim()) : groupDigits(fValue.trim())}
                         </span>
@@ -407,7 +413,7 @@ const ImportantNumbers: React.FC = () => {
                     }`}
                   >
                     {fHidden ? <EyeOff size={16} className="shrink-0" /> : <Eye size={16} className="shrink-0" />}
-                    <span className="text-sm font-medium">Sembunyikan dalam senarai</span>
+                    <span className="text-sm font-medium">{t('Sembunyikan dalam senarai', 'Hide it in the list')}</span>
                     <span className={`ml-auto shrink-0 w-9 h-5 rounded-full p-0.5 transition-colors ${fHidden ? 'bg-fuchsia-600' : 'bg-text/15'}`}>
                       <span className={`block w-4 h-4 rounded-full bg-[#fff] transition-transform ${fHidden ? 'translate-x-4' : ''}`} />
                     </span>
@@ -415,20 +421,20 @@ const ImportantNumbers: React.FC = () => {
                 </>
               ) : (
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="in-date">Tarikh</label>
+                  <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="in-date">{t('Tarikh', 'Date')}</label>
                   <input id="in-date" type="date" value={fDate} onChange={e => setFDate(e.target.value)} className="input-field w-full font-mono" />
                   {fDate && <p className="pt-0.5 text-[11px] text-muted">{formatDate(fDate)} · {relativeDay(fDate)}</p>}
                 </div>
               )}
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">Kategori</label>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">{t('Kategori', 'Category')}</label>
                 <CategoryChips cats={categories} value={fCat} onSelect={setFCat} onAdd={addCat} onRemove={removeCat} accent="rgb(217 70 239)" />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="in-notes">Nota (pilihan)</label>
-                <textarea id="in-notes" value={fNotes} onChange={e => setFNotes(e.target.value)} placeholder="cth. Didaftarkan atas nama isteri" className="input-field w-full h-20 resize-none py-2" />
+                <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="in-notes">{t('Nota (pilihan)', 'Note (optional)')}</label>
+                <textarea id="in-notes" value={fNotes} onChange={e => setFNotes(e.target.value)} placeholder={t('cth. Didaftarkan atas nama isteri', "e.g. Registered in my wife's name")} className="input-field w-full h-20 resize-none py-2" />
               </div>
             </div>
 
@@ -436,11 +442,11 @@ const ImportantNumbers: React.FC = () => {
               {/* A greyed-out button that never says why is a dead end. Name the one thing outstanding. */}
               {!canSave && (
                 <p className="text-center text-[11px] text-muted">
-                  {!fName.trim() ? 'Isi nama akaun dulu.' : fKind === 'number' ? 'Isi nombor atau ID.' : 'Pilih tarikh.'}
+                  {!fName.trim() ? t('Isi nama akaun dulu.', 'Fill in the account name first.') : fKind === 'number' ? t('Isi nombor atau ID.', 'Fill in the number or ID.') : t('Pilih tarikh.', 'Pick a date.')}
                 </p>
               )}
               <button onClick={saveForm} disabled={!canSave} className="w-full py-3 rounded-xl bg-fuchsia-600 text-[#fff] font-bold hover:bg-fuchsia-700 disabled:opacity-40 disabled:pointer-events-none">
-                Simpan {fKind === 'number' ? 'nombor' : 'tarikh'}
+                {t('Simpan', 'Save')} {fKind === 'number' ? t('nombor', 'number') : t('tarikh', 'date')}
               </button>
             </div>
           </div>

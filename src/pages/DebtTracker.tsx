@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { HandCoins, Trash2, Check, Plus, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { HandCoins, Trash2, Check, Plus, X, Send, Copy, Share2, MessageCircle } from 'lucide-react';
 import { store } from '../lib/store';
+import { useT, t as tr, getLang, type Lang } from '../lib/lang';
+import { nudge, TONES, type Tone } from '../lib/nudge';
 
 interface IOU {
   id: string;
@@ -23,10 +26,10 @@ const money = (n: number) =>
 const GREEN = 'text-emerald-500 light:text-emerald-700';
 const RED = 'text-rose-500 light:text-rose-700';
 
-const TAB_LABELS: { key: Filter; label: string }[] = [
-  { key: 'all', label: 'Semua' },
-  { key: 'owe_me', label: 'Orang hutang you' },
-  { key: 'i_owe', label: 'You hutang orang' },
+const TAB_LABELS: { key: Filter; ms: string; en: string }[] = [
+  { key: 'all', ms: 'Semua', en: 'All' },
+  { key: 'owe_me', ms: 'Orang hutang you', en: 'Owed to you' },
+  { key: 'i_owe', ms: 'You hutang orang', en: 'You owe' },
 ];
 
 /**
@@ -36,11 +39,128 @@ const TAB_LABELS: { key: Filter; label: string }[] = [
  * Hoisted out of the page component on purpose — declared inline it would be a new component type
  * every render, so React would tear down and rebuild every row on each keystroke.
  */
+/**
+ * The reminder composer. Language is its own choice here rather than the app's — the app can be in
+ * English while the person you are chasing reads Malay, and that mismatch is the whole point of a
+ * message you send to someone else.
+ */
+const NudgeSheet: React.FC<{ iou: IOU; onClose: () => void }> = ({ iou, onClose }) => {
+  const t = useT();
+  const [tone, setTone] = useState<Tone>('gentle');
+  const [lang, setMsgLang] = useState<Lang>(getLang);
+  const [copied, setCopied] = useState(false);
+
+  const message = nudge(tone, lang, iou.personName, money(iou.amount), iou.description);
+
+  const copy = () => {
+    navigator.clipboard?.writeText(message).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  // The share sheet is the "any other app" route; where it does not exist (desktop Firefox, and
+  // anything non-secure) the clipboard is the honest fallback rather than a dead button.
+  // Feature-detected with `typeof`: lib.dom types `share` as always present, so a plain
+  // truthiness check is a type error and would still be wrong on the browsers that lack it.
+  const canShare = typeof navigator.share === 'function';
+  const share = () => {
+    if (canShare) navigator.share({ text: message }).catch(() => { /* user dismissed */ });
+    else copy();
+  };
+
+  return createPortal((
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={t(`Mesej untuk ${iou.personName}`, `Message for ${iou.personName}`)}
+    >
+      <div
+        className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up motion-reduce:animate-none"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="font-bold text-lg min-w-0 truncate">
+            {t(`Ingatkan ${iou.personName}`, `Remind ${iou.personName}`)}
+          </h3>
+          <button onClick={onClose} aria-label={t('Tutup', 'Close')} className="p-1 shrink-0 text-muted hover:text-text">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="flex p-1 bg-text/5 rounded-xl gap-1">
+          {(['ms', 'en'] as const).map(code => (
+            <button
+              key={code}
+              onClick={() => setMsgLang(code)}
+              aria-pressed={lang === code}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${
+                lang === code ? 'bg-surface shadow-sm text-text' : 'text-muted hover:text-text'
+              }`}
+            >
+              {code === 'ms' ? 'Bahasa Melayu' : 'English'}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap gap-1.5">
+          {TONES.map(({ key, ms, en }) => (
+            <button
+              key={key}
+              onClick={() => setTone(key)}
+              aria-pressed={tone === key}
+              className={`px-3 py-1.5 text-xs font-bold rounded-full border transition-colors ${
+                tone === key
+                  ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-500 light:text-indigo-700'
+                  : 'border-text/15 text-muted hover:text-text hover:border-text/30'
+              }`}
+            >
+              {t(ms, en)}
+            </button>
+          ))}
+        </div>
+
+        <p className="text-sm leading-relaxed bg-text/5 rounded-xl p-3.5 whitespace-pre-wrap">
+          {message}
+        </p>
+
+        <div className="grid grid-cols-2 gap-2">
+          <a
+            href={`https://wa.me/?text=${encodeURIComponent(message)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="py-3 rounded-xl bg-emerald-600 text-[#fff] font-bold flex items-center justify-center gap-2 hover:bg-emerald-700"
+          >
+            <MessageCircle size={16} /> WhatsApp
+          </a>
+          <button
+            onClick={share}
+            className="py-3 rounded-xl bg-indigo-600 text-[#fff] font-bold flex items-center justify-center gap-2 hover:bg-indigo-700"
+          >
+            {canShare
+              ? <><Share2 size={16} /> {t('Kongsi', 'Share')}</>
+              : <><Copy size={16} /> {copied ? t('Disalin!', 'Copied!') : t('Salin', 'Copy')}</>}
+          </button>
+        </div>
+        {canShare && (
+          <button onClick={copy} className="w-full text-xs font-bold text-muted hover:text-text flex items-center justify-center gap-1.5">
+            <Copy size={13} /> {copied ? t('Disalin!', 'Copied!') : t('Salin teks', 'Copy the text')}
+          </button>
+        )}
+      </div>
+    </div>
+  ), document.body);
+};
+
 const Row: React.FC<{
   iou: IOU;
   onToggle: (id: string) => void;
   onDelete: (iou: IOU) => void;
-}> = ({ iou, onToggle, onDelete }) => {
+  onNudge: (iou: IOU) => void;
+}> = ({ iou, onToggle, onDelete, onNudge }) => {
+  const t = useT();
   const settled = iou.isSettled;
   const incoming = iou.type === 'owe_me';
   const initial = iou.personName.trim().charAt(0).toUpperCase() || '?';
@@ -53,8 +173,10 @@ const Row: React.FC<{
         <button
           onClick={() => onToggle(iou.id)}
           aria-pressed={settled}
-          aria-label={settled ? `Tanda ${iou.personName} belum settle` : `Tanda ${iou.personName} dah settle`}
-          title={settled ? 'Tap: belum settle' : 'Tap: dah settle'}
+          aria-label={settled
+            ? t(`Tanda ${iou.personName} belum settle`, `Mark ${iou.personName} as unsettled`)
+            : t(`Tanda ${iou.personName} dah settle`, `Mark ${iou.personName} as settled`)}
+          title={settled ? t('Tap: belum settle', 'Tap: mark unsettled') : t('Tap: dah settle', 'Tap: mark settled')}
           className={`w-9 h-9 shrink-0 rounded-full border flex items-center justify-center text-sm font-extrabold transition-all hover:ring-2 hover:ring-indigo-500/40 ${
             settled
               ? 'bg-indigo-500 border-indigo-500 text-[#fff]'
@@ -76,9 +198,21 @@ const Row: React.FC<{
         >
           {incoming ? '+' : '−'}{money(iou.amount)}
         </span>
+        {/* Only for money coming your way, and only while it is still owed — there is nothing to
+            ask for once it is settled, and chasing yourself is not a feature. */}
+        {incoming && !settled && (
+          <button
+            onClick={() => onNudge(iou)}
+            aria-label={t(`Hantar peringatan kepada ${iou.personName}`, `Send ${iou.personName} a reminder`)}
+            title={t('Minta balik', 'Ask for it back')}
+            className="shrink-0 p-1.5 rounded-lg text-muted hover:text-indigo-500 hover:bg-indigo-500/10 transition-colors"
+          >
+            <Send size={14} />
+          </button>
+        )}
         <button
           onClick={() => onDelete(iou)}
-          aria-label={`Padam catatan untuk ${iou.personName}`}
+          aria-label={t(`Padam catatan untuk ${iou.personName}`, `Delete the note for ${iou.personName}`)}
           className="shrink-0 p-1.5 -mr-1 rounded-lg text-muted hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
         >
           <Trash2 size={14} />
@@ -92,6 +226,7 @@ const Row: React.FC<{
 };
 
 const DebtTracker: React.FC = () => {
+  const t = useT();
   const [ious, setIous] = useState<IOU[]>([]);
   const [isAddingIou, setIsAddingIou] = useState(false);
   const [iouName, setIouName] = useState('');
@@ -100,6 +235,7 @@ const DebtTracker: React.FC = () => {
   const [iouType, setIouType] = useState<'owe_me' | 'i_owe'>('owe_me');
   const [isLoaded, setIsLoaded] = useState(false);
   const [filter, setFilter] = useState<Filter>('all');
+  const [nudging, setNudging] = useState<IOU | null>(null);
 
   useEffect(() => {
     const saved = store.getItem(STORAGE_KEY);
@@ -153,7 +289,7 @@ const DebtTracker: React.FC = () => {
   };
 
   const deleteIou = (iou: IOU) => {
-    if (window.confirm(`Padam catatan untuk ${iou.personName}?`)) {
+    if (window.confirm(tr(`Padam catatan untuk ${iou.personName}?`, `Delete the note for ${iou.personName}?`))) {
       setIous(ious.filter(i => i.id !== iou.id));
     }
   };
@@ -179,7 +315,7 @@ const DebtTracker: React.FC = () => {
         </div>
         <div className="min-w-0">
           <h1 className="text-2xl font-bold leading-tight">Catat Hutang</h1>
-          <p className="text-sm text-muted truncate">Siapa hutang siapa, sebelum lupa</p>
+          <p className="text-sm text-muted truncate">{t('Siapa hutang siapa, sebelum lupa', 'Who owes who, before you forget')}</p>
         </div>
       </div>
 
@@ -187,14 +323,14 @@ const DebtTracker: React.FC = () => {
       <div className="grid grid-cols-2 gap-3">
         <div className="glass-panel p-4 border-emerald-500/30 text-center relative overflow-hidden">
           <div className="absolute -right-6 -top-6 w-20 h-20 rounded-full bg-emerald-500/10 blur-xl" aria-hidden="true" />
-          <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1.5">Orang hutang you</p>
+          <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1.5">{t('Orang hutang you', 'Owed to you')}</p>
           <p className={`text-xl font-extrabold ${GREEN}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
             {money(totalOwedToMe)}
           </p>
         </div>
         <div className="glass-panel p-4 border-rose-500/30 text-center relative overflow-hidden">
           <div className="absolute -right-6 -top-6 w-20 h-20 rounded-full bg-rose-500/10 blur-xl" aria-hidden="true" />
-          <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1.5">You hutang orang</p>
+          <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1.5">{t('You hutang orang', 'You owe')}</p>
           <p className={`text-xl font-extrabold ${RED}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
             {money(totalIOwe)}
           </p>
@@ -205,14 +341,16 @@ const DebtTracker: React.FC = () => {
           something the two numbers above cannot: which way the page is leaning, at a glance. */}
       <div className="glass-panel px-4 py-3">
         <div className="flex items-baseline justify-between gap-2 mb-2.5">
-          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted shrink-0">Imbangan</span>
+          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted shrink-0">{t('Imbangan', 'Balance')}</span>
           <span
             className={`text-lg font-extrabold leading-none truncate ${
               net > 0 ? GREEN : net < 0 ? RED : 'text-muted'
             }`}
             style={{ fontVariantNumeric: 'tabular-nums' }}
           >
-            {board === 0 ? 'Kosong' : net === 0 ? 'Seri' : `${net > 0 ? 'You lebih' : 'You kurang'} ${money(net)}`}
+            {board === 0 ? t('Kosong', 'Nothing') : net === 0 ? t('Seri', 'Even')
+              : net > 0 ? t(`You lebih ${money(net)}`, `You are up ${money(net)}`)
+                : t(`You kurang ${money(net)}`, `You are down ${money(net)}`)}
           </span>
         </div>
         <div className="flex h-2.5 gap-0.5 rounded-full overflow-hidden bg-text/10">
@@ -234,8 +372,8 @@ const DebtTracker: React.FC = () => {
       {isAddingIou ? (
         <div className="glass-panel p-5 space-y-4 border-indigo-500/30 animate-slide-up motion-reduce:animate-none">
           <div className="flex items-center justify-between">
-            <h3 className="font-bold text-lg">Catatan baru</h3>
-            <button onClick={() => setIsAddingIou(false)} aria-label="Tutup" className="p-1 text-muted hover:text-text">
+            <h3 className="font-bold text-lg">{t('Catatan baru', 'New note')}</h3>
+            <button onClick={() => setIsAddingIou(false)} aria-label={t('Tutup', 'Close')} className="p-1 text-muted hover:text-text">
               <X size={20} />
             </button>
           </div>
@@ -248,7 +386,7 @@ const DebtTracker: React.FC = () => {
                 iouType === 'owe_me' ? `bg-emerald-500/20 ${GREEN} border border-emerald-500/30` : 'text-muted hover:text-text'
               }`}
             >
-              Orang hutang you
+              {t('Orang hutang you', 'Owed to you')}
             </button>
             <button
               onClick={() => setIouType('i_owe')}
@@ -257,23 +395,23 @@ const DebtTracker: React.FC = () => {
                 iouType === 'i_owe' ? `bg-rose-500/20 ${RED} border border-rose-500/30` : 'text-muted hover:text-text'
               }`}
             >
-              You hutang orang
+              {t('You hutang orang', 'You owe')}
             </button>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="dt-name">Nama orang</label>
-            <input id="dt-name" autoFocus type="text" value={iouName} onChange={e => setIouName(e.target.value)} placeholder="cth. Sara" className="input-field w-full" />
+            <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="dt-name">{t('Nama orang', 'Person')}</label>
+            <input id="dt-name" autoFocus type="text" value={iouName} onChange={e => setIouName(e.target.value)} placeholder={t('cth. Sara', 'e.g. Sara')} className="input-field w-full" />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="dt-amount">Jumlah (RM)</label>
+            <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="dt-amount">{t('Jumlah (RM)', 'Amount (RM)')}</label>
             <input id="dt-amount" type="number" step="0.01" value={iouAmount} onChange={e => setIouAmount(e.target.value)} placeholder="0.00" className="input-field w-full font-mono text-lg" />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="dt-desc">Untuk apa? (pilihan)</label>
-            <input id="dt-desc" type="text" value={iouDesc} onChange={e => setIouDesc(e.target.value)} placeholder="cth. Tiket konsert" className="input-field w-full" />
+            <label className="text-xs font-bold text-muted uppercase tracking-wider" htmlFor="dt-desc">{t('Untuk apa? (pilihan)', 'What for? (optional)')}</label>
+            <input id="dt-desc" type="text" value={iouDesc} onChange={e => setIouDesc(e.target.value)} placeholder={t('cth. Tiket konsert', 'e.g. Concert tickets')} className="input-field w-full" />
           </div>
 
           <button
@@ -281,7 +419,7 @@ const DebtTracker: React.FC = () => {
             disabled={!iouName.trim() || !parseFloat(iouAmount)}
             className="w-full py-3 rounded-xl bg-indigo-600 text-[#fff] font-bold hover:bg-indigo-700 disabled:opacity-50 disabled:pointer-events-none"
           >
-            Simpan catatan
+            {t('Simpan catatan', 'Save note')}
           </button>
         </div>
       ) : (
@@ -289,13 +427,13 @@ const DebtTracker: React.FC = () => {
           onClick={() => setIsAddingIou(true)}
           className="w-full py-4 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-indigo-500/50 hover:text-indigo-500 light:hover:text-indigo-700 transition-all flex items-center justify-center"
         >
-          <Plus size={20} className="mr-2" /> Tambah Catatan Hutang
+          <Plus size={20} className="mr-2" /> {t('Tambah Catatan Hutang', 'Add a debt note')}
         </button>
       )}
 
       {/* Filter tabs */}
       <div className="flex p-1 bg-text/5 rounded-xl gap-1">
-        {TAB_LABELS.map(({ key, label }) => (
+        {TAB_LABELS.map(({ key, ms, en }) => (
           <button
             key={key}
             onClick={() => setFilter(key)}
@@ -307,7 +445,7 @@ const DebtTracker: React.FC = () => {
             <span className={`text-[10px] font-bold leading-tight truncate max-w-full ${
               filter === key ? 'text-text' : 'text-muted'
             }`}>
-              {label}
+              {t(ms, en)}
             </span>
             <span
               className={`text-sm font-black leading-none ${filter === key ? 'text-indigo-500 light:text-indigo-700' : 'text-muted'}`}
@@ -321,16 +459,16 @@ const DebtTracker: React.FC = () => {
 
       <div className="space-y-2">
         {active.map(iou => (
-          <Row key={iou.id} iou={iou} onToggle={toggleIouSettle} onDelete={deleteIou} />
+          <Row key={iou.id} iou={iou} onToggle={toggleIouSettle} onDelete={deleteIou} onNudge={setNudging} />
         ))}
 
         {active.length === 0 && !isAddingIou && (
           <div className="text-center p-8 text-muted text-sm border border-dashed border-text/10 rounded-2xl">
             {ious.length === 0
-              ? 'Takde hutang lagi. Catat satu sebelum lupa siapa hutang siapa.'
-              : filter === 'all' ? 'Semua dah settle.'
-                : filter === 'owe_me' ? 'Takde siapa hutang you.'
-                  : 'You takde hutang sesiapa.'}
+              ? t('Takde hutang lagi. Catat satu sebelum lupa siapa hutang siapa.', 'No debts yet. Write one down before you forget who owes who.')
+              : filter === 'all' ? t('Semua dah settle.', 'Everything is settled.')
+                : filter === 'owe_me' ? t('Takde siapa hutang you.', 'Nobody owes you anything.')
+                  : t('You takde hutang sesiapa.', 'You do not owe anybody.')}
           </div>
         )}
       </div>
@@ -338,13 +476,15 @@ const DebtTracker: React.FC = () => {
       {settled.length > 0 && (
         <div className="space-y-2">
           <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted px-1">
-            Dah settle · {settled.length}
+            {t('Dah settle', 'Settled')} · {settled.length}
           </h2>
           {settled.map(iou => (
-            <Row key={iou.id} iou={iou} onToggle={toggleIouSettle} onDelete={deleteIou} />
+            <Row key={iou.id} iou={iou} onToggle={toggleIouSettle} onDelete={deleteIou} onNudge={setNudging} />
           ))}
         </div>
       )}
+
+      {nudging && <NudgeSheet iou={nudging} onClose={() => setNudging(null)} />}
     </div>
   );
 };

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Coins, Hash, Dices, FlaskConical } from 'lucide-react';
+import { useT, t as tr } from '../lib/lang';
 
 const CoinFlip = () => {
+  const t = useT();
   const [isFlipping, setIsFlipping] = useState(false);
   const [rotation, setRotation] = useState(0);
-  const [result, setResult] = useState<'Kepala' | 'Ekor' | null>(null);
+  const [result, setResult] = useState<'heads' | 'tails' | null>(null);
 
   const dragStart = React.useRef<{x: number, y: number} | null>(null);
 
@@ -27,7 +29,7 @@ const CoinFlip = () => {
     setRotation(nextRot);
     
     setTimeout(() => {
-      setResult(isTails ? 'Ekor' : 'Kepala');
+      setResult(isTails ? 'tails' : 'heads');
       setIsFlipping(false);
     }, 1500);
   };
@@ -99,11 +101,11 @@ const CoinFlip = () => {
       <div className="text-center h-12">
         {result && !isFlipping && (
           <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 animate-fade-in drop-shadow-lg">
-            {result}!
+            {result === 'tails' ? t('Ekor', 'Tails') : t('Kepala', 'Heads')}!
           </h2>
         )}
         {isFlipping && (
-          <h2 className="text-xl font-bold text-muted animate-pulse">Melambung...</h2>
+          <h2 className="text-xl font-bold text-muted animate-pulse">{t('Melambung...', 'Flipping...')}</h2>
         )}
       </div>
       
@@ -112,13 +114,14 @@ const CoinFlip = () => {
         disabled={isFlipping}
         className="btn-primary w-full py-4 text-lg"
       >
-        Lambung Duit Syiling
+        {t('Lambung Duit Syiling', 'Flip the Coin')}
       </button>
     </div>
   );
 };
 
 const RandomNumber = () => {
+  const t = useT();
   const [min, setMin] = useState('1');
   const [max, setMax] = useState('100');
   const [result, setResult] = useState<number | null>(null);
@@ -132,7 +135,7 @@ const RandomNumber = () => {
     const maxNum = parseInt(max);
     
     if (isNaN(minNum) || isNaN(maxNum) || minNum >= maxNum) {
-      alert('Sila masukkan julat sah di mana Min lebih kecil daripada Maks.');
+      alert(tr('Sila masukkan julat sah di mana Min lebih kecil daripada Maks.', 'Enter a valid range where Min is smaller than Max.'));
       return;
     }
     
@@ -162,7 +165,7 @@ const RandomNumber = () => {
     <div className="space-y-8 py-4">
       <div className="flex space-x-4">
         <div className="flex-1 space-y-2">
-          <label className="text-xs font-bold text-blue-400 uppercase tracking-wider">Min</label>
+          <label className="text-xs font-bold text-blue-400 uppercase tracking-wider">{t('Min', 'Min')}</label>
           <input 
             type="number" 
             value={min} 
@@ -171,7 +174,7 @@ const RandomNumber = () => {
           />
         </div>
         <div className="flex-1 space-y-2">
-          <label className="text-xs font-bold text-blue-400 uppercase tracking-wider">Maks</label>
+          <label className="text-xs font-bold text-blue-400 uppercase tracking-wider">{t('Maks', 'Max')}</label>
           <input 
             type="number" 
             value={max} 
@@ -188,7 +191,7 @@ const RandomNumber = () => {
             {displayNum}
           </div>
         ) : (
-          <div className="text-muted/50 text-xl font-medium">Sedia</div>
+          <div className="text-muted/50 text-xl font-medium">{t('Sedia', 'Ready')}</div>
         )}
       </div>
       
@@ -197,7 +200,7 @@ const RandomNumber = () => {
         disabled={isGenerating}
         className="btn-primary bg-blue-500 hover:bg-blue-600 border-blue-400/50 shadow-[0_0_20px_rgba(59,130,246,0.3)] w-full py-4 text-lg"
       >
-        Jana Nombor
+        {t('Jana Nombor', 'Generate a Number')}
       </button>
     </div>
   );
@@ -302,6 +305,7 @@ const Dice3D = ({ value, isRolling }: { value: number, isRolling: boolean }) => 
 };
 
 const DiceRoller = () => {
+  const t = useT();
   const [diceCount, setDiceCount] = useState(2);
   const [diceValues, setDiceValues] = useState<number[]>([1, 1]);
   const [isRolling, setIsRolling] = useState(false);
@@ -370,7 +374,7 @@ const DiceRoller = () => {
         style={{ perspective: '1000px' }}
       >
         <div className="absolute top-2 left-0 right-0 text-center pointer-events-none">
-          <span className="text-[10px] uppercase tracking-widest text-muted/50 font-bold">Leret untuk baling</span>
+          <span className="text-[10px] uppercase tracking-widest text-muted/50 font-bold">{t('Leret untuk baling', 'Swipe to roll')}</span>
         </div>
         {diceValues.map((val, i) => (
           <div key={i} style={{ animationDelay: `${i * 0.1}s` }} className="pointer-events-none z-20">
@@ -381,7 +385,7 @@ const DiceRoller = () => {
       
       <div className="text-center h-8">
         {!isRolling && (
-          <p className="text-xl font-bold text-purple-400 animate-fade-in">Jumlah: {total}</p>
+          <p className="text-xl font-bold text-purple-400 animate-fade-in">{t('Jumlah', 'Total')}: {total}</p>
         )}
       </div>
 
@@ -390,7 +394,7 @@ const DiceRoller = () => {
         disabled={isRolling}
         className="btn-primary bg-purple-500 hover:bg-purple-600 border-purple-400/50 shadow-[0_0_20px_rgba(168,85,247,0.3)] w-full py-4 text-lg"
       >
-        Baling Dadu
+        {t('Baling Dadu', 'Roll the Dice')}
       </button>
 
       <style dangerouslySetInnerHTML={{__html: `
@@ -410,6 +414,7 @@ const DiceRoller = () => {
 };
 
 const SpinBottle = () => {
+  const t = useT();
   const [rotation, setRotation] = useState(0);
   const [isSpinning, setIsSpinning] = useState(false);
   const bottleRef = React.useRef<HTMLDivElement>(null);
@@ -552,9 +557,9 @@ const SpinBottle = () => {
       
       <div className="text-center h-8">
         {isSpinning ? (
-          <h2 className="text-xl font-bold text-muted animate-pulse">Sedang pusing...</h2>
+          <h2 className="text-xl font-bold text-muted animate-pulse">{t('Sedang pusing...', 'Spinning...')}</h2>
         ) : (
-          <h2 className="text-sm font-medium text-muted">Leret atau klik untuk pusing</h2>
+          <h2 className="text-sm font-medium text-muted">{t('Leret atau klik untuk pusing', 'Swipe or tap to spin')}</h2>
         )}
       </div>
       
@@ -563,7 +568,7 @@ const SpinBottle = () => {
         disabled={isSpinning}
         className="btn-primary w-full py-4 text-lg"
       >
-        Pusing Botol
+        {t('Pusing Botol', 'Spin the Bottle')}
       </button>
     </div>
   );
@@ -572,6 +577,7 @@ const SpinBottle = () => {
 type TabType = 'coin' | 'number' | 'dice' | 'bottle';
 
 const Randomizer: React.FC = () => {
+  const t = useT();
   const [activeTab, setActiveTab] = useState<TabType>('coin');
 
   return (
@@ -581,7 +587,7 @@ const Randomizer: React.FC = () => {
           <Dices size={32} />
         </div>
         <h1 className="text-2xl font-bold tracking-tight text-text/90">Randomizer</h1>
-        <p className="text-sm text-muted">Syiling, Dadu dan Nombor</p>
+        <p className="text-sm text-muted">{t('Syiling, Dadu dan Nombor', 'Coins, Dice and Numbers')}</p>
       </div>
 
       <div className="glass-panel p-1 flex relative">
@@ -597,25 +603,25 @@ const Randomizer: React.FC = () => {
           onClick={() => setActiveTab('coin')}
           className={`flex-1 flex items-center justify-center py-2.5 z-10 font-medium text-sm transition-colors ${activeTab === 'coin' ? 'text-text' : 'text-muted hover:text-text/80'}`}
         >
-          <Coins size={16} className="mr-2" /> Syiling
+          <Coins size={16} className="mr-2" /> {t('Syiling', 'Coin')}
         </button>
         <button 
           onClick={() => setActiveTab('number')}
           className={`flex-1 flex items-center justify-center py-2.5 z-10 font-medium text-sm transition-colors ${activeTab === 'number' ? 'text-text' : 'text-muted hover:text-text/80'}`}
         >
-          <Hash size={16} className="mr-2" /> Nombor
+          <Hash size={16} className="mr-2" /> {t('Nombor', 'Number')}
         </button>
         <button 
           onClick={() => setActiveTab('dice')}
           className={`flex-1 flex items-center justify-center py-2.5 z-10 font-medium text-sm transition-colors ${activeTab === 'dice' ? 'text-text' : 'text-muted hover:text-text/80'}`}
         >
-          <Dices size={16} className="mr-2" /> Dadu
+          <Dices size={16} className="mr-2" /> {t('Dadu', 'Dice')}
         </button>
         <button 
           onClick={() => setActiveTab('bottle')}
           className={`flex-1 flex items-center justify-center py-2.5 z-10 font-medium text-sm transition-colors ${activeTab === 'bottle' ? 'text-text' : 'text-muted hover:text-text/80'}`}
         >
-          <FlaskConical size={16} className="mr-2" /> Botol
+          <FlaskConical size={16} className="mr-2" /> {t('Botol', 'Bottle')}
         </button>
       </div>
 

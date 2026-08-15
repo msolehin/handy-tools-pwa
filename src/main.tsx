@@ -4,6 +4,7 @@ import App from './App.tsx'
 import './index.css'
 import { registerSW } from 'virtual:pwa-register'
 import { bootstrap, onLateHydrate } from './lib/store'
+import { getLang } from './lib/lang'
 
 // Apply the saved theme before anything renders. This used to live only in Layout, which the
 // landing page deliberately renders outside of — without it a light-mode user gets a dark
@@ -12,6 +13,10 @@ import { bootstrap, onLateHydrate } from './lib/store'
 if (localStorage.getItem('theme') === 'light') {
   document.documentElement.classList.add('light');
 }
+
+// Same reasoning for the language: set <html lang> before the first render rather than in an
+// effect, so assistive tech and the browser's own translation prompt never see the wrong one.
+document.documentElement.lang = getLang();
 
 // Capture the PWA install prompt as early as possible (it can fire before React mounts)
 window.addEventListener('beforeinstallprompt', (e) => {
