@@ -24,7 +24,7 @@ const GuestNotice: React.FC<{ onSignIn: () => void }> = ({ onSignIn }) => {
       <CloudOff size={18} className="text-amber-500 shrink-0" />
       <p className="text-xs text-text/80 leading-snug flex-1">
         <span className="font-semibold">Not saved.</span>{' '}
-        Entries here stay in this tab and are gone when you close it.
+        You can add entries to try the tool, but they disappear as soon as you refresh.
       </p>
       <button
         onClick={onSignIn}

@@ -5,19 +5,30 @@
 //   - preference keys are untouched by any of this
 //   - nothing is pushed before a pull has confirmed what the server holds
 //   - a 409 keeps the local edit instead of dropping it
+//   - a signed-in user is never silently left in guest mode by a pull that didn't land
+//   - every save, failure and load is announced through `store:status`
 import { test, describe, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 // Minimal browser surface. store.ts registers listeners at module scope, so these have to
 // exist before the dynamic import below.
-const listeners: Record<string, (() => void)[]> = {};
+const listeners: Record<string, ((e?: any) => void)[]> = {};
+// Everything the app was told through `store:status`, so the tests can assert the user was
+// actually informed rather than only that the store did the right thing quietly.
+let announced: { kind: string; message: string }[] = [];
 (globalThis as any).window = {
   addEventListener: (name: string, fn: () => void) => { (listeners[name] ??= []).push(fn); },
-  dispatchEvent: () => true,
+  dispatchEvent: (e: any) => {
+    if (e?.type === 'store:status') announced.push(e.detail);
+    return true;
+  },
 };
 (globalThis as any).document = { visibilityState: 'visible' };
 // Plain classes, not parameter properties — Node's strip-only TS mode rejects those.
-(globalThis as any).CustomEvent = class { type: string; constructor(type: string) { this.type = type; } };
+(globalThis as any).CustomEvent = class {
+  type: string; detail: any;
+  constructor(type: string, init?: { detail?: unknown }) { this.type = type; this.detail = init?.detail; }
+};
 (globalThis as any).Event = class { type: string; constructor(type: string) { this.type = type; } };
 
 let online = true;
@@ -26,13 +37,13 @@ Object.defineProperty(globalThis, 'navigator', {
   configurable: true,
 });
 
-type Call = { url: string; body: any };
+type Call = { url: string; method: string; body: any };
 let calls: Call[] = [];
 let handler: (url: string, init: RequestInit) => { status: number; body: unknown };
 
 (globalThis as any).fetch = async (url: string, init: RequestInit = {}) => {
   const body = init.body ? JSON.parse(init.body as string) : undefined;
-  calls.push({ url, body });
+  calls.push({ url, method: init.method ?? 'GET', body });
   const { status, body: out } = handler(url, init);
   return { ok: status >= 200 && status < 300, status, json: async () => out };
 };
@@ -48,9 +59,12 @@ const reset = () => {
   localStorage.clear();
   sessionStorage.clear();
   calls = [];
+  announced = [];
   online = true;
   handler = () => ({ status: 401, body: { error: 'unauthorized' } });
 };
+
+const kinds = () => announced.map((a) => a.kind);
 
 describe('client and server agree on the tool list', () => {
   test('every synced key has a server descriptor, and vice versa', async () => {
@@ -160,14 +174,22 @@ describe('client and server agree on the tool list', () => {
 describe('store: guest mode', () => {
   beforeEach(reset);
 
-  test('a guest write goes to sessionStorage, never localStorage', async () => {
+  test('a guest write is held in memory only, so a refresh loses it', async () => {
     const store = await freshStore();
     await store.bootstrap();
     store.store.setItem('tenancy_data', '{"items":[1]}');
 
-    assert.equal(sessionStorage.getItem('tenancy_data'), '{"items":[1]}');
-    assert.equal(localStorage.getItem('tenancy_data'), null,
-      'nothing a guest types may persist past the tab');
+    assert.equal(store.store.getItem('tenancy_data'), '{"items":[1]}',
+      'readable in this tab — a guest can still try the tool');
+    assert.equal(localStorage.getItem('tenancy_data'), null);
+    assert.equal(sessionStorage.getItem('tenancy_data'), null,
+      'sessionStorage survives F5, so it is not allowed to hold guest records either');
+
+    // The refresh: a new module instance, with only real storage carried over.
+    const reloaded = await freshStore();
+    await reloaded.bootstrap();
+    assert.equal(reloaded.store.getItem('tenancy_data'), null,
+      'guest data must be gone once the page is refreshed');
   });
 
   test('a guest still sees data an existing install already had', async () => {
@@ -188,6 +210,16 @@ describe('store: guest mode', () => {
     assert.equal(store.store.getItem('tenancy_data'), '{"items":["fresh"]}');
     assert.equal(localStorage.getItem('tenancy_data'), '{"items":["legacy"]}',
       'the legacy value is read-only and must survive untouched');
+  });
+
+  test('a guest is never told their data was saved', async () => {
+    const store = await freshStore();
+    await store.bootstrap();
+    store.store.setItem('tenancy_data', '{"items":[1]}');
+    await store.flush();
+
+    assert.equal(kinds().includes('saved'), false,
+      'nothing was saved anywhere, so claiming a save would be a lie');
   });
 
   test('preference keys bypass all of it', async () => {
@@ -261,19 +293,90 @@ describe('store: signed in', () => {
     assert.equal(store.pendingCount(), 1, 'but the edit is kept, pending');
   });
 
-  test('offline writes are queued, not lost', async () => {
+  test('an offline write is refused out loud, never persisted', async () => {
     const store = await freshStore();
     signedInBootstrap({ tenancy_data: { items: [] } }, { tenancy_data: 1 });
     await store.bootstrap();
 
     online = false;
+    announced = [];
     store.store.setItem('tenancy_data', '{"items":["offline edit"]}');
     await store.flush();
 
-    assert.equal(store.pendingCount(), 1, 'still pending while offline');
-    assert.deepEqual(JSON.parse(localStorage.getItem('acct:__dirty')!), ['tenancy_data']);
-    assert.equal(store.store.getItem('tenancy_data'), '{"items":["offline edit"]}',
-      'and readable immediately — offline behaviour is unchanged');
+    assert.deepEqual(announced.map((a) => a.kind), ['offline'],
+      'the user is told, rather than left assuming it saved');
+    assert.match(announced[0].message, /No internet detected/);
+    assert.equal(store.pendingCount(), 0, 'nothing is queued — a record only counts once it lands');
+    assert.equal(localStorage.getItem('acct:tenancy_data'), '{"items":[]}',
+      'the mirror still holds the last state that genuinely reached the account');
+
+    // And the refusal must not poison the cache: the same write, once we are back online,
+    // has to be recognised as a real change rather than swallowed as a no-op.
+    online = true;
+    store.store.setItem('tenancy_data', '{"items":["offline edit"]}');
+    await store.flush();
+    const put = calls.find((c) => c.url.includes('/api/sync/tenancy_data'));
+    assert.deepEqual(put!.body.data, { items: ['offline edit'] }, 'it saves once reconnected');
+  });
+
+  test('a delete while offline is refused too', async () => {
+    const store = await freshStore();
+    signedInBootstrap({ tenancy_data: { items: ['keep me'] } }, { tenancy_data: 1 });
+    await store.bootstrap();
+
+    online = false;
+    announced = [];
+    store.store.removeItem('tenancy_data');
+
+    assert.deepEqual(announced.map((a) => a.kind), ['offline']);
+    assert.deepEqual(JSON.parse(store.store.getItem('tenancy_data')!), { items: ['keep me'] },
+      'and the record is still there, because the delete never happened');
+  });
+
+  test('a save is announced only once it has actually reached the account', async () => {
+    const store = await freshStore();
+    signedInBootstrap({ tenancy_data: { items: [] } }, { tenancy_data: 1 });
+    await store.bootstrap();
+
+    announced = [];
+    store.store.setItem('tenancy_data', '{"items":["mine"]}');
+    assert.deepEqual(kinds(), [], 'nothing claimed while the push is still in flight');
+
+    await store.flush();
+    assert.deepEqual(kinds(), ['saved']);
+  });
+
+  test('a failed push says so instead of looking like a save', async () => {
+    const store = await freshStore();
+    signedInBootstrap({ tenancy_data: { items: [] } }, { tenancy_data: 1 });
+    await store.bootstrap();
+
+    handler = (url) => url.includes('/api/sync')
+      ? { status: 500, body: { error: 'boom' } }
+      : { status: 200, body: {} };
+
+    announced = [];
+    store.store.setItem('tenancy_data', '{"items":["mine"]}');
+    await store.flush();
+
+    assert.deepEqual(kinds(), ['error']);
+    assert.equal(store.pendingCount(), 1, 'and it stays queued for the retry');
+  });
+
+  test('re-writing the same value is not a change, so it neither pushes nor toasts', async () => {
+    const store = await freshStore();
+    signedInBootstrap({ tenancy_data: { items: ['same'] } }, { tenancy_data: 1 });
+    await store.bootstrap();
+
+    announced = [];
+    // Several tools re-write their whole state from a mount effect; opening a tool must not
+    // look like an edit, re-upload every photo in it, or flash "Saved".
+    store.store.setItem('tenancy_data', '{"items":["same"]}');
+    await store.flush();
+
+    assert.equal(store.pendingCount(), 0);
+    assert.deepEqual(kinds(), []);
+    assert.equal(calls.filter((c) => c.url.includes('/api/sync')).length, 0);
   });
 
   test('a 409 keeps the local edit rather than discarding it', async () => {
@@ -386,6 +489,102 @@ describe('store: signed in', () => {
     assert.deepEqual(JSON.parse(store.store.getItem('tenancy_data')!), { items: ['from account'] },
       'account data is readable immediately after sign-in');
     assert.ok(remounts > 0, 'and the app remounts so mounted pages re-read it');
+  });
+
+  test('signing in announces that the data loaded', async () => {
+    const store = await freshStore();
+    await store.bootstrap();                       // guest
+
+    signedInBootstrap({ tenancy_data: { items: ['x'] }, cd_events: [] }, { tenancy_data: 1, cd_events: 1 });
+    announced = [];
+    const { setUser } = await import('./auth.ts');
+    setUser({ email: 'a@b.c', name: 'A', picture: '' });
+    await new Promise((r) => setTimeout(r, 20));
+
+    assert.deepEqual(kinds(), ['loaded']);
+    assert.match(announced[0].message, /loaded successfully \(2 tools\)/);
+  });
+
+  test('data comes back after signing out and back in on the same account', async () => {
+    // The reported bug, end to end: sign in, add a record, sign out (which reloads the page),
+    // sign in again — and the record must be there.
+    const store = await freshStore();
+    const server: Record<string, unknown> = {};
+    const revisions: Record<string, number> = {};
+    const account = () => {
+      handler = (url) => {
+        if (url.includes('/api/bootstrap')) {
+          return { status: 200, body: { user: { email: 'a@b.c', name: 'A', picture: '' }, revisions, data: server } };
+        }
+        const tool = decodeURIComponent(url.split('/api/sync/')[1]);
+        server[tool] = calls.filter((c) => c.url.includes(tool) && c.method === 'PUT').pop()!.body.data;
+        revisions[tool] = (revisions[tool] ?? 0) + 1;
+        return { status: 200, body: { rev: revisions[tool] } };
+      };
+    };
+
+    await store.bootstrap();
+    account();
+    const { setUser } = await import('./auth.ts');
+    setUser({ email: 'a@b.c', name: 'A', picture: '' });
+    await new Promise((r) => setTimeout(r, 20));
+
+    store.store.setItem('tenancy_data', '{"items":["my house"]}');
+    await store.flush();
+    assert.deepEqual(server.tenancy_data, { items: ['my house'] }, 'it reached the account');
+
+    // Sign out. AccountPanel then calls location.reload(), so the module state is thrown away.
+    await store.clearAccountData();
+    setUser(null);
+    assert.equal(store.store.getItem('tenancy_data'), null, 'and is off the device');
+
+    const afterReload = await freshStore();
+    let remounts = 0;
+    afterReload.onLateHydrate(() => { remounts++; });
+    handler = () => ({ status: 401, body: { error: 'unauthorized' } });
+    await afterReload.bootstrap();
+
+    account();
+    (await import('./auth.ts')).setUser({ email: 'a@b.c', name: 'A', picture: '' });
+    await new Promise((r) => setTimeout(r, 20));
+
+    assert.deepEqual(JSON.parse(afterReload.store.getItem('tenancy_data')!), { items: ['my house'] });
+    assert.ok(remounts > 0, 'and the app remounts so every page re-reads it');
+  });
+
+  test('a pull that does not land keeps retrying instead of silently staying a guest', async () => {
+    // This is the root cause of "I signed in and my data is gone": the pull timed out, the
+    // store stayed in guest mode while the account panel showed a signed-in user, and nothing
+    // ever asked again — the auth subscriber only fires when the user CHANGES.
+    const store = await freshStore();
+    await store.bootstrap();
+
+    handler = () => { throw new Error('timed out'); };
+    const { setUser } = await import('./auth.ts');
+    setUser({ email: 'a@b.c', name: 'A', picture: '' });
+    await new Promise((r) => setTimeout(r, 20));
+
+    assert.equal(store.store.getItem('tenancy_data'), null, 'nothing loaded yet');
+
+    // The server comes back a moment later. Nobody touches the app.
+    signedInBootstrap({ tenancy_data: { items: ['from account'] } }, { tenancy_data: 2 });
+    await new Promise((r) => setTimeout(r, 2600));   // first retry is at 2s
+
+    assert.deepEqual(JSON.parse(store.store.getItem('tenancy_data') ?? 'null'), { items: ['from account'] },
+      'the store must recover on its own once the server is reachable');
+  });
+
+  test('a 500 on the pull is not mistaken for an empty account', async () => {
+    const store = await freshStore();
+    localStorage.setItem('acct:__uid', 'a@b.c');
+    localStorage.setItem('acct:tenancy_data', '{"items":["mine"]}');
+
+    handler = () => ({ status: 500, body: { error: 'boom' } });
+    await store.bootstrap();
+
+    assert.deepEqual(JSON.parse(store.store.getItem('tenancy_data')!), { items: ['mine'] },
+      'a server having a bad moment must never look like a signed-out or empty account');
+    assert.equal(localStorage.getItem('acct:__uid'), 'a@b.c', 'and must not sign the user out');
   });
 
   test('a different account on the same device wipes the previous mirror', async () => {

@@ -13,6 +13,7 @@ import { HorizonList } from './HorizonList';
 import { useHorizon } from '../lib/useHorizon';
 import ImportPrompt from './ImportPrompt';
 import GuestNotice from './GuestNotice';
+import SyncToast from './SyncToast';
 import { getUser, subscribe, type User } from '../lib/auth';
 import { store } from '../lib/store';
 import { useTheme } from '../lib/theme';
@@ -316,7 +317,7 @@ const Layout: React.FC = () => {
           <div className="max-w-md mx-auto px-6 py-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold flex items-center space-x-1.5">
-                <img src="/favicon.png" alt="Logo" className="w-6 h-6 object-contain" />
+                <img src="/favicon.svg" alt="Logo" className="w-6 h-6 object-contain" />
                 <div className="flex tracking-tight">
                   <span className="text-text">Senang</span>
                   <span className="bg-gradient-to-r from-pink-500 to-orange-400 bg-clip-text text-transparent">Kit</span>
@@ -625,6 +626,7 @@ const Layout: React.FC = () => {
         )}
 
         <ImportPrompt />
+        <SyncToast />
 
         {/* Settings Bottom Sheet Modal */}
         {showSettings && (

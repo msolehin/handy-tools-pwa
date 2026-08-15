@@ -40,9 +40,13 @@ const paint = () => root.render(
 )
 
 // Every page reads storage synchronously at mount and never re-reads, so synced data has to
-// be in place before the first render. bootstrap() fills from the on-device mirror instantly
-// and only then touches the network, behind its own timeout — it can never block the paint.
-bootstrap().catch(() => {}).finally(paint)
+// be in place before the first render. Everything in bootstrap() before its first `await` is
+// the on-device mirror fill, so it has already run by the time this line returns — paint can
+// happen immediately and the network pull continues in the background, remounting through
+// onLateHydrate when it lands. Awaiting it instead is what forced a 1.5s abort on the pull,
+// and a pull that aborts leaves a signed-in user sitting in guest mode with no data.
+void bootstrap().catch(() => {})
+paint()
 
 // A pull that landed after the first paint: remount so every lazy useState initialiser and
 // []-dep mount effect re-runs against the fresh data.

@@ -2,15 +2,30 @@
 //
 // Three tiers, decided per key:
 //   pref/stateless keys  -> real localStorage, never synced, identical to before
-//   synced key, guest    -> sessionStorage (dies with the tab), falling back to any pre-existing
+//   synced key, guest    -> memory only (gone on refresh), falling back to any pre-existing
 //                           localStorage value READ-ONLY so existing installs still show data
 //   synced key, signed in-> in-memory cache + an `acct:` localStorage mirror + a debounced push
 //
-// localStorage stays the on-device source of truth. The server is a mirror, so offline is
-// completely unchanged: writes land locally and synchronously, the network is best-effort.
+// A record only counts as saved once it has reached the account, so a synced key is persisted
+// ONLY while signed in AND online. Offline edits are refused out loud rather than queued: the
+// user asked to be told "no internet, not saved" instead of being left to assume it worked.
 
 // Explicit .ts extension so `node --test` can resolve this too (Vite handles it either way).
-import { setUser, subscribe as subscribeToAuth, type User } from './auth.ts';
+import { getUser, setUser, subscribe as subscribeToAuth, type User } from './auth.ts';
+
+/**
+ * Every outcome the user is told about, from one place. Pages don't announce their own saves:
+ * 20 tools would each have to get it right, and they'd each be wrong about whether the push
+ * actually reached the account.
+ */
+export type SyncStatus = {
+  kind: 'loaded' | 'saved' | 'offline' | 'error' | 'guest';
+  message: string;
+};
+
+function announce(kind: SyncStatus['kind'], message: string) {
+  window.dispatchEvent(new CustomEvent('store:status', { detail: { kind, message } }));
+}
 
 /** Tool keys that belong to an account. Grows one phase at a time. */
 export const SYNCED_KEYS = new Set<string>([
@@ -91,9 +106,9 @@ export const store = {
 
     const value = signedIn
       ? localStorage.getItem(P + key)
-      // Guest: this tab's edits first, then whatever was on the device before accounts
-      // existed. Without that fallback every existing user opens to an empty app.
-      : sessionStorage.getItem(key) ?? localStorage.getItem(key);
+      // Guest: this tab's edits live in `cache` above and nowhere else. This is only the
+      // pre-account on-device value — read-only, or every existing user opens to an empty app.
+      : localStorage.getItem(key);
 
     if (value !== null) cache.set(key, value);
     return value;
@@ -102,23 +117,41 @@ export const store = {
   setItem(key: string, value: string): void {
     if (!SYNCED_KEYS.has(key)) { localStorage.setItem(key, value); return; }
 
+    // Several tools re-write their whole state from a mount effect. Without this, merely
+    // opening a tool pushes an identical blob to the server and flashes a "Saved" the user
+    // never asked for — and re-uploads every photo in it.
+    if (cache.get(key) === value) return;
+
+    // Signed in but offline: refuse, and don't cache it either. Caching would make the identical
+    // write that arrives once we're back online look like a no-op above, and the edit would be
+    // swallowed for good. The store holds only what genuinely reached the account.
+    if (signedIn && !navigator.onLine) {
+      announce('offline', 'No internet detected. Nothing was saved — reconnect and try again.');
+      return;
+    }
+
     cache.set(key, value);
-    try {
-      if (signedIn) localStorage.setItem(P + key, value);
-      else sessionStorage.setItem(key, value);
-    } catch {
-      // Quota. The in-memory copy still holds and, when signed in, the push still carries it
-      // to the server — it just won't survive a reload while offline.
+    if (signedIn) {
+      try {
+        localStorage.setItem(P + key, value);
+      } catch {
+        // Quota. The in-memory copy still holds and the push still carries it to the server.
+      }
+      markDirty(key);
     }
     window.dispatchEvent(new Event('store:changed'));
-    if (signedIn) markDirty(key);
   },
 
   removeItem(key: string): void {
     if (!SYNCED_KEYS.has(key)) { localStorage.removeItem(key); return; }
+
+    if (signedIn && !navigator.onLine) {
+      announce('offline', 'No internet detected. Nothing was deleted — reconnect and try again.');
+      return;
+    }
+
     cache.delete(key);
     if (signedIn) { localStorage.removeItem(P + key); markDirty(key); }
-    else sessionStorage.removeItem(key);
     window.dispatchEvent(new Event('store:changed'));
   },
 };
@@ -141,6 +174,7 @@ export const pendingCount = () => dirty.size;
 /** Push every dirty key. Safe to call any time; a no-op when offline or signed out. */
 export async function flush(): Promise<void> {
   if (!signedIn || !pulled || !dirty.size || !navigator.onLine) return;
+  let pushed = 0;
 
   for (const key of [...dirty]) {
     const raw = cache.get(key) ?? null;
@@ -152,7 +186,12 @@ export async function flush(): Promise<void> {
         body: JSON.stringify({ rev: revs.get(key), data: raw === null ? null : JSON.parse(raw) }),
       });
 
-      if (res.status === 401) { signedIn = false; setUser(null); return; }
+      if (res.status === 401) {
+        signedIn = false;
+        setUser(null);
+        announce('error', 'Your session expired. Sign in again to keep saving.');
+        return;
+      }
 
       if (res.status === 409) {
         // Another device moved first. Keep ours dirty (never discard a local edit) and let
@@ -161,6 +200,7 @@ export async function flush(): Promise<void> {
         window.dispatchEvent(new CustomEvent('store:conflict', {
           detail: { key, rev: conflict.rev, data: conflict.data },
         }));
+        announce('error', 'This was changed on another device. Not saved yet.');
         continue;
       }
 
@@ -169,16 +209,19 @@ export async function flush(): Promise<void> {
       revs.set(key, (await res.json()).rev);
       persistRevs();
       dirty.delete(key);
+      pushed++;
     } catch {
       backoff = Math.min(backoff * 2, 60_000);
       flushTimer = setTimeout(() => { void flush(); }, backoff);
       localStorage.setItem(DIRTY_KEY, JSON.stringify([...dirty]));
+      announce('error', "Couldn't save to your account. Retrying…");
       return; // leave this key and the rest dirty; try again later
     }
   }
 
   backoff = 1000;
   localStorage.setItem(DIRTY_KEY, JSON.stringify([...dirty]));
+  if (pushed) announce('saved', 'Saved to your account.');
 }
 
 /**
@@ -218,10 +261,29 @@ function wipeAccountMirror() {
   revs.clear();
 }
 
+let pullTimer: ReturnType<typeof setTimeout> | undefined;
+let pullBackoff = 2000;
+
 /**
- * Called by main.tsx before the first render. Fills the cache from the on-device mirror
- * synchronously, then — only if online — pulls from the server behind a short timeout.
- * A rejected fetch can never delay or prevent the first paint.
+ * A pull that never lands is how "I signed in and my data is gone" happens: the store stays in
+ * guest mode while the account panel shows a signed-in user, so nothing loads, nothing is
+ * pushed, and nothing ever asks again — the auth subscriber only fires when the user CHANGES.
+ * Keep asking as long as auth believes we have a session.
+ */
+function schedulePull() {
+  if (pullTimer || !getUser()) return;
+  pullTimer = setTimeout(() => {
+    pullTimer = undefined;
+    void bootstrap();
+  }, pullBackoff);
+  pullBackoff = Math.min(pullBackoff * 2, 30_000);
+}
+
+/**
+ * Called by main.tsx. Everything before the first `await` is synchronous, so the on-device
+ * mirror is in the cache before main.tsx paints; the network pull then runs in the background
+ * and remounts through `lateHydrate` when it lands. It must never hold the first paint — that
+ * is what forced the old 1.5s abort, which a cold server loses more often than it wins.
  */
 export async function bootstrap(): Promise<void> {
   const knownUid = localStorage.getItem(UID_KEY);
@@ -242,18 +304,29 @@ export async function bootstrap(): Promise<void> {
 
   let payload: { user: User & { id?: string } | null; revisions: Record<string, number>; data: Record<string, unknown> };
   try {
+    // Generous, because this no longer blocks the paint. /api/bootstrap makes ~36 sequential
+    // queries, which on a remote database is comfortably over a second before the server is
+    // even slow.
     const res = await fetch('/api/bootstrap', {
       credentials: 'same-origin',
-      signal: AbortSignal.timeout(1500),
+      signal: AbortSignal.timeout(15_000),
     });
     if (!res.ok) {
-      if (res.status === 401 && signedIn) { signedIn = false; localStorage.removeItem(UID_KEY); }
-      setUser(null);
-      return;
+      // Only a 401 is an answer — it really means "not signed in". Anything else is the server
+      // having a bad moment, and must not be mistaken for an empty account.
+      if (res.status === 401) {
+        if (signedIn) { signedIn = false; localStorage.removeItem(UID_KEY); }
+        setUser(null);
+        return;
+      }
+      throw new Error(String(res.status));
     }
     payload = await res.json();
   } catch {
-    return; // offline, slow, or the API is down — the mirror already rendered
+    // Offline, slow, or the API is down. The mirror already rendered; keep trying so a signed-in
+    // user is never silently left in guest mode.
+    schedulePull();
+    return;
   }
 
   if (!payload.user) { setUser(null); return; }
@@ -285,8 +358,8 @@ export async function bootstrap(): Promise<void> {
   if (!localStorage.getItem(IMPORTED_KEY)) {
     for (const key of SYNCED_KEYS) {
       if (revs.has(key)) continue;
-      // This tab's guest edits beat the pre-account on-device value.
-      const local = sessionStorage.getItem(key) ?? localStorage.getItem(key);
+      // This tab's guest edits (cache) beat the pre-account on-device value.
+      const local = cache.get(key) ?? localStorage.getItem(key);
       if (local && local !== '[]' && local !== '{}') importCandidates.set(key, local);
     }
   }
@@ -295,6 +368,19 @@ export async function bootstrap(): Promise<void> {
   // read their state from the guest tier; once signedIn flips, getItem answers from the
   // account mirror instead, and stale component state would disagree with the store.
   if (changed || wasGuest) lateHydrate?.();
+
+  pullBackoff = 2000;
+  clearTimeout(pullTimer);
+  pullTimer = undefined;
+
+  // Only on a real sign-in, or when the pull actually brought something new. Announcing every
+  // cold start would toast at someone who just opened the app and changed nothing.
+  if (wasGuest || changed) {
+    const tools = Object.keys(payload.data).length;
+    announce('loaded', tools
+      ? `Signed in. Your data loaded successfully (${tools} tools).`
+      : 'Signed in. This account has no saved data yet.');
+  }
 }
 
 // Signing in happens long after main.tsx ran bootstrap() as a guest. Without this, the store
@@ -351,7 +437,6 @@ export async function runImport(): Promise<boolean> {
       if (body[key] === undefined) continue;
       cache.set(key, raw);
       try { localStorage.setItem(P + key, raw); } catch { /* quota */ }
-      sessionStorage.removeItem(key);
     }
   } catch {
     return false;
@@ -376,8 +461,10 @@ export function onLateHydrate(fn: () => void) { lateHydrate = fn; }
 export async function clearAccountData() {
   await flush().catch(() => {});
   wipeAccountMirror();
-  for (const key of SYNCED_KEYS) sessionStorage.removeItem(key);
   signedIn = false;
+  pulled = false;
+  clearTimeout(pullTimer);
+  pullTimer = undefined;
 }
 
 // Push on the transitions that actually fire reliably on mobile. `beforeunload` is not one
@@ -389,5 +476,9 @@ window.addEventListener('visibilitychange', () => {
 // this is the first chance to learn the server's state before pushing anything over it.
 window.addEventListener('online', () => {
   backoff = 1000;
+  pullBackoff = 2000;
   void (pulled ? flush() : bootstrap());
+});
+window.addEventListener('offline', () => {
+  if (signedIn) announce('offline', 'No internet detected. Changes cannot be saved right now.');
 });
