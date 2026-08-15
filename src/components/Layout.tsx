@@ -311,7 +311,7 @@ const Layout: React.FC = () => {
       <ToolRail />
       {/* The phone bezel is a mockup — right on a landing page, wrong inside the app itself. From
           lg the frame becomes a plain sheet between the rail and the horizon. */}
-      <div id="app-frame" className="flex flex-col min-h-screen sm:min-h-0 sm:h-[850px] max-w-md mx-auto w-full bg-background text-text shadow-[0_0_40px_rgba(0,0,0,0.15)] dark:shadow-[0_0_40px_rgba(0,0,0,0.5)] relative sm:rounded-[2.5rem] sm:border-[8px] sm:border-slate-800 dark:sm:border-slate-900 sm:overflow-hidden lg:h-auto lg:mx-0 lg:rounded-3xl lg:border lg:border-text/10 lg:shadow-none">
+      <div id="app-frame" className="flex flex-col min-h-screen sm:min-h-0 sm:h-[min(850px,100dvh_-_4rem)] max-w-md mx-auto w-full bg-background text-text shadow-[0_0_40px_rgba(0,0,0,0.15)] dark:shadow-[0_0_40px_rgba(0,0,0,0.5)] relative sm:rounded-[2.5rem] sm:border-[8px] sm:border-slate-800 dark:sm:border-slate-900 sm:overflow-hidden lg:h-auto lg:mx-0 lg:rounded-3xl lg:border lg:border-text/10 lg:shadow-none">
         {/* Top Navbar */}
         <header className={`sticky top-0 z-40 glass-panel rounded-none border-x-0 border-t-0 rounded-b-2xl overflow-hidden transition-all duration-300 ${headerHidden ? 'max-h-0 opacity-0' : 'max-h-24 opacity-100'}`}>
           <div className="max-w-md mx-auto px-6 py-4 flex items-center justify-between">
@@ -510,7 +510,7 @@ const Layout: React.FC = () => {
             aria-label="Yang tengah kejar"
           >
             <div
-              className="w-full max-w-md rounded-t-3xl border border-text/10 bg-surface animate-slide-up motion-reduce:animate-none flex flex-col max-h-[75vh]"
+              className="w-full max-w-md rounded-t-3xl border border-text/10 bg-surface animate-slide-up motion-reduce:animate-none flex flex-col max-h-[75dvh]"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center gap-2 border-b border-text/10 px-4 py-3.5 shrink-0">
@@ -561,7 +561,7 @@ const Layout: React.FC = () => {
 
             {/* Sheet */}
             <div className="fixed bottom-0 sm:absolute sm:bottom-0 left-0 right-0 z-30 max-w-md mx-auto animate-slide-up">
-              <div className="glass-panel border-x-0 border-b-0 rounded-t-3xl rounded-b-none shadow-2xl bg-background/95 max-h-[85vh] flex flex-col">
+              <div className="glass-panel border-x-0 border-b-0 rounded-t-3xl rounded-b-none shadow-2xl bg-background/95 max-h-[85dvh] sm:max-h-[min(760px,80dvh)] flex flex-col">
                 <div className="flex justify-between items-center p-6 pb-4 shrink-0">
                   <h3 className="text-xl font-bold">More Tools</h3>
                 </div>
@@ -636,15 +636,16 @@ const Layout: React.FC = () => {
               onClick={() => setShowSettings(false)}
             />
             <div className="fixed bottom-0 sm:absolute sm:bottom-0 left-0 right-0 z-50 max-w-md mx-auto animate-slide-up">
-              <div className="glass-panel border-x-0 border-b-0 rounded-t-3xl rounded-b-none shadow-2xl bg-background/95 max-h-[90vh] flex flex-col">
-                <div className="flex justify-between items-center px-6 pt-9 pb-4 shrink-0 border-b border-text/5">
-                  <div>
-                    <h3 className="text-xl font-bold">Settings</h3>
-                    <p className="text-xs text-muted mt-1">Your account and quick access bar.</p>
+              <div className="glass-panel border-x-0 border-b-0 rounded-t-3xl rounded-b-none shadow-2xl bg-background/95 max-h-[88dvh] sm:max-h-[min(760px,80dvh)] flex flex-col">
+                <div className="flex justify-between items-center gap-3 px-5 pt-5 pb-3 sm:pt-6 shrink-0 border-b border-text/5">
+                  <div className="min-w-0">
+                    <h3 className="text-lg font-bold">Settings</h3>
+                    <p className="text-xs text-muted mt-0.5 truncate">Your account and quick access bar.</p>
                   </div>
                   <button
                     onClick={() => setShowSettings(false)}
-                    className="p-2 bg-text/5 rounded-full text-muted hover:text-text transition-colors"
+                    className="p-2 bg-text/5 rounded-full text-muted hover:text-text transition-colors shrink-0"
+                    aria-label="Tutup"
                   >
                     <X size={20} />
                   </button>

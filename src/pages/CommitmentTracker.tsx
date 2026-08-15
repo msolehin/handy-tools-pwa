@@ -11,7 +11,7 @@ const daysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
 
 interface Commitment {
   id: string; title: string; amount: number; paymentDay: number; category: string;
-  archived: boolean; payments: Record<string, string>;
+  archived: boolean; payments: Record<string, string>; endMonth?: string;
 }
 
 interface CommitmentView {
@@ -38,7 +38,8 @@ const CommitmentTracker: React.FC = () => {
           const currentMonth = `${today.getFullYear()}-${pad(today.getMonth() + 1)}`;
           const maxDay = daysInMonth(today.getFullYear(), today.getMonth());
           
-          const unarchived = data.commitments.filter((c: Commitment) => !c.archived);
+          // Stopped commitments (endMonth in the past) are history, not upcoming bills
+          const unarchived = data.commitments.filter((c: Commitment) => !c.archived && (!c.endMonth || c.endMonth >= currentMonth));
           
           const mappedPending: CommitmentView[] = [];
           const mappedPaid: CommitmentView[] = [];

@@ -2,8 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { store } from '../lib/store';
 import {
-  Wallet, Plus, Trash2, Check, X, ChevronLeft, ChevronRight, Pencil, Archive, RotateCcw,
-  TrendingUp, TrendingDown, PieChart, ListChecks, CreditCard, Coins, ArchiveRestore, CalendarDays
+  Wallet, Plus, Trash2, Check, X, ChevronLeft, ChevronRight, ChevronDown, Pencil, RotateCcw,
+  TrendingUp, TrendingDown, PieChart, ListChecks, CreditCard, Coins, CalendarDays,
+  Eye, EyeOff,
+  Utensils, ShoppingCart, Car, ShoppingBag, Receipt, HeartPulse, GraduationCap, Clapperboard,
+  Plane, Gift, HeartHandshake, Sparkles, Baby, CircleEllipsis, Landmark, Repeat, Zap, ShieldCheck,
+  Home, Tag
 } from 'lucide-react';
 
 interface Expense { id: string; description: string; amount: number; category: string; date: string; }
@@ -11,11 +15,52 @@ interface Income { id: string; title: string; amount: number; recurring: boolean
 interface Commitment {
   id: string; title: string; amount: number; paymentDay: number; category: string;
   archived: boolean; payments: Record<string, string>; // 'YYYY-MM' -> 'YYYY-MM-DD'
+  endMonth?: string; // last month it applies — past payments stay on record after it ends
 }
 
 const STORAGE_KEY = 'expense_manager_data';
-const DEFAULT_EXPENSE_CATS = ['Makanan', 'Pengangkutan', 'Beli-belah', 'Bil', 'Kesihatan', 'Hiburan', 'Lain-lain'];
-const DEFAULT_COMMIT_CATS = ['Pinjaman', 'Langganan', 'Utiliti', 'Insurans', 'Sewa', 'Lain-lain'];
+const HIDE_KEY = 'expense_manager_hide_balance';
+// Categories are saved by id, never by label, so the language can change without touching
+// stored data. Only `ms` is rendered today — flip CAT_LANG when the rest of the UI follows.
+type CatDef = { id: string; ms: string; en: string; Icon: React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }> };
+const CAT_LANG: 'ms' | 'en' = 'ms';
+
+const DEFAULT_EXPENSE_CATS: CatDef[] = [
+  { id: 'food',      ms: 'Makanan & Minuman', en: 'Food & Dining',     Icon: Utensils },
+  { id: 'groceries', ms: 'Barang Dapur',      en: 'Groceries',         Icon: ShoppingCart },
+  { id: 'transport', ms: 'Pengangkutan',      en: 'Transport',         Icon: Car },
+  { id: 'shopping',  ms: 'Beli-belah',        en: 'Shopping',          Icon: ShoppingBag },
+  { id: 'bills',     ms: 'Bil & Utiliti',     en: 'Bills & Utilities', Icon: Receipt },
+  { id: 'health',    ms: 'Kesihatan',         en: 'Health',            Icon: HeartPulse },
+  { id: 'education', ms: 'Pendidikan',        en: 'Education',         Icon: GraduationCap },
+  { id: 'entertain', ms: 'Hiburan',           en: 'Entertainment',     Icon: Clapperboard },
+  { id: 'travel',    ms: 'Perjalanan',        en: 'Travel',            Icon: Plane },
+  { id: 'gift',      ms: 'Hadiah',            en: 'Gift',              Icon: Gift },
+  { id: 'charity',   ms: 'Zakat & Derma',     en: 'Zakat & Charity',   Icon: HeartHandshake },
+  { id: 'family',    ms: 'Keluarga & Anak',   en: 'Family & Kids',     Icon: Baby },
+  { id: 'personal',  ms: 'Penjagaan Diri',    en: 'Personal Care',     Icon: Sparkles },
+  { id: 'other',     ms: 'Lain-lain',         en: 'Other',             Icon: CircleEllipsis },
+];
+
+const DEFAULT_COMMIT_CATS: CatDef[] = [
+  { id: 'loan',         ms: 'Pinjaman',  en: 'Loan',         Icon: Landmark },
+  { id: 'subscription', ms: 'Langganan', en: 'Subscription', Icon: Repeat },
+  { id: 'utility',      ms: 'Utiliti',   en: 'Utilities',    Icon: Zap },
+  { id: 'insurance',    ms: 'Insurans',  en: 'Insurance',    Icon: ShieldCheck },
+  { id: 'rent',         ms: 'Sewa',      en: 'Rent',         Icon: Home },
+  { id: 'commit-other', ms: 'Lain-lain', en: 'Other',        Icon: CircleEllipsis },
+];
+
+// Names used before categories had ids. Dropped from the picker on load; rows that still
+// carry one keep displaying it, since an unknown id falls back to its own text.
+const LEGACY_CATS = ['Makanan', 'Pengangkutan', 'Beli-belah', 'Bil', 'Kesihatan', 'Hiburan', 'Lain-lain', 'Pinjaman', 'Langganan', 'Utiliti', 'Insurans', 'Sewa'];
+
+// True for a built-in, by id or by either label — so a user-added name that collides with a
+// built-in can never show up as a second, deletable copy of it.
+const isDefaultCat = (id: string, defs: CatDef[]) => defs.some(d => d.id === id || d.ms === id || d.en === id);
+const catLabel = (id: string, defs: CatDef[]) => defs.find(d => d.id === id)?.[CAT_LANG] ?? id;
+// A user-added category is its own id and label, and gets the generic tag icon
+const asCatDef = (id: string): CatDef => ({ id, ms: id, en: id, Icon: Tag });
 const CAT_COLORS = ['#3b82f6', '#22c55e', '#f97316', '#ec4899', '#8b5cf6', '#14b8a6', '#eab308', '#ef4444', '#06b6d4', '#a855f7'];
 
 const MONTHS = ['Januari', 'Februari', 'Mac', 'April', 'Mei', 'Jun', 'Julai', 'Ogos', 'September', 'Oktober', 'November', 'Disember'];
@@ -28,8 +73,9 @@ const addMonth = (mk: string, delta: number) => { const [y, m] = mk.split('-').m
 const daysInMonth = (mk: string) => { const [y, m] = mk.split('-').map(Number); return new Date(y, m, 0).getDate(); };
 const fmt = (n: number) => n.toLocaleString('ms-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtDate = (key: string) => { const [y, m, d] = key.split('-'); return `${Number(d)}/${Number(m)}/${y}`; }; // d/m/yyyy
+const fmtLongDate = (key: string) => { const [y, m, d] = key.split('-'); return `${Number(d)} ${MONTHS[Number(m) - 1]} ${y}`; };
 const generateId = () => Math.random().toString(36).substring(2, 9);
-const catColor = (cat: string, all: string[]) => CAT_COLORS[Math.max(0, all.indexOf(cat)) % CAT_COLORS.length];
+const catColor = (cat: string, all: CatDef[]) => CAT_COLORS[Math.max(0, all.findIndex(d => d.id === cat)) % CAT_COLORS.length];
 // Is an income counted in a given month? Recurring incomes are effective-dated.
 const incomeActive = (i: Income, mk: string) => {
   if (!i.recurring) return monthOf(i.date) === mk;
@@ -38,19 +84,103 @@ const incomeActive = (i: Income, mk: string) => {
   return true;
 };
 
+const catIcon = (id: string, defs: CatDef[]) => defs.find(d => d.id === id)?.Icon ?? Tag;
+
+// Three-up figure strip, shared by the dashboard and the transaction tab
+const StatStrip = ({ items }: { items: { label: string; value: string; Icon: CatDef['Icon']; tone: string }[] }) => (
+  <div className="glass-panel grid grid-cols-3 divide-x divide-text/10 overflow-hidden">
+    {items.map(it => (
+      <div key={it.label} className="px-2 py-3.5 text-center">
+        <div className="flex items-center justify-center gap-1.5 min-h-[24px]">
+          <it.Icon size={12} className={`shrink-0 ${it.tone}`} />
+          <p className="text-[9px] font-bold uppercase tracking-wider text-muted leading-tight">{it.label}</p>
+        </div>
+        <p className={`font-mono text-[13px] font-black mt-2 leading-none ${it.tone}`} style={{ fontVariantNumeric: 'tabular-nums' }}>{it.value}</p>
+      </div>
+    ))}
+  </div>
+);
+
+// Category dropdown — defaults carry an icon and are permanent; user-added ones can be removed.
+// Module-level so removing an entry doesn't remount the menu shut.
+const CategoryPicker = ({ options, value, onSelect, onAdd, onRemove, defaults, accent }: {
+  options: CatDef[]; value: string; onSelect: (id: string) => void; onAdd: (name: string) => void;
+  onRemove: (id: string) => void; defaults: CatDef[]; accent: string;
+}) => {
+  const [open, setOpen] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [val, setVal] = useState('');
+  const sel = options.find(o => o.id === value);
+  const SelIcon = sel?.Icon ?? Tag;
+  const commit = () => { const v = val.trim(); if (v) onAdd(v); setVal(''); setAdding(false); setOpen(false); };
+
+  return (
+    <div className="relative">
+      <button type="button" onClick={() => setOpen(o => !o)} className="input-field w-full flex items-center gap-2.5 text-left">
+        <SelIcon size={16} style={{ color: accent }} />
+        <span className="flex-1 truncate text-sm">{sel ? sel[CAT_LANG] : catLabel(value, options) || 'Pilih kategori'}</span>
+        <ChevronDown size={16} className={`text-muted transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => { setOpen(false); setAdding(false); }} />
+          <div className="absolute z-20 bottom-full mb-2 left-0 right-0 max-h-60 overflow-y-auto overscroll-contain rounded-xl border border-text/10 bg-surface shadow-2xl p-1">
+            {options.map(o => {
+              const own = !isDefaultCat(o.id, defaults);
+              return (
+                <div key={o.id} className={`flex items-center rounded-lg ${o.id === value ? 'bg-text/10' : 'hover:bg-text/5'}`}>
+                  <button type="button" onClick={() => { onSelect(o.id); setOpen(false); }} className="flex-1 min-w-0 flex items-center gap-2.5 px-2.5 py-2 text-left">
+                    <o.Icon size={15} style={{ color: accent }} />
+                    <span className="text-sm truncate">{o[CAT_LANG]}</span>
+                  </button>
+                  {own && (
+                    <button type="button" onClick={() => onRemove(o.id)} title="Padam kategori" aria-label={`Padam kategori ${o[CAT_LANG]}`} className="px-2.5 py-2 text-muted/60 hover:text-rose-400">
+                      <Trash2 size={13} />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+            <div className="border-t border-text/10 mt-1 pt-1">
+              {adding ? (
+                <div className="flex items-center gap-1 p-1">
+                  <input autoFocus value={val} onChange={e => setVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') commit(); }} placeholder="Nama kategori" className="input-field py-1 text-sm flex-1" />
+                  <button type="button" onClick={commit} className="p-1 text-emerald-400"><Check size={18} /></button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => setAdding(true)} className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm text-muted hover:text-text">
+                  <Plus size={15} /> Kategori baru
+                </button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
 // Dev-only: generate a rich set of sample data
 const makeSampleData = (): { expenses: Expense[]; incomes: Income[]; commitments: Commitment[] } => {
   const today = new Date();
   const cur = monthOf(dateKey(today));
   const rnd = (n: number) => Math.floor(Math.random() * n);
   const descByCat: Record<string, string[]> = {
-    Makanan: ['Makan tengah hari', 'Barang dapur', 'Makan malam', 'Kopi', 'Makanan segera', 'Bubble tea', 'Sarapan'],
-    Pengangkutan: ['Minyak', 'Tambang Grab', 'Tol', 'Parking', 'Tambang tren'],
-    'Beli-belah': ['Pesanan Shopee', 'Baju', 'Kasut', 'Lazada', 'Gajet'],
-    Bil: ['Bil elektrik', 'Bil air', 'Internet', 'Topup telefon'],
-    Kesihatan: ['Farmasi', 'Klinik', 'Suplemen', 'Pas gim'],
-    Hiburan: ['Wayang', 'Spotify', 'Permainan', 'Tiket konsert'],
-    'Lain-lain': ['Hadiah', 'Derma', 'Pelbagai'],
+    food: ['Makan tengah hari', 'Makan malam', 'Kopi', 'Makanan segera', 'Bubble tea', 'Sarapan'],
+    groceries: ['Barang dapur', 'Pasar tani', 'Beras & minyak', 'Jerung/mydin'],
+    transport: ['Minyak', 'Tambang Grab', 'Tol', 'Parking', 'Tambang tren'],
+    shopping: ['Pesanan Shopee', 'Baju', 'Kasut', 'Lazada', 'Gajet'],
+    bills: ['Bil elektrik', 'Bil air', 'Internet', 'Topup telefon'],
+    health: ['Farmasi', 'Klinik', 'Suplemen', 'Pas gim'],
+    education: ['Yuran tuisyen', 'Buku', 'Kursus dalam talian'],
+    entertain: ['Wayang', 'Spotify', 'Permainan', 'Tiket konsert'],
+    travel: ['Tiket kapal terbang', 'Hotel', 'Percutian'],
+    gift: ['Hadiah harijadi', 'Duit raya', 'Bunga'],
+    charity: ['Derma masjid', 'Zakat', 'Sedekah'],
+    family: ['Susu & lampin', 'Mainan anak', 'Yuran taska'],
+    personal: ['Gunting rambut', 'Skincare', 'Salon'],
+    other: ['Pelbagai', 'Tak dikategori'],
   };
   const expenses: Expense[] = [];
   for (let m = 0; m < 6; m++) {
@@ -58,7 +188,7 @@ const makeSampleData = (): { expenses: Expense[]; incomes: Income[]; commitments
     const maxDay = mk === cur ? today.getDate() : daysInMonth(mk);
     const count = 10 + rnd(10);
     for (let i = 0; i < count; i++) {
-      const cat = DEFAULT_EXPENSE_CATS[rnd(DEFAULT_EXPENSE_CATS.length)];
+      const cat = DEFAULT_EXPENSE_CATS[rnd(DEFAULT_EXPENSE_CATS.length)].id;
       const descs = descByCat[cat] || ['Perbelanjaan'];
       expenses.push({ id: generateId(), description: descs[rnd(descs.length)], amount: 5 + rnd(195), category: cat, date: `${mk}-${pad(1 + rnd(maxDay))}` });
     }
@@ -75,19 +205,18 @@ const makeSampleData = (): { expenses: Expense[]; incomes: Income[]; commitments
   const mkCommit = (title: string, amount: number, day: number, category: string): Commitment =>
     ({ id: generateId(), title, amount, paymentDay: day, category, archived: false, payments: {} });
   const commitments: Commitment[] = [
-    mkCommit('Pinjaman kereta', 950, 5, 'Pinjaman'),
-    mkCommit('Sewa rumah', 1200, 1, 'Sewa'),
-    mkCommit('Insurans kereta', 180, 15, 'Insurans'),
-    mkCommit('Netflix', 55, 8, 'Langganan'),
-    mkCommit('Spotify', 24, 8, 'Langganan'),
-    mkCommit('Keahlian gim', 130, 3, 'Langganan'),
-    mkCommit('Telefon pascabayar', 98, 20, 'Utiliti'),
+    mkCommit('Pinjaman kereta', 950, 5, 'loan'),
+    mkCommit('Sewa rumah', 1200, 1, 'rent'),
+    mkCommit('Insurans kereta', 180, 15, 'insurance'),
+    mkCommit('Netflix', 55, 8, 'subscription'),
+    mkCommit('Spotify', 24, 8, 'subscription'),
+    mkCommit('Keahlian gim', 130, 3, 'subscription'),
+    mkCommit('Telefon pascabayar', 98, 20, 'utility'),
   ];
   commitments.forEach(c => {
     for (let m = 1; m <= 5; m++) { const mk = addMonth(cur, -m); c.payments[mk] = `${mk}-${pad(Math.min(c.paymentDay, daysInMonth(mk)))}`; }
     if (c.paymentDay <= today.getDate() && Math.random() > 0.4) c.payments[cur] = `${cur}-${pad(c.paymentDay)}`;
   });
-  commitments[5].archived = true; // archived but past payments kept
   return { expenses, incomes, commitments };
 };
 
@@ -95,8 +224,9 @@ const ExpenseManager: React.FC = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [commitments, setCommitments] = useState<Commitment[]>([]);
-  const [expenseCats, setExpenseCats] = useState<string[]>(DEFAULT_EXPENSE_CATS);
-  const [commitCats, setCommitCats] = useState<string[]>(DEFAULT_COMMIT_CATS);
+  // Only user-added categories are stored; the defaults live in code so they can never be lost
+  const [expenseCats, setExpenseCats] = useState<string[]>([]);
+  const [commitCats, setCommitCats] = useState<string[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   const [tab, setTab] = useState<'dashboard' | 'commitment' | 'income' | 'transaction'>('dashboard');
@@ -106,6 +236,11 @@ const ExpenseManager: React.FC = () => {
   const [viewMonth, setViewMonth] = useState(currentMonth);
   const isPastView = viewMonth < currentMonth;
 
+  // Baki stays hidden across visits once the user taps it away (shoulder-surfing)
+  const [hideBalance, setHideBalance] = useState(() => store.getItem(HIDE_KEY) === '1');
+  const toggleBalance = () => setHideBalance(v => { store.setItem(HIDE_KEY, v ? '0' : '1'); return !v; });
+  const masked = (n: number) => (hideBalance ? 'RM ••••' : `RM ${fmt(n)}`);
+
   useEffect(() => {
     const saved = store.getItem(STORAGE_KEY);
     if (saved) {
@@ -113,9 +248,13 @@ const ExpenseManager: React.FC = () => {
         const p = JSON.parse(saved);
         if (Array.isArray(p.expenses)) setExpenses(p.expenses);
         if (Array.isArray(p.incomes)) setIncomes(p.incomes);
-        if (Array.isArray(p.commitments)) setCommitments(p.commitments);
-        if (Array.isArray(p.expenseCats)) setExpenseCats(p.expenseCats);
-        if (Array.isArray(p.commitCats)) setCommitCats(p.commitCats);
+        // Archiving is gone — anything already archived comes back to the active list
+        // rather than being stranded with no UI left to restore it.
+        if (Array.isArray(p.commitments)) setCommitments(p.commitments.map((c: Commitment) => c.archived ? { ...c, archived: false } : c));
+        // Old saves held the full list including the built-ins — keep only what the user added
+        const custom = (list: unknown, defs: CatDef[]) => (list as string[]).filter(c => !LEGACY_CATS.includes(c) && !isDefaultCat(c, defs));
+        if (Array.isArray(p.expenseCats)) setExpenseCats(custom(p.expenseCats, DEFAULT_EXPENSE_CATS));
+        if (Array.isArray(p.commitCats)) setCommitCats(custom(p.commitCats, DEFAULT_COMMIT_CATS));
       } catch (e) {}
     }
     setIsLoaded(true);
@@ -125,11 +264,17 @@ const ExpenseManager: React.FC = () => {
     if (isLoaded) store.setItem(STORAGE_KEY, JSON.stringify({ expenses, incomes, commitments, expenseCats, commitCats }));
   }, [expenses, incomes, commitments, expenseCats, commitCats, isLoaded]);
 
+  // Built-ins first, then anything the user added
+  const expenseOptions: CatDef[] = [...DEFAULT_EXPENSE_CATS, ...expenseCats.map(asCatDef)];
+  const commitOptions: CatDef[] = [...DEFAULT_COMMIT_CATS, ...commitCats.map(asCatDef)];
+  const allOptions: CatDef[] = [...expenseOptions, ...commitOptions];
+
   // --- Derived for the viewed month ---
-  const activeCommitments = commitments.filter(c => !c.archived);
-  // Commitments to show for the viewed month: active ones (ongoing obligation) plus
-  // archived ones that were actually paid that month (keep the history).
-  const monthCommitments = commitments.filter(c => !c.archived || !!c.payments[viewMonth]);
+  // Ended commitments drop off the management list once their last month has passed.
+  const activeCommitments = commitments.filter(c => !c.endMonth || c.endMonth >= currentMonth);
+  // Commitments to show for the viewed month: ones still running that month, plus any
+  // that were actually paid that month (keeps the history of ended ones intact).
+  const monthCommitments = commitments.filter(c => !c.endMonth || viewMonth <= c.endMonth || !!c.payments[viewMonth]);
   const monthExpenses = expenses.filter(e => monthOf(e.date) === viewMonth);
   const monthIncomes = incomes.filter(i => incomeActive(i, viewMonth));
   // Whether the income has actually been received (reached its pay day) in this month
@@ -175,7 +320,7 @@ const ExpenseManager: React.FC = () => {
   useEffect(() => { setFrameEl(document.getElementById('app-frame')); }, []);
   const [eDesc, setEDesc] = useState('');
   const [eAmount, setEAmount] = useState('');
-  const [eCat, setECat] = useState(DEFAULT_EXPENSE_CATS[0]);
+  const [eCat, setECat] = useState(DEFAULT_EXPENSE_CATS[0].id);
   const [eDate, setEDate] = useState(todayKey);
   const openExpense = () => { setEDesc(''); setEAmount(''); setECat(expenseCats[0]); setEDate(todayKey); setShowExpense(true); };
   const saveExpense = () => {
@@ -186,10 +331,21 @@ const ExpenseManager: React.FC = () => {
   };
   const deleteExpense = (id: string) => setExpenses(prev => prev.filter(e => e.id !== id));
 
-  const addExpenseCat = (c: string) => { const v = c.trim(); if (v && !expenseCats.includes(v)) setExpenseCats(prev => [...prev, v]); setECat(v); };
+  const addExpenseCat = (c: string) => {
+    const v = c.trim();
+    if (!v || expenseOptions.some(o => o.id === v || o[CAT_LANG] === v)) return;
+    setExpenseCats(prev => [...prev, v]);
+    setECat(v);
+  };
+  // Only user-added categories are removable, and never one that expenses still point at
+  const removeExpenseCat = (c: string) => {
+    if (expenses.some(e => e.category === c)) { window.alert(`"${c}" masih digunakan oleh perbelanjaan sedia ada.`); return; }
+    setExpenseCats(prev => prev.filter(x => x !== c));
+    if (eCat === c) setECat(DEFAULT_EXPENSE_CATS[0].id);
+  };
 
   // --- Commitment add/edit ---
-  const [cForm, setCForm] = useState<{ id: string | null; title: string; amount: string; day: string; category: string }>({ id: null, title: '', amount: '', day: '1', category: DEFAULT_COMMIT_CATS[0] });
+  const [cForm, setCForm] = useState<{ id: string | null; title: string; amount: string; day: string; category: string }>({ id: null, title: '', amount: '', day: '1', category: DEFAULT_COMMIT_CATS[0].id });
   const [showCForm, setShowCForm] = useState(false);
   const openCForm = (c?: Commitment) => {
     if (c) setCForm({ id: c.id, title: c.title, amount: String(c.amount), day: String(c.paymentDay), category: c.category });
@@ -207,9 +363,29 @@ const ExpenseManager: React.FC = () => {
     }
     setShowCForm(false);
   };
-  const addCommitCat = (c: string) => { const v = c.trim(); if (v && !commitCats.includes(v)) setCommitCats(prev => [...prev, v]); setCForm(f => ({ ...f, category: v })); };
-  const archiveCommitment = (id: string, val: boolean) => setCommitments(prev => prev.map(c => c.id === id ? { ...c, archived: val } : c));
-  const deleteCommitment = (id: string) => { if (window.confirm('Padam komitmen ini dan sejarah bayarannya?')) setCommitments(prev => prev.filter(c => c.id !== id)); };
+  const addCommitCat = (c: string) => {
+    const v = c.trim();
+    if (!v || commitOptions.some(o => o.id === v || o[CAT_LANG] === v)) return;
+    setCommitCats(prev => [...prev, v]);
+    setCForm(f => ({ ...f, category: v }));
+  };
+  const removeCommitCat = (c: string) => {
+    if (commitments.some(k => k.category === c)) { window.alert(`"${c}" masih digunakan oleh komitmen sedia ada.`); return; }
+    setCommitCats(prev => prev.filter(x => x !== c));
+    setCForm(f => f.category === c ? { ...f, category: DEFAULT_COMMIT_CATS[0].id } : f);
+  };
+  // Same two-way delete as income: stop it going forward, or wipe it from every month.
+  const [delCommit, setDelCommit] = useState<Commitment | null>(null);
+  const deleteCommitment = (id: string) => setCommitments(prev => prev.filter(c => c.id !== id));
+  const stopCommitmentFromNow = () => {
+    if (!delCommit) return;
+    const prevM = addMonth(currentMonth, -1);
+    // Nothing paid before this month means there is no history worth keeping
+    const hasPast = Object.keys(delCommit.payments).some(mk => mk <= prevM);
+    if (hasPast) setCommitments(prev => prev.map(c => c.id === delCommit.id ? { ...c, endMonth: prevM } : c));
+    else deleteCommitment(delCommit.id);
+    setDelCommit(null);
+  };
 
   // --- Commitment payment confirm ---
   const [payTarget, setPayTarget] = useState<Commitment | null>(null);
@@ -270,7 +446,6 @@ const ExpenseManager: React.FC = () => {
     }
     setDelIncome(null);
   };
-  const deleteIncomeEverywhere = () => { if (delIncome) deleteIncome(delIncome.id); setDelIncome(null); };
 
   // --- Edit income (handles raises / pay-day changes; can keep past) ---
   const [editIncome, setEditIncome] = useState<Income | null>(null);
@@ -335,10 +510,11 @@ const ExpenseManager: React.FC = () => {
   const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
   const [txOffset, setTxOffset] = useState(0); // periods back from now (0 = current)
   const changePeriod = (p: 'daily' | 'weekly' | 'monthly' | 'yearly') => { setPeriod(p); setTxOffset(0); };
-  const shortDay = (d: Date) => `${pad(d.getDate())} ${MONTHS[d.getMonth()].slice(0, 3)}`;
+  const shortDay = (d: Date) => `${d.getDate()} ${MONTHS[d.getMonth()]}`;
   // Selected window based on period + offset
   const selDay = new Date(today); selDay.setDate(today.getDate() - txOffset);
-  const selWeekStart = new Date(today); selWeekStart.setDate(today.getDate() - today.getDay() - txOffset * 7);
+  // Weeks run Monday–Sunday: getDay() is 0 for Sunday, which belongs to the week that started 6 days earlier
+  const selWeekStart = new Date(today); selWeekStart.setDate(today.getDate() - ((today.getDay() + 6) % 7) - txOffset * 7);
   const selWeekEnd = new Date(selWeekStart); selWeekEnd.setDate(selWeekStart.getDate() + 6);
   const selMonth = addMonth(currentMonth, -txOffset);
   const selYear = today.getFullYear() - txOffset;
@@ -348,10 +524,16 @@ const ExpenseManager: React.FC = () => {
     if (period === 'yearly') return key.slice(0, 4) === String(selYear);
     return monthOf(key) === selMonth;
   };
+  // Only repeat the month and year when the week actually crosses one
+  const weekLabel = selWeekStart.getMonth() === selWeekEnd.getMonth()
+    ? `${selWeekStart.getDate()} – ${shortDay(selWeekEnd)} ${selWeekEnd.getFullYear()}`
+    : selWeekStart.getFullYear() === selWeekEnd.getFullYear()
+      ? `${shortDay(selWeekStart)} – ${shortDay(selWeekEnd)} ${selWeekEnd.getFullYear()}`
+      : `${shortDay(selWeekStart)} ${selWeekStart.getFullYear()} – ${shortDay(selWeekEnd)} ${selWeekEnd.getFullYear()}`;
   const periodLabel = period === 'daily'
-    ? (txOffset === 0 ? 'Hari ini' : `${shortDay(selDay)} ${selDay.getFullYear()}`)
+    ? `${txOffset === 0 ? 'Hari ini · ' : ''}${shortDay(selDay)} ${selDay.getFullYear()}`
     : period === 'weekly'
-      ? `${shortDay(selWeekStart)} – ${shortDay(selWeekEnd)}`
+      ? weekLabel
       : period === 'yearly'
         ? String(selYear)
         : monthLabel(selMonth);
@@ -383,29 +565,8 @@ const ExpenseManager: React.FC = () => {
   const txIn = txns.filter(t => t.type === 'in').reduce((s, t) => s + t.amount, 0);
   const txOut = txns.filter(t => t.type === 'out').reduce((s, t) => s + t.amount, 0);
   const spendByCat: Record<string, number> = {};
-  txns.filter(t => t.type === 'out').forEach(t => { const k = t.category || 'Lain-lain'; spendByCat[k] = (spendByCat[k] || 0) + t.amount; });
+  txns.filter(t => t.type === 'out').forEach(t => { const k = t.category || 'other'; spendByCat[k] = (spendByCat[k] || 0) + t.amount; });
   const catRows = Object.entries(spendByCat).sort((a, b) => b[1] - a[1]);
-
-  // --- Reusable category chips ---
-  const CategoryChips = ({ cats, value, onSelect, onAdd, accent }: { cats: string[]; value: string; onSelect: (c: string) => void; onAdd: (c: string) => void; accent: string }) => {
-    const [adding, setAdding] = useState(false);
-    const [val, setVal] = useState('');
-    return (
-      <div className="flex flex-wrap gap-1.5">
-        {cats.map(c => (
-          <button key={c} type="button" onClick={() => onSelect(c)} className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all ${value === c ? 'text-white' : 'text-muted border-text/10 hover:text-text'}`} style={value === c ? { backgroundColor: accent, borderColor: accent } : {}}>{c}</button>
-        ))}
-        {adding ? (
-          <span className="flex items-center gap-1">
-            <input autoFocus value={val} onChange={e => setVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { onAdd(val); setVal(''); setAdding(false); } }} placeholder="Baru" className="input-field py-1 text-xs w-20" />
-            <button type="button" onClick={() => { onAdd(val); setVal(''); setAdding(false); }} className="text-emerald-400"><Check size={16} /></button>
-          </span>
-        ) : (
-          <button type="button" onClick={() => setAdding(true)} className="px-2 py-1 rounded-lg text-xs font-bold border border-dashed border-text/20 text-muted hover:text-text">+ Baru</button>
-        )}
-      </div>
-    );
-  };
 
   const accent = 'rgb(16 185 129)'; // emerald base for this tool
 
@@ -441,26 +602,52 @@ const ExpenseManager: React.FC = () => {
       {/* DASHBOARD */}
       {tab === 'dashboard' && (
         <div className="space-y-4">
-          <div className="glass-panel p-5 text-center bg-gradient-to-br from-emerald-500/15 to-transparent">
-            <p className="text-[11px] font-bold text-muted uppercase tracking-wider">Baki</p>
-            <p className={`text-3xl font-black font-mono mt-1 ${balance < 0 ? 'text-red-400' : 'text-emerald-400'}`}>RM{fmt(balance)}</p>
-            {pendingIncome > 0 && <p className="text-[10px] text-amber-400 mt-1">+RM{fmt(pendingIncome)} pendapatan belum diterima</p>}
-          </div>
+          {/* Baki — a card you can flip face-down with a tap */}
+          <button
+            type="button"
+            onClick={toggleBalance}
+            aria-pressed={hideBalance}
+            aria-label={hideBalance ? 'Tunjuk baki' : 'Sembunyi baki'}
+            className="relative w-full text-left rounded-2xl p-5 overflow-hidden shadow-xl transition-transform active:scale-[0.985] bg-gradient-to-br from-emerald-600 via-emerald-800 to-slate-900"
+          >
+            {/* Light catching the plastic */}
+            <div className="absolute -top-16 -right-12 w-52 h-52 rounded-full bg-[#ffffff]/10 blur-2xl pointer-events-none" />
+            <div className="absolute -bottom-24 -left-16 w-60 h-60 rounded-full bg-emerald-300/10 blur-2xl pointer-events-none" />
 
-          <div className="grid grid-cols-3 gap-3">
-            <div className="glass-panel p-3 text-center">
-              <p className="text-[9px] font-bold text-muted uppercase">Pendapatan</p>
-              <p className="text-sm font-black text-emerald-400 font-mono mt-1">{fmt(totalIncome)}</p>
+            <div className="relative flex items-start justify-between">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#ffffff]/75">Baki</p>
+                <p className="text-[11px] text-[#ffffff]/60 mt-0.5">{monthLabel(viewMonth)}</p>
+              </div>
+              {hideBalance ? <EyeOff size={16} className="text-[#ffffff]/75" /> : <Eye size={16} className="text-[#ffffff]/75" />}
             </div>
-            <div className="glass-panel p-3 text-center">
-              <p className="text-[9px] font-bold text-muted uppercase">Komitmen Dibayar</p>
-              <p className="text-sm font-black text-amber-400 font-mono mt-1">{fmt(paidCommitment)}</p>
+
+            <div className="relative mt-5 flex items-center gap-3">
+              {/* Chip */}
+              <div className="w-9 h-7 rounded-md shrink-0 bg-gradient-to-br from-amber-200 via-amber-300 to-amber-500/80 shadow-inner grid grid-rows-3 gap-[3px] p-[3px]">
+                <span className="bg-amber-700/25 rounded-[1px]" />
+                <span className="bg-amber-700/25 rounded-[1px]" />
+                <span className="bg-amber-700/25 rounded-[1px]" />
+              </div>
+              <p className={`text-3xl font-black font-mono tracking-tight ${hideBalance ? 'text-[#ffffff]/80' : balance < 0 ? 'text-rose-300' : 'text-[#ffffff]'}`}>
+                {hideBalance ? 'RM ••••••' : `RM ${fmt(balance)}`}
+              </p>
             </div>
-            <div className="glass-panel p-3 text-center">
-              <p className="text-[9px] font-bold text-muted uppercase">Perbelanjaan</p>
-              <p className="text-sm font-black text-red-400 font-mono mt-1">{fmt(totalExpenses)}</p>
+
+            <div className="relative mt-4 flex items-end justify-between gap-3">
+              <p className={`text-[10px] min-w-0 truncate ${!hideBalance && pendingIncome > 0 ? 'text-amber-200' : 'text-[#ffffff]/65'}`}>
+                {!hideBalance && pendingIncome > 0 ? `+RM ${fmt(pendingIncome)} pendapatan belum diterima` : ''}
+              </p>
+              <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#ffffff]/45 shrink-0">SenangKit</span>
             </div>
-          </div>
+          </button>
+
+          {/* Statement strip — one panel, three columns, reads as the card's back */}
+          <StatStrip items={[
+            { label: 'Pendapatan', value: masked(totalIncome), Icon: TrendingUp, tone: hideBalance ? 'text-muted' : 'text-emerald-400 light:text-emerald-600' },
+            { label: 'Komitmen Dibayar', value: masked(paidCommitment), Icon: CreditCard, tone: hideBalance ? 'text-muted' : 'text-amber-400 light:text-amber-600' },
+            { label: 'Perbelanjaan', value: masked(totalExpenses), Icon: TrendingDown, tone: hideBalance ? 'text-muted' : 'text-rose-400 light:text-rose-600' },
+          ]} />
 
           {/* Commitment checklist */}
           <div className="glass-panel p-4 space-y-2">
@@ -487,7 +674,7 @@ const ExpenseManager: React.FC = () => {
                   <button onClick={() => paid ? undoPay(c.id) : openPay(c)} className={`w-6 h-6 rounded-md border-2 flex items-center justify-center shrink-0 ${paid ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-text/30 text-transparent'}`}><Check size={14} strokeWidth={3} /></button>
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm font-medium truncate ${paid ? 'line-through text-text/50' : 'text-text/90'}`}>{c.title}</p>
-                    <p className="text-[10px] text-muted">Hari {c.paymentDay} · {c.category}{paid ? ` · dibayar ${fmtDate(c.payments[viewMonth])}` : ''}{c.archived ? ' · diarkib' : ''}</p>
+                    <p className="text-[10px] text-muted">Hari {c.paymentDay} · {catLabel(c.category, commitOptions)}{paid ? ` · dibayar ${fmtDate(c.payments[viewMonth])}` : ''}</p>
                   </div>
                   <span className={`font-mono text-sm font-bold ${paid ? 'text-text/50' : 'text-amber-400'}`}>RM{fmt(c.amount)}</span>
                 </div>
@@ -512,8 +699,8 @@ const ExpenseManager: React.FC = () => {
               if (list.length === 0) return <p className="text-xs text-muted text-center py-3">{showMonth ? 'Tiada perbelanjaan bulan ini.' : 'Tiada perbelanjaan hari ini.'}</p>;
               return list.map(e => (
                 <div key={e.id} className="flex items-center gap-3 py-1">
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: catColor(e.category, expenseCats) }} />
-                  <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate text-text/90">{e.description}</p><p className="text-[10px] text-muted">{e.category}{showMonth ? ` · ${fmtDate(e.date)}` : ''}</p></div>
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: catColor(e.category, expenseOptions) }} />
+                  <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate text-text/90">{e.description}</p><p className="text-[10px] text-muted">{catLabel(e.category, expenseOptions)}{showMonth ? ` · ${fmtDate(e.date)}` : ''}</p></div>
                   <span className="font-mono text-sm font-bold text-red-400">-RM{fmt(e.amount)}</span>
                   <button onClick={() => deleteExpense(e.id)} className="text-rose-400 opacity-50 hover:opacity-100 p-1"><Trash2 size={13} /></button>
                 </div>
@@ -579,6 +766,8 @@ const ExpenseManager: React.FC = () => {
       {/* COMMITMENT */}
       {tab === 'commitment' && (
         <div className="space-y-3">
+          <button onClick={() => openCForm()} className="w-full py-3 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-emerald-500/50 hover:text-emerald-400 transition-all flex items-center justify-center"><Plus size={18} className="mr-2" /> Tambah Komitmen</button>
+
           {activeCommitments.map(c => {
             const paid = !!c.payments[viewMonth];
             return (
@@ -586,7 +775,7 @@ const ExpenseManager: React.FC = () => {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="font-bold text-text/90 truncate">{c.title}</p>
-                    <p className="text-[11px] text-muted">Day {c.paymentDay} · {c.category}</p>
+                    <p className="text-[11px] text-muted">Hari {c.paymentDay} · {catLabel(c.category, commitOptions)}</p>
                   </div>
                   <span className="font-mono font-bold text-amber-400 shrink-0">RM{fmt(c.amount)}</span>
                 </div>
@@ -600,31 +789,11 @@ const ExpenseManager: React.FC = () => {
                     <button onClick={() => openPay(c)} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold flex items-center gap-1"><Check size={13} /> Tanda dibayar</button>
                   )}
                   <button onClick={() => openCForm(c)} className="text-xs px-2 py-1 rounded-lg bg-text/5 text-muted hover:text-text flex items-center gap-1 ml-auto"><Pencil size={12} /> Sunting</button>
-                  <button onClick={() => archiveCommitment(c.id, true)} className="text-xs px-2 py-1 rounded-lg bg-text/5 text-muted hover:text-text flex items-center gap-1"><Archive size={12} /></button>
-                  <button onClick={() => deleteCommitment(c.id)} className="text-xs px-2 py-1 rounded-lg bg-rose-500/10 text-rose-400"><Trash2 size={12} /></button>
+                  <button onClick={() => setDelCommit(c)} className="text-xs px-2 py-1 rounded-lg bg-rose-500/10 text-rose-400"><Trash2 size={12} /></button>
                 </div>
               </div>
             );
           })}
-
-          <button onClick={() => openCForm()} className="w-full py-3 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-emerald-500/50 hover:text-emerald-400 transition-all flex items-center justify-center"><Plus size={18} className="mr-2" /> Tambah Komitmen</button>
-
-          {commitments.some(c => c.archived) && (
-            <div className="space-y-2 pt-2">
-              <h3 className="text-xs font-bold text-muted uppercase tracking-wider px-1">Diarkib</h3>
-              <p className="text-[11px] text-muted px-1 leading-relaxed">Komitmen yang diarkib tidak lagi muncul sebagai bil akan datang, tetapi kekal pada bulan lepas yang sudah dibayar (jadi sejarah dan baki anda tidak berubah). Pulihkan untuk kembalikan ke senarai aktif.</p>
-              {commitments.filter(c => c.archived).map(c => (
-                <div key={c.id} className="glass-panel p-3 flex items-center justify-between opacity-60">
-                  <div className="min-w-0"><p className="font-medium truncate text-sm">{c.title}</p><p className="text-[10px] text-muted">{c.category}</p></div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="font-mono text-xs">RM{fmt(c.amount)}</span>
-                    <button onClick={() => archiveCommitment(c.id, false)} className="text-muted hover:text-emerald-400" title="Pulihkan"><ArchiveRestore size={15} /></button>
-                    <button onClick={() => deleteCommitment(c.id)} className="text-rose-400"><Trash2 size={13} /></button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       )}
 
@@ -698,39 +867,76 @@ const ExpenseManager: React.FC = () => {
             <button onClick={() => setTxOffset(o => Math.max(0, o - 1))} disabled={txOffset === 0} className="p-1.5 rounded-lg bg-text/5 text-muted hover:text-text disabled:opacity-30"><ChevronRight size={18} /></button>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div className="glass-panel p-3 text-center"><p className="text-[9px] font-bold text-muted uppercase flex items-center justify-center gap-1"><TrendingUp size={11} /> Masuk</p><p className="text-sm font-black text-emerald-400 font-mono mt-1">{fmt(txIn)}</p></div>
-            <div className="glass-panel p-3 text-center"><p className="text-[9px] font-bold text-muted uppercase flex items-center justify-center gap-1"><TrendingDown size={11} /> Keluar</p><p className="text-sm font-black text-red-400 font-mono mt-1">{fmt(txOut)}</p></div>
-            <div className="glass-panel p-3 text-center"><p className="text-[9px] font-bold text-muted uppercase">Bersih</p><p className={`text-sm font-black font-mono mt-1 ${txIn - txOut < 0 ? 'text-red-400' : 'text-text/90'}`}>{fmt(txIn - txOut)}</p></div>
-          </div>
+          <StatStrip items={[
+            { label: 'Masuk', value: `RM ${fmt(txIn)}`, Icon: TrendingUp, tone: 'text-emerald-400 light:text-emerald-600' },
+            { label: 'Keluar', value: `RM ${fmt(txOut)}`, Icon: TrendingDown, tone: 'text-rose-400 light:text-rose-600' },
+            { label: 'Bersih', value: `RM ${fmt(txIn - txOut)}`, Icon: Wallet, tone: txIn - txOut < 0 ? 'text-rose-400 light:text-rose-600' : 'text-text' },
+          ]} />
 
           {/* Spending by category */}
-          <div className="glass-panel p-4 space-y-2">
-            <h3 className="font-bold text-sm flex items-center gap-2"><PieChart size={16} className="text-emerald-400" /> Perbelanjaan Ikut Kategori</h3>
+          <div className="glass-panel p-4 space-y-3">
+            <h3 className="font-bold text-sm flex items-center gap-2"><PieChart size={16} className="text-emerald-400 light:text-emerald-600" /> Perbelanjaan Ikut Kategori</h3>
             {catRows.length === 0 ? (
               <p className="text-xs text-muted text-center py-3">Tiada perbelanjaan dalam {periodLabel.toLowerCase()}.</p>
             ) : catRows.map(([cat, amt]) => {
               const pct = txOut > 0 ? (amt / txOut) * 100 : 0;
+              const color = catColor(cat, allOptions);
+              const Icon = catIcon(cat, allOptions);
               return (
-                <div key={cat} className="space-y-1">
-                  <div className="flex justify-between text-xs"><span className="text-text/80">{cat}</span><span className="font-mono text-muted">RM{fmt(amt)} · {pct.toFixed(0)}%</span></div>
-                  <div className="h-1.5 bg-black/20 rounded-full overflow-hidden"><div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: catColor(cat, expenseCats.concat(commitCats)) }} /></div>
+                <div key={cat} className="flex items-center gap-2.5">
+                  <span className="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center" style={{ backgroundColor: `${color}22`, color }}>
+                    <Icon size={14} />
+                  </span>
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex justify-between items-baseline gap-2 text-xs">
+                      <span className="text-text/80 truncate">{catLabel(cat, allOptions)}</span>
+                      <span className="font-mono text-muted shrink-0" style={{ fontVariantNumeric: 'tabular-nums' }}>RM {fmt(amt)} · {pct.toFixed(0)}%</span>
+                    </div>
+                    <div className="h-1.5 bg-text/10 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: color }} />
+                    </div>
+                  </div>
                 </div>
               );
             })}
           </div>
 
-          {/* History */}
-          <div className="glass-panel p-4 space-y-1">
-            <h3 className="font-bold text-sm mb-1">Sejarah · {periodLabel}</h3>
+          {/* History — grouped by day, each row led by its category icon */}
+          <div className="glass-panel p-4">
+            <h3 className="font-bold text-sm mb-2">Sejarah · {periodLabel}</h3>
             {txns.length === 0 ? (
               <p className="text-xs text-muted text-center py-3">Tiada transaksi.</p>
-            ) : txns.map(t => (
-              <div key={t.id} className="flex items-center gap-3 py-1.5 border-t border-white/5 first:border-0">
-                <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate text-text/90">{t.label}</p><p className="text-[10px] text-muted">{fmtDate(t.date)}{t.category ? ` · ${t.category}` : ''}</p></div>
-                <span className={`font-mono text-sm font-bold ${t.type === 'in' ? 'text-emerald-400' : 'text-red-400'}`}>{t.type === 'in' ? '+' : '-'}RM{fmt(t.amount)}</span>
-              </div>
-            ))}
+            ) : txns.map((t, i) => {
+              const newDay = i === 0 || txns[i - 1].date !== t.date;
+              const dayNet = newDay ? txns.filter(x => x.date === t.date).reduce((s, x) => s + (x.type === 'in' ? x.amount : -x.amount), 0) : 0;
+              const income = t.type === 'in';
+              const color = income ? 'rgb(16 185 129)' : catColor(t.category || 'other', allOptions);
+              const Icon = income ? Coins : catIcon(t.category || 'other', allOptions);
+              return (
+                <React.Fragment key={t.id}>
+                  {newDay && (
+                    <div className="flex items-baseline justify-between gap-2 pt-3 first:pt-0 pb-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted">{fmtLongDate(t.date)}</span>
+                      <span className={`text-[10px] font-mono font-bold ${dayNet < 0 ? 'text-muted' : 'text-emerald-400 light:text-emerald-600'}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        {dayNet < 0 ? '−' : '+'}RM {fmt(Math.abs(dayNet))}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3 py-2 border-t border-text/5">
+                    <span className="w-9 h-9 rounded-xl shrink-0 flex items-center justify-center" style={{ backgroundColor: `${color}1f`, color }}>
+                      <Icon size={16} />
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate text-text/90">{t.label}</p>
+                      <p className="text-[10px] text-muted truncate">{income ? 'Pendapatan' : catLabel(t.category || 'other', allOptions)}</p>
+                    </div>
+                    <span className={`font-mono text-sm font-bold shrink-0 ${income ? 'text-emerald-400 light:text-emerald-600' : 'text-rose-400 light:text-rose-600'}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      {income ? '+' : '−'}RM {fmt(t.amount)}
+                    </span>
+                  </div>
+                </React.Fragment>
+              );
+            })}
           </div>
         </div>
       )}
@@ -763,7 +969,7 @@ const ExpenseManager: React.FC = () => {
             <input type="number" value={eAmount} onChange={e => setEAmount(e.target.value)} placeholder="Jumlah (RM)" className="input-field w-full font-mono text-lg" />
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-muted uppercase tracking-wider">Kategori</label>
-              <CategoryChips cats={expenseCats} value={eCat} onSelect={setECat} onAdd={addExpenseCat} accent={accent} />
+              <CategoryPicker options={expenseOptions} value={eCat} onSelect={setECat} onAdd={addExpenseCat} onRemove={removeExpenseCat} defaults={DEFAULT_EXPENSE_CATS} accent={accent} />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-muted uppercase tracking-wider">Tarikh</label>
@@ -786,7 +992,7 @@ const ExpenseManager: React.FC = () => {
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-muted uppercase tracking-wider">Kategori</label>
-              <CategoryChips cats={commitCats} value={cForm.category} onSelect={c => setCForm(f => ({ ...f, category: c }))} onAdd={addCommitCat} accent="rgb(245 158 11)" />
+              <CategoryPicker options={commitOptions} value={cForm.category} onSelect={(c: string) => setCForm(f => ({ ...f, category: c }))} onAdd={addCommitCat} onRemove={removeCommitCat} defaults={DEFAULT_COMMIT_CATS} accent="rgb(245 158 11)" />
             </div>
             <button onClick={saveCForm} className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600">{cForm.id ? 'Simpan Perubahan' : 'Tambah Komitmen'}</button>
           </div>
@@ -837,12 +1043,24 @@ const ExpenseManager: React.FC = () => {
       {delIncome && createPortal((
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setDelIncome(null)}>
           <div className="bg-surface border border-text/10 rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up" onClick={e => e.stopPropagation()}>
-            <h3 className="font-bold text-lg">Padam pendapatan berulang</h3>
+            <h3 className="font-bold text-lg">Berhentikan pendapatan</h3>
             <p className="text-sm text-muted">{delIncome.title} · <span className="font-mono font-bold text-emerald-400">RM{fmt(delIncome.amount)}</span></p>
-            <p className="text-xs text-muted">Pendapatan ini berulang setiap bulan. Memadamnya di semua tempat juga membuangnya dari rekod lepas.</p>
-            <button onClick={stopIncomeFromMonth} className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600">Berhenti dari {monthLabel(viewMonth)} (kekalkan lepas)</button>
-            <button onClick={deleteIncomeEverywhere} className="w-full py-2.5 rounded-xl bg-rose-500/15 text-rose-400 font-bold hover:bg-rose-500/25">Padam dari semua bulan</button>
+            <p className="text-xs text-muted">Pendapatan ini akan berhenti dari {monthLabel(viewMonth)} dan seterusnya. Rekod bulan-bulan lepas kekal tidak berubah.</p>
+            <button onClick={stopIncomeFromMonth} className="w-full py-3 rounded-xl bg-emerald-500 text-[#ffffff] font-bold hover:bg-emerald-600">Berhenti dari {monthLabel(viewMonth)}</button>
             <button onClick={() => setDelIncome(null)} className="w-full py-2.5 rounded-xl bg-text/5 text-text font-bold hover:bg-text/10">Batal</button>
+          </div>
+        </div>
+      ), document.body)}
+
+      {/* Delete commitment modal */}
+      {delCommit && createPortal((
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setDelCommit(null)}>
+          <div className="bg-surface border border-text/10 rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up" onClick={e => e.stopPropagation()}>
+            <h3 className="font-bold text-lg">Berhentikan komitmen</h3>
+            <p className="text-sm text-muted">{delCommit.title} · <span className="font-mono font-bold text-amber-400 light:text-amber-600">RM {fmt(delCommit.amount)}</span></p>
+            <p className="text-xs text-muted">Komitmen ini akan berhenti dari {monthLabel(currentMonth)} dan seterusnya. Bayaran yang sudah direkod pada bulan-bulan lepas kekal tidak berubah.</p>
+            <button onClick={stopCommitmentFromNow} className="w-full py-3 rounded-xl bg-emerald-500 text-[#ffffff] font-bold hover:bg-emerald-600">Berhenti dari {monthLabel(currentMonth)}</button>
+            <button onClick={() => setDelCommit(null)} className="w-full py-2.5 rounded-xl bg-text/5 text-text font-bold hover:bg-text/10">Batal</button>
           </div>
         </div>
       ), document.body)}

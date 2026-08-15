@@ -591,7 +591,8 @@ const Home: React.FC = () => {
           const maxDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
           
           data.commitments.forEach((c: any) => {
-            if (!c.archived && (!c.payments || !c.payments[currentMonth])) {
+            // endMonth: the commitment was stopped — no longer an upcoming bill
+            if (!c.archived && (!c.endMonth || c.endMonth >= currentMonth) && (!c.payments || !c.payments[currentMonth])) {
               const day = Math.min(c.paymentDay, maxDay);
               const renewalDate = new Date(today.getFullYear(), today.getMonth(), day);
               const days = daysUntil(renewalDate);
@@ -908,8 +909,8 @@ const Home: React.FC = () => {
 
       {/* Alerts Section */}
       {alerts.length > 0 && (
-        <div className="mt-4 mb-2 space-y-3">
-          <div className="flex items-center justify-between text-text/80 mb-2 px-1">
+        <div className="mt-4 mb-2 space-y-2">
+          <div className="flex items-center justify-between text-text/80 mb-1 px-1">
             <div
               className="flex items-center space-x-2 cursor-pointer hover:text-text transition-colors"
               onClick={() => setIsAlertsExpanded(!isAlertsExpanded)}
@@ -931,12 +932,12 @@ const Home: React.FC = () => {
               </button>
             </div>
           </div>
-          <div className={`flex gap-3 pb-2 transition-all ${isAlertsExpanded ? 'flex-col' : 'overflow-x-auto custom-scrollbar snap-x'}`}>
+          <div className={`flex gap-2 pb-2 transition-all ${isAlertsExpanded ? 'flex-col' : 'overflow-x-auto custom-scrollbar snap-x'}`}>
             {orderedAlerts.map((alert, idx) => (
               <div
                 key={alert.id}
                 onClick={alertsReorder ? undefined : () => navigate(alert.to)}
-                className={`shrink-0 p-4 rounded-2xl border transition-all relative overflow-hidden ${alertsReorder ? '' : 'cursor-pointer hover:scale-[1.02]'} ${
+                className={`shrink-0 px-3 py-2.5 rounded-xl border transition-all relative overflow-hidden ${alertsReorder ? '' : 'cursor-pointer hover:scale-[1.02]'} ${
                   isAlertsExpanded ? 'w-full' : 'w-[220px] snap-start'
                 } ${
                   alert.type === 'document' 
@@ -1006,33 +1007,29 @@ const Home: React.FC = () => {
                   </div>
                 )}
                 
-                <div className="flex items-start justify-between relative z-10">
-                  <div className="flex items-center space-x-2 mb-2">
-                    {alert.type === 'document' ? (
-                      <ShieldAlert size={20} className={alert.daysLeft < 0 ? 'text-red-400' : 'text-yellow-400'} />
-                    ) : alert.type === 'commitment' ? (
-                      <Repeat size={20} className="text-indigo-400" />
-                    ) : alert.type === 'water' ? (
-                      <Droplets size={20} className="text-blue-400" />
-                    ) : alert.type === 'debt' ? (
-                      <HandCoins size={20} className="text-rose-400" />
-                    ) : alert.type === 'expense' ? (
-                      <Banknote size={20} className="text-emerald-400" />
-                    ) : alert.type === 'habit' ? (
-                      <ListChecks size={20} className="text-violet-400" />
-                    ) : alert.type === 'warranty' ? (
-                      <Box size={20} className="text-orange-400" />
-                    ) : (
-                      <Calendar size={20} className="text-pink-400" />
-                    )}
-                    <span className="text-[10px] font-bold text-text/60 uppercase tracking-wider">{alert.type === 'service' && alert.daysLeft < 0 ? 'Lewat' : ALERT_TYPE_LABEL[alert.type]}</span>
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0 pr-4 relative z-10">
-                  <p className="font-bold text-[13px] text-text truncate leading-tight mb-1">
+                <div className="flex items-center gap-2.5 relative z-10 pr-4">
+                  {alert.type === 'document' ? (
+                    <ShieldAlert size={18} className={`shrink-0 ${alert.daysLeft < 0 ? 'text-red-400' : 'text-yellow-400'}`} />
+                  ) : alert.type === 'commitment' ? (
+                    <Repeat size={18} className="shrink-0 text-indigo-400" />
+                  ) : alert.type === 'water' ? (
+                    <Droplets size={18} className="shrink-0 text-blue-400" />
+                  ) : alert.type === 'debt' ? (
+                    <HandCoins size={18} className="shrink-0 text-rose-400" />
+                  ) : alert.type === 'expense' ? (
+                    <Banknote size={18} className="shrink-0 text-emerald-400" />
+                  ) : alert.type === 'habit' ? (
+                    <ListChecks size={18} className="shrink-0 text-violet-400" />
+                  ) : alert.type === 'warranty' ? (
+                    <Box size={18} className="shrink-0 text-orange-400" />
+                  ) : (
+                    <Calendar size={18} className="shrink-0 text-pink-400" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                  <p className="font-bold text-[13px] text-text truncate leading-tight">
                     {alert.type === 'document' ? 'Perbaharui: ' : alert.type === 'commitment' ? 'Bayar: ' : alert.type === 'water' ? 'Air: ' : alert.type === 'debt' ? 'Hutang: ' : alert.type === 'habit' ? 'Tabiat: ' : alert.type === 'warranty' ? 'Waranti: ' : ''}{alert.title}
                   </p>
-                  <p className={`text-[11px] font-medium leading-none ${
+                  <p className={`text-[11px] font-medium leading-tight truncate ${
                     alert.type === 'document'
                       ? alert.daysLeft < 0 ? 'text-red-400' : 'text-yellow-400'
                       : alert.type === 'commitment' ? 'text-indigo-400'
@@ -1043,12 +1040,14 @@ const Home: React.FC = () => {
                       : alert.type === 'warranty' ? 'text-orange-400'
                       : 'text-pink-400'
                   }`}>
+                    <span className="text-text/50 font-bold uppercase tracking-wider text-[10px]">{alert.type === 'service' && alert.daysLeft < 0 ? 'Lewat' : ALERT_TYPE_LABEL[alert.type]} · </span>
                     {alert.type === 'water' ? 'Minum lagi!' : alert.type === 'debt' ? 'Perlu tindakan' : alert.type === 'expense' ? `${alert.percentage ?? 0}% pendapatan dibelanja` : alert.type === 'habit' ? `${alert.percentage ?? 0}% siap` : alert.daysLeft < 0
                       ? (alert.type === 'service' ? `Lewat ${Math.abs(alert.daysLeft)} hari` : `Tamat ${Math.abs(alert.daysLeft)} hari lepas`)
-                      : alert.daysLeft === 0 
+                      : alert.daysLeft === 0
                         ? 'Hari ini!'
                         : `${alert.daysLeft} Hari Lagi`}
                   </p>
+                  </div>
                 </div>
                 {alertsReorder && (
                   <div className="absolute right-1.5 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-1">
