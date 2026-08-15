@@ -288,12 +288,12 @@ export default function AssetWarrantyTracker() {
             <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-muted truncate">{item.category}</span>
             <h3 className="font-bold text-text truncate leading-tight">{item.name}</h3>
             <p className="text-xs text-muted truncate mt-0.5" style={NUM}>
-              {formatRM(item.purchasePrice)}{item.store ? ` · ${item.store}` : ''}
+              <span className="font-mono">{formatRM(item.purchasePrice)}</span>{item.store ? ` · ${item.store}` : ''}
             </p>
           </div>
 
           <div className="text-right shrink-0">
-            <span className={`font-display text-4xl font-extrabold leading-none ${tone.text}`} style={NUM}>
+            <span className={`text-4xl font-extrabold leading-none ${tone.text}`} style={NUM}>
               {Math.abs(days)}
             </span>
             <span className={`block text-[10px] font-bold uppercase tracking-[0.16em] mt-1.5 ${tone.text}`}>
@@ -351,7 +351,7 @@ export default function AssetWarrantyTracker() {
             <Box size={24} />
           </div>
           <div className="min-w-0">
-            <h1 className="font-display text-2xl font-extrabold text-text leading-tight tracking-tight">Asset & Warranty</h1>
+            <h1 className="text-2xl font-extrabold text-text leading-tight tracking-tight">Asset & Warranty</h1>
             <p className={`text-sm ${expiringSoonItems.length ? 'font-semibold text-orange-500 light:text-orange-700' : 'text-muted'}`}>
               {expiringSoonItems.length
                 ? `${expiringSoonItems.length} waranti hampir tamat`
@@ -648,7 +648,7 @@ export default function AssetWarrantyTracker() {
                     <DollarSign size={14} className="text-orange-500" />
                     <span className="text-[10px] font-bold uppercase tracking-[0.18em]">Jumlah Nilai Portfolio</span>
                   </div>
-                  <div className="font-display text-5xl font-extrabold text-text leading-none tracking-tight" style={NUM}>
+                  <div className="text-5xl font-extrabold text-text leading-none tracking-tight font-mono" style={NUM}>
                     {formatRM(totalAssetsValue)}
                   </div>
                   <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted mt-2.5" style={NUM}>
@@ -663,10 +663,10 @@ export default function AssetWarrantyTracker() {
                       </div>
                       <div className="flex items-center justify-between gap-3 mt-2.5 text-[11px] font-bold" style={NUM}>
                         <span className="flex items-center gap-1.5 text-emerald-500 light:text-emerald-700 truncate">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" /> Dilindungi {formatRM(underWarrantyValue)}
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" /> Dilindungi <span className="font-mono">{formatRM(underWarrantyValue)}</span>
                         </span>
                         <span className="flex items-center gap-1.5 text-rose-500 light:text-rose-700 truncate">
-                          <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" /> Tamat {formatRM(expiredWarrantyValue)}
+                          <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" /> Tamat <span className="font-mono">{formatRM(expiredWarrantyValue)}</span>
                         </span>
                       </div>
                     </div>
@@ -689,7 +689,7 @@ export default function AssetWarrantyTracker() {
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-2.5 ${tone.soft}`}>
                       <Icon size={18} />
                     </div>
-                    <div className={`font-display text-3xl font-extrabold leading-none ${n > 0 ? tone.text : 'text-text/25'}`} style={NUM}>
+                    <div className={`text-3xl font-extrabold leading-none ${n > 0 ? tone.text : 'text-text/25'}`} style={NUM}>
                       {n}
                     </div>
                     <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted mt-1.5 truncate">{label}</div>
@@ -701,7 +701,7 @@ export default function AssetWarrantyTracker() {
               <div className="glass-panel p-5">
                 <div className="flex items-center gap-2 mb-4 text-orange-500 light:text-orange-700">
                   <AlertTriangle size={20} className={expiringSoonItems.length > 0 ? 'animate-pulse' : ''} />
-                  <h3 className="font-display font-extrabold text-lg text-text tracking-tight">Hampir Tamat</h3>
+                  <h3 className="font-extrabold text-lg text-text tracking-tight">Hampir Tamat</h3>
                   <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted">30 hari</span>
                   {expiringSoonItems.length > 0 && (
                     <span className="ml-auto px-2 py-0.5 rounded-full bg-orange-500/15 text-xs font-bold" style={NUM}>
@@ -731,7 +731,7 @@ export default function AssetWarrantyTracker() {
                             </div>
                           </div>
                           <div className="text-right shrink-0">
-                            <div className="font-display text-2xl font-extrabold leading-none text-orange-500 light:text-orange-700" style={NUM}>
+                            <div className="text-2xl font-extrabold leading-none text-orange-500 light:text-orange-700" style={NUM}>
                               {getDaysLeft(item.expiryDate)}
                             </div>
                             <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted mt-1" style={NUM}>{formatDate(item.expiryDate)}</div>

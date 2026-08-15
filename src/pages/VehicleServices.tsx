@@ -484,7 +484,7 @@ const VehicleServices: React.FC = () => {
 
                       {/* Cost is what a service history actually gets read for — "berapa aku bayar
                           kali lepas?" — so it carries the display face and the size. */}
-                      <p className="font-display text-2xl font-extrabold leading-none text-emerald-500 light:text-emerald-700"
+                      <p className="text-2xl font-extrabold leading-none text-emerald-500 light:text-emerald-700"
                          style={{ fontVariantNumeric: 'tabular-nums' }}>
                         RM {event.totalCost.toFixed(2)}
                       </p>

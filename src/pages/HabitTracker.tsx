@@ -168,7 +168,7 @@ const HabitTracker: React.FC = () => {
     const { current, last } = computeStreaks(habit.completedDates);
     return (
       <div className="flex items-baseline gap-1.5" title={`Streak sebelum ini: ${last} hari`}>
-        <span className="font-display text-lg font-extrabold leading-none" style={{ ...NUM, color: habit.color }}>{current}</span>
+        <span className="text-lg font-extrabold leading-none" style={{ ...NUM, color: habit.color }}>{current}</span>
         <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted">hari berturut</span>
         <span className="ml-auto text-[11px] text-muted shrink-0" style={NUM}>{habit.completedDates.length} jumlah</span>
       </div>
@@ -251,7 +251,7 @@ const HabitTracker: React.FC = () => {
           <ListChecks size={24} />
         </div>
         <div className="min-w-0">
-          <h1 className="font-display text-2xl font-extrabold text-text leading-tight tracking-tight">Habit Tracker</h1>
+          <h1 className="text-2xl font-extrabold text-text leading-tight tracking-tight">Habit Tracker</h1>
           <p className={`text-sm ${habits.length && doneToday === habits.length ? 'font-semibold text-violet-500 light:text-violet-700' : 'text-muted'}`}>
             {habits.length ? `${doneToday} daripada ${habits.length} siap hari ni` : 'Bina streak anda'}
           </p>
@@ -266,14 +266,14 @@ const HabitTracker: React.FC = () => {
             style={{ background: `conic-gradient(#8b5cf6 ${pct * 3.6}deg, rgba(148,163,184,0.18) 0deg)` }}
           >
             <div className="absolute inset-[6px] rounded-full bg-surface flex items-center justify-center">
-              <span className="font-display text-2xl font-extrabold leading-none text-text" style={NUM}>
+              <span className="text-2xl font-extrabold leading-none text-text" style={NUM}>
                 {doneToday}<span className="text-muted text-sm font-bold">/{habits.length}</span>
               </span>
             </div>
           </div>
           <div className="min-w-0 flex-1">
             <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-muted">Hari ini</span>
-            <p className="font-display text-lg font-extrabold leading-tight tracking-tight text-text">
+            <p className="text-lg font-extrabold leading-tight tracking-tight text-text">
               {doneToday === habits.length ? 'Semua siap! 🎉' : doneToday === 0 ? 'Jom mula 💪' : `${habits.length - doneToday} lagi untuk habis`}
             </p>
             <div className="flex items-center gap-1.5 mt-2 text-[11px]">
@@ -292,18 +292,18 @@ const HabitTracker: React.FC = () => {
         // name field scrolls to it down there before the animation settles.
         <div className="glass-panel p-5 space-y-4 border-violet-500/30 animate-fade-in">
           <div className="flex items-center justify-between">
-            <h3 className="font-display text-xl font-extrabold tracking-tight">Tabiat Baru</h3>
+            <h3 className="text-xl font-extrabold tracking-tight">Tabiat Baru</h3>
             <button onClick={() => { setIsAdding(false); setError(''); }} className="p-1 text-muted hover:text-text"><X size={18} /></button>
           </div>
           {/* Live preview — the emoji and colour choices below only mean something once you see the card they build. */}
           <div className="flex items-center gap-3 p-3 rounded-xl bg-text/5 border border-text/10">
             <span className="w-11 h-11 rounded-xl shrink-0 flex items-center justify-center text-xl leading-none transition-colors" style={{ backgroundColor: `${newColor}26`, color: newColor }}>
-              {newEmoji || <span className="font-display text-base font-extrabold">{(newName.trim()[0] || '?').toUpperCase()}</span>}
+              {newEmoji || <span className="text-base font-extrabold">{(newName.trim()[0] || '?').toUpperCase()}</span>}
             </span>
             <div className="min-w-0">
               <p className={`font-bold truncate leading-tight ${newName.trim() ? 'text-text' : 'text-muted'}`}>{newName.trim() || 'Nama tabiat'}</p>
               <div className="flex items-baseline gap-1.5">
-                <span className="font-display text-lg font-extrabold leading-none" style={{ ...NUM, color: newColor }}>0</span>
+                <span className="text-lg font-extrabold leading-none" style={{ ...NUM, color: newColor }}>0</span>
                 <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted">hari berturut</span>
               </div>
             </div>
@@ -391,7 +391,7 @@ const HabitTracker: React.FC = () => {
       {habits.length === 0 ? (
         <div className="text-center px-6 py-10 border border-dashed border-text/15 rounded-2xl">
           <div className="text-4xl mb-3">🔥</div>
-          <p className="font-display text-lg font-extrabold tracking-tight text-text">Belum ada tabiat</p>
+          <p className="text-lg font-extrabold tracking-tight text-text">Belum ada tabiat</p>
           <p className="text-sm text-muted mt-1">Tambah satu dan tanda ia setiap hari — streak bermula esok.</p>
         </div>
       ) : (
@@ -437,14 +437,14 @@ const HabitTracker: React.FC = () => {
                         className="w-11 h-11 rounded-xl shrink-0 flex items-center justify-center text-xl leading-none"
                         style={{ backgroundColor: `${habit.color}26`, color: habit.color }}
                       >
-                        {habit.emoji || <span className="font-display text-base font-extrabold">{habit.name.charAt(0).toUpperCase()}</span>}
+                        {habit.emoji || <span className="text-base font-extrabold">{habit.name.charAt(0).toUpperCase()}</span>}
                       </span>
                     )}
                     {editingId === habit.id ? (
                       <div className="flex-1 min-w-0 space-y-2">
                         <div className="flex items-center gap-2">
                           <span className="w-9 h-9 rounded-xl shrink-0 flex items-center justify-center text-lg leading-none" style={{ backgroundColor: `${editColor}26`, color: editColor }}>
-                            {editEmoji || <span className="font-display text-sm font-extrabold">{(editName.trim()[0] || '?').toUpperCase()}</span>}
+                            {editEmoji || <span className="text-sm font-extrabold">{(editName.trim()[0] || '?').toUpperCase()}</span>}
                           </span>
                           <input
                             type="text"
@@ -539,7 +539,7 @@ const HabitTracker: React.FC = () => {
                 <button onClick={() => setWeekOffset(o => o - 1)} aria-label="Minggu sebelum" className="p-2 rounded-lg bg-text/5 text-muted hover:text-text shrink-0"><ChevronLeft size={18} /></button>
                 <div className="text-center min-w-0">
                   <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-muted">{weekOffset === 0 ? 'Minggu ini' : `${Math.abs(weekOffset)} minggu lepas`}</span>
-                  <span className="block font-display text-sm font-extrabold tracking-tight text-text truncate" style={NUM}>{weekLabel}</span>
+                  <span className="block text-sm font-extrabold tracking-tight text-text truncate" style={NUM}>{weekLabel}</span>
                 </div>
                 <button onClick={() => setWeekOffset(o => Math.min(0, o + 1))} disabled={weekOffset >= 0} aria-label="Minggu seterusnya" className="p-2 rounded-lg bg-text/5 text-muted hover:text-text disabled:opacity-30 shrink-0"><ChevronRight size={18} /></button>
               </div>
@@ -547,7 +547,7 @@ const HabitTracker: React.FC = () => {
                 <div key={habit.id} className="glass-panel p-4 space-y-3">
                   <div className="flex items-center gap-3">
                     <span className="w-9 h-9 rounded-xl shrink-0 flex items-center justify-center text-lg leading-none" style={{ backgroundColor: `${habit.color}26`, color: habit.color }}>
-                      {habit.emoji || <span className="font-display text-sm font-extrabold">{habit.name.charAt(0).toUpperCase()}</span>}
+                      {habit.emoji || <span className="text-sm font-extrabold">{habit.name.charAt(0).toUpperCase()}</span>}
                     </span>
                     <div className="min-w-0 flex-1">
                       <h4 className="font-bold text-text truncate leading-tight">{habit.name}</h4>
@@ -592,7 +592,7 @@ const HabitTracker: React.FC = () => {
             <div className="space-y-4">
               <div className="flex items-center gap-2.5">
                 <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted">Ringkasan</span>
-                <span className="font-display text-sm font-extrabold text-text" style={NUM}>{year}</span>
+                <span className="text-sm font-extrabold text-text" style={NUM}>{year}</span>
                 <div className="h-px flex-1 bg-text/10" />
               </div>
               {habits.map(habit => {
@@ -603,7 +603,7 @@ const HabitTracker: React.FC = () => {
                   <div key={habit.id} className="glass-panel p-4 space-y-3">
                     <div className="flex items-center gap-3">
                       <span className="w-9 h-9 rounded-xl shrink-0 flex items-center justify-center text-lg leading-none" style={{ backgroundColor: `${habit.color}26`, color: habit.color }}>
-                        {habit.emoji || <span className="font-display text-sm font-extrabold">{habit.name.charAt(0).toUpperCase()}</span>}
+                        {habit.emoji || <span className="text-sm font-extrabold">{habit.name.charAt(0).toUpperCase()}</span>}
                       </span>
                       <div className="min-w-0 flex-1">
                         <h4 className="font-bold text-text truncate leading-tight">{habit.name}</h4>
@@ -612,7 +612,7 @@ const HabitTracker: React.FC = () => {
                       <Tick done={done} color={habit.color} size={36} onClick={() => toggleDate(habit.id, todayKey)} label="Tanda hari ini" />
                     </div>
                     <div className="flex items-baseline gap-2 pt-1">
-                      <span className="font-display text-3xl font-extrabold leading-none" style={{ ...NUM, color: habit.color }}>{daysThisYear}</span>
+                      <span className="text-3xl font-extrabold leading-none" style={{ ...NUM, color: habit.color }}>{daysThisYear}</span>
                       <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted">hari ditanda dalam {year}</span>
                     </div>
                     <div className="overflow-x-auto custom-scrollbar pb-1" data-year-scroll>

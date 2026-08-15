@@ -170,7 +170,7 @@ const Countdown: React.FC = () => {
                 <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#fff]/90 truncate">
                   {event.title}
                 </p>
-                <p className="font-display font-extrabold leading-[0.85] tracking-tight text-[#fff] text-6xl mt-1">
+                <p className="font-extrabold leading-[0.85] tracking-tight text-[#fff] text-6xl mt-1">
                   {days === 0 ? 'Hari Ini' : days}
                 </p>
                 <p className="text-xs text-[#fff]/90 mt-2">

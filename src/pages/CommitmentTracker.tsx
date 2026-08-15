@@ -126,7 +126,7 @@ const CommitmentTracker: React.FC = () => {
             <CreditCard size={40} />
           </div>
           <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">Belum Bayar</p>
-          <p className="text-xl font-black text-text">RM {pendingTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          <p className="text-xl font-black text-text font-mono">RM {pendingTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
         
         <div className="glass-panel p-4 border-l-4 border-l-emerald-500 relative overflow-hidden group">
@@ -134,7 +134,7 @@ const CommitmentTracker: React.FC = () => {
             <CheckCircle2 size={40} />
           </div>
           <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1">Sudah Bayar</p>
-          <p className="text-xl font-black text-text">RM {paidTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          <p className="text-xl font-black text-text font-mono">RM {paidTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
 
         <div className="glass-panel p-4 border-l-4 border-l-purple-500 relative overflow-hidden group col-span-2">
@@ -142,7 +142,7 @@ const CommitmentTracker: React.FC = () => {
             <Calendar size={40} />
           </div>
           <p className="text-[10px] font-bold text-purple-400 uppercase tracking-wider mb-1">Anggaran Setahun (Semua Aktif)</p>
-          <p className="text-xl font-black text-text">RM {((pendingTotal + paidTotal) * 12).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          <p className="text-xl font-black text-text font-mono">RM {((pendingTotal + paidTotal) * 12).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
       </div>
 
@@ -176,7 +176,7 @@ const CommitmentTracker: React.FC = () => {
                   <div className="flex items-center text-xs text-muted mt-2 space-x-3">
                     <span className="flex items-center">
                       <CreditCard size={12} className="mr-1 opacity-70" />
-                      RM {sub.price.toFixed(2)} / bln
+                      <span className="font-mono">RM {sub.price.toFixed(2)}</span> / bln
                     </span>
                   </div>
                 </div>
@@ -210,7 +210,7 @@ const CommitmentTracker: React.FC = () => {
                     <div className="flex items-center text-xs text-muted mt-2 space-x-3">
                       <span className="flex items-center">
                         <CreditCard size={12} className="mr-1 opacity-70" />
-                        RM {sub.price.toFixed(2)} / bln
+                        <span className="font-mono">RM {sub.price.toFixed(2)}</span> / bln
                       </span>
                       <span className={`flex items-center font-medium ${isOverdue ? 'text-rose-500' : isUrgent ? 'text-rose-400' : 'text-indigo-300'}`}>
                         <Calendar size={12} className="mr-1 opacity-70" />

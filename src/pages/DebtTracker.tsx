@@ -55,7 +55,7 @@ const Row: React.FC<{
           aria-pressed={settled}
           aria-label={settled ? `Tanda ${iou.personName} belum settle` : `Tanda ${iou.personName} dah settle`}
           title={settled ? 'Tap: belum settle' : 'Tap: dah settle'}
-          className={`w-9 h-9 shrink-0 rounded-full border flex items-center justify-center font-display text-sm font-extrabold transition-all hover:ring-2 hover:ring-indigo-500/40 ${
+          className={`w-9 h-9 shrink-0 rounded-full border flex items-center justify-center text-sm font-extrabold transition-all hover:ring-2 hover:ring-indigo-500/40 ${
             settled
               ? 'bg-indigo-500 border-indigo-500 text-[#fff]'
               : incoming
@@ -71,7 +71,7 @@ const Row: React.FC<{
         </span>
         <span className="flex-1 border-b border-dotted border-text/25 min-w-[1rem]" aria-hidden="true" />
         <span
-          className={`shrink-0 font-display text-base font-extrabold ${settled ? 'text-text/50' : incoming ? GREEN : RED}`}
+          className={`shrink-0 text-base font-extrabold ${settled ? 'text-text/50' : incoming ? GREEN : RED}`}
           style={{ fontVariantNumeric: 'tabular-nums' }}
         >
           {incoming ? '+' : '−'}{money(iou.amount)}
@@ -188,14 +188,14 @@ const DebtTracker: React.FC = () => {
         <div className="glass-panel p-4 border-emerald-500/30 text-center relative overflow-hidden">
           <div className="absolute -right-6 -top-6 w-20 h-20 rounded-full bg-emerald-500/10 blur-xl" aria-hidden="true" />
           <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1.5">Orang hutang you</p>
-          <p className={`text-xl font-display font-extrabold ${GREEN}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
+          <p className={`text-xl font-extrabold ${GREEN}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
             {money(totalOwedToMe)}
           </p>
         </div>
         <div className="glass-panel p-4 border-rose-500/30 text-center relative overflow-hidden">
           <div className="absolute -right-6 -top-6 w-20 h-20 rounded-full bg-rose-500/10 blur-xl" aria-hidden="true" />
           <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1.5">You hutang orang</p>
-          <p className={`text-xl font-display font-extrabold ${RED}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
+          <p className={`text-xl font-extrabold ${RED}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
             {money(totalIOwe)}
           </p>
         </div>
@@ -207,7 +207,7 @@ const DebtTracker: React.FC = () => {
         <div className="flex items-baseline justify-between gap-2 mb-2.5">
           <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted shrink-0">Imbangan</span>
           <span
-            className={`font-display text-lg font-extrabold leading-none truncate ${
+            className={`text-lg font-extrabold leading-none truncate ${
               net > 0 ? GREEN : net < 0 ? RED : 'text-muted'
             }`}
             style={{ fontVariantNumeric: 'tabular-nums' }}

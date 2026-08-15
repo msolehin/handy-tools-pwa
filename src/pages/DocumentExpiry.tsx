@@ -265,7 +265,7 @@ const DocumentExpiry: React.FC = () => {
               <div className="relative flex items-end justify-between gap-3 mt-3">
                 <div className="min-w-0">
                   <p
-                    className={`font-display text-4xl font-extrabold leading-none ${tone.text}`}
+                    className={`text-4xl font-extrabold leading-none ${tone.text}`}
                     style={{ fontVariantNumeric: 'tabular-nums' }}
                   >
                     {Math.abs(days)}

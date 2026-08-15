@@ -159,7 +159,7 @@ const PaceCalculator: React.FC = () => {
                 onChange={(e) => setTimeHrs(e.target.value)}
                 readOnly={mode === 'time'}
                 placeholder="0"
-                className="input-field text-center text-lg py-3"
+                className="input-field text-center text-lg py-3 font-mono"
               />
             </div>
             <div className="flex items-center justify-center pt-5 font-bold">:</div>
@@ -172,7 +172,7 @@ const PaceCalculator: React.FC = () => {
                 onChange={(e) => setTimeMins(e.target.value)}
                 readOnly={mode === 'time'}
                 placeholder="00"
-                className="input-field text-center text-lg py-3"
+                className="input-field text-center text-lg py-3 font-mono"
               />
             </div>
             <div className="flex items-center justify-center pt-5 font-bold">:</div>
@@ -185,7 +185,7 @@ const PaceCalculator: React.FC = () => {
                 onChange={(e) => setTimeSecs(e.target.value)}
                 readOnly={mode === 'time'}
                 placeholder="00"
-                className="input-field text-center text-lg py-3"
+                className="input-field text-center text-lg py-3 font-mono"
               />
             </div>
           </div>
@@ -206,7 +206,7 @@ const PaceCalculator: React.FC = () => {
             onChange={(e) => setDistanceKm(e.target.value)}
             readOnly={mode === 'distance'}
             placeholder="cth. 5.00"
-            className="input-field text-xl py-3 px-4 mb-3"
+            className="input-field text-xl py-3 px-4 mb-3 font-mono"
           />
           
           <div className="grid grid-cols-4 gap-2">
@@ -244,7 +244,7 @@ const PaceCalculator: React.FC = () => {
                 onChange={(e) => setPaceMins(e.target.value)}
                 readOnly={mode === 'pace'}
                 placeholder="00"
-                className="input-field text-center text-xl py-3 font-semibold"
+                className="input-field text-center text-xl py-3 font-semibold font-mono"
               />
             </div>
             <div className="flex items-center justify-center pt-5 font-bold text-2xl">:</div>
@@ -257,7 +257,7 @@ const PaceCalculator: React.FC = () => {
                 onChange={(e) => setPaceSecs(e.target.value)}
                 readOnly={mode === 'pace'}
                 placeholder="00"
-                className="input-field text-center text-xl py-3 font-semibold"
+                className="input-field text-center text-xl py-3 font-semibold font-mono"
               />
             </div>
           </div>

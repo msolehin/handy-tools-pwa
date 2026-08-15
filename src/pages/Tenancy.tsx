@@ -243,14 +243,14 @@ const Tenancy: React.FC = () => {
         <div className="glass-panel flex items-stretch divide-x divide-text/10 overflow-hidden">
           <div className="flex-1 p-4">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted">Komitmen bulanan</p>
-            <p className="font-display text-3xl font-extrabold leading-none mt-1.5 text-teal-500 light:text-teal-700" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            <p className="text-3xl font-extrabold leading-none mt-1.5 text-teal-500 light:text-teal-700" style={{ fontVariantNumeric: 'tabular-nums' }}>
               <span className="text-base align-top mr-0.5 opacity-70">RM</span>{moneyShort(monthlyTotal)}
             </p>
           </div>
           {depositTotal > 0 && (
             <div className="flex-1 p-4">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted">Deposit dipegang</p>
-              <p className="font-display text-3xl font-extrabold leading-none mt-1.5 text-text/80" style={{ fontVariantNumeric: 'tabular-nums' }}>
+              <p className="text-3xl font-extrabold leading-none mt-1.5 text-text/80" style={{ fontVariantNumeric: 'tabular-nums' }}>
                 <span className="text-base align-top mr-0.5 opacity-70">RM</span>{moneyShort(depositTotal)}
               </p>
             </div>
@@ -309,7 +309,7 @@ const Tenancy: React.FC = () => {
 
               {item.amount > 0 && (
                 <div className="mt-3 flex items-end justify-between gap-3">
-                  <p className="font-display text-3xl font-extrabold leading-none" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  <p className="text-3xl font-extrabold leading-none" style={{ fontVariantNumeric: 'tabular-nums' }}>
                     <span className="text-base align-top mr-0.5 text-muted">RM</span>{moneyShort(item.amount)}
                     <span className="ml-1 text-xs font-bold text-muted">/bulan</span>
                   </p>

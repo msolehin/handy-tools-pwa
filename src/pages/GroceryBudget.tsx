@@ -185,13 +185,13 @@ const GroceryBudget: React.FC = () => {
               <div className="flex justify-between items-end">
                 <div>
                   <p className="text-sm text-muted mb-1">Anggaran Jumlah</p>
-                  <h3 className={`text-4xl font-black ${isOverBudget ? 'text-red-400' : 'text-green-400'}`}>
+                  <h3 className={`text-4xl font-black font-mono ${isOverBudget ? 'text-red-400' : 'text-green-400'}`}>
                     RM{estimatedTotal.toFixed(2)}
                   </h3>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-muted mb-1">Dalam Troli</p>
-                  <h3 className="text-xl font-bold text-text">
+                  <h3 className="text-xl font-bold text-text font-mono">
                     RM{cartTotal.toFixed(2)}
                   </h3>
                 </div>
@@ -208,14 +208,14 @@ const GroceryBudget: React.FC = () => {
                       value={budget || ''}
                       onChange={(e) => setBudget(parseFloat(e.target.value) || 0)}
                       placeholder="0.00"
-                      className="bg-transparent border-none outline-none text-text w-full font-bold"
+                      className="bg-transparent border-none outline-none text-text w-full font-bold font-mono"
                     />
                   </div>
                 </div>
                 {budget > 0 && (
                   <div className="text-right flex-1 border-l border-text/10 pl-3">
                     <p className="text-xs text-muted mb-1">Baki</p>
-                    <p className={`text-sm font-bold ${budgetRemaining < 0 ? 'text-red-400' : 'text-green-400'}`}>
+                    <p className={`text-sm font-bold font-mono ${budgetRemaining < 0 ? 'text-red-400' : 'text-green-400'}`}>
                       RM{budgetRemaining.toFixed(2)}
                     </p>
                   </div>
@@ -244,7 +244,7 @@ const GroceryBudget: React.FC = () => {
                     value={newItemPrice}
                     onChange={(e) => setNewItemPrice(e.target.value)}
                     placeholder="0.00"
-                    className="input-field w-full text-sm py-2 pl-8"
+                    className="input-field w-full text-sm py-2 pl-8 font-mono"
                   />
                 </div>
                 <div className="relative w-24">
@@ -304,7 +304,7 @@ const GroceryBudget: React.FC = () => {
                       <h4 className={`font-medium truncate ${item.checked ? 'line-through text-text/50' : 'text-text'}`}>
                         {item.name}
                       </h4>
-                      <p className="text-sm text-green-400 font-bold">
+                      <p className="text-sm text-green-400 font-bold font-mono">
                         RM{item.price.toFixed(2)}
                       </p>
                     </div>
@@ -317,7 +317,7 @@ const GroceryBudget: React.FC = () => {
                         >
                           -
                         </button>
-                        <span className="w-6 text-center text-sm font-bold">{item.quantity}</span>
+                        <span className="w-6 text-center text-sm font-bold font-mono">{item.quantity}</span>
                         <button 
                           onClick={() => updateQuantity(item.id, 1)}
                           className="px-2 py-1 text-muted hover:text-text"
@@ -325,7 +325,7 @@ const GroceryBudget: React.FC = () => {
                           +
                         </button>
                       </div>
-                      <div className="w-16 text-right font-bold text-sm">
+                      <div className="w-16 text-right font-bold text-sm font-mono">
                         RM{(item.price * item.quantity).toFixed(2)}
                       </div>
                       <button 
@@ -356,7 +356,7 @@ const GroceryBudget: React.FC = () => {
                   </h3>
                   {winner !== 'TIE' && (
                     <p className="text-sm text-muted">
-                      Anda jimat <span className="font-bold text-green-400">{savingsPercent.toFixed(1)}%</span> dengan pilih Produk {winner}.
+                      Anda jimat <span className="font-bold text-green-400 font-mono">{savingsPercent.toFixed(1)}%</span> dengan pilih Produk {winner}.
                     </p>
                   )}
                 </div>
@@ -388,7 +388,7 @@ const GroceryBudget: React.FC = () => {
                     value={itemAPrice}
                     onChange={(e) => setItemAPrice(e.target.value)}
                     placeholder="0.00"
-                    className="input-field pl-9 w-full"
+                    className="input-field pl-9 w-full font-mono"
                   />
                 </div>
               </div>
@@ -418,7 +418,7 @@ const GroceryBudget: React.FC = () => {
             </div>
             {priceA > 0 && sizeA > 0 && (
               <div className="bg-black/20 p-3 rounded-lg text-center text-sm text-muted border border-text/5">
-                RM {unitPriceA.toFixed(2)} setiap {diffStr}
+                <span className="font-mono">RM {unitPriceA.toFixed(2)}</span> setiap {diffStr}
               </div>
             )}
           </div>
@@ -437,7 +437,7 @@ const GroceryBudget: React.FC = () => {
                     value={itemBPrice}
                     onChange={(e) => setItemBPrice(e.target.value)}
                     placeholder="0.00"
-                    className="input-field pl-9 w-full"
+                    className="input-field pl-9 w-full font-mono"
                   />
                 </div>
               </div>
@@ -467,7 +467,7 @@ const GroceryBudget: React.FC = () => {
             </div>
             {priceB > 0 && sizeB > 0 && (
               <div className="bg-black/20 p-3 rounded-lg text-center text-sm text-muted border border-text/5">
-                RM {unitPriceB.toFixed(2)} setiap {diffStr}
+                <span className="font-mono">RM {unitPriceB.toFixed(2)}</span> setiap {diffStr}
               </div>
             )}
           </div>

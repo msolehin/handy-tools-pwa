@@ -163,7 +163,7 @@ const RestaurantSplitter: React.FC = () => {
             value={itemPrice}
             onChange={(e) => setItemPrice(e.target.value)}
             placeholder="RM0.00"
-            className="input-field w-24 text-center text-sm py-2"
+            className="input-field w-24 text-center text-sm py-2 font-mono"
           />
           <button type="submit" disabled={!itemName || !itemPrice} className="px-3 bg-text/10 hover:bg-text/20 text-text rounded-xl transition-colors disabled:opacity-50">
             <Plus size={18} />
@@ -175,7 +175,7 @@ const RestaurantSplitter: React.FC = () => {
             <div key={item.id} className="flex justify-between items-center bg-text/5 rounded-lg p-2 group hover:bg-text/10 transition-colors">
               <span className="text-sm font-medium pl-1">{item.name}</span>
               <div className="flex items-center space-x-2">
-                <span className="text-sm text-muted">RM{item.price.toFixed(2)}</span>
+                <span className="text-sm text-muted font-mono">RM{item.price.toFixed(2)}</span>
                 <button onClick={() => removeItemFromPerson(person.id, item.id)} className="text-muted hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-1">
                   <X size={14} />
                 </button>
@@ -190,7 +190,7 @@ const RestaurantSplitter: React.FC = () => {
         <div className="bg-surface border border-text/10 rounded-xl p-3 text-sm">
           <div className="flex justify-between text-muted mb-1">
             <span>Jumlah kecil:</span>
-            <span>RM{pSubtotal.toFixed(2)}</span>
+            <span className="font-mono">RM{pSubtotal.toFixed(2)}</span>
           </div>
           <div className="space-y-1 mb-2">
             {taxes.filter(t => t.isActive).map(t => {
@@ -198,14 +198,14 @@ const RestaurantSplitter: React.FC = () => {
               return (
                 <div key={t.id} className="flex justify-between text-muted/80 text-[13px]">
                   <span>{t.name} ({t.rate}%):</span>
-                  <span>RM{pSpecificTax.toFixed(2)}</span>
+                  <span className="font-mono">RM{pSpecificTax.toFixed(2)}</span>
                 </div>
               );
             })}
           </div>
           <div className="flex justify-between font-bold text-text pt-2 border-t border-text/10">
             <span>Perlu Bayar:</span>
-            <span className="text-primary">RM{pTotal.toFixed(2)}</span>
+            <span className="text-primary font-mono">RM{pTotal.toFixed(2)}</span>
           </div>
         </div>
       </div>
@@ -238,20 +238,20 @@ const RestaurantSplitter: React.FC = () => {
         <div className="flex justify-between items-end relative z-10">
           <div>
             <p className="text-sm text-muted mb-1">Jumlah Besar</p>
-            <h3 className="text-3xl font-bold text-text">RM{grandTotal.toFixed(2)}</h3>
+            <h3 className="text-3xl font-bold text-text font-mono">RM{grandTotal.toFixed(2)}</h3>
           </div>
           <div className="text-right">
             <p className="text-sm text-muted mb-1 flex items-center justify-end"><Calculator size={12} className="mr-1"/> Jumlah kecil</p>
-            <h3 className="text-xl font-bold text-text/80">RM{subtotal.toFixed(2)}</h3>
+            <h3 className="text-xl font-bold text-text/80 font-mono">RM{subtotal.toFixed(2)}</h3>
           </div>
         </div>
 
         {totalTaxes > 0 && (
           <div className="mt-4 pt-4 border-t border-text/10 relative z-10 flex flex-wrap gap-2 text-xs text-muted">
-            <span className="bg-text/5 px-2 py-1 rounded-md">Jumlah Cukai: RM{totalTaxes.toFixed(2)}</span>
+            <span className="bg-text/5 px-2 py-1 rounded-md">Jumlah Cukai: <span className="font-mono">RM{totalTaxes.toFixed(2)}</span></span>
             {taxes.filter(t => t.isActive).map(t => (
               <span key={t.id} className="bg-text/5 px-2 py-1 rounded-md">
-                {t.name} ({t.rate}%): RM{(subtotal * (t.rate / 100)).toFixed(2)}
+                {t.name} ({t.rate}%): <span className="font-mono">RM{(subtotal * (t.rate / 100)).toFixed(2)}</span>
               </span>
             ))}
           </div>

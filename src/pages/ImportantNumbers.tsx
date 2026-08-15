@@ -203,7 +203,7 @@ const ImportantNumbers: React.FC = () => {
           <Hash size={24} />
         </div>
         <div className="min-w-0">
-          <h2 className="font-display text-2xl font-extrabold leading-tight">Important Number / Date</h2>
+          <h2 className="text-2xl font-extrabold leading-tight">Important Number / Date</h2>
           <p className="text-sm text-muted">{subtitle}</p>
         </div>
       </div>
@@ -255,7 +255,7 @@ const ImportantNumbers: React.FC = () => {
                     rule running out to the count. The rule is what makes the groups read as drawers. */}
                 <div className="flex items-center gap-2.5 px-1">
                   <span className="h-3.5 w-1 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                  <h3 className="font-display text-[11px] font-extrabold uppercase tracking-[0.2em] text-text/70">{cat}</h3>
+                  <h3 className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-text/70">{cat}</h3>
                   <span className="h-px flex-1 bg-text/10" />
                   <span className="font-mono text-[11px] text-muted tabular-nums">{grouped[cat].length}</span>
                 </div>
@@ -271,7 +271,7 @@ const ImportantNumbers: React.FC = () => {
 
                         <div className="flex justify-between items-start gap-2">
                           <div className="min-w-0">
-                            <p className="font-display font-bold text-text truncate leading-tight">{item.name}</p>
+                            <p className="font-bold text-text truncate leading-tight">{item.name}</p>
                             {item.notes && <p className="text-[11px] text-muted line-clamp-2 mt-0.5">{item.notes}</p>}
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
@@ -341,7 +341,7 @@ const ImportantNumbers: React.FC = () => {
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between shrink-0 px-5 pt-5 pb-3">
-              <h3 className="font-display font-extrabold text-lg">{fId ? 'Sunting' : 'Tambah'} {fKind === 'number' ? 'nombor' : 'tarikh'}</h3>
+              <h3 className="font-extrabold text-lg">{fId ? 'Sunting' : 'Tambah'} {fKind === 'number' ? 'nombor' : 'tarikh'}</h3>
               <button onClick={() => setShowForm(false)} aria-label="Tutup" className="p-1 text-muted hover:text-text"><X size={20} /></button>
             </div>
 
