@@ -509,7 +509,10 @@ const ExpenseManager: React.FC = () => {
   // --- Transaction tab ---
   const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
   const [txOffset, setTxOffset] = useState(0); // periods back from now (0 = current)
-  const changePeriod = (p: 'daily' | 'weekly' | 'monthly' | 'yearly') => { setPeriod(p); setTxOffset(0); };
+  // A year can hold thousands of rows; mounting them all is what costs, not computing them
+  const TX_PAGE = 50;
+  const [txLimit, setTxLimit] = useState(TX_PAGE);
+  const changePeriod = (p: 'daily' | 'weekly' | 'monthly' | 'yearly') => { setPeriod(p); setTxOffset(0); setTxLimit(TX_PAGE); };
   const shortDay = (d: Date) => `${d.getDate()} ${MONTHS[d.getMonth()]}`;
   // Selected window based on period + offset
   const selDay = new Date(today); selDay.setDate(today.getDate() - txOffset);
@@ -562,6 +565,9 @@ const ExpenseManager: React.FC = () => {
     }
   });
   txns.sort((a, b) => b.date.localeCompare(a.date));
+  // Day totals in one pass — a filter per day is quadratic and a year of records feels it
+  const dayNet: Record<string, number> = {};
+  txns.forEach(t => { dayNet[t.date] = (dayNet[t.date] || 0) + (t.type === 'in' ? t.amount : -t.amount); });
   const txIn = txns.filter(t => t.type === 'in').reduce((s, t) => s + t.amount, 0);
   const txOut = txns.filter(t => t.type === 'out').reduce((s, t) => s + t.amount, 0);
   const spendByCat: Record<string, number> = {};
@@ -862,9 +868,9 @@ const ExpenseManager: React.FC = () => {
           </div>
 
           <div className="flex items-center justify-between px-1">
-            <button onClick={() => setTxOffset(o => o + 1)} className="p-1.5 rounded-lg bg-text/5 text-muted hover:text-text"><ChevronLeft size={18} /></button>
+            <button onClick={() => { setTxOffset(o => o + 1); setTxLimit(TX_PAGE); }} className="p-1.5 rounded-lg bg-text/5 text-muted hover:text-text"><ChevronLeft size={18} /></button>
             <span className="text-sm font-bold text-text/90">{periodLabel}</span>
-            <button onClick={() => setTxOffset(o => Math.max(0, o - 1))} disabled={txOffset === 0} className="p-1.5 rounded-lg bg-text/5 text-muted hover:text-text disabled:opacity-30"><ChevronRight size={18} /></button>
+            <button onClick={() => { setTxOffset(o => Math.max(0, o - 1)); setTxLimit(TX_PAGE); }} disabled={txOffset === 0} className="p-1.5 rounded-lg bg-text/5 text-muted hover:text-text disabled:opacity-30"><ChevronRight size={18} /></button>
           </div>
 
           <StatStrip items={[
@@ -903,12 +909,14 @@ const ExpenseManager: React.FC = () => {
 
           {/* History — grouped by day, each row led by its category icon */}
           <div className="glass-panel p-4">
-            <h3 className="font-bold text-sm mb-2">Sejarah · {periodLabel}</h3>
+            <div className="flex items-baseline justify-between gap-2 mb-2">
+              <h3 className="font-bold text-sm">Sejarah · {periodLabel}</h3>
+              {txns.length > 0 && <span className="text-[10px] text-muted shrink-0">{txns.length} transaksi</span>}
+            </div>
             {txns.length === 0 ? (
               <p className="text-xs text-muted text-center py-3">Tiada transaksi.</p>
-            ) : txns.map((t, i) => {
-              const newDay = i === 0 || txns[i - 1].date !== t.date;
-              const dayNet = newDay ? txns.filter(x => x.date === t.date).reduce((s, x) => s + (x.type === 'in' ? x.amount : -x.amount), 0) : 0;
+            ) : txns.slice(0, txLimit).map((t, i, page) => {
+              const newDay = i === 0 || page[i - 1].date !== t.date;
               const income = t.type === 'in';
               const color = income ? 'rgb(16 185 129)' : catColor(t.category || 'other', allOptions);
               const Icon = income ? Coins : catIcon(t.category || 'other', allOptions);
@@ -917,8 +925,8 @@ const ExpenseManager: React.FC = () => {
                   {newDay && (
                     <div className="flex items-baseline justify-between gap-2 pt-3 first:pt-0 pb-1.5">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-muted">{fmtLongDate(t.date)}</span>
-                      <span className={`text-[10px] font-mono font-bold ${dayNet < 0 ? 'text-muted' : 'text-emerald-400 light:text-emerald-600'}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
-                        {dayNet < 0 ? '−' : '+'}RM {fmt(Math.abs(dayNet))}
+                      <span className={`text-[10px] font-mono font-bold ${dayNet[t.date] < 0 ? 'text-muted' : 'text-emerald-400 light:text-emerald-600'}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        {dayNet[t.date] < 0 ? '−' : '+'}RM {fmt(Math.abs(dayNet[t.date]))}
                       </span>
                     </div>
                   )}
@@ -937,6 +945,11 @@ const ExpenseManager: React.FC = () => {
                 </React.Fragment>
               );
             })}
+            {txns.length > txLimit && (
+              <button onClick={() => setTxLimit(n => n + TX_PAGE)} className="w-full mt-3 py-2.5 rounded-xl bg-text/5 text-muted hover:text-text text-xs font-bold transition-colors">
+                Tunjuk {Math.min(TX_PAGE, txns.length - txLimit)} lagi · {txns.length - txLimit} baki
+              </button>
+            )}
           </div>
         </div>
       )}
