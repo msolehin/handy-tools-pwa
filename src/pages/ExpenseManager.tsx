@@ -15,6 +15,13 @@ interface Income { id: string; title: string; amount: number; recurring: boolean
 interface Commitment {
   id: string; title: string; amount: number; paymentDay: number; category: string;
   archived: boolean; payments: Record<string, string>; // 'YYYY-MM' -> 'YYYY-MM-DD'
+  // What was actually paid that month, when it differed from the plan. Kept beside `payments`
+  // rather than inside it so a device on an older build still reads the dates it expects.
+  paidAmounts?: Record<string, number>; // 'YYYY-MM' -> amount
+  // What the commitment was scheduled at, effective from each month. Written when a change is
+  // meant to apply going forward only, so a past month still shows the figure of its time.
+  // `amount` stays the current plan; older builds keep reading just that.
+  amounts?: Record<string, number>; // 'YYYY-MM' -> amount effective from that month
   endMonth?: string; // last month it applies — past payments stay on record after it ends
 }
 
@@ -57,6 +64,19 @@ const LEGACY_CATS = ['Makanan', 'Pengangkutan', 'Beli-belah', 'Bil', 'Kesihatan'
 
 // True for a built-in, by id or by either label — so a user-added name that collides with a
 // built-in can never show up as a second, deletable copy of it.
+// What the commitment was scheduled at in a given month: the latest change effective on or
+// before it. The ORIGIN key holds the figure from before the first recorded change.
+const AMOUNT_ORIGIN = '0000-01';
+const scheduledFor = (c: Commitment, mk: string) => {
+  if (!c.amounts) return c.amount;
+  let best = '';
+  for (const k of Object.keys(c.amounts)) if (k <= mk && k > best) best = k;
+  return best ? c.amounts[best] : c.amount;
+};
+// What a commitment actually cost in a given month. Records made before amounts were kept
+// fall back to what was scheduled then, which is what they were counted as anyway.
+const paidFor = (c: Commitment, mk: string) => c.paidAmounts?.[mk] ?? scheduledFor(c, mk);
+
 const isDefaultCat = (id: string, defs: CatDef[]) => defs.some(d => d.id === id || d.ms === id || d.en === id);
 const catLabel = (id: string, defs: CatDef[]) => defs.find(d => d.id === id)?.[CAT_LANG] ?? id;
 // A user-added category is its own id and label, and gets the generic tag icon
@@ -248,9 +268,16 @@ const ExpenseManager: React.FC = () => {
         const p = JSON.parse(saved);
         if (Array.isArray(p.expenses)) setExpenses(p.expenses);
         if (Array.isArray(p.incomes)) setIncomes(p.incomes);
-        // Archiving is gone — anything already archived comes back to the active list
-        // rather than being stranded with no UI left to restore it.
-        if (Array.isArray(p.commitments)) setCommitments(p.commitments.map((c: Commitment) => c.archived ? { ...c, archived: false } : c));
+        // Two repairs on the way in:
+        //  - archiving is gone, so anything archived comes back rather than being stranded
+        //  - payments made before amounts were recorded are stamped with the current figure,
+        //    which is what they are already counted as. Without this, editing the amount
+        //    still drags every past month with it.
+        if (Array.isArray(p.commitments)) setCommitments(p.commitments.map((c: Commitment) => ({
+          ...c,
+          archived: false,
+          paidAmounts: Object.fromEntries(Object.keys(c.payments || {}).map(mk => [mk, c.paidAmounts?.[mk] ?? c.amount])),
+        })));
         // Old saves held the full list including the built-ins — keep only what the user added
         const custom = (list: unknown, defs: CatDef[]) => (list as string[]).filter(c => !LEGACY_CATS.includes(c) && !isDefaultCat(c, defs));
         if (Array.isArray(p.expenseCats)) setExpenseCats(custom(p.expenseCats, DEFAULT_EXPENSE_CATS));
@@ -289,22 +316,23 @@ const ExpenseManager: React.FC = () => {
   const totalIncome = monthIncomes.reduce((s, i) => s + i.amount, 0);
   const receivedIncome = monthIncomes.filter(i => incomeReceived(i, viewMonth)).reduce((s, i) => s + i.amount, 0);
   const pendingIncome = totalIncome - receivedIncome;
-  const totalCommitment = monthCommitments.reduce((s, c) => s + c.amount, 0);
-  const paidCommitment = commitments.filter(c => c.payments[viewMonth]).reduce((s, c) => s + c.amount, 0);
+  // Paid ones count what they cost; the rest count what they are scheduled to
+  const totalCommitment = monthCommitments.reduce((s, c) => s + (c.payments[viewMonth] ? paidFor(c, viewMonth) : scheduledFor(c, viewMonth)), 0);
+  const paidCommitment = commitments.filter(c => c.payments[viewMonth]).reduce((s, c) => s + paidFor(c, viewMonth), 0);
   const totalExpenses = monthExpenses.reduce((s, e) => s + e.amount, 0);
   const balance = receivedIncome - paidCommitment - totalExpenses;
 
   const prevMonth = addMonth(viewMonth, -1);
   const prevIncome = incomes.filter(i => incomeActive(i, prevMonth)).reduce((s, i) => s + i.amount, 0);
   const prevExpense = expenses.filter(e => monthOf(e.date) === prevMonth).reduce((s, e) => s + e.amount, 0);
-  const prevPaid = commitments.filter(c => c.payments[prevMonth]).reduce((s, c) => s + c.amount, 0);
+  const prevPaid = commitments.filter(c => c.payments[prevMonth]).reduce((s, c) => s + paidFor(c, prevMonth), 0);
   const prevNet = prevIncome - prevPaid - prevExpense;
 
   // 6-month net trend (ending at the viewed month)
   const netForMonth = (mk: string) => {
     const inc = incomes.filter(i => incomeReceived(i, mk)).reduce((s, i) => s + i.amount, 0);
     const exp = expenses.filter(e => monthOf(e.date) === mk).reduce((s, e) => s + e.amount, 0);
-    const paid = commitments.filter(c => c.payments[mk]).reduce((s, c) => s + c.amount, 0);
+    const paid = commitments.filter(c => c.payments[mk]).reduce((s, c) => s + paidFor(c, mk), 0);
     return inc - paid - exp;
   };
   const netTrend = Array.from({ length: 6 }, (_, k) => { const mk = addMonth(viewMonth, -(5 - k)); return { mk, net: netForMonth(mk) }; });
@@ -341,7 +369,11 @@ const ExpenseManager: React.FC = () => {
       : [{ id: generateId(), ...fields }, ...prev]);
     setShowExpense(false);
   };
-  const deleteExpense = (id: string) => setExpenses(prev => prev.filter(e => e.id !== id));
+  // Small bin, no undo — worth one question before the record is gone
+  const deleteExpense = (e: Expense) => {
+    if (!window.confirm(`Padam "${e.description}" (RM ${fmt(e.amount)})?`)) return;
+    setExpenses(prev => prev.filter(x => x.id !== e.id));
+  };
 
   const addExpenseCat = (c: string) => {
     const v = c.trim();
@@ -364,12 +396,19 @@ const ExpenseManager: React.FC = () => {
     else setCForm({ id: null, title: '', amount: '', day: '1', category: DEFAULT_COMMIT_CATS[0].id });
     setShowCForm(true);
   };
-  const saveCForm = () => {
+  // 'forward' keeps past months on the old figure; 'all' rewrites it everywhere (a typo fix)
+  const saveCForm = (scope: 'forward' | 'all' = 'all') => {
     const amount = parseFloat(cForm.amount);
     const day = Math.min(31, Math.max(1, parseInt(cForm.day) || 1));
     if (!cForm.title.trim() || isNaN(amount) || amount <= 0) return;
     if (cForm.id) {
-      setCommitments(prev => prev.map(c => c.id === cForm.id ? { ...c, title: cForm.title.trim(), amount, paymentDay: day, category: cForm.category } : c));
+      setCommitments(prev => prev.map(c => {
+        if (c.id !== cForm.id) return c;
+        const base = { ...c, title: cForm.title.trim(), amount, paymentDay: day, category: cForm.category };
+        if (scope === 'all') { const { amounts, ...rest } = base; return rest; }
+        // Seed the origin on the first forward change, so months before it keep the old figure
+        return { ...base, amounts: { ...(c.amounts ?? { [AMOUNT_ORIGIN]: c.amount }), [currentMonth]: amount } };
+      }));
     } else {
       setCommitments(prev => [...prev, { id: generateId(), title: cForm.title.trim(), amount, paymentDay: day, category: cForm.category, archived: false, payments: {} }]);
     }
@@ -402,16 +441,26 @@ const ExpenseManager: React.FC = () => {
   // --- Commitment payment confirm ---
   const [payTarget, setPayTarget] = useState<Commitment | null>(null);
   const [payDate, setPayDate] = useState(todayKey);
-  const openPay = (c: Commitment) => { 
-    setPayTarget(c); 
-    setPayDate(viewMonth === currentMonth ? todayKey : `${viewMonth}-${pad(daysInMonth(viewMonth))}`); 
+  const [payAmount, setPayAmount] = useState('');
+  const openPay = (c: Commitment) => {
+    setPayTarget(c);
+    setPayDate(viewMonth === currentMonth ? todayKey : `${viewMonth}-${pad(daysInMonth(viewMonth))}`);
+    setPayAmount(String(paidFor(c, viewMonth)));
   };
   const confirmPay = () => {
     if (!payTarget) return;
-    setCommitments(prev => prev.map(c => c.id === payTarget.id ? { ...c, payments: { ...c.payments, [viewMonth]: payDate } } : c));
+    const amount = parseFloat(payAmount);
+    if (isNaN(amount) || amount <= 0) return;
+    setCommitments(prev => prev.map(c => c.id === payTarget.id
+      ? { ...c, payments: { ...c.payments, [viewMonth]: payDate }, paidAmounts: { ...c.paidAmounts, [viewMonth]: amount } }
+      : c));
     setPayTarget(null);
   };
-  const undoPay = (id: string) => setCommitments(prev => prev.map(c => c.id === id ? { ...c, payments: Object.fromEntries(Object.entries(c.payments).filter(([k]) => k !== viewMonth)) } : c));
+  const undoPay = (id: string) => setCommitments(prev => prev.map(c => c.id === id ? {
+    ...c,
+    payments: Object.fromEntries(Object.entries(c.payments).filter(([k]) => k !== viewMonth)),
+    paidAmounts: Object.fromEntries(Object.entries(c.paidAmounts || {}).filter(([k]) => k !== viewMonth)),
+  } : c));
 
   // --- Income ---
   const [iTitle, setITitle] = useState('');
@@ -556,7 +605,7 @@ const ExpenseManager: React.FC = () => {
   type Txn = { id: string; date: string; label: string; amount: number; type: 'in' | 'out'; category?: string };
   const txns: Txn[] = [];
   expenses.forEach(e => { if (inRange(e.date)) txns.push({ id: 'e' + e.id, date: e.date, label: e.description, amount: e.amount, type: 'out', category: e.category }); });
-  commitments.forEach(c => Object.entries(c.payments).forEach(([, d]) => { if (inRange(d)) txns.push({ id: 'c' + c.id + d, date: d, label: c.title, amount: c.amount, type: 'out', category: c.category }); }));
+  commitments.forEach(c => Object.entries(c.payments).forEach(([mk, d]) => { if (inRange(d)) txns.push({ id: 'c' + c.id + d, date: d, label: c.title, amount: paidFor(c, mk), type: 'out', category: c.category }); }));
   // Months the selected window can touch (a week can straddle two months)
   const rangeMonths = period === 'daily'
     ? [monthOf(dateKey(selDay))]
@@ -700,7 +749,7 @@ const ExpenseManager: React.FC = () => {
                     <p className={`text-sm font-medium truncate ${paid ? 'line-through text-text/50' : 'text-text/90'}`}>{c.title}</p>
                     <p className="text-[10px] text-muted">Hari {c.paymentDay} · {catLabel(c.category, commitOptions)}{paid ? ` · dibayar ${fmtDate(c.payments[viewMonth])}` : ''}</p>
                   </div>
-                  <span className={`font-mono text-sm font-bold ${paid ? 'text-text/50' : 'text-amber-400'}`}>RM{fmt(c.amount)}</span>
+                  <span className={`font-mono text-sm font-bold ${paid ? 'text-text/50' : 'text-amber-400 light:text-amber-600'}`}>RM {fmt(paid ? paidFor(c, viewMonth) : scheduledFor(c, viewMonth))}</span>
                 </div>
               );
             })}
@@ -727,7 +776,7 @@ const ExpenseManager: React.FC = () => {
                   <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate text-text/90">{e.description}</p><p className="text-[10px] text-muted">{catLabel(e.category, expenseOptions)}{showMonth ? ` · ${fmtDate(e.date)}` : ''}</p></div>
                   <span className="font-mono text-sm font-bold text-rose-400 light:text-rose-600">−RM {fmt(e.amount)}</span>
                   <button onClick={() => openExpense(e)} aria-label="Sunting perbelanjaan" className="text-muted opacity-60 hover:opacity-100 hover:text-text p-1"><Pencil size={13} /></button>
-                  <button onClick={() => deleteExpense(e.id)} aria-label="Padam perbelanjaan" className="text-rose-400 opacity-50 hover:opacity-100 p-1"><Trash2 size={13} /></button>
+                  <button onClick={() => deleteExpense(e)} aria-label="Padam perbelanjaan" className="text-rose-400 opacity-50 hover:opacity-100 p-1"><Trash2 size={13} /></button>
                 </div>
               ));
             })()}
@@ -807,7 +856,7 @@ const ExpenseManager: React.FC = () => {
                 <div className="flex items-center gap-2 flex-wrap">
                   {paid ? (
                     <>
-                      <span className="text-xs text-emerald-400 font-bold flex items-center gap-1"><Check size={14} /> Dibayar {fmtDate(c.payments[viewMonth])}</span>
+                      <span className="text-xs text-emerald-400 light:text-emerald-600 font-bold flex items-center gap-1"><Check size={14} /> Dibayar {fmtDate(c.payments[viewMonth])}{paidFor(c, viewMonth) !== scheduledFor(c, viewMonth) ? ` · RM ${fmt(paidFor(c, viewMonth))}` : ''}</span>
                       <button onClick={() => undoPay(c.id)} className="text-xs px-2 py-1 rounded-lg bg-text/5 text-muted hover:text-text flex items-center gap-1"><RotateCcw size={12} /> Buat asal</button>
                     </>
                   ) : (
@@ -1042,7 +1091,29 @@ const ExpenseManager: React.FC = () => {
               <label className="text-xs font-bold text-muted uppercase tracking-wider">Kategori</label>
               <CategoryPicker options={commitOptions} value={cForm.category} onSelect={(c: string) => setCForm(f => ({ ...f, category: c }))} onAdd={addCommitCat} onRemove={removeCommitCat} defaults={DEFAULT_COMMIT_CATS} accent="rgb(245 158 11)" />
             </div>
-            <button onClick={saveCForm} className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600">{cForm.id ? 'Simpan Perubahan' : 'Tambah Komitmen'}</button>
+            {(() => {
+              if (!cForm.id) return <button onClick={() => saveCForm('all')} className="w-full py-3 rounded-xl bg-emerald-500 text-[#ffffff] font-bold hover:bg-emerald-600">Tambah Komitmen</button>;
+              const before = commitments.find(c => c.id === cForm.id)?.amount;
+              const now = parseFloat(cForm.amount);
+              const amountChanged = !isNaN(now) && now > 0 && now !== before;
+              if (!amountChanged) return (
+                <>
+                  <p className="text-xs text-muted leading-relaxed bg-text/5 rounded-xl p-3">
+                    Bulan yang sudah ditanda dibayar kekal pada jumlah yang direkod — sejarah anda tidak berubah.
+                  </p>
+                  <button onClick={() => saveCForm('all')} className="w-full py-3 rounded-xl bg-emerald-500 text-[#ffffff] font-bold hover:bg-emerald-600">Simpan Perubahan</button>
+                </>
+              );
+              return (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted leading-relaxed bg-text/5 rounded-xl p-3">
+                    Jumlah berubah dari RM {fmt(before ?? 0)} ke RM {fmt(now)}. Naik harga sebenar? Pilih yang pertama — bulan lepas kekal pada RM {fmt(before ?? 0)}. Tersalah taip dari awal? Pilih yang kedua.
+                  </p>
+                  <button onClick={() => saveCForm('forward')} className="w-full py-3 rounded-xl bg-emerald-500 text-[#ffffff] font-bold hover:bg-emerald-600">Ubah mulai {monthLabel(currentMonth)}</button>
+                  <button onClick={() => saveCForm('all')} className="w-full py-2.5 rounded-xl bg-text/5 text-text font-bold hover:bg-text/10">Ubah semua bulan</button>
+                </div>
+              );
+            })()}
           </div>
         </div>
       ), document.body)}
@@ -1116,11 +1187,23 @@ const ExpenseManager: React.FC = () => {
       {/* Confirm payment modal */}
       {payTarget && createPortal((() => {
         const payDateValid = payDate.startsWith(viewMonth) && payDate <= (viewMonth === currentMonth ? todayKey : `${viewMonth}-${pad(daysInMonth(viewMonth))}`);
+        const payNum = parseFloat(payAmount);
+        const payAmountValid = !isNaN(payNum) && payNum > 0;
+        const differs = payAmountValid && payNum !== payTarget.amount;
         return (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setPayTarget(null)}>
             <div className="bg-surface border border-text/10 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up" onClick={e => e.stopPropagation()}>
               <h3 className="font-bold text-lg">Sahkan Bayaran</h3>
-              <p className="text-sm text-muted">{payTarget.title} · <span className="font-mono font-bold text-amber-400">RM{fmt(payTarget.amount)}</span></p>
+              <p className="text-sm text-muted">{payTarget.title} · dijadualkan <span className="font-mono font-bold text-amber-400 light:text-amber-600">RM {fmt(payTarget.amount)}</span></p>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">Jumlah dibayar</label>
+                <input type="number" step="0.01" value={payAmount} onChange={e => setPayAmount(e.target.value)} className={`input-field w-full font-mono ${!payAmountValid ? 'border-red-500/60 text-red-400' : ''}`} />
+                <p className="text-[10px] text-muted">
+                  {differs
+                    ? `Direkod sebagai RM ${fmt(payNum)} untuk ${monthLabel(viewMonth)} sahaja — jadual kekal RM ${fmt(payTarget.amount)}.`
+                    : 'Ubah jika bil bulan ini berbeza (contoh: bil elektrik).'}
+                </p>
+              </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-muted uppercase tracking-wider">Tarikh bayaran</label>
                 <input type="date" min={`${viewMonth}-01`} max={viewMonth === currentMonth ? todayKey : `${viewMonth}-${pad(daysInMonth(viewMonth))}`} value={payDate} onChange={e => setPayDate(e.target.value)} className={`input-field w-full ${!payDateValid ? 'border-red-500/60 text-red-400' : ''}`} />
@@ -1128,7 +1211,7 @@ const ExpenseManager: React.FC = () => {
               </div>
               <div className="flex gap-2">
                 <button onClick={() => setPayTarget(null)} className="flex-1 py-3 rounded-xl bg-text/5 text-text font-bold">Batal</button>
-                <button onClick={confirmPay} disabled={!payDateValid} className="flex-1 py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 disabled:opacity-40 disabled:pointer-events-none">Sahkan Dibayar</button>
+                <button onClick={confirmPay} disabled={!payDateValid || !payAmountValid} className="flex-1 py-3 rounded-xl bg-emerald-500 text-[#ffffff] font-bold hover:bg-emerald-600 disabled:opacity-40 disabled:pointer-events-none">Sahkan Dibayar</button>
               </div>
             </div>
           </div>
