@@ -574,6 +574,71 @@ describe('store: signed in', () => {
       'the store must recover on its own once the server is reachable');
   });
 
+  test('a refresh shows you as signed in before the network answers', async () => {
+    // The reported bug: refresh the production app and it says you are not logged in, until you
+    // open the account panel — whose /api/me call was the only thing putting you back.
+    const store = await freshStore();
+    signedInBootstrap({ tenancy_data: { items: ['mine'] } }, { tenancy_data: 3 });
+    await store.bootstrap();                       // a normal signed-in session
+
+    const { setUser, getUser } = await import('./auth.ts');
+    setUser(null);                                 // the reload: auth starts empty again
+
+    const reloaded = await freshStore();
+    handler = () => { throw new Error('slow server'); };   // and the pull has not landed
+    await reloaded.bootstrap();
+
+    assert.equal(getUser()?.email, 'a@b.c',
+      'a valid session must not paint as Guest mode just because the pull is slow');
+    assert.deepEqual(JSON.parse(reloaded.store.getItem('tenancy_data')!), { items: ['mine'] },
+      'and the data is on screen from the mirror, not withheld');
+  });
+
+  test('a failed pull on a cold refresh still retries', async () => {
+    // schedulePull used to gate on getUser(), which is null on a cold boot — so the one case
+    // that most needs a retry never got one, and the app sat in guest mode until something
+    // else happened to call /api/me.
+    const store = await freshStore();
+    signedInBootstrap({ tenancy_data: { items: ['mine'] } }, { tenancy_data: 3 });
+    await store.bootstrap();
+
+    const { setUser } = await import('./auth.ts');
+    setUser(null);
+    localStorage.removeItem('acct:__user');        // no cached profile: only the uid marker
+
+    const reloaded = await freshStore();
+    handler = () => { throw new Error('down'); };
+    await reloaded.bootstrap();
+
+    signedInBootstrap({ tenancy_data: { items: ['fresh from server'] } }, { tenancy_data: 4 });
+    await new Promise((r) => setTimeout(r, 2600));  // first retry is at 2s
+
+    assert.deepEqual(JSON.parse(reloaded.store.getItem('tenancy_data')!), { items: ['fresh from server'] },
+      'the pull must recover on its own after a refresh, with nothing for the user to click');
+  });
+
+  test('an explicit 401 still signs you out, and stays signed out across a refresh', async () => {
+    const store = await freshStore();
+    signedInBootstrap({ tenancy_data: { items: ['mine'] } }, { tenancy_data: 3 });
+    await store.bootstrap();
+
+    const { setUser, getUser } = await import('./auth.ts');
+    setUser(null);
+
+    // Session really is gone now.
+    const reloaded = await freshStore();
+    handler = () => ({ status: 401, body: { error: 'unauthorized' } });
+    await reloaded.bootstrap();
+
+    assert.equal(getUser(), null, 'a 401 is an answer, not a network hiccup');
+    assert.equal(localStorage.getItem('acct:__user'), null,
+      'and the cached profile is dropped, or the next refresh would resurrect them');
+
+    const again = await freshStore();
+    await again.bootstrap();
+    assert.equal(getUser(), null, 'still signed out after another refresh');
+  });
+
   test('a 500 on the pull is not mistaken for an empty account', async () => {
     const store = await freshStore();
     localStorage.setItem('acct:__uid', 'a@b.c');

@@ -74,6 +74,9 @@ export const SYNCED_ROUTES: Record<string, string> = {
 
 const P = 'acct:';
 const UID_KEY = `${P}__uid`;
+// The profile itself, so a refresh can show you as signed in before the network answers.
+// Without it the app knows it has your data but not your name, and paints the guest UI.
+const USER_KEY = `${P}__user`;
 const DIRTY_KEY = `${P}__dirty`;
 const REV_KEY = `${P}__revs`;
 const IMPORTED_KEY = `${P}__imported`;
@@ -188,6 +191,8 @@ export async function flush(): Promise<void> {
 
       if (res.status === 401) {
         signedIn = false;
+        localStorage.removeItem(UID_KEY);
+        localStorage.removeItem(USER_KEY);
         setUser(null);
         announce('error', 'Your session expired. Sign in again to keep saving.');
         return;
@@ -271,7 +276,10 @@ let pullBackoff = 2000;
  * Keep asking as long as auth believes we have a session.
  */
 function schedulePull() {
-  if (pullTimer || !getUser()) return;
+  // `signedIn` as well as getUser(): on a refresh the pull is the only thing that would have
+  // told auth who we are, so on a cold boot getUser() is still null and gating on it alone
+  // meant the one case that most needs a retry never got one.
+  if (pullTimer || !(getUser() || signedIn)) return;
   pullTimer = setTimeout(() => {
     pullTimer = undefined;
     void bootstrap();
@@ -295,6 +303,13 @@ export async function bootstrap(): Promise<void> {
       const raw = localStorage.getItem(P + key);
       if (raw !== null) cache.set(key, raw);
     }
+    // Before the first paint, and before any network. A valid session that simply hasn't been
+    // confirmed yet must not render as "Guest mode" with a "not saved" warning over the user's
+    // own data — that is a refresh telling them they're logged out when they aren't. Only an
+    // explicit 401 below signs anyone out; this mirrors auth.refresh(), which already refuses
+    // to let a network failure clear the user.
+    const cached = readJson<User | null>(localStorage.getItem(USER_KEY), null);
+    if (cached && !getUser()) setUser(cached);
     for (const key of readJson<string[]>(localStorage.getItem(DIRTY_KEY), [])) dirty.add(key);
     for (const [k, v] of Object.entries(readJson<Record<string, number>>(
       localStorage.getItem(REV_KEY), {}))) revs.set(k, v);
@@ -315,7 +330,10 @@ export async function bootstrap(): Promise<void> {
       // Only a 401 is an answer — it really means "not signed in". Anything else is the server
       // having a bad moment, and must not be mistaken for an empty account.
       if (res.status === 401) {
+        // A real answer: the session is gone. Drop the cached profile too, or the next refresh
+        // would restore it above and show a signed-out user as signed in for ever.
         if (signedIn) { signedIn = false; localStorage.removeItem(UID_KEY); }
+        localStorage.removeItem(USER_KEY);
         setUser(null);
         return;
       }
@@ -335,6 +353,7 @@ export async function bootstrap(): Promise<void> {
   const identity = payload.user.email;
   if (knownUid && knownUid !== identity) wipeAccountMirror();
   localStorage.setItem(UID_KEY, identity);
+  try { localStorage.setItem(USER_KEY, JSON.stringify(payload.user)); } catch { /* quota */ }
   signedIn = true;
   // We now hold the server's state, so pushing over it is a real decision rather than a
   // guess — and every push is revision-checked anyway.
