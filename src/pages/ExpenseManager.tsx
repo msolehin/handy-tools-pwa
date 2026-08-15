@@ -7,7 +7,7 @@ import {
   Eye, EyeOff,
   Utensils, ShoppingCart, Car, ShoppingBag, Receipt, HeartPulse, GraduationCap, Clapperboard,
   Plane, Gift, HeartHandshake, Sparkles, Baby, CircleEllipsis, Landmark, Repeat, Zap, ShieldCheck,
-  Home, Tag
+  Home, Tag, Search
 } from 'lucide-react';
 
 interface Expense { id: string; description: string; amount: number; category: string; date: string; }
@@ -322,11 +322,23 @@ const ExpenseManager: React.FC = () => {
   const [eAmount, setEAmount] = useState('');
   const [eCat, setECat] = useState(DEFAULT_EXPENSE_CATS[0].id);
   const [eDate, setEDate] = useState(todayKey);
-  const openExpense = () => { setEDesc(''); setEAmount(''); setECat(expenseCats[0]); setEDate(todayKey); setShowExpense(true); };
+  // Same sheet adds and edits — eId null means a new one
+  const [eId, setEId] = useState<string | null>(null);
+  const openExpense = (e?: Expense) => {
+    setEId(e?.id ?? null);
+    setEDesc(e?.description ?? '');
+    setEAmount(e ? String(e.amount) : '');
+    setECat(e?.category ?? DEFAULT_EXPENSE_CATS[0].id);
+    setEDate(e?.date ?? todayKey);
+    setShowExpense(true);
+  };
   const saveExpense = () => {
     const amount = parseFloat(eAmount);
     if (!eDesc.trim() || isNaN(amount) || amount <= 0) return;
-    setExpenses(prev => [{ id: generateId(), description: eDesc.trim(), amount, category: eCat, date: eDate }, ...prev]);
+    const fields = { description: eDesc.trim(), amount, category: eCat, date: eDate };
+    setExpenses(prev => eId
+      ? prev.map(x => x.id === eId ? { ...x, ...fields } : x)
+      : [{ id: generateId(), ...fields }, ...prev]);
     setShowExpense(false);
   };
   const deleteExpense = (id: string) => setExpenses(prev => prev.filter(e => e.id !== id));
@@ -349,7 +361,7 @@ const ExpenseManager: React.FC = () => {
   const [showCForm, setShowCForm] = useState(false);
   const openCForm = (c?: Commitment) => {
     if (c) setCForm({ id: c.id, title: c.title, amount: String(c.amount), day: String(c.paymentDay), category: c.category });
-    else setCForm({ id: null, title: '', amount: '', day: '1', category: commitCats[0] });
+    else setCForm({ id: null, title: '', amount: '', day: '1', category: DEFAULT_COMMIT_CATS[0].id });
     setShowCForm(true);
   };
   const saveCForm = () => {
@@ -512,6 +524,7 @@ const ExpenseManager: React.FC = () => {
   // A year can hold thousands of rows; mounting them all is what costs, not computing them
   const TX_PAGE = 50;
   const [txLimit, setTxLimit] = useState(TX_PAGE);
+  const [txQuery, setTxQuery] = useState('');
   const changePeriod = (p: 'daily' | 'weekly' | 'monthly' | 'yearly') => { setPeriod(p); setTxOffset(0); setTxLimit(TX_PAGE); };
   const shortDay = (d: Date) => `${d.getDate()} ${MONTHS[d.getMonth()]}`;
   // Selected window based on period + offset
@@ -565,9 +578,14 @@ const ExpenseManager: React.FC = () => {
     }
   });
   txns.sort((a, b) => b.date.localeCompare(a.date));
+  // Search narrows the history only — the figures above stay the truth about the period
+  const txq = txQuery.trim().toLowerCase();
+  const foundTxns = txq
+    ? txns.filter(t => t.label.toLowerCase().includes(txq) || catLabel(t.category || 'other', allOptions).toLowerCase().includes(txq))
+    : txns;
   // Day totals in one pass — a filter per day is quadratic and a year of records feels it
   const dayNet: Record<string, number> = {};
-  txns.forEach(t => { dayNet[t.date] = (dayNet[t.date] || 0) + (t.type === 'in' ? t.amount : -t.amount); });
+  foundTxns.forEach(t => { dayNet[t.date] = (dayNet[t.date] || 0) + (t.type === 'in' ? t.amount : -t.amount); });
   const txIn = txns.filter(t => t.type === 'in').reduce((s, t) => s + t.amount, 0);
   const txOut = txns.filter(t => t.type === 'out').reduce((s, t) => s + t.amount, 0);
   const spendByCat: Record<string, number> = {};
@@ -707,8 +725,9 @@ const ExpenseManager: React.FC = () => {
                 <div key={e.id} className="flex items-center gap-3 py-1">
                   <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: catColor(e.category, expenseOptions) }} />
                   <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate text-text/90">{e.description}</p><p className="text-[10px] text-muted">{catLabel(e.category, expenseOptions)}{showMonth ? ` · ${fmtDate(e.date)}` : ''}</p></div>
-                  <span className="font-mono text-sm font-bold text-red-400">-RM{fmt(e.amount)}</span>
-                  <button onClick={() => deleteExpense(e.id)} className="text-rose-400 opacity-50 hover:opacity-100 p-1"><Trash2 size={13} /></button>
+                  <span className="font-mono text-sm font-bold text-rose-400 light:text-rose-600">−RM {fmt(e.amount)}</span>
+                  <button onClick={() => openExpense(e)} aria-label="Sunting perbelanjaan" className="text-muted opacity-60 hover:opacity-100 hover:text-text p-1"><Pencil size={13} /></button>
+                  <button onClick={() => deleteExpense(e.id)} aria-label="Padam perbelanjaan" className="text-rose-400 opacity-50 hover:opacity-100 p-1"><Trash2 size={13} /></button>
                 </div>
               ));
             })()}
@@ -911,11 +930,27 @@ const ExpenseManager: React.FC = () => {
           <div className="glass-panel p-4">
             <div className="flex items-baseline justify-between gap-2 mb-2">
               <h3 className="font-bold text-sm">Sejarah · {periodLabel}</h3>
-              {txns.length > 0 && <span className="text-[10px] text-muted shrink-0">{txns.length} transaksi</span>}
+              {foundTxns.length > 0 && <span className="text-[10px] text-muted shrink-0">{foundTxns.length} transaksi</span>}
             </div>
-            {txns.length === 0 ? (
-              <p className="text-xs text-muted text-center py-3">Tiada transaksi.</p>
-            ) : txns.slice(0, txLimit).map((t, i, page) => {
+
+            <div className="relative mb-2">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+              <input
+                value={txQuery}
+                onChange={e => { setTxQuery(e.target.value); setTxLimit(TX_PAGE); }}
+                placeholder="Cari nama atau kategori"
+                className="input-field w-full text-sm py-2 pl-9 pr-9"
+              />
+              {txQuery && (
+                <button onClick={() => { setTxQuery(''); setTxLimit(TX_PAGE); }} aria-label="Kosongkan carian" className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-muted hover:text-text">
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {foundTxns.length === 0 ? (
+              <p className="text-xs text-muted text-center py-3">{txq ? `Tiada padanan untuk "${txQuery.trim()}".` : 'Tiada transaksi.'}</p>
+            ) : foundTxns.slice(0, txLimit).map((t, i, page) => {
               const newDay = i === 0 || page[i - 1].date !== t.date;
               const income = t.type === 'in';
               const color = income ? 'rgb(16 185 129)' : catColor(t.category || 'other', allOptions);
@@ -945,9 +980,9 @@ const ExpenseManager: React.FC = () => {
                 </React.Fragment>
               );
             })}
-            {txns.length > txLimit && (
+            {foundTxns.length > txLimit && (
               <button onClick={() => setTxLimit(n => n + TX_PAGE)} className="w-full mt-3 py-2.5 rounded-xl bg-text/5 text-muted hover:text-text text-xs font-bold transition-colors">
-                Tunjuk {Math.min(TX_PAGE, txns.length - txLimit)} lagi · {txns.length - txLimit} baki
+                Tunjuk {Math.min(TX_PAGE, foundTxns.length - txLimit)} lagi · {foundTxns.length - txLimit} baki
               </button>
             )}
           </div>
@@ -968,7 +1003,7 @@ const ExpenseManager: React.FC = () => {
       {/* Floating add-expense button (dashboard only) — portaled into the phone frame so it
           stays pinned bottom-right above the menu bar and never scrolls away */}
       {tab === 'dashboard' && frameEl && createPortal((
-        <button onClick={openExpense} className="fixed bottom-24 right-4 sm:absolute z-30 w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white shadow-xl shadow-emerald-500/30 flex items-center justify-center active:scale-90 transition-transform" title="Tambah perbelanjaan">
+        <button onClick={() => openExpense()} className="fixed bottom-24 right-4 sm:absolute z-30 w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white shadow-xl shadow-emerald-500/30 flex items-center justify-center active:scale-90 transition-transform" title="Tambah perbelanjaan">
           <Plus size={26} />
         </button>
       ), frameEl)}
@@ -977,7 +1012,7 @@ const ExpenseManager: React.FC = () => {
       {showExpense && createPortal((
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowExpense(false)}>
           <div className="bg-surface border border-text/10 rounded-t-3xl w-full max-w-md p-5 space-y-4 animate-slide-up" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between"><h3 className="font-bold text-lg">Tambah Perbelanjaan</h3><button onClick={() => setShowExpense(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button></div>
+            <div className="flex items-center justify-between"><h3 className="font-bold text-lg">{eId ? 'Sunting' : 'Tambah'} Perbelanjaan</h3><button onClick={() => setShowExpense(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button></div>
             <input autoFocus value={eDesc} onChange={e => setEDesc(e.target.value)} placeholder="Keterangan" className="input-field w-full" />
             <input type="number" value={eAmount} onChange={e => setEAmount(e.target.value)} placeholder="Jumlah (RM)" className="input-field w-full font-mono text-lg" />
             <div className="space-y-1.5">
@@ -988,7 +1023,7 @@ const ExpenseManager: React.FC = () => {
               <label className="text-xs font-bold text-muted uppercase tracking-wider">Tarikh</label>
               <input type="date" value={eDate} max={todayKey} onChange={e => setEDate(e.target.value)} className="input-field w-full" />
             </div>
-            <button onClick={saveExpense} className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600">Simpan Perbelanjaan</button>
+            <button onClick={saveExpense} className="w-full py-3 rounded-xl bg-emerald-500 text-[#ffffff] font-bold hover:bg-emerald-600">{eId ? 'Simpan Perubahan' : 'Simpan Perbelanjaan'}</button>
           </div>
         </div>
       ), document.body)}
