@@ -4,6 +4,7 @@
 // Date arithmetic is imported, not rewritten — horizon.ts already gets month-end clamping and
 // midnight boundaries right, and both are tested.
 import { addMonths, daysUntil } from './horizon.ts';
+import { unitFor } from './garage-presets.ts';
 import type { Body, Energy, LogKind } from './garage-presets.ts';
 
 export interface Vehicle {
@@ -239,4 +240,98 @@ export function dueItems(d: GarageData, vehicleId?: string): DueItem[] {
   }
 
   return out.sort((a, b) => a.status.days - b.status.days);
+}
+
+export const serviceTotal = (s: Service) =>
+  s.items.reduce((total, i) => total + (Number(i.cost) || 0), 0);
+
+export interface Economy {
+  rate: number;   // km per litre, or km per kWh
+  unit: string;   // 'km/L' | 'km/kWh'
+  dist: number;   // km measured
+  qty: number;    // litres or kWh consumed across those km
+  spend: number;  // what that energy cost, across ALL logs of this kind
+}
+
+/**
+ * Efficiency measured between full tanks.
+ *
+ * A window opens at a full tank and closes at the next one. Everything poured in between —
+ * partial top-ups included — is exactly what the distance across that window consumed, because
+ * the tank was full at both ends. This is why a partial fill is folded in rather than thrown
+ * away: the mockup discarded any window containing one, which quietly understates how much data
+ * the owner has, and someone who tops up often would never get a reading at all.
+ *
+ * What is genuinely unmeasurable is a window that never closes — fuel bought since the last full
+ * tank is still sitting in it. That is excluded, and it is the only exclusion.
+ *
+ * Computed per kind, which is what makes a plug-in hybrid expressible: it has petrol windows and
+ * charge windows, measured independently. NEITHER figure is the vehicle's efficiency — the
+ * electricity did some of the work the petrol is credited for, and vice versa. For that, see
+ * costPerKm below.
+ */
+export function economy(d: GarageData, v: Vehicle, kind: LogKind): Economy | null {
+  const logs = d.energy
+    .filter((e) => e.vehicleId === v.id && e.kind === kind)
+    .sort((a, b) => a.odo - b.odo);
+
+  let dist = 0, qty = 0;
+  let openedAt = -1;   // index of the full tank this window started from
+  let pending = 0;     // everything added since then, partials included
+
+  for (let i = 0; i < logs.length; i++) {
+    if (openedAt >= 0) pending += logs[i].qty;
+    if (!logs[i].full) continue;
+    if (openedAt >= 0) {
+      dist += logs[i].odo - logs[openedAt].odo;
+      qty += pending;
+    }
+    openedAt = i;
+    pending = 0;
+  }
+  if (!qty || !dist) return null;
+
+  return {
+    rate: dist / qty,
+    unit: `km/${unitFor(kind)}`,
+    dist,
+    qty,
+    spend: logs.reduce((total, e) => total + (Number(e.cost) || 0), 0),
+  };
+}
+
+export interface Spend { service: number; energy: number; docs: number; total: number }
+
+export function spend(d: GarageData, vehicleId: string, fromISO?: string): Spend {
+  const inRange = (date?: string) => !fromISO || (!!date && date >= fromISO);
+  const mine = (id: string) => id === vehicleId;
+
+  const service = d.services
+    .filter((s) => mine(s.vehicleId) && inRange(s.date))
+    .reduce((total, s) => total + serviceTotal(s), 0);
+
+  const energy = d.energy
+    .filter((e) => mine(e.vehicleId) && inRange(e.date))
+    .reduce((total, e) => total + (Number(e.cost) || 0), 0);
+
+  // Dated by when it was paid for, not when it lapses — a road tax bought in January is a
+  // January cost even though it expires the following year.
+  const docs = d.docs
+    .filter((x) => mine(x.vehicleId) && inRange(x.issued ?? x.expiry))
+    .reduce((total, x) => total + (Number(x.cost) || 0), 0);
+
+  return { service, energy, docs, total: service + energy + docs };
+}
+
+/**
+ * The headline figure, and the only honest one for a vehicle burning two things at once. It is
+ * currency-denominated, so it needs no assumption about how the work was split between petrol
+ * and electricity — and it happens to be the number the owner actually wanted.
+ */
+export function costPerKm(d: GarageData, v: Vehicle): number | null {
+  const r = readingsOf(d, v.id);
+  if (r.length < 2) return null;
+  const dist = r[0].odo - r[r.length - 1].odo;
+  if (dist <= 0) return null;
+  return spend(d, v.id, r[r.length - 1].date).total / dist;
 }

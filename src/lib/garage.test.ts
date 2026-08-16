@@ -156,3 +156,113 @@ describe('dueItems', () => {
     assert.equal(dueItems(d).length, 0);
   });
 });
+
+const { economy, costPerKm, spend, serviceTotal } = await import('./garage.ts');
+type V = Awaited<typeof import('./garage.ts')>['Vehicle'];
+
+const phev: V = { id: 'p1', body: 'suv', energy: 'phev', model: 'Outlander',
+  mileage: 10000, colorIdx: 0, createdAt: 0 };
+
+const fill = (id: string, date: string, odo: number, qty: number, cost: number, full = true) =>
+  ({ id, vehicleId: 'v1', date, odo, kind: 'fuel' as const, qty, cost, full });
+
+describe('economy', () => {
+  test('needs two full fills before it will claim anything', () => {
+    const d = withLogs({ energy: [fill('e1', '2026-01-01', 80000, 30, 60)] });
+    assert.equal(economy(d, car, 'fuel'), null);
+  });
+
+  test('measures km per litre across a full-to-full window', () => {
+    const d = withLogs({ energy: [
+      fill('e1', '2026-01-01', 80000, 30, 60),
+      fill('e2', '2026-01-15', 80600, 40, 80),   // 600 km on the 40 L that refilled it
+    ]});
+    const e = economy(d, car, 'fuel')!;
+    assert.equal(e.rate, 15);
+    assert.equal(e.unit, 'km/L');
+    assert.equal(e.dist, 600);
+  });
+
+  test('a partial fill is counted inside the window it sits in, not discarded', () => {
+    const d = withLogs({ energy: [
+      fill('e1', '2026-01-01', 80000, 30, 60),
+      fill('e2', '2026-01-10', 80300, 10, 20, false),  // topped up mid-window
+      fill('e3', '2026-01-15', 80600, 40, 80),
+    ]});
+    const e = economy(d, car, 'fuel')!;
+    // The tank was full at 80000 and full again at 80600, so everything poured in between —
+    // partial included — is exactly what those 600 km consumed.
+    assert.equal(e.dist, 600);
+    assert.equal(e.qty, 50);
+    assert.equal(e.rate, 12);
+  });
+
+  test('a window that never closes on a full tank is not measured', () => {
+    const d = withLogs({ energy: [
+      fill('e1', '2026-01-01', 80000, 30, 60),
+      fill('e2', '2026-01-10', 80300, 10, 20, false),  // still topped up, never filled again
+    ]});
+    assert.equal(economy(d, car, 'fuel'), null);
+  });
+
+  test('a PHEV reports petrol and electricity separately', () => {
+    const d: GarageData = { ...EMPTY_GARAGE, vehicles: [phev], energy: [
+      { id: 'f1', vehicleId: 'p1', date: '2026-01-01', odo: 10000, kind: 'fuel', qty: 20, cost: 40, full: true },
+      { id: 'f2', vehicleId: 'p1', date: '2026-02-01', odo: 10400, kind: 'fuel', qty: 20, cost: 40, full: true },
+      { id: 'c1', vehicleId: 'p1', date: '2026-01-01', odo: 10000, kind: 'charge', qty: 10, cost: 6, full: true },
+      { id: 'c2', vehicleId: 'p1', date: '2026-02-01', odo: 10400, kind: 'charge', qty: 20, cost: 12, full: true },
+    ]};
+    assert.equal(economy(d, phev, 'fuel')!.unit, 'km/L');
+    assert.equal(economy(d, phev, 'fuel')!.rate, 20);
+    assert.equal(economy(d, phev, 'charge')!.unit, 'km/kWh');
+    assert.equal(economy(d, phev, 'charge')!.rate, 20);
+  });
+});
+
+describe('costPerKm', () => {
+  test('is null until the vehicle has actually moved', () => {
+    assert.equal(costPerKm(withLogs({}), car), null);
+  });
+
+  test('divides everything spent by the distance observed', () => {
+    const d = withLogs({
+      energy: [fill('e1', '2026-01-01', 80000, 30, 60), fill('e2', '2026-01-15', 80600, 40, 140)],
+      services: [{ id: 's1', vehicleId: 'v1', date: '2026-01-10', odo: 80300,
+        items: [{ label: 'Engine oil', cost: 200 }] }],
+    });
+    // 400 spent over the 600 km between the oldest and newest reading.
+    assert.equal(Number(costPerKm(d, car)!.toFixed(4)), Number((400 / 600).toFixed(4)));
+  });
+});
+
+describe('spend', () => {
+  test('separates service, energy and documents', () => {
+    const d = withLogs({
+      energy: [fill('e1', '2026-01-01', 80000, 30, 60)],
+      services: [{ id: 's1', vehicleId: 'v1', date: '2026-01-10', odo: 80300,
+        items: [{ label: 'Engine oil', cost: 150 }, { label: 'Oil filter', cost: 30 }] }],
+      docs: [{ id: 'd1', vehicleId: 'v1', type: 'roadtax', expiry: '2027-01-01',
+        issued: '2026-01-01', cost: 90 }],
+    });
+    const s = spend(d, 'v1');
+    assert.equal(s.energy, 60);
+    assert.equal(s.service, 180);
+    assert.equal(s.docs, 90);
+    assert.equal(s.total, 330);
+  });
+
+  test('honours a start date', () => {
+    const d = withLogs({ energy: [
+      fill('e1', '2026-01-01', 80000, 30, 60),
+      fill('e2', '2026-06-01', 82000, 30, 70),
+    ]});
+    assert.equal(spend(d, 'v1', '2026-03-01').energy, 70);
+  });
+});
+
+describe('serviceTotal', () => {
+  test('sums the line items', () => {
+    assert.equal(serviceTotal({ id: 's', vehicleId: 'v1', date: '2026-01-01', odo: 1,
+      items: [{ label: 'a', cost: 10 }, { label: 'b', cost: 5.5 }] }), 15.5);
+  });
+});
