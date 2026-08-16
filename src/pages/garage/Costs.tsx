@@ -28,9 +28,11 @@ function monthKeys(): string[] {
   return Array.from({ length: 12 }, (_, i) => addMonths(todayISO(), -(11 - i)).slice(0, 7));
 }
 
-/** Every service/energy/document cost, bucketed by month. Documents key off `issued ?? expiry` —
- *  the same date `spend()` in garage.ts charges a document to — so this chart and a vehicle's
- *  own spend figure can never tell two different stories about which month a renewal cost. */
+/** Every service/energy/document cost, bucketed by month. Documents key off `issued || expiry` —
+ *  the same date `spend()` in garage.ts charges a document to (note `||`, not `??`: an empty
+ *  string from older or imported data must fall through to `expiry` too, not be kept as a
+ *  bucket key) — so this chart and a vehicle's own spend figure can never tell two different
+ *  stories about which month a renewal cost. */
 function buildMonths(data: GarageData): MonthBucket[] {
   const keys = monthKeys();
   const byKey = new Map(keys.map((k) => [k, { key: k, service: 0, energy: 0, docs: 0 }]));
@@ -44,7 +46,7 @@ function buildMonths(data: GarageData): MonthBucket[] {
     if (b) b.energy += Number(e.cost) || 0;
   }
   for (const doc of data.docs) {
-    const date = doc.issued ?? doc.expiry;
+    const date = doc.issued || doc.expiry;
     const b = date ? byKey.get(date.slice(0, 7)) : undefined;
     if (b) b.docs += Number(doc.cost) || 0;
   }

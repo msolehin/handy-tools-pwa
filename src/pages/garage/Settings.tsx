@@ -56,9 +56,20 @@ export default function Settings({ data, setData }: {
   const addCustom = () => {
     const label = customInput.trim();
     if (!label) return;
-    // Silently folds into the existing row rather than erroring — same dedupe ServiceSheet's own
-    // addCustom uses for a typed-in item that already matches a chip.
-    patchPreset((cur) => resolved.includes(label) ? cur : { ...cur, customs: [...cur.customs, label] });
+    patchPreset((cur) => {
+      // Checked against the UNFILTERED default list, not `resolved` — `resolved` already has
+      // hidden defaults filtered out, so guarding against it let a hidden default's own name slip
+      // through into `customs`. That row is then permanently unreachable: `isDefault` is computed
+      // from `defaultPresets` alone, so it renders tagged Default forever and removeCustom can
+      // never see it (Task 13 review finding 1) — dead data that re-syncs on every future edit.
+      if (defaultPresets(body, energy).includes(label)) {
+        // Typing a hidden default's exact name back in reads as "bring it back", not "make me a
+        // second copy" — unhide rather than leave the keystroke a silent no-op.
+        return cur.hidden.includes(label) ? { ...cur, hidden: cur.hidden.filter((h) => h !== label) } : cur;
+      }
+      // Same dedupe ServiceSheet's own addCustom uses for a typed-in item that already matches a chip.
+      return cur.customs.includes(label) ? cur : { ...cur, customs: [...cur.customs, label] };
+    });
     setCustomInput('');
   };
 
@@ -148,8 +159,8 @@ export default function Settings({ data, setData }: {
           <AlertTriangle size={16} className="shrink-0" />{t('Padam semua data', 'Delete all data')}
         </p>
         <p className="text-xs text-muted">{t(
-          'Membuang semua kenderaan, rekod servis, log tenaga, odometer, peringatan dan dokumen dalam Garaj sahaja. Alat lain tidak disentuh.',
-          'Removes every vehicle, service record, energy log, odometer reading, reminder and document in Garaj only. Other tools are left alone.',
+          'Membuang semua kenderaan, rekod servis, log tenaga, odometer, peringatan, dokumen dan penyesuaian senarai semak dalam Garaj sahaja. Alat lain tidak disentuh.',
+          'Removes every vehicle, service record, energy log, odometer reading, reminder, document and checklist customisation in Garaj only. Other tools are left alone.',
         )}</p>
         <p className="text-xs font-bold text-rose-400 light:text-rose-600">{t(
           'Amaran: data yang dipadam tidak boleh dipulihkan.',
