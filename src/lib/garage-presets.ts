@@ -71,7 +71,18 @@ const dedupe = (list: string[]) => [...new Set(list)];
 
 /** The list this vehicle type is born with, before the owner edits it. */
 export function defaultPresets(body: Body, energy: Energy): string[] {
-  if (body === 'motorcycle') return dedupe(energy === 'ev' ? BIKE.ev : BIKE.combustion);
+  if (body === 'motorcycle') {
+    if (energy === 'ev') return dedupe(BIKE.ev);
+    // The same energy deltas the car path applies, so "diesel" and "hybrid" mean the same
+    // thing on two wheels as on four. Rare combinations, but the two fields are orthogonal
+    // by design and every pairing has to produce a sane list.
+    const base = energy === 'diesel'
+      ? [...BIKE.combustion.filter((i) => i !== 'Spark plug'), 'Fuel filter']
+      : BIKE.combustion;
+    return dedupe(energy === 'hybrid' || energy === 'phev'
+      ? [...base, 'Hybrid battery inspection']
+      : base);
+  }
   return dedupe([...CAR[energy], ...(BODY_EXTRA[body] ?? [])]);
 }
 

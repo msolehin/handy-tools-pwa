@@ -51,6 +51,19 @@ describe('service presets', () => {
   test('typeKey pairs body and energy', () => {
     assert.equal(typeKey('sedan', 'petrol'), 'sedan:petrol');
   });
+
+  test('a diesel motorcycle is not offered a spark plug either', () => {
+    const list = defaultPresets('motorcycle', 'diesel');
+    assert.ok(!list.includes('Spark plug'));
+    assert.ok(list.includes('Fuel filter'));
+    assert.ok(list.includes('Chain & sprocket'));   // still a bike
+  });
+
+  test('a hybrid motorcycle keeps its chain and gains its battery check', () => {
+    const list = defaultPresets('motorcycle', 'hybrid');
+    assert.ok(list.includes('Chain & sprocket'));
+    assert.ok(list.includes('Hybrid battery inspection'));
+  });
 });
 
 describe('energy characteristics', () => {
