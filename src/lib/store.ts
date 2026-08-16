@@ -20,12 +20,23 @@ import { t } from './lang.ts';
  * actually reached the account.
  */
 export type SyncStatus = {
-  kind: 'loaded' | 'saved' | 'offline' | 'error' | 'guest';
+  // 'saving' is the only one that describes work still in flight. Every other kind is an
+  // outcome, and replaces it.
+  kind: 'loaded' | 'saving' | 'saved' | 'offline' | 'error' | 'guest';
   message: string;
+  /**
+   * How long the caller knows it is about to wait, for the one stretch whose length is not a
+   * guess: the debounce before the push leaves. Carried rather than hardcoded in the toast, or
+   * the bar and DEBOUNCE_MS drift apart the first time either is tuned.
+   *
+   * Deliberately absent once the request is actually in flight — the network owes no promise
+   * about how long it will take, and a bar that invents one is a lie the user can feel.
+   */
+  waitMs?: number;
 };
 
-function announce(kind: SyncStatus['kind'], message: string) {
-  window.dispatchEvent(new CustomEvent('store:status', { detail: { kind, message } }));
+function announce(kind: SyncStatus['kind'], message: string, waitMs?: number) {
+  window.dispatchEvent(new CustomEvent('store:status', { detail: { kind, message, waitMs } }));
 }
 
 /** Tool keys that belong to an account. Grows one phase at a time. */
@@ -82,6 +93,10 @@ const DIRTY_KEY = `${P}__dirty`;
 const REV_KEY = `${P}__revs`;
 const IMPORTED_KEY = `${P}__imported`;
 const DEBOUNCE_MS = 800;
+// A ceiling on that debounce. Ticking a week of habit boxes re-arms the trailing timer on
+// every tap, so without this nothing reaches the account until the user stops for a full
+// 800ms — a fast burst could go a minute with everything still only in memory.
+const MAX_WAIT_MS = 2500;
 
 const cache = new Map<string, string>();
 const dirty = new Set<string>();
@@ -93,6 +108,9 @@ let signedIn = false;
 // failed pull followed by a page mount would otherwise push [] straight over the account.
 let pulled = false;
 let flushTimer: ReturnType<typeof setTimeout> | undefined;
+let maxWaitTimer: ReturnType<typeof setTimeout> | undefined;
+// The push currently in flight, so concurrent callers join it instead of starting a second one.
+let flushing: Promise<void> | null = null;
 let backoff = 1000;
 let lateHydrate: (() => void) | null = null;
 
@@ -165,8 +183,21 @@ export const store = {
 function markDirty(key: string) {
   dirty.add(key);
   localStorage.setItem(DIRTY_KEY, JSON.stringify([...dirty]));
+
+  // Say so now. The outcome is still a debounce plus a round trip away, and a user who clicks
+  // Save and gets nothing back for over a second reasonably concludes the click missed — and
+  // clicks again. `pulled` because a push that cannot run yet must not claim to be running.
+  //
+  // DEBOUNCE_MS is how long the bar has to fill before the request leaves. Every write re-arms
+  // that timer, so during a burst the bar restarts too — which is exactly the truth: nothing
+  // goes anywhere until you stop, or until MAX_WAIT_MS overrules you.
+  if (pulled) announce('saving', t('Menyimpan…', 'Saving…'), DEBOUNCE_MS);
+
   clearTimeout(flushTimer);
   flushTimer = setTimeout(() => { void flush(); }, DEBOUNCE_MS);
+  if (maxWaitTimer === undefined) {
+    maxWaitTimer = setTimeout(() => { maxWaitTimer = undefined; void flush(); }, MAX_WAIT_MS);
+  }
 }
 
 function persistRevs() {
@@ -176,7 +207,18 @@ function persistRevs() {
 export const pendingCount = () => dirty.size;
 
 /** Push every dirty key. Safe to call any time; a no-op when offline or signed out. */
-export async function flush(): Promise<void> {
+export function flush(): Promise<void> {
+  // The debounce timer, `visibilitychange` and the `online` listener can all arrive while a PUT
+  // is still in flight. Two runs read the same revs.get(key) and send it; the loser comes back
+  // 409, and the user is told their record "changed on another device" in the middle of an
+  // ordinary save on their only device. Concurrent callers join the run already going.
+  //
+  // A key dirtied mid-run is not carried by that run — markDirty has already re-armed the
+  // timer, so the next one takes it.
+  return flushing ??= runFlush().finally(() => { flushing = null; });
+}
+
+async function runFlush(): Promise<void> {
   if (!signedIn || !pulled || !dirty.size || !navigator.onLine) return;
   let pushed = 0;
 
@@ -218,6 +260,8 @@ export async function flush(): Promise<void> {
       pushed++;
     } catch {
       backoff = Math.min(backoff * 2, 60_000);
+      clearTimeout(maxWaitTimer);
+      maxWaitTimer = undefined;   // the backoff owns the retry from here, or the two race
       flushTimer = setTimeout(() => { void flush(); }, backoff);
       localStorage.setItem(DIRTY_KEY, JSON.stringify([...dirty]));
       announce('error', t('Gagal simpan ke akaun anda. Cuba semula…', "Couldn't save to your account. Retrying…"));
@@ -226,6 +270,8 @@ export async function flush(): Promise<void> {
   }
 
   backoff = 1000;
+  clearTimeout(maxWaitTimer);
+  maxWaitTimer = undefined;
   localStorage.setItem(DIRTY_KEY, JSON.stringify([...dirty]));
   if (pushed) announce('saved', t('Disimpan ke akaun anda.', 'Saved to your account.'));
 }
@@ -296,7 +342,12 @@ function schedulePull() {
  */
 export async function bootstrap(): Promise<void> {
   const knownUid = localStorage.getItem(UID_KEY);
-  const wasGuest = !signedIn;
+  // A genuine guest -> account transition, which is the only thing worth remounting the app
+  // for. `signedIn` alone is module state and is false on every cold boot, so reading it by
+  // itself made EVERY page load look like a fresh sign-in: the whole tree was thrown away a
+  // second after paint, and the user was told their data loaded when they had just opened the
+  // app and changed nothing.
+  const wasGuest = !signedIn && !knownUid;
   signedIn = Boolean(knownUid);
 
   if (signedIn) {
@@ -363,12 +414,19 @@ export async function bootstrap(): Promise<void> {
 
   // Unsent offline edits go up BEFORE the pull is applied, or an older server copy silently
   // overwrites them.
+  //
+  // `payload` was read off the server BEFORE that push, so for anything we are about to send it
+  // holds the older copy — and the flush empties `dirty`, so the guard below stops covering the
+  // very keys it was written for. Remember what was ours first. Without this, saving a record
+  // while a retry pull was in flight reverted it to the previous version on screen and remounted
+  // the whole app: the user watches their new entry vanish and the page reset itself.
+  const wasDirty = new Set(dirty);
   if (dirty.size) await flush();
 
   let changed = false;
   for (const [tool, rev] of Object.entries(payload.revisions)) revs.set(tool, rev);
   for (const [tool, data] of Object.entries(payload.data)) {
-    if (dirty.has(tool)) continue; // ours is newer and still on its way up
+    if (dirty.has(tool) || wasDirty.has(tool)) continue; // ours is newer, or just went up
     if (applyPulled(tool, data)) changed = true;
   }
   persistRevs();
@@ -384,10 +442,17 @@ export async function bootstrap(): Promise<void> {
     }
   }
 
-  // Remount on any guest -> account transition, not just when values differ. Mounted pages
-  // read their state from the guest tier; once signedIn flips, getItem answers from the
-  // account mirror instead, and stale component state would disagree with the store.
-  if (changed || wasGuest) lateHydrate?.();
+  // Only on a guest -> account transition. Mounted pages read their state from the guest tier;
+  // once signedIn flips, getItem answers from the account mirror instead, and stale component
+  // state would disagree with the store — so that one is worth the cost.
+  //
+  // `changed` alone is not. A remount destroys the entire tree: open modals, half-typed forms,
+  // scroll position. A background pull firing that mid-edit is indistinguishable from the app
+  // refreshing itself, and schedulePull() can land at any moment.
+  // ponytail: a tool page already open when another device edits it keeps showing the old copy
+  // until you navigate away and back — the store itself is current. Push a targeted per-key
+  // subscription down to the pages if that ever actually bites someone.
+  if (wasGuest) lateHydrate?.();
 
   pullBackoff = 2000;
   clearTimeout(pullTimer);

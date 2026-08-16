@@ -341,10 +341,11 @@ describe('store: signed in', () => {
 
     announced = [];
     store.store.setItem('tenancy_data', '{"items":["mine"]}');
-    assert.deepEqual(kinds(), [], 'nothing claimed while the push is still in flight');
+    assert.deepEqual(kinds(), ['saving'],
+      'the work is shown as started, but no save is claimed while the push is still in flight');
 
     await store.flush();
-    assert.deepEqual(kinds(), ['saved']);
+    assert.deepEqual(kinds(), ['saving', 'saved']);
   });
 
   test('a failed push says so instead of looking like a save', async () => {
@@ -360,7 +361,7 @@ describe('store: signed in', () => {
     store.store.setItem('tenancy_data', '{"items":["mine"]}');
     await store.flush();
 
-    assert.deepEqual(kinds(), ['error']);
+    assert.deepEqual(kinds(), ['saving', 'error'], 'the failure replaces the pending state');
     assert.equal(store.pendingCount(), 1, 'and it stays queued for the retry');
   });
 
@@ -663,5 +664,104 @@ describe('store: signed in', () => {
 
     assert.equal(localStorage.getItem('acct:tenancy_data'), null,
       'user B must never see user A cached blobs');
+  });
+
+  // ---------------------------------------------------------------- nothing yanks the page away
+  //
+  // A remount destroys the entire React tree: every open modal, every half-typed form, the
+  // scroll position. To the user that is indistinguishable from the app refreshing itself
+  // while they were in the middle of adding a record. It is only ever worth it when the
+  // identity behind the data changed.
+
+  test('a cold refresh of a signed-in session does not remount or re-announce', async () => {
+    const store = await freshStore();
+    signedInBootstrap({ tenancy_data: { items: ['mine'] } }, { tenancy_data: 3 });
+    await store.bootstrap();
+    (await import('./auth.ts')).setUser(null);     // the reload: auth starts empty again
+
+    const reloaded = await freshStore();
+    let remounts = 0;
+    reloaded.onLateHydrate(() => { remounts++; });
+    announced = [];
+    await reloaded.bootstrap();
+
+    assert.equal(remounts, 0,
+      'merely opening the app is not a sign-in, and must not rebuild the whole tree a second after paint');
+    assert.deepEqual(kinds(), [], 'nor tell the user their data loaded when they changed nothing');
+  });
+
+  test('a pull that brings newer data updates the store without remounting', async () => {
+    const store = await freshStore();
+    signedInBootstrap({ tenancy_data: { items: ['mine'] } }, { tenancy_data: 3 });
+    await store.bootstrap();
+    (await import('./auth.ts')).setUser(null);
+
+    const reloaded = await freshStore();
+    let remounts = 0;
+    reloaded.onLateHydrate(() => { remounts++; });
+    signedInBootstrap({ tenancy_data: { items: ['edited on my phone'] } }, { tenancy_data: 4 });
+    await reloaded.bootstrap();
+
+    assert.deepEqual(JSON.parse(reloaded.store.getItem('tenancy_data')!), { items: ['edited on my phone'] },
+      'the newer copy is in the store, ready for the next page that mounts');
+    assert.equal(remounts, 0, 'but a background pull never yanks the page away mid-edit');
+  });
+
+  test('a record saved during a background pull is not reverted by it', async () => {
+    const store = await freshStore();
+    signedInBootstrap({ tenancy_data: { items: ['old'] } }, { tenancy_data: 1 });
+    await store.bootstrap();
+
+    // Mid-edit: dirty, and the debounce has not fired yet.
+    store.store.setItem('tenancy_data', '{"items":["my new record"]}');
+    assert.equal(store.pendingCount(), 1);
+
+    let remounts = 0;
+    store.onLateHydrate(() => { remounts++; });
+
+    // A retry pull lands. /api/bootstrap answers with the pre-push copy, because the server
+    // was read before our PUT reached it — and bootstrap flushes before it applies the pull,
+    // so `dirty` is empty by then and no longer protects the key.
+    await store.bootstrap();
+
+    assert.deepEqual(JSON.parse(store.store.getItem('tenancy_data')!), { items: ['my new record'] },
+      'the record the user just saved must survive the pull that raced it');
+    assert.equal(remounts, 0, 'and it must not look to them like the app refreshed itself');
+  });
+
+  test('two flushes racing each other push once, not twice', async () => {
+    const store = await freshStore();
+    signedInBootstrap({ tenancy_data: { items: [] } }, { tenancy_data: 1 });
+    await store.bootstrap();
+
+    store.store.setItem('tenancy_data', '{"items":["mine"]}');
+    calls = [];
+    // The debounce timer, `visibilitychange` and the `online` listener can all land together.
+    await Promise.all([store.flush(), store.flush(), store.flush()]);
+
+    assert.equal(calls.filter((c) => c.url.includes('/api/sync/tenancy_data')).length, 1,
+      'a second PUT carries the same rev, comes back 409, and tells the user their record '
+      + 'changed on another device when nothing of the sort happened');
+  });
+
+  test('a pending save is announced the moment it is made, not when it lands', async () => {
+    const store = await freshStore();
+    signedInBootstrap({ tenancy_data: { items: [] } }, { tenancy_data: 1 });
+    await store.bootstrap();
+
+    announced = [];
+    store.store.setItem('tenancy_data', '{"items":["mine"]}');
+    assert.deepEqual(kinds(), ['saving'],
+      'clicking save is followed by feedback, not by 800ms of debounce and a round trip in silence');
+
+    // The toast fills its progress bar over exactly this long, so a change to the debounce that
+    // forgot the bar would leave it finishing early and then sitting full while the push ran.
+    assert.equal((announced[0] as { waitMs?: number }).waitMs, 800,
+      'the pending announcement carries the wait it is actually asking the user to sit through');
+
+    await store.flush();
+    assert.deepEqual(kinds(), ['saving', 'saved'], 'and the claim of a save still waits for the account');
+    assert.equal((announced[1] as { waitMs?: number }).waitMs, undefined,
+      'an outcome promises no duration');
   });
 });

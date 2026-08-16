@@ -15,6 +15,7 @@ import { useHorizon } from '../lib/useHorizon';
 import ImportPrompt from './ImportPrompt';
 import GuestNotice from './GuestNotice';
 import SyncToast from './SyncToast';
+import UpdateBar from './UpdateBar';
 import { getUser, subscribe, type User } from '../lib/auth';
 import { store } from '../lib/store';
 import { useLang, useT, type Lang } from '../lib/lang';
@@ -634,6 +635,7 @@ const Layout: React.FC = () => {
 
         <ImportPrompt />
         <SyncToast />
+        <UpdateBar />
 
         {/* Settings Bottom Sheet Modal */}
         {showSettings && (

@@ -28,12 +28,14 @@ window.addEventListener('appinstalled', () => {
   (window as any).__deferredInstallPrompt = null;
 });
 
-const updateSW = registerSW({
-  onNeedRefresh() {
-    if (confirm('New content available. Reload?')) {
-      updateSW(true)
-    }
-  },
+// vite.config.ts registers with `registerType: 'autoUpdate'`, and in that mode vite-plugin-pwa
+// reloads the page ITSELF the moment a new worker activates — no prompt, mid-form, and whatever
+// was being typed is gone. That is the "it suddenly refreshed" every deploy handed to whoever
+// was mid-record. Passing onNeedReload is precisely what suppresses that built-in reload; the
+// old onNeedRefresh/confirm here never ran at all, because onNeedRefresh only fires in prompt
+// mode. UpdateBar picks this up and lets the user choose the moment.
+registerSW({
+  onNeedReload() { window.dispatchEvent(new Event('sw:update-ready')) },
 })
 
 const root = ReactDOM.createRoot(document.getElementById('root')!)
@@ -53,6 +55,10 @@ const paint = () => root.render(
 void bootstrap().catch(() => {})
 paint()
 
-// A pull that landed after the first paint: remount so every lazy useState initialiser and
-// []-dep mount effect re-runs against the fresh data.
+// Remount, so every lazy useState initialiser and []-dep mount effect re-runs against the
+// fresh data. This throws away the entire tree — open modals, half-typed forms, scroll
+// position — so the store only asks for it when the identity behind the data changed: a
+// sign-in, an import, or a conflict the user just resolved. A routine background pull no
+// longer comes through here; it used to, and firing mid-edit was indistinguishable from the
+// app refreshing itself.
 onLateHydrate(() => { generation++; paint() })
