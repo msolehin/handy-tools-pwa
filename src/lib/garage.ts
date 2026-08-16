@@ -250,7 +250,7 @@ export interface Economy {
   unit: string;   // 'km/L' | 'km/kWh'
   dist: number;   // km measured
   qty: number;    // litres or kWh consumed across those km
-  spend: number;  // what that energy cost, across ALL logs of this kind
+  spend: number;  // what that energy cost, across the measured windows only
 }
 
 /**
@@ -275,19 +275,28 @@ export function economy(d: GarageData, v: Vehicle, kind: LogKind): Economy | nul
     .filter((e) => e.vehicleId === v.id && e.kind === kind)
     .sort((a, b) => a.odo - b.odo);
 
-  let dist = 0, qty = 0;
+  let dist = 0, qty = 0, cost = 0;
   let openedAt = -1;   // index of the full tank this window started from
   let pending = 0;     // everything added since then, partials included
+  let pendingCost = 0;
 
   for (let i = 0; i < logs.length; i++) {
-    if (openedAt >= 0) pending += logs[i].qty;
+    if (openedAt >= 0) {
+      // Number(): this data round-trips through localStorage and the sync API. A garbage qty
+      // would make the total NaN, and `!qty` below would then silently drop the ENTIRE
+      // reading rather than the one bad log.
+      pending += Number(logs[i].qty) || 0;
+      pendingCost += Number(logs[i].cost) || 0;
+    }
     if (!logs[i].full) continue;
     if (openedAt >= 0) {
       dist += logs[i].odo - logs[openedAt].odo;
       qty += pending;
+      cost += pendingCost;
     }
     openedAt = i;
     pending = 0;
+    pendingCost = 0;
   }
   if (!qty || !dist) return null;
 
@@ -296,7 +305,7 @@ export function economy(d: GarageData, v: Vehicle, kind: LogKind): Economy | nul
     unit: `km/${unitFor(kind)}`,
     dist,
     qty,
-    spend: logs.reduce((total, e) => total + (Number(e.cost) || 0), 0),
+    spend: cost,
   };
 }
 
@@ -317,7 +326,7 @@ export function spend(d: GarageData, vehicleId: string, fromISO?: string): Spend
   // Dated by when it was paid for, not when it lapses — a road tax bought in January is a
   // January cost even though it expires the following year.
   const docs = d.docs
-    .filter((x) => mine(x.vehicleId) && inRange(x.issued ?? x.expiry))
+    .filter((x) => mine(x.vehicleId) && inRange(x.issued || x.expiry))
     .reduce((total, x) => total + (Number(x.cost) || 0), 0);
 
   return { service, energy, docs, total: service + energy + docs };
@@ -331,7 +340,20 @@ export function spend(d: GarageData, vehicleId: string, fromISO?: string): Spend
 export function costPerKm(d: GarageData, v: Vehicle): number | null {
   const r = readingsOf(d, v.id);
   if (r.length < 2) return null;
-  const dist = r[0].odo - r[r.length - 1].odo;
+
+  // Span by reading VALUE, not by date. readingsOf sorts by date, so r[0] is merely the newest
+  // entry — a receipt typed in late, or one odometer mistyped high, would otherwise shrink the
+  // span or invert it, and the figure would vanish with nothing the owner could act on.
+  const from = r[r.length - 1].date;
+  const dist = currentOdo(d, v) - Math.min(...r.map((x) => x.odo));
   if (dist <= 0) return null;
-  return spend(d, v.id, r[r.length - 1].date).total / dist;
+
+  // The fill that OPENED the observation window paid for distance driven before it — the same
+  // fencepost economy() gets right by crediting only the closing fill. Counting it here would
+  // inflate the figure by roughly 1/n, which is worst exactly when the number first appears.
+  const opening = d.energy
+    .filter((e) => e.vehicleId === v.id && e.date === from)
+    .reduce((total, e) => total + (Number(e.cost) || 0), 0);
+
+  return (spend(d, v.id, from).total - opening) / dist;
 }

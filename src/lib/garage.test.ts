@@ -217,6 +217,31 @@ describe('economy', () => {
     assert.equal(economy(d, phev, 'charge')!.unit, 'km/kWh');
     assert.equal(economy(d, phev, 'charge')!.rate, 20);
   });
+
+  test('a partial before the first full tank is not counted', () => {
+    const d = withLogs({ energy: [
+      fill('e1', '2026-01-01', 80000, 10, 20, false),  // window opened before we were watching
+      fill('e2', '2026-01-05', 80200, 20, 40),
+      fill('e3', '2026-01-20', 80800, 40, 80),
+    ]});
+    const e = economy(d, car, 'fuel')!;
+    // Only e2 -> e3 is a closed window. The 10 L and the 20 L before it refilled fuel burned
+    // over distance nobody logged, and crediting them would inflate consumption.
+    assert.equal(e.dist, 600);
+    assert.equal(e.qty, 40);
+  });
+
+  test('consecutive windows accumulate rather than replacing each other', () => {
+    const d = withLogs({ energy: [
+      fill('e1', '2026-01-01', 80000, 30, 60),
+      fill('e2', '2026-01-15', 80600, 40, 80),
+      fill('e3', '2026-02-01', 81200, 50, 100),
+    ]});
+    const e = economy(d, car, 'fuel')!;
+    assert.equal(e.dist, 1200);
+    assert.equal(e.qty, 90);
+    assert.equal(e.spend, 180);   // window-scoped: the opening e1 fill is excluded
+  });
 });
 
 describe('costPerKm', () => {
@@ -224,14 +249,15 @@ describe('costPerKm', () => {
     assert.equal(costPerKm(withLogs({}), car), null);
   });
 
-  test('divides everything spent by the distance observed', () => {
+  test('divides everything spent by the distance observed, less the opening fill', () => {
     const d = withLogs({
       energy: [fill('e1', '2026-01-01', 80000, 30, 60), fill('e2', '2026-01-15', 80600, 40, 140)],
       services: [{ id: 's1', vehicleId: 'v1', date: '2026-01-10', odo: 80300,
         items: [{ label: 'Engine oil', cost: 200 }] }],
     });
-    // 400 spent over the 600 km between the oldest and newest reading.
-    assert.equal(Number(costPerKm(d, car)!.toFixed(4)), Number((400 / 600).toFixed(4)));
+    // 400 spent in total, less the RM60 opening fill that paid for earlier distance,
+    // over the 600 km between the lowest and highest reading.
+    assert.equal(Number(costPerKm(d, car)!.toFixed(4)), Number((340 / 600).toFixed(4)));
   });
 });
 
