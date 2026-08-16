@@ -36,7 +36,7 @@ const AssetWarrantyTracker = lazy(() => import('./pages/AssetWarrantyTracker'));
 const BookTracker = lazy(() => import('./pages/BookTracker'));
 const Tenancy = lazy(() => import('./pages/Tenancy'));
 const ImportantNumbers = lazy(() => import('./pages/ImportantNumbers'));
-const VehicleServices = lazy(() => import('./pages/VehicleServices'));
+const Garage = lazy(() => import('./pages/garage'));
 const HomeServices = lazy(() => import('./pages/HomeServices'));
 const PDFEditor = lazy(() => import('./pages/PDFEditor'));
 
@@ -72,7 +72,7 @@ function App() {
           <Route path="/book-tracker" element={<BookTracker />} />
           <Route path="/tenancy" element={<Tenancy />} />
           <Route path="/important-numbers" element={<ImportantNumbers />} />
-          <Route path="/vehicle-services" element={<VehicleServices />} />
+          <Route path="/vehicle-services" element={<Garage />} />
           <Route path="/home-services" element={<HomeServices />} />
           <Route path="/pdf-editor" element={<PDFEditor />} />
         </Route>
