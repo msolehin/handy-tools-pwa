@@ -1,6 +1,6 @@
 // Reminders that fire while the app is closed — the gap spec.md §8 names.
 //
-// Every deadline in the app is already a real `date` column, so this is one union over six
+// Every deadline in the app is already a real `date` column, so this is one union over seven
 // tables rather than a shared reminders store plus a write path in every tool page.
 //
 // `occasions` is deliberately absent: the Birthdays tool was removed, its table has no
@@ -12,8 +12,8 @@ import { q } from './db.ts';
 import { requireUser } from './auth.ts';
 
 export type ReminderSource =
-  | 'document' | 'contract' | 'asset' | 'countdown' | 'vehicle_service' | 'home_service'
-  | 'vehicle_mileage';
+  | 'document' | 'contract' | 'asset' | 'countdown' | 'home_service'
+  | 'garage_reminder' | 'garage_document' | 'garage_mileage';
 
 export type DueReminder = {
   userId: string;
@@ -23,7 +23,7 @@ export type DueReminder = {
   dueDate: string;      // YYYY-MM-DD. Empty for mileage rows, which are owed by distance.
   offsetDays: number;   // 30 | 7 | 1
   href: string;         // the tool route this record lives in
-  /** Replaces the due date under the title. Set by mileage rows: "Odometer 90,000 km". */
+  /** Replaces the due date under the title. Set by mileage rows: "Myvi · 90,000 km". */
   subtitle?: string;
   /** Replaces the "N hari lagi" pill. Set by mileage rows: "lagi 300 km". */
   pill?: string;
@@ -53,18 +53,17 @@ due as (
   select user_id, 'countdown', id, title, target_date, '/countdown'
     from countdown_events
   union all
-  -- Latest row per (asset, title), not per asset: one car legitimately has an oil change, a
-  -- tyre rotation and an aircond service open at once, but logging a *new* oil change is what
-  -- closes the previous one — otherwise every past visit keeps pushing its stale date forever.
-  -- Mirrors openServices() in src/lib/horizon.ts, tie-break included (last entered wins a
-  -- same-day tie, which is pos desc here). next_done is the user's "dah buat" tick, closing the
-  -- reminder without inventing a service record (migration 006).
-  select user_id, 'vehicle_service', id, coalesce(nullif(title, ''), 'Servis'),
-         next_service_date, '/vehicle-services'
-    from (select distinct on (user_id, asset_id, title) *
-            from vehicle_service_events
-           order by user_id, asset_id, title, date desc, pos desc) v
-   where next_service_date is not null and not next_done
+  -- Garaj reminders owed by date. Unlike the service-event arm this replaces, there is no
+  -- distinct-on: a reminder is an explicit row the owner created and closed, not the tail of a
+  -- log that has to be de-duplicated by title.
+  select user_id, 'garage_reminder', id, coalesce(nullif(label, ''), 'Servis'),
+         due_date, '/vehicle-services'
+    from garage_reminders
+   where due_date is not null and not done
+  union all
+  select user_id, 'garage_document', id,
+         initcap(replace(type, 'roadtax', 'road tax')), expiry, '/vehicle-services'
+    from garage_documents
   union all
   select user_id, 'home_service', id, coalesce(nullif(title, ''), 'Servis'),
          next_service_date, '/home-services'
@@ -90,66 +89,52 @@ select d.user_id, d.source, d.record_id, d.title,
 /** A service is near on the odometer inside this many km. Mirrors KM_SOON in src/lib/horizon.ts. */
 export const KM_SOON = 500;
 
-/**
- * Services owed on the odometer rather than the calendar.
- *
- * Separate from DUE_SQL because it cannot use the day-offset windows: there is no due date to
- * subtract today from. It fires on *band entry* instead — once when the vehicle comes within
- * KM_SOON, once more if it goes past the target — and the band doubles as the offset_days dedup
- * key, so 1 and 7 also pick up the red and orange pills the email already has.
- *
- * Note the honest limit: the odometer only moves when the user types it in, so this can only fire
- * on the run after they did. A car driven 900 km without an update is invisible here, which is
- * why the tool page nags on-screen as well.
- *
- * ponytail: no rate estimation. Two readings would give km/day and a projected date that slots
- * into the windows above, but a wrong projection buzzes a phone about a service that is not due.
- * Add it when there is enough reading history to trust the slope.
- */
+// Reminders owed on the odometer rather than the calendar.
+//
+// Simpler and more accurate than the version this replaces: odo is a real integer on every
+// record now, so the current reading is a plain max across three tables. The old query had to
+// regex digits out of a free-text mileage field and fall back to vehicle_assets.mileage.
+//
+// The honest limit is unchanged: the odometer only moves when the user enters something, so
+// this can only fire on the run after they did. A car driven 900 km without an entry is
+// invisible here, which is why the tool page nags on screen as well.
+//
+// ponytail: still no rate estimation, for the same reason as before — a projected date that is
+// wrong buzzes someone's phone about a service that is not due. The client shows a projection
+// because the user can see the assumption; a push notification cannot carry that caveat.
 const MILEAGE_SQL = `
-with latest as (
-  select distinct on (user_id, asset_id, title) *
-    from vehicle_service_events
-   order by user_id, asset_id, title, date desc, pos desc
-),
--- The same odometer the app judges against: what was typed onto the vehicle, else the newest
--- service reading. Those readings are free text ("84,210 km"), so dig the digits out.
--- [^0-9] rather than \\D on purpose — a JS string would eat the backslash before Postgres saw it.
-odo as (
-  select a.user_id, a.id as asset_id,
-         coalesce(a.mileage, (
-           select nullif(regexp_replace(e.mileage, '[^0-9]', '', 'g'), '')::int
-             from vehicle_service_events e
-            where e.user_id = a.user_id and e.asset_id = a.id
-              and nullif(regexp_replace(e.mileage, '[^0-9]', '', 'g'), '') is not null
-            order by e.date desc, e.pos desc
-            limit 1)) as km
-    from vehicle_assets a
-),
-due as (
-  select l.user_id, l.id as record_id,
-         coalesce(nullif(l.title, ''), 'Servis') as title,
-         l.next_service_mileage as target,
-         l.next_service_mileage - o.km as km_left,
-         case when l.next_service_mileage - o.km <= 0 then 1 else 7 end as band
-    from latest l
-    join odo o on o.user_id = l.user_id and o.asset_id = l.asset_id
-   where l.next_service_mileage is not null
-     and not l.next_done
-     and o.km is not null
-     and l.next_service_mileage - o.km <= $1
+with odo as (
+  select v.user_id, v.id as vehicle_id,
+         greatest(
+           v.mileage,
+           coalesce((select max(odo) from garage_energy_logs e
+                      where e.user_id = v.user_id and e.vehicle_id = v.id), 0),
+           coalesce((select max(odo) from garage_services s
+                      where s.user_id = v.user_id and s.vehicle_id = v.id), 0),
+           coalesce((select max(odo) from garage_odo_logs o
+                      where o.user_id = v.user_id and o.vehicle_id = v.id), 0)
+         ) as current_odo,
+         coalesce(nullif(v.nickname, ''), v.model) as vehicle_name
+    from garage_vehicles v
 )
-select d.user_id, d.record_id, d.title, d.target, d.km_left, d.band
-  from due d
+select r.user_id, 'garage_mileage' as source, r.id as record_id,
+       coalesce(nullif(r.label, ''), 'Servis') as title,
+       '' as due_date, '/vehicle-services' as href,
+       odo.vehicle_name || ' · ' || to_char(odo.current_odo, 'FM999,999,999') || ' km' as subtitle,
+       case when odo.current_odo >= r.due_odo then 'lepas ' || to_char(odo.current_odo - r.due_odo, 'FM999,999,999') || ' km'
+            else 'lagi ' || to_char(r.due_odo - odo.current_odo, 'FM999,999,999') || ' km' end as pill,
+       case when odo.current_odo >= r.due_odo then 1 else 7 end as offset_days
+  from garage_reminders r
+  join odo on odo.user_id = r.user_id and odo.vehicle_id = r.vehicle_id
   left join reminder_sends s
-    on  s.user_id     = d.user_id
-    and s.source      = 'vehicle_mileage'
-    and s.record_id   = d.record_id
-    and s.offset_days = d.band
- where s.user_id is null
- order by d.user_id, d.km_left`;
-
-const km = (n: number) => n.toLocaleString('en-US');
+    on  s.user_id   = r.user_id
+    and s.source    = 'garage_mileage'
+    and s.record_id = r.id
+    and s.offset_days = case when odo.current_odo >= r.due_odo then 1 else 7 end
+ where r.due_odo is not null
+   and not r.done
+   and odo.current_odo >= r.due_odo - ${KM_SOON}
+   and s.user_id is null`;
 
 /** Every reminder due today that has not already been delivered, by date and by odometer. */
 export async function dueReminders(): Promise<DueReminder[]> {
@@ -164,17 +149,17 @@ export async function dueReminders(): Promise<DueReminder[]> {
     href: r.href,
   }));
 
-  const { rows: mileage } = await q(MILEAGE_SQL, [KM_SOON]);
+  const { rows: mileage } = await q(MILEAGE_SQL);
   return dated.concat(mileage.map((r) => ({
     userId: r.user_id,
-    source: 'vehicle_mileage' as ReminderSource,
+    source: r.source as ReminderSource,
     recordId: r.record_id,
     title: r.title,
-    dueDate: '',
-    offsetDays: r.band,
-    href: '/vehicle-services',
-    subtitle: `Odometer ${km(r.target)} km`,
-    pill: r.km_left <= 0 ? `Lewat ${km(-r.km_left)} km` : `Lagi ${km(r.km_left)} km`,
+    dueDate: r.due_date,
+    offsetDays: r.offset_days,
+    href: r.href,
+    subtitle: r.subtitle,
+    pill: r.pill,
   })));
 }
 

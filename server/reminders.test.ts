@@ -42,42 +42,35 @@ describe('reminders', { skip: skip && 'DATABASE_URL not set' }, () => {
          ($1, 'doc00', 'Lesen',    '',            $6)`,
       [userId, plus(30), plus(7), plus(1), plus(45), plus(0)]);
 
-    // Two services on one car, both due in 7 days, one already ticked "dah buat". Proves
-    // both that services fire per row rather than per asset, and that next_done closes one.
+    // Garaj: one vehicle, its odometer at 89,800 km (garage_vehicles.mileage is the floor, and
+    // there are no energy/service/odo-log rows here, so it is also the derived current reading).
     await pool!.query(
-      `insert into vehicle_assets (user_id, id, name, plate)
-       values ($1, 'car1', 'Myvi', 'WXY 1234')`, [userId]);
-    await pool!.query(
-      `insert into vehicle_service_events
-         (user_id, id, asset_id, date, title, next_service_date, next_done) values
-         ($1, 'svcOil',  'car1', $2, 'Tukar minyak hitam', $3, false),
-         ($1, 'svcAircond', 'car1', $2, 'Servis aircond',  $3, true)`,
-      [userId, plus(-60), plus(7)]);
+      `insert into garage_vehicles (user_id, id, model, mileage) values
+         ($1, 'car1', 'Myvi', 89800)`, [userId]);
 
-    // A tyre change due in 7 days that was already re-done last week. The newer visit is what
-    // closes the old row — nothing was ticked, so only the latest-per-(asset, title) rule can
-    // stop the stale date from pushing.
+    // A reminder due by date in 7 days, and one already ticked done (must not fire). Proves
+    // garage_reminders fires per row and that `done` closes one, same shape as the old
+    // next_done flag but without any dedup — this is not a log, it is an explicit row the
+    // owner closes themself.
     await pool!.query(
-      `insert into vehicle_service_events
-         (user_id, id, asset_id, date, title, next_service_date, next_done) values
-         ($1, 'svcTyreOld', 'car1', $2, 'Tukar tayar', $4, false),
-         ($1, 'svcTyreNew', 'car1', $3, 'Tukar tayar', $5, false)`,
-      [userId, plus(-400), plus(-7), plus(7), plus(200)]);
+      `insert into garage_reminders (user_id, id, vehicle_id, label, due_date, done) values
+         ($1, 'remOil',     'car1', 'Tukar minyak hitam', $2, false),
+         ($1, 'remAircond', 'car1', 'Servis aircond',     $2, true)`,
+      [userId, plus(7)]);
 
-    // Odometer 200 km short of a 90,000 km target, so the km branch is inside its window.
-    // svcKmDone is ticked and svcTyreOld is superseded — both carry a target that would
-    // otherwise fire, proving the km path closes on the same two rules the date path does.
+    // A reminder due by odometer, 200 km short of a 90,000 km target — inside the 500 km
+    // KM_SOON window — and one already ticked done (must not fire).
     await pool!.query(
-      `update vehicle_assets set mileage = 89800 where user_id = $1 and id = 'car1'`, [userId]);
+      `insert into garage_reminders (user_id, id, vehicle_id, label, due_odo, done) values
+         ($1, 'remKm',     'car1', 'Servis ikut km',     90000, false),
+         ($1, 'remKmDone', 'car1', 'Servis km dah buat', 90000, true)`,
+      [userId]);
+
+    // A vehicle document (road tax) expiring in 30 days.
     await pool!.query(
-      `update vehicle_service_events set next_service_mileage = 90000
-        where user_id = $1 and id = 'svcTyreOld'`, [userId]);
-    await pool!.query(
-      `insert into vehicle_service_events
-         (user_id, id, asset_id, date, title, next_service_mileage, next_done) values
-         ($1, 'svcKm',     'car1', $2, 'Servis ikut km',    90000, false),
-         ($1, 'svcKmDone', 'car1', $2, 'Servis km dah buat', 90000, true)`,
-      [userId, plus(-30)]);
+      `insert into garage_documents (user_id, id, vehicle_id, type, expiry) values
+         ($1, 'gdoc30', 'car1', 'roadtax', $2)`,
+      [userId, plus(30)]);
   });
 
   after(async () => {
@@ -89,21 +82,15 @@ describe('reminders', { skip: skip && 'DATABASE_URL not set' }, () => {
     const due = (await dueReminders()).filter((r) => r.userId === userId);
     assert.deepEqual(
       due.map((r) => r.recordId).sort(),
-      ['doc01', 'doc07', 'doc30', 'svcKm', 'svcOil'],
-      '45 and 0 days out must not fire, and neither may a ticked service');
+      ['doc01', 'doc07', 'doc30', 'gdoc30', 'remKm', 'remOil'],
+      '45 and 0 days out must not fire, and neither may a done reminder');
   });
 
-  test('a service ticked "dah buat" does not fire', async () => {
+  test('a garage reminder marked done does not fire', async () => {
     const due = (await dueReminders()).filter((r) => r.userId === userId);
-    assert.ok(due.some((r) => r.recordId === 'svcOil'), 'the open service must still fire');
-    assert.ok(!due.some((r) => r.recordId === 'svcAircond'),
-      'next_done closes the reminder without inventing a service record');
-  });
-
-  test('a service re-done since does not fire off the superseded record', async () => {
-    const due = (await dueReminders()).filter((r) => r.userId === userId);
-    assert.ok(!due.some((r) => r.recordId === 'svcTyreOld'),
-      'logging the new visit is what closes the old one, same rule as openServices()');
+    assert.ok(due.some((r) => r.recordId === 'remOil'), 'the open reminder must still fire');
+    assert.ok(!due.some((r) => r.recordId === 'remAircond'),
+      'done closes the reminder, the same as it does in the app');
   });
 
   test('uses custom_title when the document has one', async () => {
@@ -123,8 +110,8 @@ describe('reminders', { skip: skip && 'DATABASE_URL not set' }, () => {
     await runReminders(record);
 
     assert.equal(seen.length, 1, 'the second run must find nothing left to send');
-    assert.deepEqual(seen[0], ['doc01', 'doc07', 'doc30', 'svcKm', 'svcOil'],
-      'one digest carrying all five, not five separate deliveries');
+    assert.deepEqual(seen[0], ['doc01', 'doc07', 'doc30', 'gdoc30', 'remKm', 'remOil'],
+      'one digest carrying all six, not six separate deliveries');
   });
 
   test('the digest is ordered most urgent first', async () => {
@@ -136,17 +123,17 @@ describe('reminders', { skip: skip && 'DATABASE_URL not set' }, () => {
       return true;
     });
 
-    assert.deepEqual(seen, [1, 7, 7, 7, 30],
+    assert.deepEqual(seen, [1, 7, 7, 7, 30, 30],
       'esok must never sit below a 30-day row — push only shows the first three');
   });
 
   test('a mileage reminder reads as distance, not as a day count', async () => {
     await pool!.query('delete from reminder_sends where user_id = $1', [userId]);
-    const km = (await dueReminders()).find((r) => r.recordId === 'svcKm');
+    const km = (await dueReminders()).find((r) => r.recordId === 'remKm');
 
-    assert.equal(km?.source, 'vehicle_mileage');
-    assert.equal(km?.pill, 'Lagi 200 km', 'the pill must never claim "N hari lagi" for a distance');
-    assert.equal(km?.subtitle, 'Odometer 90,000 km');
+    assert.equal(km?.source, 'garage_mileage');
+    assert.equal(km?.pill, 'lagi 200 km', 'the pill must never claim "N hari lagi" for a distance');
+    assert.equal(km?.subtitle, 'Myvi · 89,800 km');
     assert.equal(km?.dueDate, '', 'there is no date to invent');
   });
 
@@ -162,19 +149,19 @@ describe('reminders', { skip: skip && 'DATABASE_URL not set' }, () => {
       return ids;
     };
 
-    assert.ok((await sent()).includes('svcKm'), 'first run: inside the 500 km window');
-    assert.ok(!(await sent()).includes('svcKm'), 'second run: same band, already delivered');
+    assert.ok((await sent()).includes('remKm'), 'first run: inside the 500 km window');
+    assert.ok(!(await sent()).includes('remKm'), 'second run: same band, already delivered');
 
     // Drive past the target. That is a new band, so it is a new reminder rather than a repeat.
     await pool!.query(
-      `update vehicle_assets set mileage = 90300 where user_id = $1 and id = 'car1'`, [userId]);
-    const overdue = (await dueReminders()).find((r) => r.recordId === 'svcKm');
-    assert.equal(overdue?.pill, 'Lewat 300 km');
-    assert.ok((await sent()).includes('svcKm'), 'crossing the target fires once more');
-    assert.ok(!(await sent()).includes('svcKm'), 'but only once');
+      `update garage_vehicles set mileage = 90300 where user_id = $1 and id = 'car1'`, [userId]);
+    const overdue = (await dueReminders()).find((r) => r.recordId === 'remKm');
+    assert.equal(overdue?.pill, 'lepas 300 km');
+    assert.ok((await sent()).includes('remKm'), 'crossing the target fires once more');
+    assert.ok(!(await sent()).includes('remKm'), 'but only once');
 
     await pool!.query(
-      `update vehicle_assets set mileage = 89800 where user_id = $1 and id = 'car1'`, [userId]);
+      `update garage_vehicles set mileage = 89800 where user_id = $1 and id = 'car1'`, [userId]);
   });
 
   test('a failed delivery is retried rather than swallowed', async () => {
