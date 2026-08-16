@@ -4,6 +4,7 @@ import { store } from '../lib/store';
 // Date helpers come from lib, never from the tool pages themselves — importing a page here would
 // pin its whole chunk, and its libraries, into the first load every visitor pays for.
 import { openServices, daysUntil, nextDueDate } from '../lib/horizon';
+import { commitActive } from '../lib/savings';
 import PrivacyNote from '../components/PrivacyNote';
 import { 
   ArrowRight,
@@ -601,8 +602,9 @@ const Home: React.FC = () => {
           const maxDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
           
           data.commitments.forEach((c: any) => {
-            // endMonth: the commitment was stopped — no longer an upcoming bill
-            if (!c.archived && (!c.endMonth || c.endMonth >= currentMonth) && (!c.payments || !c.payments[currentMonth])) {
+            // commitActive covers both ends of the window: one that was stopped, and one that has
+            // not started yet, are neither of them a bill to nag about today.
+            if (!c.archived && commitActive(c, currentMonth) && (!c.payments || !c.payments[currentMonth])) {
               const day = Math.min(c.paymentDay, maxDay);
               const renewalDate = new Date(today.getFullYear(), today.getMonth(), day);
               const days = daysUntil(renewalDate);

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  AMOUNT_ORIGIN, scheduledFor, paidFor, commitmentPaidTotal, goalSaved,
+  AMOUNT_ORIGIN, scheduledFor, paidFor, commitmentPaidTotal, commitActive, isSettled, goalSaved,
   type CommitmentLike,
 } from './savings.ts';
 
@@ -56,6 +56,62 @@ test('the paid total counts every month on record, at what each one cost', () =>
     paidAmounts: { '2026-07': 480 },
   });
   assert.equal(commitmentPaidTotal(c), 500 + 480 + 500);
+});
+
+test('a commitment with no window at all belongs to every month, as it always did', () => {
+  const c = commit();
+  assert.equal(commitActive(c, '2019-01'), true);
+  assert.equal(commitActive(c, '2099-12'), true);
+});
+
+test('a commitment is not owed in the months before it started', () => {
+  const c = commit({ startMonth: '2026-08' });
+  assert.equal(commitActive(c, '2026-07'), false, 'the month before it starts');
+  assert.equal(commitActive(c, '2026-08'), true, 'the month it starts');
+  assert.equal(commitActive(c, '2026-09'), true, 'and after');
+});
+
+test('a payment on record outranks the window, so history never disappears', () => {
+  // Backdating the start past a month already paid must not erase that month
+  const c = commit({ startMonth: '2026-08', endMonth: '2026-09', payments: { '2026-05': '2026-05-03' } });
+  assert.equal(commitActive(c, '2026-05'), true, 'paid before it supposedly started');
+  assert.equal(commitActive(c, '2026-06'), false, 'an unpaid month in the same gap');
+  assert.equal(commitActive(c, '2026-10'), false, 'after it stopped');
+});
+
+test('the start and end bounds are independent, and either alone still works', () => {
+  assert.equal(commitActive(commit({ endMonth: '2026-06' }), '2020-01'), true, 'no start bound');
+  assert.equal(commitActive(commit({ startMonth: '2026-06' }), '2099-01'), true, 'no end bound');
+});
+
+// A loan of RM 900 paid off in three monthly instalments of RM 300.
+const loan = (over: Partial<CommitmentLike> = {}) => commit({
+  amount: 300, payoffTotal: 900,
+  payments: { '2026-06': '2026-06-01', '2026-07': '2026-07-01' },
+  ...over,
+});
+
+test('a commitment with no payoff total is never settled, however much it has paid', () => {
+  const c = commit({ amount: 500, payments: { '2026-06': '2026-06-01', '2026-07': '2026-07-01' } });
+  assert.equal(isSettled(c), false);
+});
+
+test('a loan settles on the payment that covers the total, not before', () => {
+  const two = loan();
+  assert.equal(isSettled(two), false, 'RM 600 of RM 900');
+  const three = loan({ payments: { ...two.payments, '2026-08': '2026-08-01' } });
+  assert.equal(isSettled(three), true, 'landing exactly on the total');
+});
+
+test('a loan short by a cent is not settled, and an overpaid one is', () => {
+  const payments = { '2026-06': '2026-06-01', '2026-07': '2026-07-01', '2026-08': '2026-08-01' };
+  assert.equal(isSettled(loan({ payments, paidAmounts: { '2026-08': 299.99 } })), false);
+  assert.equal(isSettled(loan({ payments, paidAmounts: { '2026-08': 450 } })), true, 'a final lump sum');
+});
+
+test('a blank payoff total can never settle a commitment', () => {
+  assert.equal(isSettled(loan({ payoffTotal: 0 })), false);
+  assert.equal(isSettled(commit({ payoffTotal: 0, payments: {} })), false, 'nor one that has paid nothing');
 });
 
 test('a stopped commitment still counts what it paid before it stopped', () => {

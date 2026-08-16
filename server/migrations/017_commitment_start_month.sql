@@ -1,0 +1,11 @@
+-- The first month a commitment applies, mirroring incomes.start_month. Without it a commitment
+-- added today belonged to every month that ever was, so scrolling back through the year showed it
+-- owed in months the user never had it.
+--
+-- Nullable, and null keeps meaning "no lower bound" — every commitment saved before this column
+-- existed goes on reading exactly as it did.
+--
+-- Its own file rather than an edit to 015: that one has already been applied, and _migrations
+-- tracks them by filename, so an edited file never runs again. Both are idempotent, so the
+-- numbering only has to be unique, not gapless.
+alter table commitments add column if not exists start_month char(7);

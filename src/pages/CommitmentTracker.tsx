@@ -3,6 +3,7 @@ import { CreditCard, Calendar, AlertCircle, RefreshCw, ExternalLink, Filter, Che
 import { store } from '../lib/store';
 import { Link } from 'react-router-dom';
 import { daysUntil } from '../lib/horizon';
+import { commitActive } from '../lib/savings';
 import { useT, locale } from '../lib/lang';
 
 const EXPENSE_STORAGE_KEY = 'expense_manager_data';
@@ -12,7 +13,7 @@ const daysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
 
 interface Commitment {
   id: string; title: string; amount: number; paymentDay: number; category: string;
-  archived: boolean; payments: Record<string, string>; endMonth?: string;
+  archived: boolean; payments: Record<string, string>; startMonth?: string; endMonth?: string;
 }
 
 interface CommitmentView {
@@ -40,8 +41,9 @@ const CommitmentTracker: React.FC = () => {
           const currentMonth = `${today.getFullYear()}-${pad(today.getMonth() + 1)}`;
           const maxDay = daysInMonth(today.getFullYear(), today.getMonth());
           
-          // Stopped commitments (endMonth in the past) are history, not upcoming bills
-          const unarchived = data.commitments.filter((c: Commitment) => !c.archived && (!c.endMonth || c.endMonth >= currentMonth));
+          // Only the ones actually owed this month: stopped ones are history, and one that starts
+          // later is not an upcoming bill yet.
+          const unarchived = data.commitments.filter((c: Commitment) => !c.archived && commitActive(c, currentMonth));
           
           const mappedPending: CommitmentView[] = [];
           const mappedPaid: CommitmentView[] = [];

@@ -1,0 +1,11 @@
+-- A commitment that ends — a loan, an instalment plan, a kutu — knows what it costs in total. The
+-- client compares it against the sum of commitment_payments to draw a progress bar, and stamps
+-- end_month on the payment that covers it.
+--
+-- Total payable with interest already in it, not principal: the app does no rate maths, so a figure
+-- that needs amortising to be read would be worse than useless. Nullable and additive, so a
+-- commitment without one behaves exactly as it always has.
+--
+-- Its own file rather than an edit to 004 or 009, which have already been applied — migrations are
+-- forward-only and _migrations tracks them by filename.
+alter table commitments add column if not exists payoff_total numeric(12,2);

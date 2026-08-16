@@ -7,8 +7,10 @@ export interface CommitmentLike {
   payments: Record<string, string>;      // 'YYYY-MM' -> 'YYYY-MM-DD' it was paid
   paidAmounts?: Record<string, number>;  // what was actually paid that month
   amounts?: Record<string, number>;      // scheduled amount effective from that month
+  startMonth?: string;
   endMonth?: string;
   goalId?: string;
+  payoffTotal?: number;                  // total payable across the whole term, if it has an end
 }
 
 export interface ExpenseLike { id: string; amount: number; goalId?: string; }
@@ -41,6 +43,28 @@ export const paidFor = (c: CommitmentLike, mk: string): number =>
 /** Everything a commitment has actually paid, across every month on record. */
 export const commitmentPaidTotal = (c: CommitmentLike): number =>
   Object.keys(c.payments ?? {}).reduce((sum, mk) => sum + paidFor(c, mk), 0);
+
+/**
+ * Whether a commitment is owed in a given month — the window between the month it started and the
+ * month it stopped. A recorded payment always wins over that window, so the history of a stopped
+ * commitment stays visible whatever the dates say.
+ *
+ * An absent bound is no bound. That is what keeps commitments saved before startMonth existed
+ * reading exactly as they always did: they belong to every month, as they did before.
+ */
+export const commitActive = (c: CommitmentLike, mk: string): boolean => {
+  if (c.payments?.[mk]) return true;
+  if (c.startMonth && mk < c.startMonth) return false;
+  if (c.endMonth && mk > c.endMonth) return false;
+  return true;
+};
+
+/**
+ * A commitment carrying a payoff total is done once its payments cover it. The zero guard is what
+ * lets the form leave the field blank: an unset or empty total can never settle anything.
+ */
+export const isSettled = (c: CommitmentLike): boolean =>
+  c.payoffTotal != null && c.payoffTotal > 0 && commitmentPaidTotal(c) >= c.payoffTotal;
 
 /**
  * How much a goal holds: every payment made by the commitments feeding it, plus expenses tagged

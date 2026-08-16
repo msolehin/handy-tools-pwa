@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { store } from '../lib/store';
 import { useT, t as trs, getLang, locale } from '../lib/lang';
-import { AMOUNT_ORIGIN, scheduledFor, paidFor, commitmentPaidTotal, goalSaved } from '../lib/savings';
+import { AMOUNT_ORIGIN, scheduledFor, paidFor, commitmentPaidTotal, commitActive, isSettled, goalSaved } from '../lib/savings';
 import { downscaleFile } from '../lib/downscale';
 import { SearchBox } from '../components/SearchBox';
 import {
@@ -32,8 +32,17 @@ interface Commitment {
   // meant to apply going forward only, so a past month still shows the figure of its time.
   // `amount` stays the current plan; older builds keep reading just that.
   amounts?: Record<string, number>; // 'YYYY-MM' -> amount effective from that month
+  // First month it applies. A new commitment starts in the month it was added, so scrolling back
+  // through the year no longer shows it owed in months you did not have it. Absent means no lower
+  // bound, which is how every commitment saved before this behaved.
+  startMonth?: string;
   endMonth?: string; // last month it applies — past payments stay on record after it ends
   goalId?: string;   // the savings goal this feeds, if any — at most one, so it lives here
+  // A commitment that has an end: a loan, an instalment plan, a kutu. The total payable across the
+  // whole term, interest already in it — the app does no rate maths. Its presence is the only thing
+  // that turns a commitment into a loan: it earns a progress bar, and the payment that covers it
+  // stops the commitment. Absent means the open-ended bill it has always been.
+  payoffTotal?: number;
 }
 
 const STORAGE_KEY = 'expense_manager_data';
@@ -120,7 +129,9 @@ const catIcon = (id: string, defs: CatDef[]) => defs.find(d => d.id === id)?.Ico
 // A savings goal's progress, with the figures written on the bar itself: what is in, how far
 // along, and what is left. The fill is kept translucent so `text-text` stays legible over both
 // the filled and unfilled halves, in either theme.
-const GoalBar = ({ saved, target }: { saved: number; target: number }) => {
+// The two labels are overridable because a loan reuses this bar and reads the wrong way round:
+// its figure is a debt, not a target, and reaching it is settled, not achieved.
+const GoalBar = ({ saved, target, label, doneLabel }: { saved: number; target: number; label?: string; doneLabel?: string }) => {
   const pct = target > 0 ? Math.min(100, (saved / target) * 100) : 0;
   const left = Math.max(0, target - saved);
   const done = saved >= target && target > 0;
@@ -137,9 +148,9 @@ const GoalBar = ({ saved, target }: { saved: number; target: number }) => {
         </div>
       </div>
       <div className="flex items-baseline justify-between gap-2 text-[10px] text-muted" style={{ fontVariantNumeric: 'tabular-nums' }}>
-        <span>{trs('Sasaran', 'Target')} RM {fmt(target)}</span>
+        <span>{label ?? trs('Sasaran', 'Target')} RM {fmt(target)}</span>
         <span className={done ? 'font-bold text-emerald-400 light:text-emerald-600' : ''}>
-          {done ? trs('Tercapai!', 'Reached!') : trs(`Lagi RM ${fmt(left)}`, `RM ${fmt(left)} to go`)}
+          {done ? (doneLabel ?? trs('Tercapai!', 'Reached!')) : trs(`Lagi RM ${fmt(left)}`, `RM ${fmt(left)} to go`)}
         </span>
       </div>
     </div>
@@ -306,7 +317,7 @@ const makeSampleData = (): { expenses: Expense[]; incomes: Income[]; commitments
     { id: generateId(), title: 'Jual telefon lama', amount: 800, recurring: false, date: `${lastMonth}-08` },
   ];
   const mkCommit = (title: string, amount: number, day: number, category: string): Commitment =>
-    ({ id: generateId(), title, amount, paymentDay: day, category, archived: false, payments: {} });
+    ({ id: generateId(), title, amount, paymentDay: day, category, archived: false, payments: {}, startMonth: sixAgo });
   const commitments: Commitment[] = [
     mkCommit('Pinjaman kereta', 950, 5, 'loan'),
     mkCommit('Sewa rumah', 1200, 1, 'rent'),
@@ -405,9 +416,9 @@ const ExpenseManager: React.FC = () => {
   // --- Derived for the viewed month ---
   // Ended commitments drop off the management list once their last month has passed.
   const activeCommitments = commitments.filter(c => !c.endMonth || c.endMonth >= currentMonth);
-  // Commitments to show for the viewed month: ones still running that month, plus any
-  // that were actually paid that month (keeps the history of ended ones intact).
-  const monthCommitments = commitments.filter(c => !c.endMonth || viewMonth <= c.endMonth || !!c.payments[viewMonth]);
+  // Commitments owed in the viewed month: inside their start/end window, plus any that were
+  // actually paid that month (keeps the history of ended ones intact).
+  const monthCommitments = commitments.filter(c => commitActive(c, viewMonth));
   // Search narrows the checklist only — the Jumlah/Dibayar/Baki figures still describe the month
   const shownCommitments = commitQuery.trim()
     ? monthCommitments.filter(c => {
@@ -578,11 +589,13 @@ const ExpenseManager: React.FC = () => {
   const allTarget = goals.reduce((s, g) => s + g.target, 0);
 
   // --- Commitment add/edit ---
-  const [cForm, setCForm] = useState<{ id: string | null; title: string; amount: string; day: string; category: string }>({ id: null, title: '', amount: '', day: '1', category: DEFAULT_COMMIT_CATS[0].id });
+  const [cForm, setCForm] = useState<{ id: string | null; title: string; amount: string; day: string; category: string; payoff: string; start: string }>({ id: null, title: '', amount: '', day: '1', category: DEFAULT_COMMIT_CATS[0].id, payoff: '', start: '' });
   const [showCForm, setShowCForm] = useState(false);
   const openCForm = (c?: Commitment) => {
-    if (c) setCForm({ id: c.id, title: c.title, amount: String(c.amount), day: String(c.paymentDay), category: c.category });
-    else setCForm({ id: null, title: '', amount: '', day: '1', category: DEFAULT_COMMIT_CATS[0].id });
+    // An existing commitment without a start month keeps its blank field: filling it in with today
+    // would quietly rewrite which past months it covers.
+    if (c) setCForm({ id: c.id, title: c.title, amount: String(c.amount), day: String(c.paymentDay), category: c.category, payoff: c.payoffTotal != null ? String(c.payoffTotal) : '', start: c.startMonth ?? '' });
+    else setCForm({ id: null, title: '', amount: '', day: '1', category: DEFAULT_COMMIT_CATS[0].id, payoff: '', start: viewMonth });
     setShowCForm(true);
   };
   // 'forward' keeps past months on the old figure; 'all' rewrites it everywhere (a typo fix)
@@ -590,16 +603,26 @@ const ExpenseManager: React.FC = () => {
     const amount = parseFloat(cForm.amount);
     const day = Math.min(31, Math.max(1, parseInt(cForm.day) || 1));
     if (!cForm.title.trim() || isNaN(amount) || amount <= 0) return;
+    // A blank field must never persist as 0, which would read as a loan that settles on its first
+    // payment. undefined drops out of the stored JSON, so an emptied field goes back to absent —
+    // which is what the server round trip expects of an optional column.
+    const payoff = parseFloat(cForm.payoff);
+    const payoffTotal = !isNaN(payoff) && payoff > 0 ? payoff : undefined;
+    // Cleared means no lower bound: the commitment goes back through every month, as commitments
+    // saved before this field existed still do.
+    const startMonth = /^\d{4}-\d{2}$/.test(cForm.start) ? cForm.start : undefined;
     if (cForm.id) {
       setCommitments(prev => prev.map(c => {
         if (c.id !== cForm.id) return c;
-        const base = { ...c, title: cForm.title.trim(), amount, paymentDay: day, category: cForm.category };
+        // Neither of these is effective-dated the way `amount` is — one figure and one window for
+        // the whole term, so both are rewritten on either scope rather than kept per month.
+        const base = { ...c, title: cForm.title.trim(), amount, paymentDay: day, category: cForm.category, payoffTotal, startMonth };
         if (scope === 'all') { const { amounts, ...rest } = base; return rest; }
         // Seed the origin on the first forward change, so months before it keep the old figure
         return { ...base, amounts: { ...(c.amounts ?? { [AMOUNT_ORIGIN]: c.amount }), [currentMonth]: amount } };
       }));
     } else {
-      setCommitments(prev => [...prev, { id: generateId(), title: cForm.title.trim(), amount, paymentDay: day, category: cForm.category, archived: false, payments: {} }]);
+      setCommitments(prev => [...prev, { id: generateId(), title: cForm.title.trim(), amount, paymentDay: day, category: cForm.category, archived: false, payments: {}, payoffTotal, startMonth }]);
     }
     setShowCForm(false);
   };
@@ -636,20 +659,34 @@ const ExpenseManager: React.FC = () => {
     setPayDate(viewMonth === currentMonth ? todayKey : `${viewMonth}-${pad(daysInMonth(viewMonth))}`);
     setPayAmount(String(paidFor(c, viewMonth)));
   };
+  // ponytail: one payment per month, since `payments` is keyed by month. Settling a loan early with
+  // a lump sum means undoing that month and re-marking it at the combined figure. Give payments
+  // their own ids if part-payments ever need to stand apart.
   const confirmPay = () => {
     if (!payTarget) return;
     const amount = parseFloat(payAmount);
     if (isNaN(amount) || amount <= 0) return;
-    setCommitments(prev => prev.map(c => c.id === payTarget.id
-      ? { ...c, payments: { ...c.payments, [viewMonth]: payDate }, paidAmounts: { ...c.paidAmounts, [viewMonth]: amount } }
-      : c));
+    setCommitments(prev => prev.map(c => {
+      if (c.id !== payTarget.id) return c;
+      const paid = { ...c, payments: { ...c.payments, [viewMonth]: payDate }, paidAmounts: { ...c.paidAmounts, [viewMonth]: amount } };
+      // The payment that covers the loan is also the one that ends it. endMonth is this month, not
+      // last: it stays on the tab for the rest of the month, then drops off, and every month it
+      // was alive keeps showing it.
+      return isSettled(paid) ? { ...paid, endMonth: viewMonth } : paid;
+    }));
     setPayTarget(null);
   };
-  const undoPay = (id: string) => setCommitments(prev => prev.map(c => c.id === id ? {
-    ...c,
-    payments: Object.fromEntries(Object.entries(c.payments).filter(([k]) => k !== viewMonth)),
-    paidAmounts: Object.fromEntries(Object.entries(c.paidAmounts || {}).filter(([k]) => k !== viewMonth)),
-  } : c));
+  const undoPay = (id: string) => setCommitments(prev => prev.map(c => {
+    if (c.id !== id) return c;
+    const undone = {
+      ...c,
+      payments: Object.fromEntries(Object.entries(c.payments).filter(([k]) => k !== viewMonth)),
+      paidAmounts: Object.fromEntries(Object.entries(c.paidAmounts || {}).filter(([k]) => k !== viewMonth)),
+    };
+    // Taking back the payment that settled a loan has to revive it, or a mistaken final payment
+    // stops it for good. Only the exact stamp confirmPay wrote is cleared, so a manual stop stands.
+    return c.endMonth === viewMonth && !isSettled(undone) ? { ...undone, endMonth: undefined } : undone;
+  }));
 
   // --- Income ---
   const [iTitle, setITitle] = useState('');
@@ -1188,11 +1225,14 @@ const ExpenseManager: React.FC = () => {
         const shown = q
           ? sorted.filter(c => c.title.toLowerCase().includes(q) || catLabel(c.category, commitOptions).toLowerCase().includes(q))
           : sorted;
-        const paidCount = sorted.filter(c => c.payments[viewMonth]).length;
+        // The list shows everything still running; the figures describe only what this month owes,
+        // so one that has not started yet is listed but not counted.
+        const due = sorted.filter(c => commitActive(c, viewMonth));
+        const paidCount = due.filter(c => c.payments[viewMonth]).length;
         // Paid ones count what they actually cost, the rest what they are scheduled to — the
         // dashboard's convention, so Baki here is what is genuinely still owed this month.
-        const tabTotal = sorted.reduce((s, c) => s + (c.payments[viewMonth] ? paidFor(c, viewMonth) : scheduledFor(c, viewMonth)), 0);
-        const tabPaid = sorted.filter(c => c.payments[viewMonth]).reduce((s, c) => s + paidFor(c, viewMonth), 0);
+        const tabTotal = due.reduce((s, c) => s + (c.payments[viewMonth] ? paidFor(c, viewMonth) : scheduledFor(c, viewMonth)), 0);
+        const tabPaid = due.filter(c => c.payments[viewMonth]).reduce((s, c) => s + paidFor(c, viewMonth), 0);
         return (
           <div className="space-y-3">
             <button onClick={() => openCForm()} className="w-full py-3 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-emerald-500/50 hover:text-emerald-400 transition-all flex items-center justify-center"><Plus size={18} className="mr-2" /> {tr('Tambah Komitmen', 'Add a Commitment')}</button>
@@ -1201,7 +1241,7 @@ const ExpenseManager: React.FC = () => {
               <div className="space-y-1.5">
                 {/* This tab carries no month picker, so the figures have to name their month */}
                 <div className="flex items-center justify-between gap-2 px-1 text-[11px] text-muted">
-                  <span>{tr(`${sorted.length} komitmen · ${paidCount} dibayar`, `${sorted.length} commitments · ${paidCount} paid`)}</span>
+                  <span>{tr(`${due.length} komitmen · ${paidCount} dibayar`, `${due.length} commitments · ${paidCount} paid`)}</span>
                   <span className="font-bold">{monthLabel(viewMonth)}</span>
                 </div>
                 {totalsBar([
@@ -1227,10 +1267,12 @@ const ExpenseManager: React.FC = () => {
               const color = catColor(c.category, commitOptions);
               const Icon = catIcon(c.category, commitOptions);
               const goal = c.goalId ? goals.find(g => g.id === c.goalId) : undefined;
+              // Listed but not yet owed — say so, or it looks like it dropped out of the figures
+              const notYet = !!c.startMonth && viewMonth < c.startMonth && !paid;
               // Only meaningful while looking at the month you are actually living in
               const dueIn = viewMonth === currentMonth ? Math.min(c.paymentDay, daysInMonth(currentMonth)) - today.getDate() : null;
-              const late = !paid && dueIn !== null && dueIn < 0;
-              const soon = !paid && dueIn !== null && dueIn >= 0 && dueIn <= 7;
+              const late = !paid && !notYet && dueIn !== null && dueIn < 0;
+              const soon = !paid && !notYet && dueIn !== null && dueIn >= 0 && dueIn <= 7;
               return (
                 <div key={c.id} className="glass-panel p-4 space-y-2.5">
                   <div className="flex items-start gap-3">
@@ -1244,6 +1286,11 @@ const ExpenseManager: React.FC = () => {
                         {/* The link is only editable from the fund, so name it here to make it findable */}
                         {goal && <span className="text-emerald-400 light:text-emerald-600"> · {tr('masuk', 'feeds')} {goal.name}</span>}
                       </p>
+                      {notYet && (
+                        <p className="text-[10px] font-bold mt-0.5 text-muted">
+                          {tr(`Bermula ${monthLabel(c.startMonth!)}`, `Starts ${monthLabel(c.startMonth!)}`)}
+                        </p>
+                      )}
                       {!paid && (late || soon) && (
                         <p className={`text-[10px] font-bold mt-0.5 ${late ? 'text-rose-400 light:text-rose-600' : 'text-amber-400 light:text-amber-600'}`}>
                           {late
@@ -1256,6 +1303,12 @@ const ExpenseManager: React.FC = () => {
                       RM {fmt(scheduledFor(c, viewMonth))}
                     </span>
                   </div>
+
+                  {/* A loan knows where it finishes, so show how far along it is. Same bar as a
+                      savings goal, read the other way round: what is owed, not what is aimed at. */}
+                  {c.payoffTotal != null && (
+                    <GoalBar saved={commitmentPaidTotal(c)} target={c.payoffTotal} label={tr('Jumlah', 'Total')} doneLabel={tr('Selesai!', 'Settled!')} />
+                  )}
 
                   <div className="flex items-center gap-2 flex-wrap">
                     {paid ? (
@@ -1653,6 +1706,29 @@ const ExpenseManager: React.FC = () => {
             <div className="flex gap-2">
               <input type="number" value={cForm.amount} onChange={e => setCForm(f => ({ ...f, amount: e.target.value }))} placeholder={tr('Jumlah', 'Amount')} className="input-field flex-1 font-mono" />
               <input type="number" min={1} max={31} value={cForm.day} onChange={e => setCForm(f => ({ ...f, day: e.target.value }))} placeholder={tr('Hari', 'Day')} className="input-field w-20 font-mono" title={tr('Hari bayaran dalam bulan', 'Day of the month it is due')} />
+            </div>
+            {/* Defaults to the month being viewed, so a new commitment does not appear owed in
+                months you did not have it. Set it earlier to claim those months back. */}
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Bermula', 'Starts')}</label>
+              <input type="month" value={cForm.start} onChange={e => setCForm(f => ({ ...f, start: e.target.value }))} className="input-field w-full font-mono" />
+              <p className="text-[10px] text-muted px-1">
+                {cForm.start
+                  ? tr(`Bulan sebelum ${monthLabel(cForm.start)} tidak dikira — kecuali yang sudah ditanda dibayar.`, `Months before ${monthLabel(cForm.start)} are not counted — bar any already marked paid.`)
+                  : tr('Kosong: dikira untuk setiap bulan lepas juga.', 'Blank: counted in every past month too.')}
+              </p>
+            </div>
+            {/* Only for a commitment that ends. Left blank, it stays the open-ended bill it was. */}
+            <div className="space-y-1">
+              <input type="number" value={cForm.payoff} onChange={e => setCForm(f => ({ ...f, payoff: e.target.value }))} placeholder={tr('Jumlah keseluruhan (pilihan)', 'Total to pay (optional)')} className="input-field w-full font-mono" />
+              {(() => {
+                const total = parseFloat(cForm.payoff);
+                const monthly = parseFloat(cForm.amount);
+                if (isNaN(total) || total <= 0) return <p className="text-[10px] text-muted px-1">{tr('Untuk pinjaman atau ansuran — biarkan kosong untuk bil bulanan biasa.', 'For a loan or instalment plan — leave blank for an ordinary monthly bill.')}</p>;
+                if (isNaN(monthly) || monthly <= 0) return null;
+                const months = Math.ceil(total / monthly);
+                return <p className="text-[10px] text-muted px-1">{tr(`± ${months} bulan · berhenti sendiri bila cukup bayar`, `≈ ${months} months · stops itself once fully paid`)}</p>;
+              })()}
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Kategori', 'Category')}</label>

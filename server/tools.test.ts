@@ -109,12 +109,15 @@ const FIXTURES: Record<string, unknown> = {
     commitments: [
       // One month paid at the scheduled figure, one that differed. '0000-01' in `amounts` is the
       // pre-history sentinel, not a real month — the reason that field is jsonb rather than rows.
+      // payoffTotal makes it a loan: the row below has none and is an open-ended bill.
       {
         id: 'com0001', title: 'Ansuran kereta', amount: 890, paymentDay: 5, category: 'Loan', archived: false,
         payments: { '2026-07': '2026-07-05', '2026-08': '2026-08-04' },
         paidAmounts: { '2026-07': 850, '2026-08': 910.5 },
         amounts: { '0000-01': 850, '2026-08': 890 },
+        startMonth: '2025-03',
         endMonth: '2027-06',
+        payoffTotal: 24030.75,
       },
       // Every optional field absent, and paidAmounts empty rather than missing — read always emits it.
       { id: 'com0002', title: 'Gym lama', amount: 120, paymentDay: 15, category: 'Other', archived: true, payments: {}, paidAmounts: {}, goalId: 'gol0001' },

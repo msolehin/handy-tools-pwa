@@ -341,7 +341,9 @@ export const TOOLS: Record<string, Descriptor> = {
 
       const { rows: commitments } = await q(
         `select id, title, amount::float8 as amount, payment_day as "paymentDay",
-                category, archived, amounts, end_month as "endMonth", goal_id as "goalId"
+                category, archived, amounts, start_month as "startMonth",
+                end_month as "endMonth", goal_id as "goalId",
+                payoff_total::float8 as "payoffTotal"
            from commitments where user_id = $1 order by pos`, [uid]);
 
       const { rows: payments } = await q(
@@ -378,15 +380,18 @@ export const TOOLS: Record<string, Descriptor> = {
         expenses: dropNulls(expenses),
         incomes: dropNulls(incomes),
         // paidAmounts is always emitted, {} included: the client rebuilds it from the payment keys
-        // on every load, so it is always present in what it sends. amounts, endMonth and goalId are
-        // genuinely optional and must come back ABSENT rather than null, hence the destructure.
-        commitments: commitments.map(({ amounts, endMonth, goalId, ...c }) => ({
+        // on every load, so it is always present in what it sends. amounts, startMonth, endMonth,
+        // goalId and payoffTotal are genuinely optional and must come back ABSENT rather than null,
+        // hence the destructure.
+        commitments: commitments.map(({ amounts, startMonth, endMonth, goalId, payoffTotal, ...c }) => ({
           ...c,
           payments: byCommitment.get(c.id) ?? {},
           paidAmounts: paidByCommitment.get(c.id) ?? {},
           ...(amounts && { amounts }),
+          ...(startMonth !== null && { startMonth }),
           ...(endMonth !== null && { endMonth }),
           ...(goalId !== null && { goalId }),
+          ...(payoffTotal !== null && { payoffTotal }),
         })),
         goals: dropNulls(goals),
         topups: dropNulls(topups),
@@ -431,7 +436,7 @@ export const TOOLS: Record<string, Descriptor> = {
       const commitments = arr(blob?.commitments);
       await insertMany(q, 'commitments',
         ['user_id', 'id', 'title', 'amount', 'payment_day', 'category', 'archived',
-          'amounts', 'end_month', 'goal_id', 'pos'],
+          'amounts', 'start_month', 'end_month', 'goal_id', 'payoff_total', 'pos'],
         commitments.map((c, i) => [
           uid, String(c.id), String(c.title ?? ''), num(c.amount),
           Math.min(31, Math.max(1, num(c.paymentDay) || 1)),
@@ -439,7 +444,7 @@ export const TOOLS: Record<string, Descriptor> = {
           // The client never writes an empty `amounts` — it seeds the origin sentinel on the first
           // forward change — so truthiness separates "no schedule changes" from a real history.
           c.amounts ? JSON.stringify(c.amounts) : null,
-          c.endMonth ?? null, c.goalId ?? null, i,
+          c.startMonth ?? null, c.endMonth ?? null, c.goalId ?? null, c.payoffTotal ?? null, i,
         ]));
 
       // Archiving a commitment deliberately keeps its payment history, so the cascade above
