@@ -646,7 +646,7 @@ const TravelHistory: React.FC = () => {
     <div className="max-w-md mx-auto p-4 pb-24 space-y-5 animate-fade-in">
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-36 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl bg-surface border border-text/10 shadow-2xl text-sm font-bold text-text text-center animate-fade-in pointer-events-none max-w-[80%]">
+        <div className="fixed bottom-36 inset-x-0 mx-auto w-fit z-50 px-5 py-3 rounded-xl bg-surface border border-text/10 shadow-2xl text-sm font-bold text-text text-center animate-fade-in pointer-events-none max-w-[80%]">
           {toast}
         </div>
       )}

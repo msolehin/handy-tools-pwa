@@ -157,7 +157,7 @@ const ParkingLocator: React.FC = () => {
     <div className="space-y-6 animate-fade-in">
       {/* Toast feedback */}
       {toast && (
-        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 px-5 py-3 rounded-xl bg-surface border border-text/10 shadow-xl text-sm font-bold text-text animate-fade-in pointer-events-none">
+        <div className="fixed inset-0 m-auto w-fit h-fit z-50 px-5 py-3 rounded-xl bg-surface border border-text/10 shadow-xl text-sm font-bold text-text animate-fade-in pointer-events-none">
           {toast}
         </div>
       )}

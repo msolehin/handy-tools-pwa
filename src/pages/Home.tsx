@@ -931,7 +931,7 @@ const Home: React.FC = () => {
     <div className="space-y-6 animate-fade-in pb-12">
       {/* Toast feedback */}
       {toast && (
-        <div className="fixed bottom-36 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl bg-surface border border-text/10 shadow-xl text-sm font-bold text-text animate-fade-in pointer-events-none">
+        <div className="fixed bottom-36 inset-x-0 mx-auto w-fit z-50 px-5 py-3 rounded-xl bg-surface border border-text/10 shadow-xl text-sm font-bold text-text animate-fade-in pointer-events-none">
           {toast}
         </div>
       )}

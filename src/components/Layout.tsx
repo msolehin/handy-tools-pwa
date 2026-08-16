@@ -548,7 +548,9 @@ const Layout: React.FC = () => {
         {navHidden && location.pathname !== '/app' && (
           <button
             onClick={() => setNavHidden(false)}
-            className="fixed bottom-3 sm:absolute sm:bottom-3 left-1/2 -translate-x-1/2 z-40 px-4 py-1.5 rounded-full bg-surface/95 border border-text/10 text-muted hover:text-text shadow-lg flex items-center gap-1.5 animate-fade-in"
+            // inset-x-0 + mx-auto rather than left-1/2 + -translate-x-1/2: centring that owes
+            // nothing to `transform` can't be knocked sideways by an animation on the same element.
+            className="fixed bottom-3 sm:absolute sm:bottom-3 inset-x-0 mx-auto w-fit z-40 px-4 py-1.5 rounded-full bg-surface/95 border border-text/10 text-muted hover:text-text shadow-lg flex items-center gap-1.5 animate-fade-in"
             aria-label={t('Tunjuk menu', 'Show menu')}
           >
             <ChevronUp size={16} /> <span className="text-xs font-bold">{t('Menu', 'Menu')}</span>
