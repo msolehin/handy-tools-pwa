@@ -501,7 +501,11 @@ export const TOOLS: Record<string, Descriptor> = {
                 color_idx as "colorIdx", created_at::float8 as "createdAt"
            from garage_vehicles where user_id = $1 order by pos`, [uid]);
       const { rows: presets } = await q(
-        `select type_key, customs, hidden from garage_presets where user_id = $1`, [uid]);
+        // order by: Object.fromEntries over an unordered result gives heap-order keys, and
+        // applyPulled compares blobs with JSON.stringify, which is key-order sensitive — a
+        // reordering with no real change would read as "changed on another device".
+        `select type_key, customs, hidden from garage_presets where user_id = $1
+           order by type_key`, [uid]);
       return {
         vehicles: dropNulls(vehicles),
         presets: Object.fromEntries(
@@ -533,7 +537,11 @@ export const TOOLS: Record<string, Descriptor> = {
         ]));
 
       await q('delete from garage_presets where user_id = $1', [uid]);
-      const presets = Object.entries(blob?.presets ?? {});
+      // Every array field in this file is guarded by arr(); presets is the one object field, and
+      // Object.entries on a string degrades "harmlessly" into [['0','a'],['1','b'],...] rather
+      // than throwing, which would insert junk rows instead of just no rows.
+      const presetsBlob = blob?.presets;
+      const presets = Object.entries(presetsBlob && typeof presetsBlob === 'object' ? presetsBlob : {});
       await insertMany(q, 'garage_presets', ['user_id', 'type_key', 'customs', 'hidden'],
         presets.map(([key, p]: [string, any]) => [
           uid, key, JSON.stringify(arr(p?.customs)), JSON.stringify(arr(p?.hidden)),

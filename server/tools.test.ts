@@ -248,7 +248,9 @@ describe('tool descriptors', { skip: skip && 'DATABASE_URL not set' }, () => {
         await desc.write(q, userId, blob);
         return desc.read(q, userId);
       });
-      assert.deepEqual(readBack, blob);
+      // deepStrictEqual, not deepEqual: loose equality treats '1767225600000' and 1767225600000
+      // as the same value, so it would not have caught garage_fleet's uncast-bigint bug.
+      assert.deepStrictEqual(readBack, blob);
     });
 
     test(`${tool}: rewriting replaces rather than appends`, async () => {
@@ -258,7 +260,7 @@ describe('tool descriptors', { skip: skip && 'DATABASE_URL not set' }, () => {
         await desc.write(q, userId, blob); // same payload twice
         return desc.read(q, userId);
       });
-      assert.deepEqual(readBack, blob, 'a second write must not duplicate rows');
+      assert.deepStrictEqual(readBack, blob, 'a second write must not duplicate rows');
     });
 
     test(`${tool}: an empty blob clears the tool`, { skip: NEVER_CLEARS.has(tool) && 'accumulates by design' }, async () => {
@@ -287,6 +289,85 @@ describe('tool descriptors', { skip: skip && 'DATABASE_URL not set' }, () => {
       await tx(async (q) => { await desc.write(q, userId, null); });
     });
   }
+
+  // garage_records and garage_logs both foreign-key their rows onto garage_vehicles, which only
+  // garage_fleet's write populates. The shared FIXTURES loop round-trips one tool's blob at a
+  // time and has no way to express that cross-descriptor dependency, so these seed a parent
+  // vehicle by hand instead of growing the loop. They cover what nothing else does: the repeat
+  // rebuild (present vs entirely absent), full's boolean default, grade/station optionality, the
+  // qty/cost::float8 casts, doc-type coercion to 'other', and items empty vs populated.
+  test('garage_records: read(write(blob)) === blob, against a real parent vehicle', async () => {
+    const blob = {
+      services: [
+        {
+          id: 'svc0001', vehicleId: 'gvh0001', date: '2026-05-14', odo: 84210,
+          items: [{ label: 'Minyak hitam', cost: 180 }, { label: 'Filter', cost: 88.5 }],
+          workshop: 'Bengkel Pak Din', notes: 'servis biasa', receipt: 'data:image/jpeg;base64,UkNQVA==',
+        },
+        // items empty, every optional field absent.
+        { id: 'svc0002', vehicleId: 'gvh0001', date: '2026-01-08', odo: 12000, items: [] },
+      ],
+      docs: [
+        // Recognised type, every optional field present, cost a real decimal.
+        {
+          id: 'doc0001', vehicleId: 'gvh0001', type: 'insurance', expiry: '2027-03-01',
+          issued: '2026-03-01', cost: 12.34, note: 'comprehensive', receipt: 'data:image/jpeg;base64,AAAA',
+        },
+        { id: 'doc0002', vehicleId: 'gvh0001', type: 'other', expiry: '2026-12-31' },
+      ],
+    };
+    const readBack = await tx(async (q) => {
+      await q(`insert into garage_vehicles (user_id, id) values ($1, 'gvh0001')
+                on conflict (user_id, id) do nothing`, [userId]);
+      await TOOLS.garage_records.write(q, userId, blob);
+      return TOOLS.garage_records.read(q, userId);
+    });
+    assert.deepStrictEqual(readBack, blob);
+  });
+
+  test('garage_records: an unrecognised document type coerces to other', async () => {
+    const readBack = await tx(async (q) => {
+      await q(`insert into garage_vehicles (user_id, id) values ($1, 'gvh0001')
+                on conflict (user_id, id) do nothing`, [userId]);
+      await TOOLS.garage_records.write(q, userId, {
+        services: [],
+        docs: [{ id: 'doc0003', vehicleId: 'gvh0001', type: 'bogus', expiry: '2026-12-31' }],
+      });
+      return TOOLS.garage_records.read(q, userId) as Promise<{ docs: { type: string }[] }>;
+    });
+    assert.equal(readBack.docs[0].type, 'other');
+  });
+
+  test('garage_logs: read(write(blob)) === blob, against a real parent vehicle', async () => {
+    const blob = {
+      energy: [
+        {
+          id: 'nrg0001', vehicleId: 'gvh0001', date: '2026-05-01', odo: 84000, kind: 'fuel',
+          qty: 35.2, cost: 145.5, full: true, grade: 'RON97', station: 'Petronas',
+        },
+        // full: false, and grade/station both absent.
+        { id: 'nrg0002', vehicleId: 'gvh0001', date: '2026-05-02', odo: 84500, kind: 'charge', qty: 20, cost: 15, full: false },
+      ],
+      odo: [
+        { id: 'odo0001', vehicleId: 'gvh0001', date: '2026-06-01', odo: 85000 },
+      ],
+      reminders: [
+        {
+          id: 'rem0001', vehicleId: 'gvh0001', label: 'Road tax', done: false,
+          dueDate: '2027-03-01', repeat: { months: 12, km: 0 },
+        },
+        // No repeat at all -- must come back WITHOUT the key, not {months:0,km:0}.
+        { id: 'rem0002', vehicleId: 'gvh0001', label: 'Tukar minyak', done: true, dueOdo: 15000, doneDate: '2026-05-02' },
+      ],
+    };
+    const readBack = await tx(async (q) => {
+      await q(`insert into garage_vehicles (user_id, id) values ($1, 'gvh0001')
+                on conflict (user_id, id) do nothing`, [userId]);
+      await TOOLS.garage_logs.write(q, userId, blob);
+      return TOOLS.garage_logs.read(q, userId);
+    });
+    assert.deepStrictEqual(readBack, blob);
+  });
 
   // The one non-trivial branch in the descriptor: a save from a build that predates savings sends
   // no goals key at all, and must not be read as "the user deleted them". The rev guard is no help
