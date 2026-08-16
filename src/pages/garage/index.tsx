@@ -83,17 +83,21 @@ export default function Garage() {
   // The old tool's data is still on this device and has not been dealt with yet.
   const [legacy, setLegacy] = useState<string | null>(() => readLegacyTier(OLD_KEY));
 
-  // A mount is not an edit. `firstSave` skips the write that would otherwise happen the instant
-  // this component renders: on a signed-in device whose boot pull hasn't landed yet, readGarage()
-  // legitimately finds nothing, and writing that empty result here would push {"vehicles":[]} —
-  // bootstrap() flushes dirty keys BEFORE applying a pull that arrives after, so that empty push
-  // would win the race. garage_fleet is the only key in the app with a server-side cascading
-  // delete behind it, so the push would destroy every service, document, energy log, odometer
-  // reading and reminder along with it. All three keys still write together on every REAL change
-  // — this only defers the first tick, it does not narrow which keys a change writes.
-  const firstSave = useRef(true);
+  // A mount is not an edit. The value this component mounted with, compared by identity rather
+  // than a toggled boolean: React StrictMode double-invokes passive effects in dev
+  // (commitDoubleInvokeEffectsInDEV re-runs the same setup after its no-op cleanup), so a
+  // one-shot ref that flips false on first run would perform the very write this guards against
+  // on that second, dev-only invocation. Comparing `data` to what we mounted with is idempotent —
+  // it gives the same answer no matter how many times it runs — and on a signed-in device whose
+  // boot pull hasn't landed yet, readGarage() legitimately finds nothing, so skipping this write
+  // matters for real: bootstrap() flushes dirty keys BEFORE applying a pull that arrives after,
+  // so an empty push here would win that race, and garage_fleet is the only key in the app with a
+  // server-side cascading delete behind it — destroying every service, document, energy log,
+  // odometer reading and reminder along with it. All three keys still write together on every
+  // REAL change — this only defers the first tick, it does not narrow which keys a change writes.
+  const mountedWith = useRef(data);
   useEffect(() => {
-    if (firstSave.current) { firstSave.current = false; return; }
+    if (data === mountedWith.current) return;
     store.setItem(FLEET, JSON.stringify({ vehicles: data.vehicles, presets: data.presets }));
     store.setItem(RECORDS, JSON.stringify({ services: data.services, docs: data.docs }));
     store.setItem(LOGS, JSON.stringify({ energy: data.energy, odo: data.odo, reminders: data.reminders }));
