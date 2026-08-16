@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { store } from '../lib/store';
-import { latestServiceIds } from '../lib/horizon';
+import { latestServiceIds, kmNum, kmLeft, currentKmOf, addMonths, KM_SOON } from '../lib/horizon';
 import { downscaleFile } from '../lib/downscale';
 import { useT, t as trs, locale } from '../lib/lang';
 import { 
-  CarFront, Plus, Trash2, Pencil, X, CalendarClock, ChevronDown, ChevronUp, MapPin, Search, Check, Trash, Image as ImageIcon
+  CarFront, Plus, Trash2, Pencil, X, CalendarClock, ChevronDown, ChevronUp, MapPin, Search, Check, Trash, Image as ImageIcon, Gauge, ReceiptText
 } from 'lucide-react';
 
 interface VehicleAsset {
@@ -15,6 +15,16 @@ interface VehicleAsset {
   createdAt: number;
   /** Optional. Downscaled on upload and used as the card background. */
   photo?: string;
+  /** Current odometer, hand-entered. `mileageAt` is when, so the page can show the reading's age —
+   *  a km reminder is only ever as good as the last time someone typed the number in. */
+  mileage?: number;
+  mileageAt?: number;
+  /** Reference details, all optional. Kept apart from `name` — that is whatever the owner calls
+   *  the car ("Kereta Mak"); these are what a workshop or a road tax form asks for. */
+  brand?: string;
+  model?: string;
+  year?: number;
+  cc?: number;
 }
 
 interface ServiceItem {
@@ -35,6 +45,11 @@ interface ServiceEvent {
   address: string; // Workshop address
   notes: string;
   nextServiceDate?: string;
+  /** Odometer target for the next service. Numeric, unlike `mileage` above, because this is the
+   *  one the reminder arithmetic reads and it has no legacy free-text values to parse. */
+  nextServiceMileage?: number;
+  /** Downscaled photo of the workshop receipt. */
+  receipt?: string;
   /** The next service was done, but no record logged yet. Stops the reminder without inventing one. */
   nextDone?: boolean;
 }
@@ -46,6 +61,8 @@ interface VehicleData {
 
 const STORAGE_KEY = 'vehicle_services_data';
 const TITLES_KEY = 'vehicle_custom_titles';
+// Not in SYNCED_KEYS, so store.ts routes it straight to localStorage and it stays on this device.
+const SELECTED_KEY = 'vehicle_selected_asset';
 // Seeded into the saved title list on first use, so it follows the reader's language. Titles
 // the user has typed themselves are their data and are never rewritten.
 const defaultTitles = () => trs(
@@ -53,12 +70,28 @@ const defaultTitles = () => trs(
   ['Engine Oil Change', 'Brake Change', 'Aircon Service', 'Tyre Change', 'Battery Change', 'Full Service'],
 );
 
+// Service intervals worth one tap. Months: the quarterly/half-yearly rhythm a workshop quotes.
+// Kilometres: mineral oil at 3,000-5,000, semi-synthetic around 5,000, fully synthetic 10,000,
+// and 20,000 for the long-interval jobs (ATF, timing belt inspection). 1,000 is there for the
+// short running-in and post-repair checks.
+const MONTH_STEPS = [1, 3, 6, 12];
+const KM_STEPS = [1000, 3000, 5000, 10000, 20000];
+
 const MON_MS = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogos', 'Sep', 'Okt', 'Nov', 'Dis'];
 const MON_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const generateId = () => Math.random().toString(36).substring(2, 9);
 const pad = (n: number) => String(n).padStart(2, '0');
 const todayStr = () => {
   const d = new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
+/** "Perodua · Myvi 1.3 X · 2019 · 1329cc", skipping whatever was left blank. */
+const specLine = (a: VehicleAsset) =>
+  [a.brand, a.model, a.year, a.cc ? `${a.cc}cc` : ''].filter(Boolean).join(' · ');
+
+const isoOf = (epochMs: number) => {
+  const d = new Date(epochMs);
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 
@@ -115,8 +148,9 @@ const VehicleServices: React.FC = () => {
     }
   }, [data, customTitles, isLoaded]);
 
-  // Current selected asset tab
-  const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
+  // Current selected asset tab, remembered across refreshes. A device preference, not data —
+  // which phone is looking at which car is nobody else's business, so it never syncs.
+  const [selectedAssetId, setSelectedAssetId] = useState<string | null>(() => store.getItem(SELECTED_KEY));
   const [showAssetSelector, setShowAssetSelector] = useState(false);
   const [assetSearchQuery, setAssetSearchQuery] = useState('');
   const [serviceFilter, setServiceFilter] = useState('all');
@@ -125,13 +159,20 @@ const VehicleServices: React.FC = () => {
   const filterRef = useRef<HTMLDivElement>(null);
   useOutsideClick(filterRef, () => setShowFilterDropdown(false));
 
+  // Fall back to the first vehicle only when the remembered one is gone — deleted, or belonging
+  // to a different account. The isLoaded guard is what makes the restore stick: before the blob
+  // is read, assets is still empty, and without it the remembered id would be wiped on mount.
   useEffect(() => {
-    if (data.assets.length > 0 && !selectedAssetId) {
-      setSelectedAssetId(data.assets[0].id);
-    } else if (data.assets.length === 0) {
-      setSelectedAssetId(null);
+    if (!isLoaded) return;
+    if (!data.assets.some(a => a.id === selectedAssetId)) {
+      setSelectedAssetId(data.assets[0]?.id ?? null);
     }
-  }, [data.assets, selectedAssetId]);
+  }, [isLoaded, data.assets, selectedAssetId]);
+
+  useEffect(() => {
+    if (selectedAssetId) store.setItem(SELECTED_KEY, selectedAssetId);
+    else store.removeItem(SELECTED_KEY);
+  }, [selectedAssetId]);
 
   // Forms
   const [showAssetForm, setShowAssetForm] = useState(false);
@@ -140,32 +181,67 @@ const VehicleServices: React.FC = () => {
   const [assetPhoto, setAssetPhoto] = useState('');
   const assetFileRef = useRef<HTMLInputElement>(null);
   const [assetPlate, setAssetPlate] = useState('');
+  const [assetBrand, setAssetBrand] = useState('');
+  const [assetModel, setAssetModel] = useState('');
+  const [assetYear, setAssetYear] = useState('');
+  const [assetCc, setAssetCc] = useState('');
+  const [assetMileage, setAssetMileage] = useState('0');
 
   const saveAsset = () => {
     if (!assetName.trim()) return;
-    
+
+    // Blank optionals stay absent rather than becoming '' or 0, so an untouched field round-trips
+    // through the server unchanged. Mileage is the exception: 0 is a real reading for a new car.
+    const km = kmNum(assetMileage);
+    const details = {
+      name: assetName.trim(),
+      plate: assetPlate.trim(),
+      photo: assetPhoto || undefined,
+      brand: assetBrand.trim() || undefined,
+      model: assetModel.trim() || undefined,
+      year: kmNum(assetYear),
+      cc: kmNum(assetCc),
+      mileage: km,
+    };
+
     setData(prev => {
       if (editAssetId) {
         return {
           ...prev,
-          assets: prev.assets.map(a => a.id === editAssetId ? { ...a, name: assetName.trim(), plate: assetPlate.trim(), photo: assetPhoto || undefined } : a)
+          assets: prev.assets.map(a => a.id === editAssetId
+            // Only restamp mileageAt when the reading actually moved, so editing the model name
+            // does not make a months-old odometer look like it was checked today.
+            ? { ...a, ...details, mileageAt: km !== a.mileage && km != null ? Date.now() : a.mileageAt }
+            : a)
         };
-      } else {
-        const newAsset = { id: generateId(), name: assetName.trim(), plate: assetPlate.trim(), photo: assetPhoto || undefined, createdAt: Date.now() };
-        return { ...prev, assets: [...prev.assets, newAsset] };
       }
+      const newAsset = {
+        id: generateId(), ...details, createdAt: Date.now(),
+        mileageAt: km == null ? undefined : Date.now(),
+      };
+      return { ...prev, assets: [...prev.assets, newAsset] };
     });
-    
-    if (!editAssetId) {
-      // If creating new, auto-select it (we can't easily get the new ID synchronously here, so we do it in a hacky way or just let the effect handle it if it was the first asset)
-      // Actually, since setState is async, we could just set it if we know the ID.
-      // For simplicity, we'll let the user manually select it, or just use the current selectedAssetId logic.
-    }
-    
+
     setAssetPhoto('');
     setShowAssetForm(false);
     setShowAssetSelector(false);
     setEditAssetId(null);
+  };
+
+  // Both "add vehicle" buttons route through here — two call sites that each forgot to clear a
+  // field would leave the last vehicle's details prefilled on the next one.
+  const openAddAsset = () => {
+    setEditAssetId(null);
+    setAssetName('');
+    setAssetPlate('');
+    setAssetPhoto('');
+    setAssetBrand('');
+    setAssetModel('');
+    setAssetYear('');
+    setAssetCc('');
+    setAssetMileage('0');
+    setShowAssetSelector(false);
+    setShowAssetForm(true);
   };
 
   const openEditAsset = (asset: VehicleAsset) => {
@@ -173,6 +249,11 @@ const VehicleServices: React.FC = () => {
     setAssetName(asset.name);
     setAssetPlate(asset.plate);
     setAssetPhoto(asset.photo || '');
+    setAssetBrand(asset.brand || '');
+    setAssetModel(asset.model || '');
+    setAssetYear(asset.year != null ? String(asset.year) : '');
+    setAssetCc(asset.cc != null ? String(asset.cc) : '');
+    setAssetMileage(asset.mileage != null ? String(asset.mileage) : '0');
     setShowAssetForm(true);
   };
 
@@ -201,6 +282,9 @@ const VehicleServices: React.FC = () => {
   const [fItems, setFItems] = useState<ServiceItem[]>([]);
   const [fNotes, setFNotes] = useState('');
   const [fNextDate, setFNextDate] = useState('');
+  const [fNextKm, setFNextKm] = useState('');
+  const [fReceipt, setFReceipt] = useState('');
+  const receiptFileRef = useRef<HTMLInputElement>(null);
 
   const [showTitleDropdown, setShowTitleDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -218,6 +302,8 @@ const VehicleServices: React.FC = () => {
       setFItems(event.items || []);
       setFNotes(event.notes || '');
       setFNextDate(event.nextServiceDate || '');
+      setFNextKm(event.nextServiceMileage != null ? String(event.nextServiceMileage) : '');
+      setFReceipt(event.receipt || '');
     } else {
       setFId(null);
       setFDate(todayStr());
@@ -229,7 +315,10 @@ const VehicleServices: React.FC = () => {
       setFItems([]);
       setFNotes('');
       setFNextDate('');
+      setFNextKm('');
+      setFReceipt('');
     }
+    if (receiptFileRef.current) receiptFileRef.current.value = '';
     setShowEventForm(true);
   };
 
@@ -248,7 +337,14 @@ const VehicleServices: React.FC = () => {
     }
     
     const calculatedTotal = fIsLumpsum ? (parseFloat(fTotalCost) || 0) : calcTotal();
-    
+    const nextKm = kmNum(fNextKm);
+    const prevEvent = fId ? data.events.find(e => e.id === fId) : undefined;
+    // Editing keeps the "dah buat" tick; moving either target — the date or the odometer — is a
+    // new job to do, so the tick is cleared.
+    const keepDone = prevEvent
+      && prevEvent.nextServiceDate === (fNextDate || undefined)
+      && prevEvent.nextServiceMileage === nextKm;
+
     const newEvent: ServiceEvent = {
       id: fId || generateId(),
       assetId: selectedAssetId,
@@ -261,10 +357,9 @@ const VehicleServices: React.FC = () => {
       address: fAddress.trim(),
       notes: fNotes.trim(),
       nextServiceDate: fNextDate || undefined,
-      // Editing keeps the "dah buat" tick; setting a different next date is a new job to do.
-      nextDone: fId && data.events.find(e => e.id === fId)?.nextServiceDate === (fNextDate || undefined)
-        ? data.events.find(e => e.id === fId)?.nextDone
-        : undefined
+      nextServiceMileage: nextKm,
+      receipt: fReceipt || undefined,
+      nextDone: keepDone ? prevEvent.nextDone : undefined
     };
 
     setData(prev => {
@@ -299,10 +394,38 @@ const VehicleServices: React.FC = () => {
   // screen has always honoured that; without this the page kept nagging for every past visit.
   const stillOwed = latestServiceIds(assetEvents);
 
-  // The odometer as of the newest visit that recorded one. Derived, never stored: a hand-updated
-  // mileage field on the vehicle goes stale the day after it is typed, and nothing here could tell
-  // a stale reading from a fresh one. assetEvents is already newest-first.
-  const lastMileage = assetEvents.find(e => e.mileage)?.mileage;
+  // Same odometer the Home screen judges its km reminders against — one rule, one implementation.
+  const currentKm = selectedAssetId ? currentKmOf(data, selectedAssetId) : undefined;
+
+  // What a km interval counts from: this visit's own reading, or the vehicle's odometer while the
+  // field is still blank. Recomputed as the user types, so the chips follow the reading.
+  const kmBase = kmNum(fMileage) ?? currentKm;
+
+  // Distance covered between a visit and the previous visit for the same service — "berapa km dah
+  // lepas tukar minyak". assetEvents is newest-first, so the previous visit sits further down.
+  // ponytail: O(n²) over one vehicle's history. A car has tens of visits, not thousands.
+  const kmSince = new Map<string, number>();
+  assetEvents.forEach((e, i) => {
+    const km = kmNum(e.mileage);
+    if (km == null) return;
+    const prevKm = kmNum(assetEvents.slice(i + 1).find(p => p.title === e.title && p.mileage)?.mileage);
+    if (prevKm != null && km > prevKm) kmSince.set(e.id, km - prevKm);
+  });
+
+  const saveMileage = (raw: string) => {
+    const km = kmNum(raw);
+    const asset = data.assets.find(a => a.id === selectedAssetId);
+    // Blur fires whether or not anything changed. Compared against currentKm, not asset.mileage,
+    // because that is what the field was seeded with — otherwise merely tapping the box and
+    // tapping away would restamp mileageAt and push an identical blob to the server.
+    if (!asset || km === currentKm) return;
+    setData(prev => ({
+      ...prev,
+      assets: prev.assets.map(a => a.id === asset.id
+        ? { ...a, mileage: km, mileageAt: km == null ? undefined : Date.now() }
+        : a),
+    }));
+  };
 
   // Only the services this vehicle actually has. Derived rather than stored, so switching to a
   // vehicle that has never had an aircond service falls back to "all" instead of an empty list.
@@ -366,8 +489,13 @@ const VehicleServices: React.FC = () => {
                   <p className={`font-bold text-lg truncate ${currentAsset.photo ? 'text-[#fff]' : 'text-amber-500 light:text-amber-700'}`}>{currentAsset.name}</p>
                   <p className={`text-xs truncate ${currentAsset.photo ? 'text-[#fff]/85' : 'text-text/80'}`}>
                     {currentAsset.plate || tr('Tiada plat', 'No plate')}
-                    {lastMileage ? ` · ${lastMileage}` : ''}
+                    {currentKm != null ? ` · ${currentKm.toLocaleString()} km` : ''}
                   </p>
+                  {specLine(currentAsset) && (
+                    <p className={`text-[11px] truncate mt-0.5 ${currentAsset.photo ? 'text-[#fff]/70' : 'text-muted'}`}>
+                      {specLine(currentAsset)}
+                    </p>
+                  )}
                 </div>
               ) : (
                 <p className="font-bold text-muted">{tr('Pilih kenderaan...', 'Choose a vehicle...')}</p>
@@ -377,11 +505,7 @@ const VehicleServices: React.FC = () => {
           </button>
         ) : (
           <button
-            onClick={() => {
-              setAssetName('');
-              setAssetPlate('');
-              setShowAssetForm(true);
-            }}
+            onClick={openAddAsset}
             className="w-full py-4 rounded-xl border-2 border-dashed border-white/20 text-muted hover:text-amber-400 hover:border-amber-400/50 transition-colors flex flex-col items-center gap-2"
           >
             <Plus size={24} /> 
@@ -389,6 +513,54 @@ const VehicleServices: React.FC = () => {
           </button>
         )}
       </div>
+
+      {/* The odometer, editable where you read it — km reminders are only worth as much as how
+          recently this was typed, so it sits on the vehicle rather than behind the edit modal.
+          Uncontrolled and keyed by asset id: switching vehicles remounts it with that vehicle's
+          reading, which is one less piece of state than mirroring it into a draft. */}
+      {currentAsset && (
+        <div className="px-1">
+          <div className="glass-panel px-4 py-3 flex items-center gap-3">
+            <Gauge size={18} className="text-amber-500 light:text-amber-700 shrink-0" />
+            <label htmlFor="odometer" className="text-xs font-bold text-muted uppercase tracking-wider flex-1 min-w-0">
+              {tr('Odometer sekarang', 'Odometer now')}
+            </label>
+            {/* Seeded with the figure the app actually reminds against, not just what was last
+                typed here. With the odometer defaulting to 0 on a new vehicle, those two diverge
+                the moment a service records a real reading, and showing 0 under a card reading
+                88,400 km would just look broken. */}
+            <input
+              id="odometer"
+              key={currentAsset.id}
+              type="number"
+              min="0"
+              inputMode="numeric"
+              defaultValue={currentKm ?? ''}
+              onBlur={e => saveMileage(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+              placeholder="0"
+              className="input-field w-28 text-right font-mono shrink-0"
+              style={{ fontVariantNumeric: 'tabular-nums' }}
+            />
+            <span className="text-xs font-bold text-muted shrink-0">km</span>
+          </div>
+          {currentKm == null ? (
+            <p className="text-[10px] text-muted mt-1 px-1">
+              {tr('Isi odometer untuk dapat peringatan ikut km.', 'Enter the odometer to get reminders by mileage.')}
+            </p>
+          ) : currentKm !== currentAsset.mileage ? (
+            <p className="text-[10px] text-muted mt-1 px-1">
+              {tr(`Dari bacaan servis terakhir (${currentKm.toLocaleString()} km) — lagi tinggi dari odometer yang tersimpan.`,
+                  `From the last service reading (${currentKm.toLocaleString()} km) — higher than the stored odometer.`)}
+            </p>
+          ) : (
+            <p className="text-[10px] text-muted mt-1 px-1">
+              {tr('Dikemas kini', 'Updated')} {currentAsset.mileageAt ? formatDate(isoOf(currentAsset.mileageAt)) : '—'}
+              {' · '}{tr('kemas kini bila ingat supaya peringatan km tepat.', 'update it when you remember so km reminders stay honest.')}
+            </p>
+          )}
+        </div>
+      )}
 
       {!currentAsset ? (
         data.assets.length > 0 && (
@@ -496,7 +668,10 @@ const VehicleServices: React.FC = () => {
                       <div className="flex justify-between items-start gap-3">
                         <div className="min-w-0">
                           <h4 className="font-bold text-lg leading-tight truncate">{event.title}</h4>
-                          <p className="font-mono text-xs text-muted mt-0.5 truncate">{formatDate(event.date)}{event.mileage ? ` \u00b7 ${event.mileage}` : ''}</p>
+                          <p className="font-mono text-xs text-muted mt-0.5 truncate">
+                            {formatDate(event.date)}{event.mileage ? ` \u00b7 ${event.mileage}` : ''}
+                            {kmSince.has(event.id) && ` \u00b7 +${kmSince.get(event.id)!.toLocaleString()} km`}
+                          </p>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
                           <button onClick={() => openEventForm(event)} aria-label={tr('Ubah rekod', 'Edit record')} className="p-1.5 text-muted hover:text-amber-500 rounded-lg bg-text/5"><Pencil size={14} /></button>
@@ -511,13 +686,38 @@ const VehicleServices: React.FC = () => {
                         RM {event.totalCost.toFixed(2)}
                       </p>
 
-                      {event.nextServiceDate && (
+                      {(event.nextServiceDate || event.nextServiceMileage != null) && (
                         <div className="flex items-center gap-2 flex-wrap border-t border-text/5 pt-2.5">
-                            <p className={`text-xs font-bold flex items-center gap-1 ${
-                              event.nextDone || superseded ? 'text-muted line-through' : 'text-rose-500 light:text-rose-700'
-                            }`}>
-                              <CalendarClock size={12} /> {tr('Seterusnya', 'Next')}: {formatDate(event.nextServiceDate)}
-                            </p>
+                            {event.nextServiceDate && (
+                              <p className={`text-xs font-bold flex items-center gap-1 ${
+                                event.nextDone || superseded ? 'text-muted line-through' : 'text-rose-500 light:text-rose-700'
+                              }`}>
+                                <CalendarClock size={12} /> {tr('Seterusnya', 'Next')}: {formatDate(event.nextServiceDate)}
+                              </p>
+                            )}
+                            {event.nextServiceMileage != null && (() => {
+                              const left = kmLeft(event, currentKm);
+                              const closed = event.nextDone || superseded;
+                              // Amber until the odometer is genuinely close, so a service 8,000 km
+                              // out does not wear the same red as one due this week.
+                              const near = left != null && left <= KM_SOON;
+                              return (
+                                <p className={`text-xs font-bold flex items-center gap-1 ${
+                                  closed ? 'text-muted line-through'
+                                    : near ? 'text-rose-500 light:text-rose-700'
+                                    : 'text-amber-500 light:text-amber-700'
+                                }`}>
+                                  <Gauge size={12} /> {event.nextServiceMileage.toLocaleString()} km
+                                  {left != null && !closed && (
+                                    <span className="font-normal text-muted">
+                                      ({left <= 0
+                                        ? `${tr('lewat', 'over by')} ${Math.abs(left).toLocaleString()}`
+                                        : `${tr('lagi', 'in')} ${left.toLocaleString()}`} km)
+                                    </span>
+                                  )}
+                                </p>
+                              );
+                            })()}
                             {superseded ? (
                               <span className="text-[10px] text-muted">
                                 {tr('Dah diganti rekod lebih baru', 'Replaced by a newer record')}
@@ -540,7 +740,7 @@ const VehicleServices: React.FC = () => {
                           </div>
                         )}
 
-                      {(!event.isLumpsum || event.notes || event.address) && (
+                      {(!event.isLumpsum || event.notes || event.address || event.receipt) && (
                         <div>
                           <button onClick={() => toggleExpand(event.id)} className="text-xs flex items-center gap-1 text-muted hover:text-text transition-colors py-1">
                             {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -575,6 +775,15 @@ const VehicleServices: React.FC = () => {
                                 <div>
                                   <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">{tr('Nota', 'Notes')}</p>
                                   <p className="text-sm text-text/80 bg-black/20 p-2.5 rounded-lg border border-white/5 whitespace-pre-wrap">{event.notes}</p>
+                                </div>
+                              )}
+                              {event.receipt && (
+                                <div>
+                                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">{tr('Resit', 'Receipt')}</p>
+                                  {/* Full width and un-cropped: the reason to keep a receipt is to
+                                      read the line items back, so object-contain over object-cover. */}
+                                  <img src={event.receipt} alt={tr('Resit', 'Receipt')}
+                                       className="w-full max-h-80 object-contain rounded-lg border border-white/5 bg-black/20" />
                                 </div>
                               )}
                             </div>
@@ -616,9 +825,12 @@ const VehicleServices: React.FC = () => {
               ) : (
                 filteredAssets.map(asset => (
                   <div key={asset.id} className={`flex items-center justify-between p-3 rounded-xl border ${selectedAssetId === asset.id ? 'border-amber-500 bg-amber-500/10' : 'border-white/5 bg-black/20 hover:border-white/10'} transition-colors cursor-pointer`} onClick={() => { setSelectedAssetId(asset.id); setShowAssetSelector(false); }}>
-                    <div>
-                      <p className={`font-bold ${selectedAssetId === asset.id ? 'text-amber-400' : 'text-text'}`}>{asset.name}</p>
-                      <p className="text-xs text-muted">{asset.plate || tr('Tiada plat', 'No plate')}</p>
+                    <div className="min-w-0">
+                      <p className={`font-bold truncate ${selectedAssetId === asset.id ? 'text-amber-400' : 'text-text'}`}>{asset.name}</p>
+                      <p className="text-xs text-muted truncate">
+                        {asset.plate || tr('Tiada plat', 'No plate')}
+                        {specLine(asset) ? ` · ${specLine(asset)}` : ''}
+                      </p>
                     </div>
                     <div className="flex items-center gap-1">
                       {selectedAssetId === asset.id && <Check size={18} className="text-amber-400 mr-1" />}
@@ -631,7 +843,7 @@ const VehicleServices: React.FC = () => {
             </div>
 
             <div className="shrink-0 pt-4 border-t border-white/5 mt-auto">
-              <button onClick={() => { setShowAssetSelector(false); setEditAssetId(null); setAssetName(''); setAssetPlate(''); setShowAssetForm(true); }} className="w-full py-3 rounded-xl border border-dashed border-white/20 text-amber-400 font-bold hover:bg-amber-500/10 transition-colors flex items-center justify-center gap-2">
+              <button onClick={openAddAsset} className="w-full py-3 rounded-xl border border-dashed border-white/20 text-amber-400 font-bold hover:bg-amber-500/10 transition-colors flex items-center justify-center gap-2">
                 <Plus size={18} /> {tr('Tambah kenderaan baru', 'Add a new vehicle')}
               </button>
             </div>
@@ -642,7 +854,7 @@ const VehicleServices: React.FC = () => {
       {/* Asset Form Modal */}
       {showAssetForm && createPortal((
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowAssetForm(false)}>
-          <div className="bg-surface border border-text/10 rounded-3xl w-full max-w-sm p-5 space-y-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-surface border border-text/10 rounded-3xl w-full max-w-sm p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-lg">{editAssetId ? tr('Sunting Kenderaan', 'Edit Vehicle') : tr('Tambah Kenderaan', 'Add Vehicle')}</h3>
               <button onClick={() => setShowAssetForm(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button>
@@ -656,6 +868,39 @@ const VehicleServices: React.FC = () => {
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Nombor plat (pilihan)', 'Plate number (optional)')}</label>
               <input value={assetPlate} onChange={e => setAssetPlate(e.target.value)} placeholder={tr('cth. VHA 1234', 'e.g. VHA 1234')} className="input-field w-full uppercase" />
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="asset-mileage" className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Perbatuan sekarang', 'Current mileage')}</label>
+              <div className="relative">
+                <input
+                  id="asset-mileage"
+                  type="number"
+                  min="0"
+                  inputMode="numeric"
+                  value={assetMileage}
+                  onChange={e => setAssetMileage(e.target.value)}
+                  onFocus={e => e.target.select()}
+                  className="input-field w-full pr-8 font-mono"
+                  style={{ fontVariantNumeric: 'tabular-nums' }}
+                />
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-muted text-xs pointer-events-none">km</span>
+              </div>
+            </div>
+
+            {/* Reference details a workshop or a road tax form asks for. Optional, and grouped
+                under one heading so the required fields above stay the obvious path. */}
+            <div className="space-y-1.5 pt-1 border-t border-text/5">
+              <label className="text-xs font-bold text-muted uppercase tracking-wider block pt-2">{tr('Butiran (pilihan)', 'Details (optional)')}</label>
+              <div className="grid grid-cols-2 gap-3">
+                <input value={assetBrand} onChange={e => setAssetBrand(e.target.value)} placeholder={tr('Jenama', 'Brand')} className="input-field w-full" />
+                <input value={assetModel} onChange={e => setAssetModel(e.target.value)} placeholder={tr('Model', 'Model')} className="input-field w-full" />
+                <input type="number" inputMode="numeric" min="1900" max="2100" value={assetYear} onChange={e => setAssetYear(e.target.value)} placeholder={tr('Tahun', 'Year')} className="input-field w-full" />
+                <div className="relative">
+                  <input type="number" inputMode="numeric" min="0" value={assetCc} onChange={e => setAssetCc(e.target.value)} placeholder="cc" className="input-field w-full pr-8" />
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-muted text-xs pointer-events-none">cc</span>
+                </div>
+              </div>
             </div>
 
             <div className="space-y-1.5">
@@ -819,10 +1064,124 @@ const VehicleServices: React.FC = () => {
                 )}
               </div>
 
+              {/* Intervals count from *this* visit, not from today: a service logged for last
+                  month with a 6-month interval is due in five, and the odometer target is this
+                  visit's reading plus the step. Tapping the active chip again clears it. */}
+              <div className="space-y-2.5">
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Servis seterusnya (pilihan)', 'Next service (optional)')}</label>
+
+                <div className="space-y-1.5">
+                  <input type="date" value={fNextDate} onChange={e => setFNextDate(e.target.value)} className="input-field w-full text-rose-400" />
+                  <div className="flex flex-wrap gap-1.5">
+                    {MONTH_STEPS.map(months => {
+                      const value = addMonths(fDate, months);
+                      const active = fNextDate === value;
+                      return (
+                        <button
+                          key={months}
+                          type="button"
+                          aria-pressed={active}
+                          onClick={() => setFNextDate(active ? '' : value)}
+                          className={`px-2.5 py-1 rounded-full text-[11px] font-bold border transition-colors ${
+                            active
+                              ? 'border-rose-500/50 bg-rose-500/15 text-rose-500 light:text-rose-700'
+                              : 'border-text/15 text-muted hover:text-text hover:border-text/40'
+                          }`}
+                        >
+                          {months === 12 ? tr('1 tahun', '1 year') : tr(`${months} bulan`, months === 1 ? '1 month' : `${months} months`)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="0"
+                      inputMode="numeric"
+                      value={fNextKm}
+                      onChange={e => setFNextKm(e.target.value)}
+                      placeholder={kmBase != null ? String(kmBase + 10000) : tr('cth. 60000', 'e.g. 60000')}
+                      className="input-field w-full pr-8 text-rose-400"
+                    />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-muted text-xs pointer-events-none">km</span>
+                  </div>
+                  {kmBase != null ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {KM_STEPS.map(step => {
+                        const value = String(kmBase + step);
+                        const active = fNextKm === value;
+                        return (
+                          <button
+                            key={step}
+                            type="button"
+                            aria-pressed={active}
+                            title={`${(kmBase + step).toLocaleString()} km`}
+                            onClick={() => setFNextKm(active ? '' : value)}
+                            className={`px-2.5 py-1 rounded-full text-[11px] font-bold border transition-colors ${
+                              active
+                                ? 'border-rose-500/50 bg-rose-500/15 text-rose-500 light:text-rose-700'
+                                : 'border-text/15 text-muted hover:text-text hover:border-text/40'
+                            }`}
+                          >
+                            +{step.toLocaleString()} km
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    // Without a reading to count from, "+5,000" would be an interval from nothing.
+                    <p className="text-[10px] text-muted">
+                      {tr('Isi perbatuan di atas (atau odometer kenderaan) untuk pilih jarak servis.',
+                          'Fill in the mileage above (or the vehicle odometer) to pick an interval.')}
+                    </p>
+                  )}
+                </div>
+
+                <p className="text-[10px] text-muted">
+                  {tr('Isi salah satu atau dua-dua — peringatan keluar di skrin Utama bila tarikh dekat, atau bila odometer sampai dalam ',
+                      'Fill either or both — the Home screen reminds you when the date is near, or when the odometer comes within ')}
+                  {KM_SOON.toLocaleString()} km.
+                </p>
+              </div>
+
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Tarikh servis seterusnya (pilihan)', 'Next service date (optional)')}</label>
-                <input type="date" value={fNextDate} onChange={e => setFNextDate(e.target.value)} className="input-field w-full text-rose-400" />
-                <p className="text-[10px] text-muted">{tr('Set tarikh untuk dapat peringatan di skrin Utama.', 'Set a date to get a reminder on the Home screen.')}</p>
+                <label className="text-xs font-bold text-muted uppercase tracking-wider">{tr('Resit (pilihan)', 'Receipt (optional)')}</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={receiptFileRef}
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    // 1200px, not the 600 an asset card gets: a receipt is read, not glanced at,
+                    // and the line items have to stay legible after the JPEG pass.
+                    if (file) downscaleFile(file, 1200, 0.8).then(setFReceipt).catch(() => {});
+                  }}
+                  className="hidden"
+                  id="event-receipt"
+                />
+                {fReceipt ? (
+                  <div className="relative rounded-xl overflow-hidden border border-text/10 bg-black/20">
+                    <img src={fReceipt} alt="" className="w-full max-h-56 object-contain" />
+                    <button
+                      type="button"
+                      onClick={() => { setFReceipt(''); if (receiptFileRef.current) receiptFileRef.current.value = ''; }}
+                      aria-label={tr('Buang resit', 'Remove receipt')}
+                      className="absolute top-2 right-2 p-1.5 rounded-lg bg-[#000]/50 text-[#fff]/80 hover:text-[#fff] backdrop-blur-md"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <label
+                    htmlFor="event-receipt"
+                    className="flex items-center justify-center gap-2 h-14 rounded-xl border border-dashed border-text/15 bg-text/5 text-muted text-sm cursor-pointer hover:text-text hover:bg-text/10 transition-colors"
+                  >
+                    <ReceiptText size={18} /> {tr('Ambil atau pilih gambar resit', 'Snap or choose a receipt photo')}
+                  </label>
+                )}
               </div>
 
               <div className="space-y-1.5">

@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 (globalThis as any).document = { visibilityState: 'visible' };
 (globalThis as any).Event = class { type: string; constructor(type: string) { this.type = type; } };
 
-const { daysUntil, horizonTone, byMonth, renewedDate, addMonths, openServices, latestServiceIds, nextDueDate } = await import('./horizon.ts');
+const { daysUntil, horizonTone, byMonth, renewedDate, addMonths, openServices, latestServiceIds, nextDueDate, kmNum, kmLeft, currentKmOf, KM_SOON } = await import('./horizon.ts');
 type HorizonItem = Awaited<ReturnType<typeof import('./horizon.ts').readHorizon>>[number];
 
 const NOW = new Date('2026-08-07T09:00:00');
@@ -114,6 +114,62 @@ test('services are tracked per asset and per title, not lumped together', () => 
     { id: '3', assetId: 'car', title: 'Tyre Change', date: '2026-07-03', nextServiceDate: '2027-01-03' },
   ]);
   assert.deepEqual(open.map((e) => e.id).sort(), ['1', '2', '3']);
+});
+
+test('mileage targets are owed too, and close on the same rules as dates', () => {
+  // A service with only a km target must still count as open...
+  const kmOnly = [{ id: '1', assetId: 'car', title: 'Engine Oil', date: '2026-01-05', nextServiceMileage: 90000 }];
+  assert.deepEqual(openServices(kmOnly).map((e) => e.id), ['1']);
+
+  // ...and must close the same two ways a dated one does: the tick, and a newer visit.
+  assert.deepEqual(openServices(kmOnly.map((e) => ({ ...e, nextDone: true }))), []);
+  assert.deepEqual(
+    openServices([...kmOnly, { id: '2', assetId: 'car', title: 'Engine Oil', date: '2026-07-08' }]),
+    []);
+});
+
+test('mileage is read out of whatever the user typed', () => {
+  assert.equal(kmNum('84,210 km'), 84210);
+  assert.equal(kmNum('84210'), 84210);
+  assert.equal(kmNum(91400), 91400);
+  // No reading at all must stay undefined, never 0 — 0 km would read as a brand new car and
+  // make every km target look overdue.
+  assert.equal(kmNum(''), undefined);
+  assert.equal(kmNum(undefined), undefined);
+});
+
+test('a km reminder stays silent until both halves are known', () => {
+  const event = { id: '1', assetId: 'car', title: 'Engine Oil', date: '2026-01-05', nextServiceMileage: 90000 };
+  assert.equal(kmLeft(event, 89_700), 300);
+  assert.ok(kmLeft(event, 89_700)! <= KM_SOON, 'inside the window, so it fires');
+  assert.equal(kmLeft(event, 80_000), 10_000);
+  assert.equal(kmLeft(event, 90_500), -500, 'negative once the odometer is past the target');
+  assert.equal(kmLeft(event, undefined), undefined, 'no odometer, no guess');
+  assert.equal(kmLeft({ id: '2' }, 89_700), undefined, 'no target, no guess');
+});
+
+test('the odometer falls back to the newest service reading until one is entered', () => {
+  const data = {
+    assets: [{ id: 'car', name: 'Myvi' }],
+    events: [
+      { id: '1', assetId: 'car', title: 'Engine Oil', date: '2026-01-05', mileage: '80,000 km' },
+      { id: '2', assetId: 'car', title: 'Tyre', date: '2026-07-08', mileage: '88,400' },
+    ],
+  };
+  assert.equal(currentKmOf(data, 'car'), 88_400, 'newest reading wins, whatever the service');
+
+  const withOdo = { ...data, assets: [{ id: 'car', name: 'Myvi', mileage: 91_400 }] };
+  assert.equal(currentKmOf(withOdo, 'car'), 91_400, 'a fresher odometer beats the service reading');
+
+  // An odometer only counts up, so the highest reading is the current one. This is what stops a
+  // vehicle added with the default 0 — or one whose odometer was typed months ago — from burying
+  // a newer service reading and silencing every km reminder.
+  const staleOdo = { ...data, assets: [{ id: 'car', name: 'Myvi', mileage: 0 }] };
+  assert.equal(currentKmOf(staleOdo, 'car'), 88_400, 'a default 0 must not shadow real readings');
+
+  assert.equal(currentKmOf({ assets: [], events: [] }, 'car'), undefined);
+  assert.equal(currentKmOf({ assets: [{ id: 'car', mileage: 0 }], events: [] }, 'car'), 0,
+    'a genuinely new vehicle with no history still reads 0, not undefined');
 });
 
 test('byMonth keeps date order and starts a group per calendar month', () => {

@@ -36,6 +36,8 @@ interface HomeData {
 
 const STORAGE_KEY = 'home_services_data';
 const TITLES_KEY = 'home_custom_titles';
+// Not in SYNCED_KEYS, so store.ts routes it straight to localStorage and it stays on this device.
+const SELECTED_KEY = 'home_selected_asset';
 const defaultTitles = () => trs(
   ['Cuci Aircond', 'Tukar Penapis Air', 'Baiki Paip', 'Kawalan Serangga', 'Cuci Am', 'Baiki Bumbung'],
   ['Aircon Service', 'Water Filter Change', 'Plumbing Repair', 'Pest Control', 'General Cleaning', 'Roof Repair'],
@@ -103,8 +105,9 @@ const HomeServices: React.FC = () => {
     }
   }, [data, customTitles, isLoaded]);
 
-  // Current selected asset tab
-  const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
+  // Current selected asset tab, remembered across refreshes. A device preference, not data —
+  // which phone is looking at which item is nobody else's business, so it never syncs.
+  const [selectedAssetId, setSelectedAssetId] = useState<string | null>(() => store.getItem(SELECTED_KEY));
   const [showAssetSelector, setShowAssetSelector] = useState(false);
   const [assetSearchQuery, setAssetSearchQuery] = useState('');
   const [serviceFilter, setServiceFilter] = useState('all');
@@ -113,13 +116,20 @@ const HomeServices: React.FC = () => {
   const filterRef = useRef<HTMLDivElement>(null);
   useOutsideClick(filterRef, () => setShowFilterDropdown(false));
 
+  // Fall back to the first item only when the remembered one is gone — deleted, or belonging to
+  // a different account. The isLoaded guard is what makes the restore stick: before the blob is
+  // read, assets is still empty, and without it the remembered id would be wiped on mount.
   useEffect(() => {
-    if (data.assets.length > 0 && !selectedAssetId) {
-      setSelectedAssetId(data.assets[0].id);
-    } else if (data.assets.length === 0) {
-      setSelectedAssetId(null);
+    if (!isLoaded) return;
+    if (!data.assets.some(a => a.id === selectedAssetId)) {
+      setSelectedAssetId(data.assets[0]?.id ?? null);
     }
-  }, [data.assets, selectedAssetId]);
+  }, [isLoaded, data.assets, selectedAssetId]);
+
+  useEffect(() => {
+    if (selectedAssetId) store.setItem(SELECTED_KEY, selectedAssetId);
+    else store.removeItem(SELECTED_KEY);
+  }, [selectedAssetId]);
 
   // Forms
   const [showAssetForm, setShowAssetForm] = useState(false);

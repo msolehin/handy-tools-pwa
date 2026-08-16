@@ -493,12 +493,14 @@ export const TOOLS: Record<string, Descriptor> = {
   vehicle_services_data: {
     async read(q, uid) {
       const { rows: assets } = await q(
-        `select id, name, plate, photo, created_at::float8 as "createdAt"
+        `select id, name, plate, photo, created_at::float8 as "createdAt",
+                mileage, mileage_at::float8 as "mileageAt", brand, model, year, cc
            from vehicle_assets where user_id = $1 order by pos`, [uid]);
       const { rows: events } = await q(
         `select id, asset_id as "assetId", date::text as date, title,
                 is_lumpsum as "isLumpsum", total_cost::float8 as "totalCost", items,
                 mileage, address, notes, next_service_date::text as "nextServiceDate",
+                next_service_mileage as "nextServiceMileage", receipt,
                 case when next_done then true end as "nextDone"
            from vehicle_service_events where user_id = $1 order by pos`, [uid]);
       // dropNulls on the assets too: an asset with no photo must come back without the key, not
@@ -508,19 +510,26 @@ export const TOOLS: Record<string, Descriptor> = {
     async write(q, uid, blob) {
       await q('delete from vehicle_assets where user_id = $1', [uid]); // events cascade
       await insertMany(q, 'vehicle_assets',
-        ['user_id', 'id', 'name', 'plate', 'photo', 'created_at', 'pos'],
+        ['user_id', 'id', 'name', 'plate', 'photo', 'created_at', 'pos', 'mileage', 'mileage_at',
+          'brand', 'model', 'year', 'cc'],
         arr(blob?.assets).map((a, i) => [
           uid, String(a.id), String(a.name ?? ''), String(a.plate ?? ''),
           a.photo ?? null, num(a.createdAt), i,
+          // ?? null throughout, not num()/String(): 0 km is a real reading, and an optional field
+          // left blank must round-trip as absent rather than as 0 or ''.
+          a.mileage ?? null, a.mileageAt ?? null,
+          a.brand ?? null, a.model ?? null, a.year ?? null, a.cc ?? null,
         ]));
       await insertMany(q, 'vehicle_service_events',
         ['user_id', 'id', 'asset_id', 'date', 'title', 'is_lumpsum', 'total_cost', 'items',
-          'mileage', 'address', 'notes', 'next_service_date', 'next_done', 'pos'],
+          'mileage', 'address', 'notes', 'next_service_date', 'next_done', 'pos',
+          'next_service_mileage', 'receipt'],
         arr(blob?.events).map((e, i) => [
           uid, String(e.id), String(e.assetId), e.date, String(e.title ?? ''),
           Boolean(e.isLumpsum), num(e.totalCost), JSON.stringify(arr(e.items)),
           String(e.mileage ?? ''), String(e.address ?? ''), String(e.notes ?? ''),
           e.nextServiceDate ?? null, Boolean(e.nextDone), i,
+          e.nextServiceMileage ?? null, e.receipt ?? null,
         ]));
     },
   },

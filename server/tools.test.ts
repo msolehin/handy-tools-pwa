@@ -136,7 +136,14 @@ const FIXTURES: Record<string, unknown> = {
 
   vehicle_services_data: {
     assets: [
-      { id: 'veh0001', name: 'Myvi', plate: 'WXY 1234', photo: 'data:image/jpeg;base64,VVVV', createdAt: 1767225600000 },
+      {
+        id: 'veh0001', name: 'Myvi', plate: 'WXY 1234', photo: 'data:image/jpeg;base64,VVVV',
+        createdAt: 1767225600000, mileage: 91400, mileageAt: 1786000000000,
+        brand: 'Perodua', model: 'Myvi 1.3 X', year: 2019, cc: 1329,
+      },
+      // Every optional detail absent, and mileage a genuine 0 — it must come back as 0, not be
+      // dropped as a falsy value alongside the fields that really are missing.
+      { id: 'veh0002', name: 'Motor', plate: '', createdAt: 1767225600000, mileage: 0 },
     ],
     events: [
       {
@@ -147,6 +154,7 @@ const FIXTURES: Record<string, unknown> = {
           { id: 'itm0002', name: 'Filter', cost: 88.5 },
         ],
         mileage: '84210', address: 'Bengkel Pak Din', notes: '', nextServiceDate: '2026-11-14',
+        nextServiceMileage: 94210, receipt: 'data:image/jpeg;base64,UkNQVA==',
         nextDone: true,
       },
       {

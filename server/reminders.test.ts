@@ -63,6 +63,21 @@ describe('reminders', { skip: skip && 'DATABASE_URL not set' }, () => {
          ($1, 'svcTyreOld', 'car1', $2, 'Tukar tayar', $4, false),
          ($1, 'svcTyreNew', 'car1', $3, 'Tukar tayar', $5, false)`,
       [userId, plus(-400), plus(-7), plus(7), plus(200)]);
+
+    // Odometer 200 km short of a 90,000 km target, so the km branch is inside its window.
+    // svcKmDone is ticked and svcTyreOld is superseded — both carry a target that would
+    // otherwise fire, proving the km path closes on the same two rules the date path does.
+    await pool!.query(
+      `update vehicle_assets set mileage = 89800 where user_id = $1 and id = 'car1'`, [userId]);
+    await pool!.query(
+      `update vehicle_service_events set next_service_mileage = 90000
+        where user_id = $1 and id = 'svcTyreOld'`, [userId]);
+    await pool!.query(
+      `insert into vehicle_service_events
+         (user_id, id, asset_id, date, title, next_service_mileage, next_done) values
+         ($1, 'svcKm',     'car1', $2, 'Servis ikut km',    90000, false),
+         ($1, 'svcKmDone', 'car1', $2, 'Servis km dah buat', 90000, true)`,
+      [userId, plus(-30)]);
   });
 
   after(async () => {
@@ -74,7 +89,7 @@ describe('reminders', { skip: skip && 'DATABASE_URL not set' }, () => {
     const due = (await dueReminders()).filter((r) => r.userId === userId);
     assert.deepEqual(
       due.map((r) => r.recordId).sort(),
-      ['doc01', 'doc07', 'doc30', 'svcOil'],
+      ['doc01', 'doc07', 'doc30', 'svcKm', 'svcOil'],
       '45 and 0 days out must not fire, and neither may a ticked service');
   });
 
@@ -108,8 +123,8 @@ describe('reminders', { skip: skip && 'DATABASE_URL not set' }, () => {
     await runReminders(record);
 
     assert.equal(seen.length, 1, 'the second run must find nothing left to send');
-    assert.deepEqual(seen[0], ['doc01', 'doc07', 'doc30', 'svcOil'],
-      'one digest carrying all four, not four separate deliveries');
+    assert.deepEqual(seen[0], ['doc01', 'doc07', 'doc30', 'svcKm', 'svcOil'],
+      'one digest carrying all five, not five separate deliveries');
   });
 
   test('the digest is ordered most urgent first', async () => {
@@ -121,8 +136,45 @@ describe('reminders', { skip: skip && 'DATABASE_URL not set' }, () => {
       return true;
     });
 
-    assert.deepEqual(seen, [1, 7, 7, 30],
+    assert.deepEqual(seen, [1, 7, 7, 7, 30],
       'esok must never sit below a 30-day row — push only shows the first three');
+  });
+
+  test('a mileage reminder reads as distance, not as a day count', async () => {
+    await pool!.query('delete from reminder_sends where user_id = $1', [userId]);
+    const km = (await dueReminders()).find((r) => r.recordId === 'svcKm');
+
+    assert.equal(km?.source, 'vehicle_mileage');
+    assert.equal(km?.pill, 'Lagi 200 km', 'the pill must never claim "N hari lagi" for a distance');
+    assert.equal(km?.subtitle, 'Odometer 90,000 km');
+    assert.equal(km?.dueDate, '', 'there is no date to invent');
+  });
+
+  test('a mileage reminder fires once per band, then again once it is overdue', async () => {
+    await pool!.query('delete from reminder_sends where user_id = $1', [userId]);
+
+    const sent = async () => {
+      let ids: string[] = [];
+      await runReminders(async (d) => {
+        if (d.userId === userId) ids = d.items.map((i) => i.recordId);
+        return true;
+      });
+      return ids;
+    };
+
+    assert.ok((await sent()).includes('svcKm'), 'first run: inside the 500 km window');
+    assert.ok(!(await sent()).includes('svcKm'), 'second run: same band, already delivered');
+
+    // Drive past the target. That is a new band, so it is a new reminder rather than a repeat.
+    await pool!.query(
+      `update vehicle_assets set mileage = 90300 where user_id = $1 and id = 'car1'`, [userId]);
+    const overdue = (await dueReminders()).find((r) => r.recordId === 'svcKm');
+    assert.equal(overdue?.pill, 'Lewat 300 km');
+    assert.ok((await sent()).includes('svcKm'), 'crossing the target fires once more');
+    assert.ok(!(await sent()).includes('svcKm'), 'but only once');
+
+    await pool!.query(
+      `update vehicle_assets set mileage = 89800 where user_id = $1 and id = 'car1'`, [userId]);
   });
 
   test('a failed delivery is retried rather than swallowed', async () => {

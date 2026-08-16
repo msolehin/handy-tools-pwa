@@ -12,16 +12,21 @@ import { q } from './db.ts';
 import { requireUser } from './auth.ts';
 
 export type ReminderSource =
-  | 'document' | 'contract' | 'asset' | 'countdown' | 'vehicle_service' | 'home_service';
+  | 'document' | 'contract' | 'asset' | 'countdown' | 'vehicle_service' | 'home_service'
+  | 'vehicle_mileage';
 
 export type DueReminder = {
   userId: string;
   source: ReminderSource;
   recordId: string;
   title: string;
-  dueDate: string;      // YYYY-MM-DD
+  dueDate: string;      // YYYY-MM-DD. Empty for mileage rows, which are owed by distance.
   offsetDays: number;   // 30 | 7 | 1
   href: string;         // the tool route this record lives in
+  /** Replaces the due date under the title. Set by mileage rows: "Odometer 90,000 km". */
+  subtitle?: string;
+  /** Replaces the "N hari lagi" pill. Set by mileage rows: "lagi 300 km". */
+  pill?: string;
 };
 
 /** The only offsets that fire. No day-of, no overdue. */
@@ -82,10 +87,74 @@ select d.user_id, d.source, d.record_id, d.title,
    and s.user_id is null
  order by d.user_id, d.due_date`;
 
-/** Every reminder due today that has not already been delivered. */
+/** A service is near on the odometer inside this many km. Mirrors KM_SOON in src/lib/horizon.ts. */
+export const KM_SOON = 500;
+
+/**
+ * Services owed on the odometer rather than the calendar.
+ *
+ * Separate from DUE_SQL because it cannot use the day-offset windows: there is no due date to
+ * subtract today from. It fires on *band entry* instead — once when the vehicle comes within
+ * KM_SOON, once more if it goes past the target — and the band doubles as the offset_days dedup
+ * key, so 1 and 7 also pick up the red and orange pills the email already has.
+ *
+ * Note the honest limit: the odometer only moves when the user types it in, so this can only fire
+ * on the run after they did. A car driven 900 km without an update is invisible here, which is
+ * why the tool page nags on-screen as well.
+ *
+ * ponytail: no rate estimation. Two readings would give km/day and a projected date that slots
+ * into the windows above, but a wrong projection buzzes a phone about a service that is not due.
+ * Add it when there is enough reading history to trust the slope.
+ */
+const MILEAGE_SQL = `
+with latest as (
+  select distinct on (user_id, asset_id, title) *
+    from vehicle_service_events
+   order by user_id, asset_id, title, date desc, pos desc
+),
+-- The same odometer the app judges against: what was typed onto the vehicle, else the newest
+-- service reading. Those readings are free text ("84,210 km"), so dig the digits out.
+-- [^0-9] rather than \\D on purpose — a JS string would eat the backslash before Postgres saw it.
+odo as (
+  select a.user_id, a.id as asset_id,
+         coalesce(a.mileage, (
+           select nullif(regexp_replace(e.mileage, '[^0-9]', '', 'g'), '')::int
+             from vehicle_service_events e
+            where e.user_id = a.user_id and e.asset_id = a.id
+              and nullif(regexp_replace(e.mileage, '[^0-9]', '', 'g'), '') is not null
+            order by e.date desc, e.pos desc
+            limit 1)) as km
+    from vehicle_assets a
+),
+due as (
+  select l.user_id, l.id as record_id,
+         coalesce(nullif(l.title, ''), 'Servis') as title,
+         l.next_service_mileage as target,
+         l.next_service_mileage - o.km as km_left,
+         case when l.next_service_mileage - o.km <= 0 then 1 else 7 end as band
+    from latest l
+    join odo o on o.user_id = l.user_id and o.asset_id = l.asset_id
+   where l.next_service_mileage is not null
+     and not l.next_done
+     and o.km is not null
+     and l.next_service_mileage - o.km <= $1
+)
+select d.user_id, d.record_id, d.title, d.target, d.km_left, d.band
+  from due d
+  left join reminder_sends s
+    on  s.user_id     = d.user_id
+    and s.source      = 'vehicle_mileage'
+    and s.record_id   = d.record_id
+    and s.offset_days = d.band
+ where s.user_id is null
+ order by d.user_id, d.km_left`;
+
+const km = (n: number) => n.toLocaleString('en-US');
+
+/** Every reminder due today that has not already been delivered, by date and by odometer. */
 export async function dueReminders(): Promise<DueReminder[]> {
   const { rows } = await q(DUE_SQL, [[...OFFSETS]]);
-  return rows.map((r) => ({
+  const dated: DueReminder[] = rows.map((r) => ({
     userId: r.user_id,
     source: r.source as ReminderSource,
     recordId: r.record_id,
@@ -94,6 +163,19 @@ export async function dueReminders(): Promise<DueReminder[]> {
     offsetDays: r.offset_days,
     href: r.href,
   }));
+
+  const { rows: mileage } = await q(MILEAGE_SQL, [KM_SOON]);
+  return dated.concat(mileage.map((r) => ({
+    userId: r.user_id,
+    source: 'vehicle_mileage' as ReminderSource,
+    recordId: r.record_id,
+    title: r.title,
+    dueDate: '',
+    offsetDays: r.band,
+    href: '/vehicle-services',
+    subtitle: `Odometer ${km(r.target)} km`,
+    pill: r.km_left <= 0 ? `Lewat ${km(-r.km_left)} km` : `Lagi ${km(r.km_left)} km`,
+  })));
 }
 
 export type Digest = {
@@ -142,7 +224,7 @@ const esc = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 const line = (r: DueReminder) =>
-  r.offsetDays === 1 ? 'Esok' : `${r.offsetDays} hari lagi`;
+  r.pill ?? (r.offsetDays === 1 ? 'Esok' : `${r.offsetDays} hari lagi`);
 
 /**
  * Red at one day, orange at seven, yellow at thirty.
@@ -168,6 +250,9 @@ function fmtDate(iso: string) {
   const month = MONTHS[m - 1];
   return month ? `${day} ${month} ${y}` : iso;
 }
+
+/** What sits under the title: the due date for dated records, the odometer for mileage ones. */
+const detail = (r: DueReminder) => r.subtitle ?? fmtDate(r.dueDate);
 
 // Inter first, matching tailwind.config.js `sans`, then the system stack. Gmail strips the
 // stylesheet link below so it falls back there; Apple Mail and iOS Mail honour it.
@@ -196,7 +281,7 @@ function emailHtml(d: Digest) {
     <tr>
       <td style="${cell};font-family:${FONT}">
         <a href="${APP_ORIGIN}${r.href}" style="color:#0f172a;font-weight:600;text-decoration:none">${esc(r.title)}</a>
-        <div style="color:#64748b;font-size:13px;margin-top:2px">${esc(fmtDate(r.dueDate))}</div>
+        <div style="color:#64748b;font-size:13px;margin-top:2px">${esc(detail(r))}</div>
       </td>
       <td align="right" valign="top" style="${cell};font-family:${FONT};text-align:right;white-space:nowrap;padding-left:12px">
         <span style="display:inline-block;padding:4px 10px;border-radius:999px;background:${urgencyOf(r.offsetDays).bg};color:${urgencyOf(r.offsetDays).fg};font-size:13px;font-weight:700">${line(r)}</span>
@@ -329,7 +414,7 @@ export async function sendPush(d: Digest): Promise<boolean> {
   const payload = JSON.stringify({
     title: d.items.length === 1 ? first.title : `${d.items.length} rekod nak tamat tempoh`,
     body: d.items.length === 1
-      ? `${line(first)} — ${first.dueDate}`
+      ? `${line(first)} — ${detail(first)}`
       : d.items.slice(0, 3).map((r) => `${r.title} (${line(r)})`).join('\n'),
     href: d.items.length === 1 ? first.href : '/app',
   });

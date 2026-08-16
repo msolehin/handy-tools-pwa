@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { store } from '../lib/store';
 // Date helpers come from lib, never from the tool pages themselves — importing a page here would
 // pin its whole chunk, and its libraries, into the first load every visitor pays for.
-import { openServices, daysUntil, nextDueDate } from '../lib/horizon';
+import { openServices, daysUntil, nextDueDate, kmLeft, currentKmOf, KM_SOON } from '../lib/horizon';
 import { commitActive } from '../lib/savings';
 import PrivacyNote from '../components/PrivacyNote';
 import { 
@@ -783,17 +783,32 @@ const Home: React.FC = () => {
         // Superseded visits keep a stale nextServiceDate; only the newest per service is still owed.
         const events = openServices(Array.isArray(p.events) ? p.events : []);
         events.forEach((s: any) => {
-          if (s.nextServiceDate) {
-            const days = getDaysLeft(s.nextServiceDate);
-            if (days <= 30) {
-              newAlerts.push({
-                id: `v-service-${s.id}`,
-                type: 'service',
-                title: `${tr('Kenderaan', 'Vehicle')}: ${s.title}`,
-                daysLeft: days,
-                to: '/vehicle-services'
-              });
-            }
+          const left = kmLeft(s, currentKmOf(p, s.assetId));
+          const days = s.nextServiceDate ? getDaysLeft(s.nextServiceDate) : null;
+          // One service, one nag, even when it is owed on both yardsticks. The odometer wins when
+          // it is inside its window: 500 km is imminent, where the 30-day date window is broad on
+          // purpose. Reporting "25 days left" on a car that is 300 km short would bury the real one.
+          if (left != null && left <= KM_SOON) {
+            newAlerts.push({
+              id: `v-service-${s.id}`,
+              type: 'service',
+              title: `${tr('Kenderaan', 'Vehicle')}: ${s.title}`,
+              // Sorts and colours with the date alerts — overdue red, near amber — without
+              // claiming a day count the odometer cannot know.
+              daysLeft: left <= 0 ? -1 : 0,
+              subtitle: left <= 0
+                ? `${Math.abs(left).toLocaleString()} km`
+                : tr(`lagi ${left.toLocaleString()} km`, `${left.toLocaleString()} km left`),
+              to: '/vehicle-services'
+            });
+          } else if (days != null && days <= 30) {
+            newAlerts.push({
+              id: `v-service-${s.id}`,
+              type: 'service',
+              title: `${tr('Kenderaan', 'Vehicle')}: ${s.title}`,
+              daysLeft: days,
+              to: '/vehicle-services'
+            });
           }
         });
       } catch (e) {}
@@ -1055,7 +1070,9 @@ const Home: React.FC = () => {
                       : 'text-pink-400'
                   }`}>
                     <span className="text-text/50 font-bold uppercase tracking-wider text-[10px]">{alert.type === 'service' && alert.daysLeft < 0 ? t('Lewat', 'Overdue') : ALERT_TYPE_LABEL[lang][alert.type]} · </span>
-                    {alert.type === 'water' ? t('Minum lagi!', 'Drink more!') : alert.type === 'debt' ? t('Perlu tindakan', 'Needs attention') : alert.type === 'expense' ? t(`${alert.percentage ?? 0}% pendapatan dibelanja`, `${alert.percentage ?? 0}% of income spent`) : alert.type === 'habit' ? t(`${alert.percentage ?? 0}% siap`, `${alert.percentage ?? 0}% done`) : alert.daysLeft < 0
+                    {/* A km-based service reminder carries its own wording — the odometer has no
+                        day count, and "3 Hari Lagi" on a distance would simply be wrong. */}
+                    {alert.subtitle ? alert.subtitle : alert.type === 'water' ? t('Minum lagi!', 'Drink more!') : alert.type === 'debt' ? t('Perlu tindakan', 'Needs attention') : alert.type === 'expense' ? t(`${alert.percentage ?? 0}% pendapatan dibelanja`, `${alert.percentage ?? 0}% of income spent`) : alert.type === 'habit' ? t(`${alert.percentage ?? 0}% siap`, `${alert.percentage ?? 0}% done`) : alert.daysLeft < 0
                       ? (alert.type === 'service' ? t(`Lewat ${Math.abs(alert.daysLeft)} hari`, `${Math.abs(alert.daysLeft)} days overdue`) : t(`Tamat ${Math.abs(alert.daysLeft)} hari lepas`, `Expired ${Math.abs(alert.daysLeft)} days ago`))
                       : alert.daysLeft === 0
                         ? t('Hari ini!', 'Today!')
