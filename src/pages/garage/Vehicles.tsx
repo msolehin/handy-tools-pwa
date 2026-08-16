@@ -3,7 +3,7 @@
 // contract (that's `detailId`, reserved for the Task 11 detail page a card's own tap opens).
 import { useState, type Dispatch, type SetStateAction } from 'react';
 import { Plus, Pencil } from 'lucide-react';
-import { currentOdo, dueItems, type GarageData, type Vehicle } from '../../lib/garage';
+import { currentOdo, dueItems, withoutVehicle, type GarageData, type Vehicle } from '../../lib/garage';
 import { BODIES, ENERGIES, engineSpec } from '../../lib/garage-presets';
 import { Pill, Empty, EDGE_COLORS, fmtKm } from './parts';
 import { VehicleSheet } from './sheets';
@@ -98,18 +98,10 @@ export default function Vehicles({ data, setData, onOpen }: {
     setSheetOpen(false);
   };
 
-  // The server cascades a vehicle delete across its child tables; the local copy has to agree
-  // right away, or the next sync just re-uploads every one of these rows as "new".
+  // withoutVehicle carries the cascade — see its own comment in garage.ts for why this and
+  // VehicleDetail.tsx both call the one function rather than each spelling out the six filters.
   const handleDelete = (id: string) => {
-    setData((d) => ({
-      ...d,
-      vehicles: d.vehicles.filter((v) => v.id !== id),
-      services: d.services.filter((s) => s.vehicleId !== id),
-      docs: d.docs.filter((x) => x.vehicleId !== id),
-      energy: d.energy.filter((e) => e.vehicleId !== id),
-      odo: d.odo.filter((o) => o.vehicleId !== id),
-      reminders: d.reminders.filter((r) => r.vehicleId !== id),
-    }));
+    setData((d) => withoutVehicle(d, id));
     setSheetOpen(false);
   };
 

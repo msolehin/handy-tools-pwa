@@ -3,13 +3,13 @@
 // Task 12's). Self-contained the same way Vehicles.tsx is: each pane owns its own sheet's
 // open/editing state, since neither is part of the shell's `detailId` navigation contract.
 import { useState, type Dispatch, type SetStateAction } from 'react';
-import { Wrench, Fuel, Bell, FileText, Plus, Pencil } from 'lucide-react';
+import { Wrench, Fuel, Zap, Bell, FileText, Plus, Pencil } from 'lucide-react';
 import {
-  economy, spend, costPerKm, serviceTotal, addMonths, todayISO,
+  economy, spend, costPerKm, serviceTotal, addMonths, todayISO, withoutVehicle,
   type GarageData, type Vehicle, type Service, type EnergyLog, type Reminder, type OdoLog,
 } from '../../lib/garage';
 import { BODIES, ENERGIES, engineSpec, kindsFor, unitFor, type LogKind } from '../../lib/garage-presets';
-import { Cluster, DocPair, Row, Empty, fmtKm, fmtRM0, niceDate } from './parts';
+import { Cluster, DocPair, Row, Empty, fmtKm, fmtRM, fmtRM0, niceDate } from './parts';
 import { VehicleSheet, ServiceSheet, EnergySheet, OdoSheet } from './sheets';
 import { useT } from '../../lib/lang';
 
@@ -64,10 +64,13 @@ export default function VehicleDetail({ vehicle, data, setData, onBack }: {
   const fuelLabel = kinds.length === 1 && kinds[0] === 'charge' ? t('Cas', 'Charge')
     : kinds.length === 2 ? t('Tenaga', 'Energy')
     : t('Bahan api', 'Fuel');
+  // An EV owner should never see a petrol pump — the segment's own icon follows the same
+  // charge-only check as its label, a mixed PHEV keeps the pump since it genuinely burns fuel too.
+  const fuelIcon = kinds.length === 1 && kinds[0] === 'charge' ? Zap : Fuel;
 
   const SEGMENTS: [Segment, string, typeof Wrench][] = [
     ['service', t('Servis', 'Service'), Wrench],
-    ['fuel', fuelLabel, Fuel],
+    ['fuel', fuelLabel, fuelIcon],
     ['remind', t('Peringatan', 'Remind'), Bell],
     ['docs', t('Dokumen', 'Docs'), FileText],
   ];
@@ -93,18 +96,8 @@ export default function VehicleDetail({ vehicle, data, setData, onBack }: {
     setEditOpen(false);
   };
 
-  // Mirrors Vehicles.tsx's own handleDelete — the same cascade has to run wherever a vehicle can
-  // be deleted from, or the next sync just re-uploads whatever this copy left orphaned.
   const handleDeleteVehicle = (id: string) => {
-    setData((d) => ({
-      ...d,
-      vehicles: d.vehicles.filter((v) => v.id !== id),
-      services: d.services.filter((s) => s.vehicleId !== id),
-      docs: d.docs.filter((x) => x.vehicleId !== id),
-      energy: d.energy.filter((e) => e.vehicleId !== id),
-      odo: d.odo.filter((o) => o.vehicleId !== id),
-      reminders: d.reminders.filter((r) => r.vehicleId !== id),
-    }));
+    setData((d) => withoutVehicle(d, id));
     setEditOpen(false);
     onBack();
   };
@@ -287,6 +280,15 @@ function EnergyPane({ vehicle, data, setData }: {
 
   const kindLabel = (k: LogKind) => (k === 'charge' ? t('Cas', 'Charge') : t('Bahan api', 'Fuel'));
 
+  // Wording follows the vehicle, the same precedence as the segment's own label: an EV owner
+  // never reads "fuel", a petrol/diesel/hybrid owner never reads "charge".
+  const logVerb = kinds.length === 1 && kinds[0] === 'charge' ? t('Log cas', 'Log charge')
+    : kinds.length === 2 ? t('Log isi/cas', 'Log fill/charge')
+    : t('Log isi minyak', 'Log fill');
+  const emptyTitle = kinds.length === 1 && kinds[0] === 'charge' ? t('Belum ada rekod cas', 'No charge records yet')
+    : kinds.length === 2 ? t('Belum ada rekod tenaga', 'No fuel/charge records yet')
+    : t('Belum ada rekod minyak', 'No fuel records yet');
+
   return (
     <div>
       {hasSummary && (
@@ -294,7 +296,7 @@ function EnergyPane({ vehicle, data, setData }: {
           {summaries.map(({ kind, eco }) => eco && (
             <p key={kind} className="text-sm px-1">
               <span className="text-muted">{kindLabel(kind)}: </span>
-              <b style={num}>{eco.rate.toFixed(1)} {eco.unit}</b>
+              <b className="font-mono" style={num}>{eco.rate.toFixed(1)} {eco.unit}</b>
               <span className="text-muted"> · {fmtKm(eco.dist)} km · {fmtRM0(eco.spend)}</span>
             </p>
           ))}
@@ -309,26 +311,29 @@ function EnergyPane({ vehicle, data, setData }: {
 
       <button onClick={openCreate}
         className="w-full flex items-center justify-center gap-1.5 py-3 rounded-xl bg-primary text-[#ffffff] text-sm font-bold min-h-[44px] hover:opacity-90 mb-3">
-        <Plus size={16} /> {t('Log isi/cas', 'Log fill/charge')}
+        <Plus size={16} /> {logVerb}
       </button>
 
       {list.length === 0 ? (
-        <Empty title={t('Belum ada rekod tenaga', 'No fuel/charge records yet')}
-          hint={t('Ketik "Log isi/cas" untuk mula.', 'Tap "Log fill/charge" to get started.')} />
+        <Empty title={emptyTitle} hint={t(`Ketik "${logVerb}" untuk mula.`, `Tap "${logVerb}" to get started.`)} />
       ) : (
         <div className="space-y-2">
           {list.map((e) => {
             const leg = legMap.get(e.id);
             return (
               <Row key={e.id}
-                title={`${Number(e.qty).toFixed(1)} ${unitFor(e.kind)}${e.grade ? ' · ' + e.grade : ''}`}
-                sub={[
-                  niceDate(e.date),
-                  `${fmtKm(e.odo)} km`,
-                  !e.full ? t('separuh', 'partial') : null,
-                  leg ? `${leg.rate.toFixed(1)} ${leg.unit}` : null,
-                ].filter(Boolean).join(' · ')}
-                amount={fmtRM0(e.cost)}
+                title={`${(Number(e.qty) || 0).toFixed(1)} ${unitFor(e.kind)}${e.grade ? ' · ' + e.grade : ''}`}
+                sub={
+                  <>
+                    {niceDate(e.date)} · <span style={num}>{fmtKm(e.odo)} km</span>
+                    {!e.full && <> · {t('separuh', 'partial')}</>}
+                    {leg && <> · <span style={num}>{leg.rate.toFixed(1)} {leg.unit}</span></>}
+                  </>
+                }
+                // fmtRM, not fmtRM0: this is the exact cost the owner typed in, worth comparing
+                // against a receipt to the cent — the RM0 rounding is fine for the aggregate
+                // spend figures above, but wrong here.
+                amount={fmtRM(e.cost)}
                 onClick={() => openEdit(e)}
               />
             );

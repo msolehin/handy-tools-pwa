@@ -364,3 +364,23 @@ export function costPerKm(d: GarageData, v: Vehicle): number | null {
 
   return (spend(d, v.id, from).total - opening) / dist;
 }
+
+/**
+ * Everything a vehicle owns, gone in one step: the vehicle itself and every row in the other
+ * five tables that points at it. The server cascades a vehicle delete the same way, so the local
+ * copy has to agree immediately — a straggling row here is exactly what the next sync re-uploads
+ * as an orphan. One function so there is only one cascade to get right; `Vehicles.tsx` and
+ * `VehicleDetail.tsx` both delete a vehicle and both call this rather than each spelling out the
+ * same six filters.
+ */
+export function withoutVehicle(d: GarageData, vehicleId: string): GarageData {
+  return {
+    ...d,
+    vehicles: d.vehicles.filter((v) => v.id !== vehicleId),
+    services: d.services.filter((s) => s.vehicleId !== vehicleId),
+    docs: d.docs.filter((x) => x.vehicleId !== vehicleId),
+    energy: d.energy.filter((e) => e.vehicleId !== vehicleId),
+    odo: d.odo.filter((o) => o.vehicleId !== vehicleId),
+    reminders: d.reminders.filter((r) => r.vehicleId !== vehicleId),
+  };
+}

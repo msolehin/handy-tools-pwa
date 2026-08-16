@@ -242,8 +242,11 @@ export function VehicleSheet({ open, vehicle, data, onClose, onSave, onDelete }:
 /**
  * Log or edit a service visit. The checklist sits immediately under the sheet's own title,
  * ahead of date/odometer/everything else — that ordering was explicitly requested, not an
- * incidental layout choice. Tapping a chip both adds AND removes its line item, so the chip row
- * doubles as the only "remove" control an item needs.
+ * incidental layout choice. Tapping a chip adds its line item; a per-row X removes it — which
+ * matters for a chip-added item too, not just a custom one: a vehicle's `body`/`energy` can be
+ * corrected later, or a preset hidden in Task 13's settings, and either can leave an old item on
+ * an old service with no chip left to untick it by. The free-text field above the list covers
+ * the other gap a fixed checklist can't: a one-off part that was never going to recur.
  *
  * `data` is read for two things only: the vehicle's own preset list (`presetsFor`, keyed off
  * `data.presets`) and a default odometer reading (`currentOdo`) — this sheet never writes
@@ -262,6 +265,7 @@ export function ServiceSheet({ open, vehicle, service, data, onClose, onSave, on
 }) {
   const t = useT();
   const [items, setItems] = useState<{ label: string; cost: number }[]>(service?.items ?? []);
+  const [customLabel, setCustomLabel] = useState('');
   const [date, setDate] = useState(service?.date ?? todayISO());
   const [odo, setOdo] = useState(service?.odo != null ? String(service.odo) : String(currentOdo(data, vehicle)));
   const [workshop, setWorkshop] = useState(service?.workshop ?? '');
@@ -278,8 +282,17 @@ export function ServiceSheet({ open, vehicle, service, data, onClose, onSave, on
       ? prev.filter((i) => i.label !== label)
       : [...prev, { label, cost: 0 }]);
   };
+  const remove = (label: string) => setItems((prev) => prev.filter((i) => i.label !== label));
   const setCost = (label: string, cost: number) => {
     setItems((prev) => prev.map((i) => (i.label === label ? { ...i, cost } : i)));
+  };
+  const addCustom = () => {
+    const label = customLabel.trim();
+    // Silently folds into the existing row rather than erroring — typing a preset's own name
+    // (or the same one-off twice) is a duplicate to prevent, not a mistake worth a message.
+    if (!label || items.some((i) => i.label === label)) { setCustomLabel(''); return; }
+    setItems((prev) => [...prev, { label, cost: 0 }]);
+    setCustomLabel('');
   };
   const total = items.reduce((sum, i) => sum + (Number(i.cost) || 0), 0);
 
@@ -301,25 +314,31 @@ export function ServiceSheet({ open, vehicle, service, data, onClose, onSave, on
       receipt: receipt || undefined,
     };
 
-    // One confirm, not a second form: the first selected item that actually has a trigger
-    // (some SUGGEST entries are months:0 km:0 — a software update lands by neither, and is
-    // skipped). Multiple matching items still only get one prompt — an oil change nearly always
-    // arrives with its filter, and nagging once per item would be worse than nagging once.
-    const suggestItem = items.find((i) => {
-      const s = SUGGEST[i.label];
-      return s && (s.months > 0 || s.km > 0);
-    });
+    // One confirm, not a second form — and only on a genuinely NEW visit. Gated on `!service`:
+    // without it, re-saving an existing service just to fix a workshop typo re-fires the same
+    // prompt, and accepting would append a second, identical reminder on top of whichever one
+    // the first save already created.
     let reminder: Reminder | undefined;
-    if (suggestItem) {
-      const s = SUGGEST[suggestItem.label];
-      const dueDate = s.months > 0 ? addMonths(date, s.months) : undefined;
-      const dueOdo = s.km > 0 ? odoNum + s.km : undefined;
-      const bits = [dueDate ? niceDate(dueDate) : null, dueOdo ? `${fmtKm(dueOdo)} km` : null].filter(Boolean);
-      if (window.confirm(t(
-        `Tetapkan peringatan untuk "${suggestItem.label}" (${bits.join(' · ')})?`,
-        `Set a reminder for "${suggestItem.label}" (${bits.join(' · ')})?`
-      ))) {
-        reminder = { id: generateId(), vehicleId: vehicle.id, label: suggestItem.label, done: false, dueDate, dueOdo };
+    if (!service) {
+      // The first selected item that actually has a trigger (some SUGGEST entries are
+      // months:0 km:0 — a software update lands by neither, and is skipped). Multiple matching
+      // items still only get one prompt — an oil change nearly always arrives with its filter,
+      // and nagging once per item would be worse than nagging once.
+      const suggestItem = items.find((i) => {
+        const s = SUGGEST[i.label];
+        return s && (s.months > 0 || s.km > 0);
+      });
+      if (suggestItem) {
+        const s = SUGGEST[suggestItem.label];
+        const dueDate = s.months > 0 ? addMonths(date, s.months) : undefined;
+        const dueOdo = s.km > 0 ? odoNum + s.km : undefined;
+        const bits = [dueDate ? niceDate(dueDate) : null, dueOdo ? `${fmtKm(dueOdo)} km` : null].filter(Boolean);
+        if (window.confirm(t(
+          `Tetapkan peringatan untuk "${suggestItem.label}" (${bits.join(' · ')})?`,
+          `Set a reminder for "${suggestItem.label}" (${bits.join(' · ')})?`
+        ))) {
+          reminder = { id: generateId(), vehicleId: vehicle.id, label: suggestItem.label, done: false, dueDate, dueOdo };
+        }
       }
     }
 
@@ -358,16 +377,34 @@ export function ServiceSheet({ open, vehicle, service, data, onClose, onSave, on
             </button>
           ))}
         </div>
+        {/* The escape hatch a fixed checklist can't cover on its own: a part fitted once, never
+            expected to recur, with nowhere else to go (Task 13's custom presets are for the
+            RECURRING case). Safe to add now that every row — chip-added or typed here — has its
+            own remove X below, so nothing added here can become a dead end. */}
+        <div className="flex gap-2">
+          <input value={customLabel} onChange={(e) => setCustomLabel(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }}
+            placeholder={t('Tambah item lain...', 'Add another item...')}
+            className="input-field flex-1" />
+          <button type="button" onClick={addCustom}
+            className="px-4 rounded-xl border border-text/15 text-sm font-bold text-text hover:bg-text/5 min-w-[44px] min-h-[44px]">
+            {t('Tambah', 'Add')}
+          </button>
+        </div>
       </div>
 
       {items.length > 0 && (
         <div className="rounded-xl border border-text/10 overflow-hidden">
           {items.map((item) => (
-            <div key={item.label} className="flex items-center justify-between gap-2 px-3.5 py-2.5 border-b border-text/10 last:border-b-0">
-              <span className="text-sm truncate">{item.label}</span>
+            <div key={item.label} className="flex items-center gap-1 px-3.5 py-2 border-b border-text/10 last:border-b-0">
+              <span className="text-sm truncate flex-1 min-w-0">{item.label}</span>
               <input type="number" inputMode="decimal" min="0" step="0.01" value={item.cost || ''}
                 onChange={(e) => setCost(item.label, Number(e.target.value))}
-                placeholder="0.00" className="input-field w-28 font-mono text-right" style={num} />
+                placeholder="0.00" className="input-field w-24 font-mono text-right shrink-0" style={num} />
+              <button type="button" onClick={() => remove(item.label)} aria-label={t('Buang item', 'Remove item')}
+                className="shrink-0 w-11 h-11 flex items-center justify-center text-muted hover:text-rose-500">
+                <X size={16} />
+              </button>
             </div>
           ))}
           {/* Literal colours, not text-white/bg-black: this bar sits on `bg-surface`, which
@@ -584,13 +621,17 @@ export function EnergySheet({ open, vehicle, data, entry, onClose, onSave, onDel
       </div>
 
       <div className="space-y-1.5">
-        <div className="flex items-center justify-between gap-3">
+        {/* The whole row is the button, not just the 44x24 pill — this is the one control that
+            decides whether economy() ever measures anything, so a missed tap here is a silently
+            lost fuel-economy figure. min-h-[44px] and the full row width both clear the tap
+            target minimum in a way the bare pill alone could not. */}
+        <button type="button" onClick={() => setFull((f) => !f)} aria-pressed={full}
+          className="w-full flex items-center justify-between gap-3 min-h-[44px] -my-1 py-1">
           <span className={fieldLabel}>{fullLabel}</span>
-          <button type="button" onClick={() => setFull((f) => !f)} aria-pressed={full} aria-label={fullLabel}
-            className={`relative w-11 h-6 rounded-full shrink-0 transition-colors ${full ? 'bg-emerald-500' : 'bg-text/15'}`}>
+          <span className={`relative w-11 h-6 rounded-full shrink-0 transition-colors ${full ? 'bg-emerald-500' : 'bg-text/15'}`}>
             <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-[#ffffff] transition-transform ${full ? 'translate-x-5' : ''}`} />
-          </button>
-        </div>
+          </span>
+        </button>
         {/* The consequence spelled out, not just the toggle: economy() only closes a window
             between two full entries, so an owner who always tops up partial never sees a rate
             unless this stays on for at least one fill in a while. */}

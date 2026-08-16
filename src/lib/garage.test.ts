@@ -292,3 +292,48 @@ describe('serviceTotal', () => {
       items: [{ label: 'a', cost: 10 }, { label: 'b', cost: 5.5 }] }), 15.5);
   });
 });
+
+const { withoutVehicle } = await import('./garage.ts');
+
+describe('withoutVehicle', () => {
+  const twoVehicles: GarageData = {
+    ...EMPTY_GARAGE,
+    vehicles: [car, { ...car, id: 'v2' }],
+    services: [
+      { id: 's1', vehicleId: 'v1', date: '2026-01-01', odo: 1, items: [] },
+      { id: 's2', vehicleId: 'v2', date: '2026-01-01', odo: 1, items: [] },
+    ],
+    docs: [
+      { id: 'd1', vehicleId: 'v1', type: 'roadtax', expiry: '2026-01-01' },
+      { id: 'd2', vehicleId: 'v2', type: 'roadtax', expiry: '2026-01-01' },
+    ],
+    energy: [
+      fill('e1', '2026-01-01', 100, 10, 20),
+      { ...fill('e2', '2026-01-01', 100, 10, 20), vehicleId: 'v2' },
+    ],
+    odo: [
+      { id: 'o1', vehicleId: 'v1', date: '2026-01-01', odo: 1 },
+      { id: 'o2', vehicleId: 'v2', date: '2026-01-01', odo: 1 },
+    ],
+    reminders: [
+      { id: 'r1', vehicleId: 'v1', label: 'x', done: false },
+      { id: 'r2', vehicleId: 'v2', label: 'x', done: false },
+    ],
+  };
+
+  test('removes the vehicle and every row that references it, across all five tables', () => {
+    const out = withoutVehicle(twoVehicles, 'v1');
+    assert.deepEqual(out.vehicles.map((v) => v.id), ['v2']);
+    assert.deepEqual(out.services.map((s) => s.id), ['s2']);
+    assert.deepEqual(out.docs.map((x) => x.id), ['d2']);
+    assert.deepEqual(out.energy.map((e) => e.id), ['e2']);
+    assert.deepEqual(out.odo.map((o) => o.id), ['o2']);
+    assert.deepEqual(out.reminders.map((r) => r.id), ['r2']);
+  });
+
+  test('leaves the other vehicle\'s rows untouched, and never mutates the input', () => {
+    const out = withoutVehicle(twoVehicles, 'v1');
+    assert.notEqual(out, twoVehicles);
+    assert.equal(twoVehicles.services.length, 2); // original object unchanged
+  });
+});

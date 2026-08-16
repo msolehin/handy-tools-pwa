@@ -206,7 +206,10 @@ export function DueRow({ item, onOpen, onTick }: {
  * alike, and only the caller knows which formatter applies.
  */
 export function Row({ title, sub, amount, onClick }: {
-  title: string; sub?: string; amount?: string; onClick?: () => void;
+  // `sub` takes a node, not just a string: EnergyPane wraps its numeric fragments (the odo
+  // reading, the per-leg economy rate) in their own monospace spans, which a plain string
+  // couldn't carry. Every existing caller already passes a string, which is a valid node too.
+  title: string; sub?: React.ReactNode; amount?: string; onClick?: () => void;
 }) {
   const Tag = onClick ? 'button' : 'div';
   return (
