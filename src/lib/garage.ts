@@ -6,6 +6,10 @@
 import { addMonths, daysUntil } from './horizon.ts';
 import { unitFor } from './garage-presets.ts';
 import type { Body, Energy, LogKind } from './garage-presets.ts';
+// horizon.ts already imports this module, so lang.ts is already in the graph — this just names
+// the dependency garage.ts itself calls. Every status string here is user-facing, and the app
+// has no i18n layer (spec §10): `t(ms, en)` at the call site, same as store.ts and horizon.ts.
+import { t } from './lang.ts';
 
 export interface Vehicle {
   id: string;
@@ -145,11 +149,11 @@ export const SOON_DAYS = 30;
 /** A day count as something a person says out loud. */
 export function relDays(n: number): string {
   const a = Math.abs(n);
-  if (a === 0) return 'today';
-  if (a < 14) return `${a} ${a === 1 ? 'day' : 'days'}`;
-  if (a < 60) return `~${Math.round(a / 7)} weeks`;
-  if (a < 730) return `~${Math.round(a / 30)} months`;
-  return `~${(a / 365).toFixed(1)} years`;
+  if (a === 0) return t('hari ini', 'today');
+  if (a < 14) return t(`${a} hari`, `${a} ${a === 1 ? 'day' : 'days'}`);
+  if (a < 60) return t(`~${Math.round(a / 7)} minggu`, `~${Math.round(a / 7)} weeks`);
+  if (a < 730) return t(`~${Math.round(a / 30)} bulan`, `~${Math.round(a / 30)} months`);
+  return t(`~${(a / 365).toFixed(1)} tahun`, `~${(a / 365).toFixed(1)} years`);
 }
 
 const fmtKm = (n: number) => Math.round(n).toLocaleString('en-MY');
@@ -171,7 +175,9 @@ export function statusOf(
     const days = daysUntil(trigger.dueDate);
     candidates.push({
       days,
-      text: days < 0 ? `Overdue by ${relDays(days)}` : `Due in ${relDays(days)}`,
+      text: days < 0
+        ? t(`Lewat ${relDays(days)}`, `Overdue by ${relDays(days)}`)
+        : t(`${relDays(days)} lagi`, `Due in ${relDays(days)}`),
     });
   }
 
@@ -180,15 +186,16 @@ export function statusOf(
     candidates.push({
       days: left / kmPerDay(d, v.id),
       text: left < 0
-        ? `Overdue by ${fmtKm(-left)} km`
-        : `In ${fmtKm(left)} km · ~${relDays(Math.round(left / kmPerDay(d, v.id)))}`,
+        ? t(`Lewat ${fmtKm(-left)} km`, `Overdue by ${fmtKm(-left)} km`)
+        : t(`Lagi ${fmtKm(left)} km · ~${relDays(Math.round(left / kmPerDay(d, v.id)))}`,
+            `In ${fmtKm(left)} km · ~${relDays(Math.round(left / kmPerDay(d, v.id)))}`),
     });
   }
 
   // A finite sentinel, not Infinity: dueItems sorts on (a.days - b.days), and two triggerless
   // items would give Infinity - Infinity = NaN, which is undefined behaviour in a comparator.
   if (!candidates.length) {
-    return { level: 'ok', days: Number.MAX_SAFE_INTEGER, text: 'No trigger set' };
+    return { level: 'ok', days: Number.MAX_SAFE_INTEGER, text: t('Tiada pencetus ditetapkan', 'No trigger set') };
   }
 
   const worst = candidates.reduce((a, b) => (b.days < a.days ? b : a));

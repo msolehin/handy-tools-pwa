@@ -41,11 +41,20 @@ type Call = { url: string; method: string; body: any };
 let calls: Call[] = [];
 let handler: (url: string, init: RequestInit) => { status: number; body: unknown };
 
+// A handler returning this as the body simulates a connection dropped mid-transfer: fetch()
+// itself resolves fine (status/ok already known), but reading the body rejects — exactly what
+// res.json() does on a truncated response.
+const CORRUPT = Symbol('corrupt body');
+
 (globalThis as any).fetch = async (url: string, init: RequestInit = {}) => {
   const body = init.body ? JSON.parse(init.body as string) : undefined;
   calls.push({ url, method: init.method ?? 'GET', body });
   const { status, body: out } = handler(url, init);
-  return { ok: status >= 200 && status < 300, status, json: async () => out };
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => { if (out === CORRUPT) throw new Error('truncated body'); return out; },
+  };
 };
 
 // store.ts holds module-level state (cache, dirty set, the `pulled` gate). Each test gets a
@@ -161,7 +170,8 @@ describe('client and server agree on the tool list', () => {
     const sideTables = new Set([
       'asset_warranty_custom_categories', 'book_tracker_custom_categories', 'home_custom_titles',
       // garage_records and garage_logs ride along with garage_fleet at '/vehicle-services' —
-      // one route, three keys, per the FK ordering comment on SYNCED_KEYS.
+      // one route, three keys. (SYNCED_KEYS orders garage_fleet first for runImport's sake;
+      // that ordering is unrelated to this route split.)
       'garage_records', 'garage_logs',
     ]);
     const routed = new Set(Object.values(store.SYNCED_ROUTES));
@@ -394,6 +404,27 @@ describe('store: signed in', () => {
       'the rejected key stays dirty; the healthy key behind it still saved');
     assert.deepEqual(kinds(), ['saved', 'error'],
       'the successful key is reported saved, and the rejection is still surfaced rather than hidden by it');
+  });
+
+  test('a body that fails to parse is treated as a rejected key, not a silent no-op', async () => {
+    // fetch() resolves as soon as headers arrive, so a connection dropped mid-body — routine on
+    // the mobile connections this app targets — makes res.json() itself reject, after res.ok
+    // already read true. That must not escape runFlush unnoticed: the key stays dirty, on disk,
+    // with a retry armed, exactly like any other rejected key.
+    const store = await freshStore();
+    signedInBootstrap({ tenancy_data: { items: [] } }, { tenancy_data: 1 });
+    await store.bootstrap();
+
+    handler = () => ({ status: 200, body: CORRUPT });
+
+    announced = [];
+    store.store.setItem('tenancy_data', '{"items":["mine"]}');
+    await store.flush();
+
+    assert.equal(store.pendingCount(), 1, 'the key stays dirty rather than being silently dropped');
+    assert.match(localStorage.getItem('acct:__dirty') ?? '', /tenancy_data/,
+      'and that is persisted to disk, not just held in memory');
+    assert.deepEqual(kinds(), ['saving', 'error'], 'the failure is surfaced, not swallowed');
   });
 
   test('a network failure stops the run rather than skipping past it, unlike a rejected key', async () => {

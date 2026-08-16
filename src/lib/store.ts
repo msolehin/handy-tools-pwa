@@ -42,11 +42,14 @@ function announce(kind: SyncStatus['kind'], message: string, waitMs?: number) {
 /**
  * Tool keys that belong to an account. Grows one phase at a time.
  *
- * `garage_fleet` is listed before `garage_records` and `garage_logs` on purpose: both
- * `runImport` and the flush loop below iterate this Set in insertion order, and the two other
- * Garaj keys carry rows with a foreign key onto `garage_vehicles`, which only `garage_fleet`
- * populates. Pushing (or importing) a vehicle's logs before its fleet row exists is a 500 from
- * the FK constraint, so fleet goes first to make that the common case rather than a coin flip.
+ * `garage_fleet` is listed before `garage_records` and `garage_logs` on purpose: `runImport`
+ * below sends one request whose body key order comes from iterating this Set, and the two
+ * other Garaj keys carry rows with a foreign key onto `garage_vehicles`, which only
+ * `garage_fleet` populates — so an import that serialised logs before fleet would 500 on the
+ * FK constraint. This ordering is NOT what protects `runFlush`: that loop iterates `dirty`, a
+ * separate Set built from `markDirty` call order, so this list's order does nothing for a
+ * push. runFlush is instead protected by skipping a rejected key rather than stalling on it —
+ * see the comment on `anyRejected` below.
  */
 export const SYNCED_KEYS = new Set<string>([
   'tenancy_data',
@@ -231,10 +234,10 @@ async function runFlush(): Promise<void> {
   if (!signedIn || !pulled || !dirty.size || !navigator.onLine) return;
   let pushed = 0;
   // A key the server itself rejects (a still-missing foreign key, a bad payload) must not
-  // block every key behind it: `dirty` is a Set restored from localStorage in insertion order,
-  // so a poisoned key would otherwise sit at the same position on every retry and wedge sync
-  // for every tool, forever — see the FK-ordering comment on SYNCED_KEYS for the concrete case.
-  // It is left dirty and reported once, below, rather than retried inline here.
+  // block every key behind it: `dirty` is a Set built from `markDirty` call order, so a
+  // poisoned key would otherwise sit at the same position on every retry and wedge sync for
+  // every tool, forever. It is left dirty and reported once, below, rather than retried inline
+  // here — see the backoff/flushTimer pairing after the loop for how it gets tried again.
   let anyRejected = false;
 
   for (const key of [...dirty]) {
@@ -265,14 +268,23 @@ async function runFlush(): Promise<void> {
       localStorage.removeItem(UID_KEY);
       localStorage.removeItem(USER_KEY);
       setUser(null);
+      // Persisted even though the session is gone, or a key another key's success already
+      // deleted from `dirty` earlier in this same loop would be missing from disk too.
+      localStorage.setItem(DIRTY_KEY, JSON.stringify([...dirty]));
       announce('error', t('Sesi anda telah tamat. Log masuk semula untuk terus menyimpan.', 'Your session expired. Sign in again to keep saving.'));
       return;
     }
 
+    // A truncated or malformed body reads no differently than the server rejecting the key
+    // outright — fetch() already resolved once headers arrived, so a connection dropped
+    // mid-body (routine on the mobile connections this app targets) surfaces here, not in the
+    // catch above. `.catch(() => null)` keeps it inside this key's own handling instead of
+    // escaping runFlush entirely, which would skip the DIRTY_KEY persist and arm no retry at all.
     if (res.status === 409) {
       // Another device moved first. Keep ours dirty (never discard a local edit) and let
       // the UI ask which copy wins.
-      const conflict = await res.json();
+      const conflict = await res.json().catch(() => null);
+      if (!conflict) { anyRejected = true; continue; }
       window.dispatchEvent(new CustomEvent('store:conflict', {
         detail: { key, rev: conflict.rev, data: conflict.data },
       }));
@@ -289,22 +301,35 @@ async function runFlush(): Promise<void> {
       continue;
     }
 
-    revs.set(key, (await res.json()).rev);
+    const body = await res.json().catch(() => null);
+    if (!body) { anyRejected = true; continue; }
+    revs.set(key, body.rev);
     persistRevs();
     dirty.delete(key);
     pushed++;
   }
 
-  backoff = 1000;
-  clearTimeout(maxWaitTimer);
-  maxWaitTimer = undefined;
   localStorage.setItem(DIRTY_KEY, JSON.stringify([...dirty]));
   if (pushed) announce('saved', t('Disimpan ke akaun anda.', 'Saved to your account.'));
-  // Reported after 'saved' so it is the one left on screen — a mix of pushed and rejected keys
-  // is still an outcome the user needs to notice, not one the save toast should paper over.
   if (anyRejected) {
+    // Reported after 'saved' so it is the one left on screen: SyncToast has exactly one
+    // listener today and the two dispatches land together, so a mixed pass still ends on the
+    // outcome the user needs to notice rather than being papered over by the save toast. The
+    // `a key the server rejects is skipped...` test pins kinds() to ['saved', 'error'] on
+    // exactly this pass — a second listener must keep both, not just the last one.
     announce('error', t('Sebahagian tidak dapat disimpan. Cuba lagi kemudian.', "Some changes couldn't be saved. Will retry later."));
+    // Nothing else here schedules a retry for a rejected key — it would otherwise sit dirty
+    // until an unrelated trigger (an edit to some other key, a visibilitychange, the next app
+    // boot) happened to flush again, which makes "Will retry later" a lie. Grown rather than
+    // reset: an FK-ordering rejection is poisoned until garage_fleet lands, and pairing a timer
+    // with backoff = 1000 would turn that into a one-second poll loop against the server.
+    backoff = Math.min(backoff * 2, 60_000);
+    flushTimer = setTimeout(() => { void flush(); }, backoff);
+  } else {
+    backoff = 1000;
   }
+  clearTimeout(maxWaitTimer);
+  maxWaitTimer = undefined;
 }
 
 /**
