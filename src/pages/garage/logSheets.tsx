@@ -322,10 +322,19 @@ export function ReminderSheet({ open, vehicle, reminder, data, onClose, onSave, 
       setError(t('Tetapkan sekurang-kurangnya tarikh atau sasaran odometer', 'Set at least a date or an odometer target'));
       return;
     }
+
+    // Gated on mode, not just on whichever inputs happen to be visible right now — a value typed
+    // before switching modes away must not resurrect a repeat dimension with no trigger to roll
+    // it against (tickReminder has to guard against this too, but it shouldn't be reachable from
+    // here in the first place).
+    const monthsNum = showsDate(mode) ? Number(repeatMonths) || 0 : 0;
+    const kmNum = showsOdo(mode) ? Number(repeatKm) || 0 : 0;
+    if (monthsNum < 0 || kmNum < 0) {
+      setError(t('Nilai ulang mestilah 0 atau lebih', 'Repeat values must be 0 or more'));
+      return;
+    }
     setError('');
 
-    const monthsNum = Number(repeatMonths) || 0;
-    const kmNum = Number(repeatKm) || 0;
     // Never store {months:0, km:0} — the server round-trips that shape to "absent", so a
     // reminder saved with a stored-but-empty repeat would show a phantom edit after its first
     // sync (a field the client wrote that the server never actually persisted).
@@ -408,17 +417,25 @@ export function ReminderSheet({ open, vehicle, reminder, data, onClose, onSave, 
 
       <div className="space-y-1.5">
         <span className={fieldLabel}>{t('Ulang (pilihan)', 'Repeat (optional)')}</span>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <label className="text-xs text-muted">{t('Bulan', 'Months')}</label>
-            <input type="number" inputMode="numeric" min="0" step="1" value={repeatMonths}
-              onChange={(e) => setRepeatMonths(e.target.value)} className="input-field w-full font-mono" style={num} />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted">{t('Km', 'Km')}</label>
-            <input type="number" inputMode="numeric" min="0" step="1" value={repeatKm}
-              onChange={(e) => setRepeatKm(e.target.value)} className="input-field w-full font-mono" style={num} />
-          </div>
+        {/* Each stepper is gated on the same mode that gates its matching trigger field above —
+            a Months stepper on a mileage-only reminder has nothing to roll forward, and offering
+            it invites exactly the mismatched-repeat case tickReminder has to close instead of
+            silently no-op. */}
+        <div className={showsDate(mode) && showsOdo(mode) ? 'grid grid-cols-2 gap-3' : ''}>
+          {showsDate(mode) && (
+            <div className="space-y-1">
+              <label className="text-xs text-muted">{t('Bulan', 'Months')}</label>
+              <input type="number" inputMode="numeric" min="0" step="1" value={repeatMonths}
+                onChange={(e) => setRepeatMonths(e.target.value)} className="input-field w-full font-mono" style={num} />
+            </div>
+          )}
+          {showsOdo(mode) && (
+            <div className="space-y-1">
+              <label className="text-xs text-muted">{t('Km', 'Km')}</label>
+              <input type="number" inputMode="numeric" min="0" step="1" value={repeatKm}
+                onChange={(e) => setRepeatKm(e.target.value)} className="input-field w-full font-mono" style={num} />
+            </div>
+          )}
         </div>
         <p className="text-xs text-muted">
           {t('Tandakan selesai akan menolak peringatan ini ke hadapan mengikut nilai di atas, bukan menutupnya.',

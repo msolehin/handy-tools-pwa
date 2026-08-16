@@ -137,6 +137,12 @@ describe('statusOf', () => {
     const s = statusOf({}, withLogs({}), car);
     assert.equal(s.level, 'ok');
   });
+
+  test('a km projection landing today reads plainly, not "~today"', () => {
+    // 10 km at the assumed 35 km/day rate rounds to 0 days out.
+    const s = statusOf({ dueOdo: 80010 }, withLogs({}), car);
+    assert.ok(!/~today|~hari ini/.test(s.text), `unexpected doubled/odd tilde in: ${s.text}`);
+  });
 });
 
 describe('dueItems', () => {
@@ -293,18 +299,21 @@ describe('serviceTotal', () => {
   });
 });
 
-const { tickReminder } = await import('./garage.ts');
+const { tickReminder, addMonths } = await import('./garage.ts');
 
 describe('tickReminder', () => {
   test('a repeating date reminder rolls its due date forward instead of closing', () => {
+    // A near-future date, not a hardcoded past literal — with the overdue-safe roll below, a
+    // due date already behind "today" by more than one interval would keep advancing past a
+    // single +6-months hop, which is exactly what the dedicated overdue test further down checks.
+    const due = shift(5);
     const d = withLogs({
       reminders: [{ id: 'r1', vehicleId: 'v1', label: 'Engine oil', done: false,
-        dueDate: '2026-01-01', repeat: { months: 6, km: 0 } }],
+        dueDate: due, repeat: { months: 6, km: 0 } }],
     });
-    const out = tickReminder(d, 'r1');
-    const r = out.reminders[0];
+    const r = tickReminder(d, 'r1').reminders[0];
     assert.equal(r.done, false);
-    assert.equal(r.dueDate, '2026-07-01');
+    assert.equal(r.dueDate, addMonths(due, 6));
   });
 
   test('a repeating mileage reminder rolls its odometer target forward', () => {
@@ -335,6 +344,54 @@ describe('tickReminder', () => {
     });
     const out = tickReminder(d, 'r1');
     assert.equal(out.reminders[1].done, false);
+  });
+
+  // Finding 1: a repeat naming a dimension the reminder has no matching trigger for (mode
+  // "by mileage" with a months-only repeat) used to hand back an identical clone — neither roll
+  // guard fired, and there was no fallthrough. The tick button did visibly nothing.
+  test('a repeat with no matching trigger closes the reminder instead of cloning it unchanged', () => {
+    const d = withLogs({
+      reminders: [{ id: 'r1', vehicleId: 'v1', label: 'Tyres', done: false,
+        dueOdo: 90000, repeat: { months: 6, km: 0 } }],
+    });
+    const r = tickReminder(d, 'r1').reminders[0];
+    assert.equal(r.done, true);
+    assert.ok(r.doneDate);
+  });
+
+  test('the same mismatch on the date side (km-only repeat, date-only trigger) also closes', () => {
+    const d = withLogs({
+      reminders: [{ id: 'r1', vehicleId: 'v1', label: 'Road tax', done: false,
+        dueDate: shift(5), repeat: { months: 0, km: 5000 } }],
+    });
+    const r = tickReminder(d, 'r1').reminders[0];
+    assert.equal(r.done, true);
+  });
+
+  // Finding 2: anchoring a roll to the OLD due date/odometer with a single +1-interval hop is
+  // only correct when the reminder wasn't already overdue by more than one interval. A reminder
+  // skipped for a while must roll past the present, not to another still-past value.
+  test('a date reminder overdue by more than one interval rolls past today, not just one hop', () => {
+    const d = withLogs({
+      reminders: [{ id: 'r1', vehicleId: 'v1', label: 'Engine oil', done: false,
+        dueDate: shift(-200), repeat: { months: 6, km: 0 } }],
+    });
+    const r = tickReminder(d, 'r1').reminders[0];
+    assert.equal(r.done, false);
+    // A single +6-months hop from 200 days ago still lands about three weeks in the past.
+    assert.ok(r.dueDate! > shift(0), `expected a date after today, got ${r.dueDate}`);
+  });
+
+  test('a mileage reminder overdue by more than one interval rolls past the current odometer', () => {
+    const d = withLogs({
+      // currentOdo is 80000 (car.mileage, no logs). A single +10000 hop from 70000 lands
+      // exactly ON 80000 — still due right now, not ahead of it.
+      reminders: [{ id: 'r1', vehicleId: 'v1', label: 'Tyres', done: false,
+        dueOdo: 70000, repeat: { months: 0, km: 10000 } }],
+    });
+    const r = tickReminder(d, 'r1').reminders[0];
+    assert.equal(r.done, false);
+    assert.ok(r.dueOdo! > 80000, `expected an odometer target past 80000, got ${r.dueOdo}`);
   });
 });
 

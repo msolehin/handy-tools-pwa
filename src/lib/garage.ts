@@ -192,8 +192,12 @@ export function statusOf(
     // A km target is always a projection, never a literal calendar date, so the duration is
     // marked "~" either way. relDays() itself already prefixes its own "~" once the bucket
     // reaches weeks/months/years — prepending a second one there read as a literal "~~2 weeks".
-    const projected = relDays(Math.round(days));
-    const approx = projected.startsWith('~') ? projected : `~${projected}`;
+    const roundedDays = Math.round(days);
+    const projected = relDays(roundedDays);
+    // Zero gets no "~" either — same reasoning as the date branch's own days===0 case just
+    // above: "~today" reads as doubt about whether it's literally today, which a rounded-to-zero
+    // projection doesn't actually carry any more than a literal date does.
+    const approx = roundedDays === 0 ? projected : projected.startsWith('~') ? projected : `~${projected}`;
     candidates.push({
       days,
       text: left < 0
@@ -384,10 +388,53 @@ export function costPerKm(d: GarageData, v: Vehicle): number | null {
 }
 
 /**
+ * Advances a repeating reminder's own trigger(s) past the present, or reports there was nothing
+ * to advance. Two things a single "+1 interval" cannot get right on its own:
+ *
+ * - A reminder overdue by more than one interval (skipped a service, or just ticked late) must
+ *   not roll to a date/odometer that is STILL in the past — the owner ticks it and watches
+ *   nothing change. Keep adding the interval until the result is genuinely ahead, so a 6-month
+ *   service stays anchored to its original month-of-year rather than snapping to "today + 6
+ *   months" on the first overdue tick.
+ * - `repeat` can name a dimension the reminder doesn't actually use — `{months:6, km:0}` on a
+ *   mileage-only reminder, say. `null` here (neither guard fires) is what lets the caller tell
+ *   "genuinely nothing to roll" apart from "rolled to an unchanged value", so it can fall through
+ *   to closing the reminder instead of handing back a silent no-op tick.
+ */
+function rollForward(r: Reminder, d: GarageData): Reminder | null {
+  if (!r.repeat) return null;
+  const { months, km } = r.repeat;
+  const next: Reminder = { ...r };
+  let rolled = false;
+
+  if (months > 0 && r.dueDate) {
+    let due = addMonths(r.dueDate, months);
+    while (daysUntil(due) <= 0) due = addMonths(due, months);
+    next.dueDate = due;
+    rolled = true;
+  }
+
+  if (km > 0 && r.dueOdo != null) {
+    const vehicle = d.vehicles.find((v) => v.id === r.vehicleId);
+    if (vehicle) {
+      const current = currentOdo(d, vehicle);
+      let odo = r.dueOdo + km;
+      while (odo <= current) odo += km;
+      next.dueOdo = odo;
+      rolled = true;
+    }
+  }
+
+  return rolled ? next : null;
+}
+
+/**
  * Ticking a reminder done. A repeating one is never actually closed — it rolls its own trigger
  * forward and stays live, which is the whole point of `repeat`: an oil change ticked off should
  * reappear in ~6 months, not vanish. A one-off reminder has no forward direction to roll to, so
- * it closes normally instead.
+ * it closes normally instead — and so does a repeating one whose `repeat` names a dimension it
+ * has no trigger for (`rollForward` returning null either way): a tick must always do something,
+ * never hand back an identical clone that looks unchanged and stays stuck in the due list.
  *
  * Takes the id and looks the row up in `d` itself, not a `Reminder` object handed in by the
  * caller — `dueItems()` builds `DueItem.reminder` from whatever `data` the caller last rendered
@@ -399,13 +446,7 @@ export function tickReminder(d: GarageData, reminderId: string): GarageData {
     ...d,
     reminders: d.reminders.map((r) => {
       if (r.id !== reminderId) return r;
-      if (r.repeat) {
-        const next = { ...r };
-        if (r.repeat.months > 0 && r.dueDate) next.dueDate = addMonths(r.dueDate, r.repeat.months);
-        if (r.repeat.km > 0 && r.dueOdo != null) next.dueOdo = r.dueOdo + r.repeat.km;
-        return next;
-      }
-      return { ...r, done: true, doneDate: todayISO() };
+      return rollForward(r, d) ?? { ...r, done: true, doneDate: todayISO() };
     }),
   };
 }
