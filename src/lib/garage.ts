@@ -384,7 +384,13 @@ export function costPerKm(d: GarageData, v: Vehicle): number | null {
     .filter((e) => e.vehicleId === v.id && e.date === from)
     .reduce((total, e) => total + (Number(e.cost) || 0), 0);
 
-  return (spend(d, v.id, from).total - opening) / dist;
+  const numerator = spend(d, v.id, from).total - opening;
+  // A single fill plus a later odo log with no cost in between collapses this to exactly 0 —
+  // reachable, not just theoretical. 0 is "not enough data", the same as null everywhere else
+  // costPerKm returns it, not a real free-to-drive reading: callers that test `!= null` (Costs,
+  // VehicleDetail) must not render "RM 0.00/km" for what is really an absent figure, and this is
+  // the one place that decides it, so every caller agrees instead of each rendering it differently.
+  return numerator === 0 ? null : numerator / dist;
 }
 
 /**

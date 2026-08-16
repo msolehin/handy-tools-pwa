@@ -265,6 +265,19 @@ describe('costPerKm', () => {
     // over the 600 km between the lowest and highest reading.
     assert.equal(Number(costPerKm(d, car)!.toFixed(4)), Number((340 / 600).toFixed(4)));
   });
+
+  // Item 4: a single fill plus a later odo log with no cost of its own is exactly the case where
+  // the opening fill's own cost cancels itself out of the window (spend === opening), so the
+  // numerator collapses to 0. That must read as "not enough data" (null) everywhere, the same as
+  // the no-movement case above — never a literal RM 0.00/km, which three different call sites
+  // used to render three different ways (parts.tsx, Costs.tsx, VehicleDetail.tsx).
+  test('a numerator that collapses to exactly 0 is null, not a real zero rate', () => {
+    const d = withLogs({
+      energy: [fill('e1', '2026-01-01', 80000, 30, 60)],
+      odo: [{ id: 'o1', vehicleId: 'v1', date: '2026-01-15', odo: 80600 }],
+    });
+    assert.equal(costPerKm(d, car), null);
+  });
 });
 
 describe('spend', () => {

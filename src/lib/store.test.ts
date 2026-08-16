@@ -375,6 +375,14 @@ describe('store: signed in', () => {
 
     assert.deepEqual(kinds(), ['saving', 'error'], 'the failure replaces the pending state');
     assert.equal(store.pendingCount(), 1, 'and it stays queued for the retry');
+
+    // The rejected-key path armed a real setTimeout retry (backoff, in runFlush) that outlives
+    // this test — left alone, it fires later against whatever `handler`/`calls` a DIFFERENT test
+    // has since installed, and appends to those shared arrays. Draining the dirty set now makes
+    // that stray timer's eventual flush() a same-tick no-op (`!dirty.size` returns before any
+    // fetch), rather than cancelling a handle store.ts exposes no way to reach.
+    handler = () => ({ status: 200, body: { rev: 2 } });
+    await store.flush();
   });
 
   test('a key the server rejects is skipped, not left to block the keys behind it', async () => {
@@ -404,6 +412,12 @@ describe('store: signed in', () => {
       'the rejected key stays dirty; the healthy key behind it still saved');
     assert.deepEqual(kinds(), ['saved', 'error'],
       'the successful key is reported saved, and the rejection is still surfaced rather than hidden by it');
+
+    // Same stray-timer hazard as the previous test: the rejection above armed a backoff retry
+    // that this test's own scope has no more use for. Let it succeed now so the leftover timer's
+    // eventual fetch has nothing dirty left to send.
+    handler = () => ({ status: 200, body: { rev: 9 } });
+    await store.flush();
   });
 
   test('a body that fails to parse is treated as a rejected key, not a silent no-op', async () => {
@@ -425,6 +439,11 @@ describe('store: signed in', () => {
     assert.match(localStorage.getItem('acct:__dirty') ?? '', /tenancy_data/,
       'and that is persisted to disk, not just held in memory');
     assert.deepEqual(kinds(), ['saving', 'error'], 'the failure is surfaced, not swallowed');
+
+    // Same stray-timer hazard as the two tests above (a rejected key arms a real backoff
+    // setTimeout): drain the dirty set so that timer's eventual retry is a harmless no-op.
+    handler = () => ({ status: 200, body: { rev: 2 } });
+    await store.flush();
   });
 
   test('a network failure stops the run rather than skipping past it, unlike a rejected key', async () => {

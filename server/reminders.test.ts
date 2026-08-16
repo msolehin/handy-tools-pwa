@@ -82,15 +82,34 @@ describe('reminders', { skip: skip && 'DATABASE_URL not set' }, () => {
     const due = (await dueReminders()).filter((r) => r.userId === userId);
     assert.deepEqual(
       due.map((r) => r.recordId).sort(),
-      ['doc01', 'doc07', 'doc30', 'gdoc30', 'remKm', 'remOil'],
+      // remOil and remKm carry their due value in record_id (Item 1 fix) — see reminders.ts.
+      ['doc01', 'doc07', 'doc30', 'gdoc30', 'remKm:90000', `remOil:${plus(7)}`].sort(),
       '45 and 0 days out must not fire, and neither may a done reminder');
   });
 
   test('a garage reminder marked done does not fire', async () => {
     const due = (await dueReminders()).filter((r) => r.userId === userId);
-    assert.ok(due.some((r) => r.recordId === 'remOil'), 'the open reminder must still fire');
-    assert.ok(!due.some((r) => r.recordId === 'remAircond'),
+    assert.ok(due.some((r) => r.recordId === `remOil:${plus(7)}`), 'the open reminder must still fire');
+    assert.ok(!due.some((r) => r.recordId.startsWith('remAircond')),
       'done closes the reminder, the same as it does in the app');
+  });
+
+  test('a reminder that rolled forward to a new due date fires again (Item 1)', async () => {
+    // rollForward (src/lib/garage.ts) advances a repeating reminder's dueDate in place on the
+    // SAME row rather than creating a new one. Before the fix, record_id was bare `id`, so a
+    // send recorded for the row's PREVIOUS due date would suppress it forever after — the row
+    // never gets a new id to escape that history. Simulate exactly that: a send already on file
+    // for an earlier due date than the one the fixture is actually due at.
+    await pool!.query('delete from reminder_sends where user_id = $1', [userId]);
+    const previousDue = plus(7 - 183); // roughly one 6-month interval before today's due_date
+    await pool!.query(
+      `insert into reminder_sends (user_id, source, record_id, offset_days) values
+         ($1, 'garage_reminder', $2, 7)`,
+      [userId, `remOil:${previousDue}`]);
+
+    const due = (await dueReminders()).filter((r) => r.userId === userId);
+    assert.ok(due.some((r) => r.recordId === `remOil:${plus(7)}`),
+      'a send recorded against the OLD due date must not suppress the row at its NEW due date');
   });
 
   test('uses custom_title when the document has one', async () => {
@@ -117,7 +136,7 @@ describe('reminders', { skip: skip && 'DATABASE_URL not set' }, () => {
     await runReminders(record);
 
     assert.equal(seen.length, 1, 'the second run must find nothing left to send');
-    assert.deepEqual(seen[0], ['doc01', 'doc07', 'doc30', 'gdoc30', 'remKm', 'remOil'],
+    assert.deepEqual(seen[0], ['doc01', 'doc07', 'doc30', 'gdoc30', 'remKm:90000', `remOil:${plus(7)}`].sort(),
       'one digest carrying all six, not six separate deliveries');
   });
 
@@ -136,7 +155,7 @@ describe('reminders', { skip: skip && 'DATABASE_URL not set' }, () => {
 
   test('a mileage reminder reads as distance, not as a day count', async () => {
     await pool!.query('delete from reminder_sends where user_id = $1', [userId]);
-    const km = (await dueReminders()).find((r) => r.recordId === 'remKm');
+    const km = (await dueReminders()).find((r) => r.recordId === 'remKm:90000');
 
     assert.equal(km?.source, 'garage_mileage');
     assert.equal(km?.pill, 'lagi 200 km', 'the pill must never claim "N hari lagi" for a distance');
@@ -155,7 +174,7 @@ describe('reminders', { skip: skip && 'DATABASE_URL not set' }, () => {
       `insert into garage_odo_logs (user_id, id, vehicle_id, date, odo) values
          ($1, 'odoNewer', 'car1', $2, 90100)`, [userId, plus(-1)]);
 
-    const due = (await dueReminders()).find((r) => r.recordId === 'remKm');
+    const due = (await dueReminders()).find((r) => r.recordId === 'remKm:90000');
     assert.equal(due?.subtitle, 'Myvi · 90,100 km',
       'current_odo must be the greatest log reading, not the stale floor');
 
@@ -175,16 +194,16 @@ describe('reminders', { skip: skip && 'DATABASE_URL not set' }, () => {
       return ids;
     };
 
-    assert.ok((await sent()).includes('remKm'), 'first run: inside the 500 km window');
-    assert.ok(!(await sent()).includes('remKm'), 'second run: same band, already delivered');
+    assert.ok((await sent()).includes('remKm:90000'), 'first run: inside the 500 km window');
+    assert.ok(!(await sent()).includes('remKm:90000'), 'second run: same band, already delivered');
 
     // Drive past the target. That is a new band, so it is a new reminder rather than a repeat.
     await pool!.query(
       `update garage_vehicles set mileage = 90300 where user_id = $1 and id = 'car1'`, [userId]);
-    const overdue = (await dueReminders()).find((r) => r.recordId === 'remKm');
+    const overdue = (await dueReminders()).find((r) => r.recordId === 'remKm:90000');
     assert.equal(overdue?.pill, 'lepas 300 km');
-    assert.ok((await sent()).includes('remKm'), 'crossing the target fires once more');
-    assert.ok(!(await sent()).includes('remKm'), 'but only once');
+    assert.ok((await sent()).includes('remKm:90000'), 'crossing the target fires once more');
+    assert.ok(!(await sent()).includes('remKm:90000'), 'but only once');
 
     await pool!.query(
       `update garage_vehicles set mileage = 89800 where user_id = $1 and id = 'car1'`, [userId]);
@@ -211,10 +230,10 @@ describe('reminders', { skip: skip && 'DATABASE_URL not set' }, () => {
     await pool!.query('delete from reminder_sends where user_id = $1', [otherUserId]);
     await pool!.query(
       `insert into reminder_sends (user_id, source, record_id, offset_days) values
-         ($1, 'garage_mileage', 'remKm', 7)`, [otherUserId]);
+         ($1, 'garage_mileage', 'remKm:90000', 7)`, [otherUserId]);
 
     const due = (await dueReminders()).filter((r) => r.userId === userId);
-    assert.ok(due.some((r) => r.recordId === 'remKm'),
+    assert.ok(due.some((r) => r.recordId === 'remKm:90000'),
       "a different user's send row must never suppress this user's reminder");
 
     await pool!.query('delete from users where id = $1', [otherUserId]);

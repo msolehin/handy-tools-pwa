@@ -51,6 +51,7 @@ const num = { fontVariantNumeric: 'tabular-nums' } as const;
  * fixed and the number does not jump sideways as it rolls over.
  */
 export function Cluster({ vehicle, data }: { vehicle: Vehicle; data: GarageData }) {
+  const t = useT();
   const odo = currentOdo(data, vehicle);
   const digits = String(Math.min(odo, 999999)).padStart(6, '0');
   const firstReal = digits.search(/[1-9]/);
@@ -62,7 +63,10 @@ export function Cluster({ vehicle, data }: { vehicle: Vehicle; data: GarageData 
     .filter((e) => e.vehicleId === vehicle.id)
     .sort((a, b) => b.odo - a.odo)[0];
   const since = lastFill ? odo - lastFill.odo : null;
-  const verb = kinds[0] === 'charge' ? 'charge' : 'fill';
+  // Item 3: the cluster was the one English-only surface in the tool — every other string in
+  // Garaj already goes through t(). "since" needs its own verb per kind, the same charge/fill
+  // split EnergyPane's own labels use.
+  const sinceLabel = kinds[0] === 'charge' ? t('km sejak dicas', 'km since charge') : t('km sejak diisi', 'km since fill');
 
   return (
     // Every `white`-tinted class below is a literal rgba/hex, never the `white` TOKEN (text-white,
@@ -73,7 +77,7 @@ export function Cluster({ vehicle, data }: { vehicle: Vehicle; data: GarageData 
          style={{ background: 'linear-gradient(168deg,#1F2A27,#131B19 58%)' }}>
       <div className="flex items-center justify-between mb-3">
         <span className="font-display text-[11px] uppercase tracking-[0.22em] text-[rgba(255,255,255,.4)]">
-          {vehicle.nickname || vehicle.model} · odometer
+          {vehicle.nickname || vehicle.model} · {t('odometer', 'odometer')}
         </span>
         {vehicle.plate && (
           <span className="font-display text-[12px] tracking-[0.12em] text-[rgba(255,255,255,.6)] border border-[rgba(255,255,255,.15)] rounded px-2 py-0.5">
@@ -100,9 +104,9 @@ export function Cluster({ vehicle, data }: { vehicle: Vehicle; data: GarageData 
 
       <div className="flex gap-px mt-3.5 rounded-lg overflow-hidden bg-[rgba(255,255,255,.08)]">
         {[
-          { v: since === null ? '—' : fmtKm(since), l: `km since ${verb}` },
+          { v: since === null ? '—' : fmtKm(since), l: sinceLabel },
           { v: primary ? primary.rate.toFixed(1) : '—', l: primary ? primary.unit : `km/${unitFor(kinds[0])}` },
-          { v: cpk ? cpk.toFixed(2) : '—', l: 'RM per km' },
+          { v: cpk ? cpk.toFixed(2) : '—', l: t('RM per km', 'RM per km') },
         ].map((c) => (
           <div key={c.l} className="flex-1 bg-[rgba(255,255,255,.04)] px-2.5 py-2.5">
             <b className="block font-mono text-[16px] font-bold text-[#ffffff]" style={num}>{c.v}</b>

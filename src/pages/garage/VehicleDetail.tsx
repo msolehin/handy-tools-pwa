@@ -57,6 +57,11 @@ export default function VehicleDetail({ vehicle, data, setData, onBack }: {
   const [seg, setSeg] = useState<Segment>('service');
   const [editOpen, setEditOpen] = useState(false);
   const [odoSheetOpen, setOdoSheetOpen] = useState(false);
+  // Absent means the sheet is creating a new reading — the "Just update the odometer" link's own
+  // behaviour, unchanged. Set means an existing garage_odo_logs row opened from the Fuel/Energy
+  // pane's list (Item 2): the only way a mistyped reading could ever be corrected before this,
+  // short of deleting the whole vehicle, was to open OdoSheet on a record it never received.
+  const [editingOdo, setEditingOdo] = useState<OdoLog | null>(null);
   // Owned here, not inside DocsPane, because DocPair (above the segmented row, always visible)
   // needs to open the very same sheet when its own roadtax/insurance box is tapped — a document
   // added or edited from either entry point has to land in the same one instance.
@@ -109,8 +114,18 @@ export default function VehicleDetail({ vehicle, data, setData, onBack }: {
     onBack();
   };
 
+  const openOdoCreate = () => { setEditingOdo(null); setOdoSheetOpen(true); };
+  const openOdoEdit = (reading: OdoLog) => { setEditingOdo(reading); setOdoSheetOpen(true); };
+
   const handleSaveOdo = (reading: OdoLog) => {
-    setData((d) => ({ ...d, odo: [...d.odo, reading] }));
+    setData((d) => ({
+      ...d,
+      odo: editingOdo ? d.odo.map((x) => (x.id === reading.id ? reading : x)) : [...d.odo, reading],
+    }));
+    setOdoSheetOpen(false);
+  };
+  const handleDeleteOdo = (id: string) => {
+    setData((d) => ({ ...d, odo: d.odo.filter((x) => x.id !== id) }));
     setOdoSheetOpen(false);
   };
 
@@ -141,7 +156,7 @@ export default function VehicleDetail({ vehicle, data, setData, onBack }: {
       </div>
 
       <Cluster vehicle={vehicle} data={data} />
-      <button onClick={() => setOdoSheetOpen(true)}
+      <button onClick={openOdoCreate}
         className="text-xs text-muted hover:text-text underline underline-offset-2 mt-2 mb-4 px-1 min-h-[44px]">
         {t('Kemas kini odometer sahaja', 'Just update the odometer')}
       </button>
@@ -168,7 +183,7 @@ export default function VehicleDetail({ vehicle, data, setData, onBack }: {
       </div>
 
       {seg === 'service' && <ServicePane vehicle={vehicle} data={data} setData={setData} />}
-      {seg === 'fuel' && <EnergyPane vehicle={vehicle} data={data} setData={setData} />}
+      {seg === 'fuel' && <EnergyPane vehicle={vehicle} data={data} setData={setData} onEditOdo={openOdoEdit} />}
       {seg === 'remind' && <RemindPane vehicle={vehicle} data={data} setData={setData} />}
       {seg === 'docs' && <DocsPane vehicle={vehicle} data={data} onCreate={openDocCreate} onEdit={openDocEdit} />}
 
@@ -182,12 +197,14 @@ export default function VehicleDetail({ vehicle, data, setData, onBack }: {
         onDelete={handleDeleteVehicle}
       />
       <OdoSheet
-        key={odoSheetOpen ? 'open' : 'closed'}
+        key={odoSheetOpen ? (editingOdo?.id ?? 'new') : 'closed'}
         open={odoSheetOpen}
         vehicle={vehicle}
         data={data}
+        reading={editingOdo}
         onClose={() => setOdoSheetOpen(false)}
         onSave={handleSaveOdo}
+        onDelete={handleDeleteOdo}
       />
       <DocumentSheet
         key={docSheetOpen ? (editingDoc?.id ?? docDefaultType) : 'closed'}
@@ -269,8 +286,12 @@ function ServicePane({ vehicle, data, setData }: {
 
 /** Fuel/charge entries by odometer descending, with an economy summary above — two lines for a
  *  vehicle that holds both kinds, since neither one alone is the vehicle's true efficiency. */
-function EnergyPane({ vehicle, data, setData }: {
+function EnergyPane({ vehicle, data, setData, onEditOdo }: {
   vehicle: Vehicle; data: GarageData; setData: Dispatch<SetStateAction<GarageData>>;
+  /** Opens the same OdoSheet instance VehicleDetail's "Just update the odometer" link uses,
+   *  pre-filled for editing — the odo log list below is the only place a plain odometer reading
+   *  can be corrected or removed once saved (Item 2). */
+  onEditOdo: (reading: OdoLog) => void;
 }) {
   const t = useT();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -294,6 +315,7 @@ function EnergyPane({ vehicle, data, setData }: {
   const hasSummary = summaries.some((s) => s.eco);
 
   const list = data.energy.filter((e) => e.vehicleId === vehicle.id).sort((a, b) => b.odo - a.odo);
+  const odoList = data.odo.filter((o) => o.vehicleId === vehicle.id).sort((a, b) => b.odo - a.odo);
 
   // Per-entry rate for whichever fill/charge CLOSED a full-to-full window — built once per kind
   // present, since legEconomy only ever compares entries of the same kind against each other.
@@ -364,6 +386,26 @@ function EnergyPane({ vehicle, data, setData }: {
             );
           })}
         </div>
+      )}
+
+      {odoList.length > 0 && (
+        <>
+          {/* Plain "just the odometer" readings — logged from the link above the cluster, not
+              tied to a fill/charge. Listed here so one that was mistyped can be opened and fixed
+              rather than only ever appended to (Item 2): currentOdo() takes the max across every
+              reading on the vehicle, so a wrong one saved once had no way back short of deleting
+              the whole vehicle. */}
+          <Eyebrow>{t('Bacaan odometer', 'Odometer readings')}</Eyebrow>
+          <div className="space-y-2">
+            {odoList.map((o) => (
+              <Row key={o.id}
+                title={`${fmtKm(o.odo)} km`}
+                sub={niceDate(o.date)}
+                onClick={() => onEditOdo(o)}
+              />
+            ))}
+          </div>
+        </>
       )}
 
       <EnergySheet

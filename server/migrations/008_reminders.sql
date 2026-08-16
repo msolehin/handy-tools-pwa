@@ -23,8 +23,11 @@ create table push_subscriptions (
 create index push_subscriptions_user_id_idx on push_subscriptions (user_id);
 
 -- Dedup ledger. Written only after a successful send, so a failed run retries tomorrow
--- instead of going permanently silent. No due_date in the key: every source is a one-off
--- date, so a record never fires the same offset twice.
+-- instead of going permanently silent. record_id is plain text, not a foreign key, on purpose:
+-- most sources are one-off dates where id alone identifies the occurrence, but garage_reminder
+-- and garage_mileage roll a repeating reminder's due_date/due_odo forward on the SAME row, so
+-- their record_id folds the due value in (see server/reminders.ts) to make each occurrence,
+-- not each row, dedup.
 create table reminder_sends (
   user_id     uuid not null references users(id) on delete cascade,
   source      text not null,

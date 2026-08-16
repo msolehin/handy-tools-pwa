@@ -131,13 +131,13 @@ const ms = {
       ],
     },
     service: {
-      title: 'Servis Kenderaan',
-      lede: 'Sejarah servis yang tak hilang',
-      blurb: 'Setiap servis, tayar, dan repair jadi satu garis masa berserta kos. Bila nak jual kereta, rekod dah siap.',
+      title: 'Garaj',
+      lede: 'Semua kenderaan, servis dan minyak dalam satu app',
+      blurb: 'Simpan kenderaan you, log setiap servis dan isi minyak/cas, lepas tu Garaj kira RM setiap km sendiri. Bila nak jual kereta, rekod dah siap.',
       points: [
         'Servis lepas dan servis akan datang dalam satu garis masa',
-        'Kos setiap kali, jadi nampak jumlah belanja setahun',
-        'Sama caranya untuk rumah: aircond, paip, cat',
+        'Setiap isi minyak atau cas jadi kos RM/km, automatik',
+        'Roadtax, insurans dan peringatan lain, semua sekali',
       ],
       events: [
         { title: 'Servis akan datang', meta: '14 Nov 2026 · 92,000 km', cost: '', upcoming: true },
@@ -388,13 +388,13 @@ const en: typeof ms = {
       ],
     },
     service: {
-      title: 'Car & Home Service',
-      lede: 'A service history that survives',
-      blurb: 'Every service, tyre change and repair becomes one timeline with its cost. When you sell the car, the record is already there.',
+      title: 'Garaj',
+      lede: 'Every vehicle, its service and its fuel, in one app',
+      blurb: 'Add your vehicles, log every service and fill-up or charge, and Garaj works out the RM per km on its own. When you sell the car, the record is already there.',
       points: [
         'Past services and the next one due on one timeline',
-        'Cost per visit, so the yearly total is visible',
-        'Same shape for the house: aircon, plumbing, paint',
+        'Every fill-up or charge becomes a running RM/km, automatically',
+        'Road tax, insurance and every other reminder, all in one place',
       ],
       events: [
         { title: 'Next service due', meta: '14 Nov 2026 · 92,000 km', cost: '', upcoming: true },

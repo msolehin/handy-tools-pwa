@@ -46,7 +46,7 @@ Service Reminders tool was split into Servis Kenderaan and Servis Rumah — 25 e
 |---|---|---|
 | Document Expiry | `/document-expiry` | passport, roadtax, licence renewal dates |
 | Asset & Warranty | `/asset-warranty` | valuables, purchase + warranty end dates |
-| Servis Kenderaan | `/vehicle-services` | vehicle maintenance log, cost, next-due dates |
+| Garaj | `/vehicle-services` | vehicle fleet, service log, fuel/charge log, running cost per km |
 | Servis Rumah | `/home-services` | home repairs/servicing log, cost, next-due dates |
 | Commitments | `/commitments` | monthly commitments and due days |
 | Countdown Day | `/countdown` | dated events and holidays |
@@ -197,7 +197,7 @@ an empty app the day this shipped.
 **Synced keys** — `birthdays_data`, `tenancy_data`, `de_documents`, `cd_events`,
 `debt_tracker_ious`, `habit_tracker_data`, `important_numbers_data`, `expense_manager_data`,
 `duit_raya_manager_data`, `travel_history_data`, `water_tracker_data`,
-`vehicle_services_data`, `vehicle_custom_titles`, `home_services_data`, `home_custom_titles`,
+`garage_fleet`, `garage_records`, `garage_logs`, `home_services_data`, `home_custom_titles`,
 `asset_warranty_tracker_data`, `asset_warranty_custom_categories`, `book_tracker_data`,
 `book_tracker_custom_categories`.
 

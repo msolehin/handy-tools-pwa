@@ -56,7 +56,14 @@ due as (
   -- Garaj reminders owed by date. Unlike the service-event arm this replaces, there is no
   -- distinct-on: a reminder is an explicit row the owner created and closed, not the tail of a
   -- log that has to be de-duplicated by title.
-  select user_id, 'garage_reminder', id, coalesce(nullif(label, ''), 'Servis'),
+  --
+  -- record_id carries the due_date, not just id: rollForward (src/lib/garage.ts) advances a
+  -- repeating reminder's dueDate in place on the SAME row rather than creating a new one, so id
+  -- alone would let reminder_sends treat "fired for the Feb due date" as still true for the
+  -- August due date it rolled to. Folding due_date into the key makes each occurrence, not each
+  -- row, the thing that dedups.
+  select user_id, 'garage_reminder', id || ':' || due_date::text,
+         coalesce(nullif(label, ''), 'Servis'),
          due_date, '/vehicle-services'
     from garage_reminders
    where due_date is not null and not done
@@ -65,6 +72,11 @@ due as (
   -- initcap — that would give "Road Tax" where the client renders "Road tax", and the same
   -- record must not read differently in a notification than it does on screen. note is folded
   -- in the same way custom_title is above, for the same reason: it is what disambiguates "Other".
+  --
+  -- record_id is bare id here, unlike the two garage arms above — a renewed document keeps its
+  -- id AND its old dedup key, so it will not re-fire after renewal. That is a real, pre-existing
+  -- gap (src/pages/DocumentExpiry.tsx renews every document type in place, not just garage's),
+  -- not something introduced here, so it is left alone rather than fixed for garage only.
   select user_id, 'garage_document', id,
          (case type
             when 'roadtax'   then 'Road tax'
@@ -129,7 +141,11 @@ with odo as (
          coalesce(nullif(v.nickname, ''), nullif(v.model, ''), 'Kenderaan') as vehicle_name
     from garage_vehicles v
 )
-select r.user_id, 'garage_mileage' as source, r.id as record_id,
+-- record_id carries due_odo for the same reason the garage_reminder arm's carries due_date:
+-- rollForward advances a repeating reminder's dueOdo in place on the same row, so id alone
+-- would let a target rolled from 90,000 km to 100,000 km inherit the 90,000 km send history and
+-- never fire again.
+select r.user_id, 'garage_mileage' as source, r.id || ':' || r.due_odo::text as record_id,
        coalesce(nullif(r.label, ''), 'Servis') as title,
        '' as due_date, '/vehicle-services' as href,
        odo.vehicle_name || ' · ' || to_char(odo.current_odo, 'FM999,999,999') || ' km' as subtitle,
@@ -141,7 +157,7 @@ select r.user_id, 'garage_mileage' as source, r.id as record_id,
   left join reminder_sends s
     on  s.user_id   = r.user_id
     and s.source    = 'garage_mileage'
-    and s.record_id = r.id
+    and s.record_id = r.id || ':' || r.due_odo::text
     and s.offset_days = case when odo.current_odo >= r.due_odo then 1 else 7 end
  where r.due_odo is not null
    and not r.done
