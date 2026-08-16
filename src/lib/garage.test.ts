@@ -86,3 +86,73 @@ describe('readingsOf', () => {
     assert.deepEqual(readingsOf(d, 'v1').map((r) => r.odo), [84000, 82000]);
   });
 });
+
+const { statusOf, dueItems } = await import('./garage.ts');
+
+// daysUntil() measures from real today, so tests build their dates relative to it.
+const shift = (days: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+describe('statusOf', () => {
+  test('a date in the past is overdue', () => {
+    const s = statusOf({ dueDate: shift(-3) }, withLogs({}), car);
+    assert.equal(s.level, 'over');
+  });
+
+  test('a date inside 30 days is due soon', () => {
+    assert.equal(statusOf({ dueDate: shift(10) }, withLogs({}), car).level, 'soon');
+  });
+
+  test('a date beyond 30 days is ok', () => {
+    assert.equal(statusOf({ dueDate: shift(90) }, withLogs({}), car).level, 'ok');
+  });
+
+  test('an odometer target already passed is overdue', () => {
+    // currentOdo is 80000 with no logs.
+    assert.equal(statusOf({ dueOdo: 79000 }, withLogs({}), car).level, 'over');
+  });
+
+  test('a km gap is projected into days with the vehicle\'s own rate', () => {
+    // 100 km/day measured below, so a 500 km gap is 5 days away — inside the soon window.
+    const d = withLogs({
+      odo: [
+        { id: 'o1', vehicleId: 'v1', date: shift(-60), odo: 80000 },
+        { id: 'o2', vehicleId: 'v1', date: shift(0),   odo: 86000 },
+      ],
+    });
+    const s = statusOf({ dueOdo: 86500 }, d, car);
+    assert.equal(s.level, 'soon');
+    assert.ok(s.text.includes('km'));
+  });
+
+  test('when both triggers are set, whichever hits first wins', () => {
+    const s = statusOf({ dueDate: shift(200), dueOdo: 79000 }, withLogs({}), car);
+    assert.equal(s.level, 'over');   // the odometer target, not the far-off date
+  });
+
+  test('no trigger at all is ok and says so', () => {
+    const s = statusOf({}, withLogs({}), car);
+    assert.equal(s.level, 'ok');
+  });
+});
+
+describe('dueItems', () => {
+  test('reminders and documents share one sorted list, soonest first', () => {
+    const d = withLogs({
+      reminders: [{ id: 'r1', vehicleId: 'v1', label: 'Engine oil', dueDate: shift(20), done: false }],
+      docs: [{ id: 'd1', vehicleId: 'v1', type: 'roadtax', expiry: shift(2) }],
+    });
+    const items = dueItems(d);
+    assert.deepEqual(items.map((i) => i.kind), ['document', 'reminder']);
+  });
+
+  test('a completed reminder drops off the list', () => {
+    const d = withLogs({
+      reminders: [{ id: 'r1', vehicleId: 'v1', label: 'Engine oil', dueDate: shift(2), done: true }],
+    });
+    assert.equal(dueItems(d).length, 0);
+  });
+});

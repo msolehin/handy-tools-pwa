@@ -134,3 +134,109 @@ export function kmPerDay(d: GarageData, vehicleId: string): number {
 }
 
 export { addMonths };
+
+export type Level = 'over' | 'soon' | 'ok';
+export interface Status { level: Level; days: number; text: string }
+
+/** Inside this many days, a deadline is worth colouring. */
+export const SOON_DAYS = 30;
+
+/** A day count as something a person says out loud. */
+export function relDays(n: number): string {
+  const a = Math.abs(n);
+  if (a === 0) return 'today';
+  if (a < 14) return `${a} ${a === 1 ? 'day' : 'days'}`;
+  if (a < 60) return `~${Math.round(a / 7)} weeks`;
+  if (a < 730) return `~${Math.round(a / 30)} months`;
+  return `~${(a / 365).toFixed(1)} years`;
+}
+
+const fmtKm = (n: number) => Math.round(n).toLocaleString('en-MY');
+
+/**
+ * The one status function in the tool. Reminders and document expiries both come through here,
+ * so a document and a reminder can never disagree about what "due soon" means.
+ *
+ * A trigger may be a date, an odometer target, or both. A km gap is converted to days through
+ * the vehicle's own measured rate, which is what lets the two be compared at all — and the one
+ * that lands first is the one that matters.
+ */
+export function statusOf(
+  trigger: { dueDate?: string; dueOdo?: number }, d: GarageData, v: Vehicle,
+): Status {
+  const candidates: { days: number; text: string }[] = [];
+
+  if (trigger.dueDate) {
+    const days = daysUntil(trigger.dueDate);
+    candidates.push({
+      days,
+      text: days < 0 ? `Overdue by ${relDays(days)}` : `Due in ${relDays(days)}`,
+    });
+  }
+
+  if (typeof trigger.dueOdo === 'number') {
+    const left = trigger.dueOdo - currentOdo(d, v);
+    candidates.push({
+      days: left / kmPerDay(d, v.id),
+      text: left < 0
+        ? `Overdue by ${fmtKm(-left)} km`
+        : `In ${fmtKm(left)} km · ~${relDays(Math.round(left / kmPerDay(d, v.id)))}`,
+    });
+  }
+
+  // A finite sentinel, not Infinity: dueItems sorts on (a.days - b.days), and two triggerless
+  // items would give Infinity - Infinity = NaN, which is undefined behaviour in a comparator.
+  if (!candidates.length) {
+    return { level: 'ok', days: Number.MAX_SAFE_INTEGER, text: 'No trigger set' };
+  }
+
+  const worst = candidates.reduce((a, b) => (b.days < a.days ? b : a));
+  const level: Level = worst.days <= 0 ? 'over' : worst.days <= SOON_DAYS ? 'soon' : 'ok';
+  return { level, days: worst.days, text: worst.text };
+}
+
+export interface DueItem {
+  kind: 'reminder' | 'document';
+  id: string;
+  label: string;
+  vehicle: Vehicle;
+  status: Status;
+  reminder?: Reminder;
+  doc?: VDoc;
+}
+
+export const DOC_LABELS: Record<VDoc['type'], string> = {
+  roadtax: 'Road tax', insurance: 'Insurance', puspakom: 'Puspakom',
+  warranty: 'Warranty', other: 'Other',
+};
+
+/**
+ * Everything owed, soonest first. Documents present themselves as date-mode reminders so the
+ * home screen has one list rather than two that have to be merged at the point of display.
+ */
+export function dueItems(d: GarageData, vehicleId?: string): DueItem[] {
+  const byId = new Map(d.vehicles.map((v) => [v.id, v]));
+  const mine = (id: string) => !vehicleId || id === vehicleId;
+  const out: DueItem[] = [];
+
+  for (const r of d.reminders) {
+    if (r.done || !mine(r.vehicleId)) continue;
+    const v = byId.get(r.vehicleId);
+    if (!v) continue;
+    out.push({ kind: 'reminder', id: r.id, label: r.label, vehicle: v, reminder: r,
+      status: statusOf(r, d, v) });
+  }
+
+  for (const doc of d.docs) {
+    if (!mine(doc.vehicleId)) continue;
+    const v = byId.get(doc.vehicleId);
+    if (!v) continue;
+    out.push({
+      kind: 'document', id: doc.id, vehicle: v, doc,
+      label: DOC_LABELS[doc.type] + (doc.note ? ` · ${doc.note}` : ''),
+      status: statusOf({ dueDate: doc.expiry }, d, v),
+    });
+  }
+
+  return out.sort((a, b) => a.status.days - b.status.days);
+}
