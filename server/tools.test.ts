@@ -73,7 +73,6 @@ const FIXTURES: Record<string, unknown> = {
 
   asset_warranty_custom_categories: ['Gadget', 'Dapur'],
   book_tracker_custom_categories: ['Sejarah', 'Novel'],
-  vehicle_custom_titles: ['Tukar minyak hitam', 'Servis brek'],
   home_custom_titles: ['Cuci aircond', 'Servis paip'],
 
   book_tracker_data: [
@@ -134,34 +133,26 @@ const FIXTURES: Record<string, unknown> = {
     commitCats: ['Loan', 'Other'],
   },
 
-  vehicle_services_data: {
-    assets: [
+  // garage_records and garage_logs are NOT here: their rows foreign-key onto garage_vehicles,
+  // which only garage_fleet's write populates, and the shared loop below round-trips one tool's
+  // blob at a time with no cross-tool setup. See the report for why that gap was left open
+  // rather than growing the harness to seed a parent row.
+  garage_fleet: {
+    vehicles: [
       {
-        id: 'veh0001', name: 'Myvi', plate: 'WXY 1234', photo: 'data:image/jpeg;base64,VVVV',
-        createdAt: 1767225600000, mileage: 91400, mileageAt: 1786000000000,
-        brand: 'Perodua', model: 'Myvi 1.3 X', year: 2019, cc: 1329,
+        id: 'gvh0001', body: 'sedan', energy: 'petrol', model: 'Camry', mileage: 45210,
+        brand: 'Toyota', nickname: 'Kereta Ayah', plate: 'ABC 1234', year: 2021,
+        engine: 2.5, capacity: 50, photo: 'data:image/jpeg;base64,GGGG',
+        colorIdx: 3, createdAt: 1767225600000,
       },
-      // Every optional detail absent, and mileage a genuine 0 — it must come back as 0, not be
-      // dropped as a falsy value alongside the fields that really are missing.
-      { id: 'veh0002', name: 'Motor', plate: '', createdAt: 1767225600000, mileage: 0 },
+      // Every optional detail absent, and mileage/colorIdx a genuine 0 — must come back as 0,
+      // not be dropped as a falsy value alongside the fields that really are missing.
+      { id: 'gvh0002', body: 'motorcycle', energy: 'petrol', model: 'RS150R', mileage: 0, colorIdx: 0, createdAt: 1767312000000 },
     ],
-    events: [
-      {
-        id: 'vse0001', assetId: 'veh0001', date: '2026-05-14', title: 'Servis minor',
-        isLumpsum: false, totalCost: 268.5,
-        items: [
-          { id: 'itm0001', name: 'Minyak hitam', cost: 180 },
-          { id: 'itm0002', name: 'Filter', cost: 88.5 },
-        ],
-        mileage: '84210', address: 'Bengkel Pak Din', notes: '', nextServiceDate: '2026-11-14',
-        nextServiceMileage: 94210, receipt: 'data:image/jpeg;base64,UkNQVA==',
-        nextDone: true,
-      },
-      {
-        id: 'vse0002', assetId: 'veh0001', date: '2026-01-08', title: 'Tayar',
-        isLumpsum: true, totalCost: 960, items: [], mileage: '', address: '', notes: 'set 4',
-      },
-    ],
+    presets: {
+      'sedan:petrol': { customs: ['Timing belt'], hidden: ['Wipers'] },
+      'motorcycle:petrol': { customs: [], hidden: [] },
+    },
   },
 
   home_services_data: {

@@ -251,11 +251,6 @@ export const TOOLS: Record<string, Descriptor> = {
     write: (q, uid, blob) => writeList(q, uid, 'book_cat', blob),
   },
 
-  vehicle_custom_titles: {
-    read: (q, uid) => readList(q, uid, 'vehicle_title'),
-    write: (q, uid, blob) => writeList(q, uid, 'vehicle_title', blob),
-  },
-
   home_custom_titles: {
     read: (q, uid) => readList(q, uid, 'home_title'),
     write: (q, uid, blob) => writeList(q, uid, 'home_title', blob),
@@ -490,46 +485,145 @@ export const TOOLS: Record<string, Descriptor> = {
     },
   },
 
-  vehicle_services_data: {
+  // ---------------------------------------------------------------- Garaj
+  //
+  // Three keys, split by photo weight x write frequency. One blob would mean every fill-up
+  // re-uploads every vehicle photo and every receipt.
+
+  garage_fleet: {
     async read(q, uid) {
-      const { rows: assets } = await q(
-        `select id, name, plate, photo, created_at::float8 as "createdAt",
-                mileage, mileage_at::float8 as "mileageAt", brand, model, year, cc
-           from vehicle_assets where user_id = $1 order by pos`, [uid]);
-      const { rows: events } = await q(
-        `select id, asset_id as "assetId", date::text as date, title,
-                is_lumpsum as "isLumpsum", total_cost::float8 as "totalCost", items,
-                mileage, address, notes, next_service_date::text as "nextServiceDate",
-                next_service_mileage as "nextServiceMileage", receipt,
-                case when next_done then true end as "nextDone"
-           from vehicle_service_events where user_id = $1 order by pos`, [uid]);
-      // dropNulls on the assets too: an asset with no photo must come back without the key, not
-      // with photo: null, or the blob changes shape on every round trip.
-      return { assets: dropNulls(assets), events: dropNulls(events) };
+      const { rows: vehicles } = await q(
+        // created_at is bigint (OID 20): pg returns those as strings unless cast, and
+        // Vehicle.createdAt is a number on the client — vehicle_assets.created_at hit the same
+        // thing and is cast the same way.
+        `select id, body, energy, model, mileage, brand, nickname, plate, year,
+                engine::float8 as engine, capacity::float8 as capacity, photo,
+                color_idx as "colorIdx", created_at::float8 as "createdAt"
+           from garage_vehicles where user_id = $1 order by pos`, [uid]);
+      const { rows: presets } = await q(
+        `select type_key, customs, hidden from garage_presets where user_id = $1`, [uid]);
+      return {
+        vehicles: dropNulls(vehicles),
+        presets: Object.fromEntries(
+          presets.map((p) => [p.type_key, { customs: arr(p.customs), hidden: arr(p.hidden) }])),
+      };
     },
     async write(q, uid, blob) {
-      await q('delete from vehicle_assets where user_id = $1', [uid]); // events cascade
-      await insertMany(q, 'vehicle_assets',
-        ['user_id', 'id', 'name', 'plate', 'photo', 'created_at', 'pos', 'mileage', 'mileage_at',
-          'brand', 'model', 'year', 'cc'],
-        arr(blob?.assets).map((a, i) => [
-          uid, String(a.id), String(a.name ?? ''), String(a.plate ?? ''),
-          a.photo ?? null, num(a.createdAt), i,
-          // ?? null throughout, not num()/String(): 0 km is a real reading, and an optional field
-          // left blank must round-trip as absent rather than as 0 or ''.
-          a.mileage ?? null, a.mileageAt ?? null,
-          a.brand ?? null, a.model ?? null, a.year ?? null, a.cc ?? null,
+      // Upsert-then-prune, NOT the delete-then-insert every other descriptor uses.
+      //
+      // Children cascade off garage_vehicles, so a wholesale delete here would wipe every
+      // service, log, reminder and document — and they would not come back, because the client
+      // only marks a key dirty when its serialised value changed. Adding a vehicle changes
+      // garage_fleet alone, so nothing would re-push the children it just destroyed.
+      //
+      // insertMany already does ON CONFLICT DO UPDATE, so surviving vehicles are updated in
+      // place and keep their children. Only vehicles genuinely absent from the blob are
+      // deleted, and those SHOULD cascade.
+      const ids = arr(blob?.vehicles).map((v) => String(v.id));
+      await q('delete from garage_vehicles where user_id = $1 and id <> all($2::text[])',
+        [uid, ids]);
+      await insertMany(q, 'garage_vehicles',
+        ['user_id', 'id', 'body', 'energy', 'model', 'mileage', 'brand', 'nickname', 'plate',
+          'year', 'engine', 'capacity', 'photo', 'color_idx', 'created_at', 'pos'],
+        arr(blob?.vehicles).map((v, i) => [
+          uid, String(v.id), String(v.body ?? 'sedan'), String(v.energy ?? 'petrol'),
+          String(v.model ?? ''), num(v.mileage), v.brand ?? null, v.nickname ?? null,
+          v.plate ?? null, v.year ?? null, v.engine ?? null, v.capacity ?? null,
+          v.photo ?? null, num(v.colorIdx), num(v.createdAt), i,
         ]));
-      await insertMany(q, 'vehicle_service_events',
-        ['user_id', 'id', 'asset_id', 'date', 'title', 'is_lumpsum', 'total_cost', 'items',
-          'mileage', 'address', 'notes', 'next_service_date', 'next_done', 'pos',
-          'next_service_mileage', 'receipt'],
-        arr(blob?.events).map((e, i) => [
-          uid, String(e.id), String(e.assetId), e.date, String(e.title ?? ''),
-          Boolean(e.isLumpsum), num(e.totalCost), JSON.stringify(arr(e.items)),
-          String(e.mileage ?? ''), String(e.address ?? ''), String(e.notes ?? ''),
-          e.nextServiceDate ?? null, Boolean(e.nextDone), i,
-          e.nextServiceMileage ?? null, e.receipt ?? null,
+
+      await q('delete from garage_presets where user_id = $1', [uid]);
+      const presets = Object.entries(blob?.presets ?? {});
+      await insertMany(q, 'garage_presets', ['user_id', 'type_key', 'customs', 'hidden'],
+        presets.map(([key, p]: [string, any]) => [
+          uid, key, JSON.stringify(arr(p?.customs)), JSON.stringify(arr(p?.hidden)),
+        ]));
+    },
+  },
+
+  garage_records: {
+    async read(q, uid) {
+      const { rows: services } = await q(
+        `select id, vehicle_id as "vehicleId", date::text as date, odo, items,
+                workshop, notes, receipt
+           from garage_services where user_id = $1 order by pos`, [uid]);
+      const { rows: docs } = await q(
+        `select id, vehicle_id as "vehicleId", type, expiry::text as expiry,
+                issued::text as issued, cost::float8 as cost, note, receipt
+           from garage_documents where user_id = $1 order by pos`, [uid]);
+      return { services: dropNulls(services), docs: dropNulls(docs) };
+    },
+    async write(q, uid, blob) {
+      await q('delete from garage_services where user_id = $1', [uid]);
+      await insertMany(q, 'garage_services',
+        ['user_id', 'id', 'vehicle_id', 'date', 'odo', 'items', 'workshop', 'notes', 'receipt', 'pos'],
+        arr(blob?.services).map((s, i) => [
+          uid, String(s.id), String(s.vehicleId), s.date, num(s.odo),
+          JSON.stringify(arr(s.items)), s.workshop ?? null, s.notes ?? null, s.receipt ?? null, i,
+        ]));
+
+      await q('delete from garage_documents where user_id = $1', [uid]);
+      await insertMany(q, 'garage_documents',
+        ['user_id', 'id', 'vehicle_id', 'type', 'expiry', 'issued', 'cost', 'note', 'receipt', 'pos'],
+        arr(blob?.docs).map((d, i) => [
+          uid, String(d.id), String(d.vehicleId),
+          ['roadtax', 'insurance', 'puspakom', 'warranty', 'other'].includes(d.type) ? d.type : 'other',
+          d.expiry, d.issued ?? null, d.cost ?? null, d.note ?? null, d.receipt ?? null, i,
+        ]));
+    },
+  },
+
+  garage_logs: {
+    async read(q, uid) {
+      const { rows: energy } = await q(
+        `select id, vehicle_id as "vehicleId", date::text as date, odo, kind,
+                qty::float8 as qty, cost::float8 as cost, full_tank as full, grade, station
+           from garage_energy_logs where user_id = $1 order by pos`, [uid]);
+      const { rows: odo } = await q(
+        `select id, vehicle_id as "vehicleId", date::text as date, odo
+           from garage_odo_logs where user_id = $1 order by pos`, [uid]);
+      const { rows: reminders } = await q(
+        `select id, vehicle_id as "vehicleId", label, due_date::text as "dueDate",
+                due_odo as "dueOdo", repeat_months, repeat_km, done,
+                done_date::text as "doneDate"
+           from garage_reminders where user_id = $1 order by pos`, [uid]);
+      return {
+        energy: dropNulls(energy),
+        odo: dropNulls(odo),
+        // repeat is one object on the client and two columns here; rebuild it, and omit it
+        // entirely when neither dimension is set rather than sending {months:0,km:0}.
+        reminders: dropNulls(reminders).map(({ repeat_months, repeat_km, ...r }: any) =>
+          repeat_months || repeat_km
+            ? { ...r, repeat: { months: repeat_months, km: repeat_km } }
+            : r),
+      };
+    },
+    async write(q, uid, blob) {
+      await q('delete from garage_energy_logs where user_id = $1', [uid]);
+      await insertMany(q, 'garage_energy_logs',
+        ['user_id', 'id', 'vehicle_id', 'date', 'odo', 'kind', 'qty', 'cost', 'full_tank',
+          'grade', 'station', 'pos'],
+        arr(blob?.energy).map((e, i) => [
+          uid, String(e.id), String(e.vehicleId), e.date, num(e.odo),
+          e.kind === 'charge' ? 'charge' : 'fuel', num(e.qty), num(e.cost),
+          e.full !== false, e.grade ?? null, e.station ?? null, i,
+        ]));
+
+      await q('delete from garage_odo_logs where user_id = $1', [uid]);
+      await insertMany(q, 'garage_odo_logs',
+        ['user_id', 'id', 'vehicle_id', 'date', 'odo', 'pos'],
+        arr(blob?.odo).map((o, i) => [
+          uid, String(o.id), String(o.vehicleId), o.date, num(o.odo), i,
+        ]));
+
+      await q('delete from garage_reminders where user_id = $1', [uid]);
+      await insertMany(q, 'garage_reminders',
+        ['user_id', 'id', 'vehicle_id', 'label', 'due_date', 'due_odo', 'repeat_months',
+          'repeat_km', 'done', 'done_date', 'pos'],
+        arr(blob?.reminders).map((r, i) => [
+          uid, String(r.id), String(r.vehicleId), String(r.label ?? ''),
+          r.dueDate ?? null, r.dueOdo ?? null, num(r.repeat?.months), num(r.repeat?.km),
+          r.done === true, r.doneDate ?? null, i,
         ]));
     },
   },
