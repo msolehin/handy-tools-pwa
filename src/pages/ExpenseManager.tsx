@@ -157,6 +157,35 @@ const GoalBar = ({ saved, target, label, doneLabel }: { saved: number; target: n
   );
 };
 
+// Every payment a commitment has on record, newest first. Each month shows what it actually cost,
+// which is not always what it was scheduled at — that difference is the whole reason paidAmounts
+// exists, and until now it was only visible in the month you happened to be looking at.
+const PaymentList = ({ c }: { c: Commitment }) => {
+  const rows = Object.entries(c.payments).sort((a, b) => b[0].localeCompare(a[0]));
+  if (!rows.length) return null;
+  return (
+    <details className="group/hist">
+      <summary className="flex items-center gap-1.5 py-1 cursor-pointer list-none [&::-webkit-details-marker]:hidden text-[11px] font-bold text-muted hover:text-text">
+        <ChevronRight size={12} className="shrink-0 transition-transform group-open/hist:rotate-90" />
+        {trs(`Sejarah bayaran (${rows.length})`, `Payment history (${rows.length})`)}
+      </summary>
+      <div className="mt-1 pt-2 space-y-1 border-t border-text/5">
+        {rows.map(([mk, d]) => (
+          <div key={mk} className="flex items-baseline gap-2 text-[11px]">
+            <span className="w-24 shrink-0 truncate text-muted">{monthLabel(mk)}</span>
+            <span className="flex-1 truncate text-muted/70">{fmtDate(d)}</span>
+            <span className="shrink-0 font-mono font-bold text-text/70" style={{ fontVariantNumeric: 'tabular-nums' }}>RM {fmt(paidFor(c, mk))}</span>
+          </div>
+        ))}
+        <div className="flex items-baseline gap-2 border-t border-text/5 pt-1.5 text-[11px]">
+          <span className="flex-1 font-bold text-muted">{trs('Jumlah dibayar', 'Total paid')}</span>
+          <span className="shrink-0 font-mono font-bold" style={{ fontVariantNumeric: 'tabular-nums' }}>RM {fmt(commitmentPaidTotal(c))}</span>
+        </div>
+      </div>
+    </details>
+  );
+};
+
 // Spending donut. Six wedges is where part-to-whole stops being readable, so five categories are
 // named and the tail is grouped into one neutral wedge — never a generated hue, and never a
 // second helping of a palette that only holds ten.
@@ -1228,6 +1257,12 @@ const ExpenseManager: React.FC = () => {
         // The list shows everything still running; the figures describe only what this month owes,
         // so one that has not started yet is listed but not counted.
         const due = sorted.filter(c => commitActive(c, viewMonth));
+        // The ones that fell off `sorted` — a loan that paid itself off, or one stopped by hand.
+        // Newest first: the one that just finished is the one being looked for.
+        const finished = commitments
+          .filter(c => c.endMonth && c.endMonth < currentMonth)
+          .filter(c => !q || c.title.toLowerCase().includes(q) || catLabel(c.category, commitOptions).toLowerCase().includes(q))
+          .sort((a, b) => b.endMonth!.localeCompare(a.endMonth!));
         const paidCount = due.filter(c => c.payments[viewMonth]).length;
         // Paid ones count what they actually cost, the rest what they are scheduled to — the
         // dashboard's convention, so Baki here is what is genuinely still owed this month.
@@ -1310,6 +1345,8 @@ const ExpenseManager: React.FC = () => {
                     <GoalBar saved={commitmentPaidTotal(c)} target={c.payoffTotal} label={tr('Jumlah', 'Total')} doneLabel={tr('Selesai!', 'Settled!')} />
                   )}
 
+                  <PaymentList c={c} />
+
                   <div className="flex items-center gap-2 flex-wrap">
                     {paid ? (
                       <>
@@ -1325,6 +1362,43 @@ const ExpenseManager: React.FC = () => {
                 </div>
               );
             })}
+
+            {/* Nothing is deleted when a commitment ends, but until now nothing said so either.
+                Folded away by default — the point of stopping one is to stop seeing it daily. */}
+            {finished.length > 0 && (
+              <details className="glass-panel overflow-hidden group">
+                <summary className="p-3 flex items-center gap-2 cursor-pointer list-none [&::-webkit-details-marker]:hidden text-xs font-bold text-muted">
+                  <ChevronRight size={14} className="shrink-0 transition-transform group-open:rotate-90" />
+                  {tr(`Selesai & berhenti (${finished.length})`, `Finished & stopped (${finished.length})`)}
+                </summary>
+                <div className="px-3 pb-3 space-y-2">
+                  {finished.map(c => {
+                    const Icon = catIcon(c.category, commitOptions);
+                    const settled = isSettled(c);
+                    return (
+                      <div key={c.id}>
+                      <div className="flex items-center gap-2.5 text-xs"><span className="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center bg-text/5 text-muted"><Icon size={13} /></span>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold truncate text-text/70">{c.title}</p>
+                          <p className="text-[10px] text-muted truncate">
+                            {settled
+                              ? <span className="text-emerald-400 light:text-emerald-600 font-bold">{tr('Selesai', 'Settled')} {monthLabel(c.endMonth!)}</span>
+                              : <>{tr('Berhenti', 'Stopped')} {monthLabel(c.endMonth!)}</>}
+                            {' · '}{Object.keys(c.payments).length} {tr('bayaran', 'payments')}
+                          </p>
+                        </div>
+                        <span className="font-mono font-bold shrink-0 text-text/60" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                          RM {fmt(commitmentPaidTotal(c))}
+                        </span>
+                      </div>
+                      {/* Indented to the title, so the history reads as belonging to this row */}
+                      <div className="pl-[38px]"><PaymentList c={c} /></div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </details>
+            )}
           </div>
         );
       })()}
