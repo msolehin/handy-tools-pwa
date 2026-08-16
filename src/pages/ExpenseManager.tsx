@@ -11,7 +11,7 @@ import {
   Eye, EyeOff,
   Utensils, ShoppingCart, Car, ShoppingBag, Receipt, HeartPulse, GraduationCap, Clapperboard,
   Plane, Gift, HeartHandshake, Sparkles, Baby, CircleEllipsis, Landmark, Repeat, Zap, ShieldCheck,
-  Home, Tag, PiggyBank, LineChart, Image as ImageIcon, Loader
+  Home, Tag, PiggyBank, LineChart, Image as ImageIcon, Loader, Settings, AlertTriangle
 } from 'lucide-react';
 
 interface Expense { id: string; description: string; amount: number; category: string; date: string; goalId?: string; }
@@ -146,18 +146,61 @@ const GoalBar = ({ saved, target }: { saved: number; target: number }) => {
   );
 };
 
-// Three-up figure strip, shared by the dashboard and the transaction tab
-const StatStrip = ({ items }: { items: { label: string; value: string; Icon: CatDef['Icon']; tone: string }[] }) => (
-  <div className="glass-panel grid grid-cols-3 divide-x divide-text/10 overflow-hidden">
-    {items.map(it => (
-      <div key={it.label} className="px-2 py-3.5 text-center">
-        <div className="flex items-center justify-center gap-1.5 min-h-[24px]">
-          <it.Icon size={12} className={`shrink-0 ${it.tone}`} />
-          <p className="text-[9px] font-bold uppercase tracking-wider text-muted leading-tight">{it.label}</p>
+// Spending donut. Six wedges is where part-to-whole stops being readable, so five categories are
+// named and the tail is grouped into one neutral wedge — never a generated hue, and never a
+// second helping of a palette that only holds ten.
+const DONUT_R = 42;
+const DONUT_C = 2 * Math.PI * DONUT_R;
+const DONUT_GAP = 2;   // viewBox units of surface between wedges, ~2px at the rendered size
+const DONUT_MAX = 5;   // named wedges before the tail is grouped
+const REST_COLOR = '#94a3b8'; // slate-400 — deliberately outside the category palette
+
+// Percentages in a StatStrip are always a share of the money that came in
+const shareOf = (n: number, base: number) => (base > 0 ? `${Math.round((n / base) * 100)}%` : '—');
+const SEG_COMMIT = '#fbbf24'; // amber-400, matching the Komitmen column
+const SEG_SPEND = '#fb7185';  // rose-400, matching Perbelanjaan / Keluar
+
+// Three-up figure strip, shared by the dashboard and the transaction tab.
+//
+// The first column is always the money that came in, so it is the 100% every other column is a
+// share of — which is what makes the percentages readable without a legend: the two outflows
+// name their slice, and whatever the segments leave unpainted is what you still have.
+const StatStrip = ({ items, segments }: {
+  items: { label: string; value: string; Icon: CatDef['Icon']; tone: string; pct?: string }[];
+  segments?: { pct: number; color: string }[];
+}) => (
+  <div className="glass-panel overflow-hidden">
+    {segments && (
+      // Heads the strip with how the money split. The figure is the painted share, which is the
+      // outflow columns added up — so the bar and the columns visibly agree. Ratios survive the
+      // Baki toggle: a share gives away nothing a shoulder could spend.
+      <div className="flex items-center gap-2.5 px-3 pt-3">
+        <div className="flex-1 flex h-1.5 rounded-full overflow-hidden bg-emerald-400/25 light:bg-emerald-500/25">
+          {segments.map((s, i) => (
+            <div
+              key={i}
+              className="h-full motion-safe:transition-[width] duration-500 ease-out"
+              style={{ width: `${Math.max(0, Math.min(100, s.pct))}%`, backgroundColor: s.color }}
+            />
+          ))}
         </div>
-        <p className={`font-mono text-[13px] font-black mt-2 leading-none ${it.tone}`} style={{ fontVariantNumeric: 'tabular-nums' }}>{it.value}</p>
+        <span className="text-[10px] font-mono font-bold text-muted shrink-0" style={{ fontVariantNumeric: 'tabular-nums' }}>
+          {Math.round(segments.reduce((s, x) => s + x.pct, 0))}%
+        </span>
       </div>
-    ))}
+    )}
+    <div className="grid grid-cols-3 divide-x divide-text/10">
+      {items.map(it => (
+        <div key={it.label} className="px-2 py-3.5 text-center">
+          <div className="flex items-center justify-center gap-1.5 min-h-[24px]">
+            <it.Icon size={12} className={`shrink-0 ${it.tone}`} />
+            <p className="text-[9px] font-bold uppercase tracking-wider text-muted leading-tight">{it.label}</p>
+          </div>
+          <p className={`font-mono text-[13px] font-black mt-2 leading-none ${it.tone}`} style={{ fontVariantNumeric: 'tabular-nums' }}>{it.value}</p>
+          {it.pct && <p className={`font-mono text-[9px] font-bold mt-1.5 leading-none opacity-70 ${it.tone}`} style={{ fontVariantNumeric: 'tabular-nums' }}>{it.pct}</p>}
+        </div>
+      ))}
+    </div>
   </div>
 );
 
@@ -303,6 +346,19 @@ const ExpenseManager: React.FC = () => {
   const [hideBalance, setHideBalance] = useState(() => store.getItem(HIDE_KEY) === '1');
   const toggleBalance = () => setHideBalance(v => { store.setItem(HIDE_KEY, v ? '0' : '1'); return !v; });
   const masked = (n: number) => (hideBalance ? 'RM ••••' : `RM ${fmt(n)}`);
+
+  // Settings — one destructive action: wipe this tool's records only. Nothing else in the app
+  // is touched, and there is no undo, so it asks twice: the sheet warns, the confirm confirms.
+  const [showSettings, setShowSettings] = useState(false);
+  const wipeAll = () => {
+    if (!window.confirm(tr(
+      'Padam SEMUA data Expense Manager? Data yang dipadam TIDAK BOLEH dipulihkan.',
+      'Delete ALL Expense Manager data? Deleted data CANNOT be recovered.',
+    ))) return;
+    setExpenses([]); setIncomes([]); setCommitments([]);
+    setGoals([]); setTopups([]); setExpenseCats([]); setCommitCats([]);
+    setShowSettings(false);
+  };
 
   // Dashboard list filters — each narrows its own list only, never the figures above it
   const [commitQuery, setCommitQuery] = useState('');
@@ -518,6 +574,8 @@ const ExpenseManager: React.FC = () => {
     setTopupAmount('');
   };
   const savedFor = (goalId: string) => goalSaved(goalId, commitments, expenses, topups);
+  const allSaved = goals.reduce((s, g) => s + savedFor(g.id), 0);
+  const allTarget = goals.reduce((s, g) => s + g.target, 0);
 
   // --- Commitment add/edit ---
   const [cForm, setCForm] = useState<{ id: string | null; title: string; amount: string; day: string; category: string }>({ id: null, title: '', amount: '', day: '1', category: DEFAULT_COMMIT_CATS[0].id });
@@ -705,7 +763,24 @@ const ExpenseManager: React.FC = () => {
   const TX_PAGE = 50;
   const [txLimit, setTxLimit] = useState(TX_PAGE);
   const [txQuery, setTxQuery] = useState('');
-  const changePeriod = (p: 'daily' | 'weekly' | 'monthly' | 'yearly') => { setPeriod(p); setTxOffset(0); setTxLimit(TX_PAGE); };
+  // Tapping a category (row or wedge) pins the history to it; tapping it again lets go
+  const [catFilter, setCatFilter] = useState<string | null>(null);
+  const historyRef = useRef<HTMLDivElement>(null);
+  const toggleCatFilter = (cat: string) => {
+    const next = catFilter === cat ? null : cat;
+    setCatFilter(next);
+    setTxLimit(TX_PAGE);
+    // Pinning carries you to the answer; unpinning leaves you where you are, since you are
+    // already reading the list and being thrown back up the page would lose your place.
+    if (next) historyRef.current?.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      block: 'start',
+    });
+  };
+  // The pinned category is dropped when the window moves — it may not have been spent in the new
+  // one, and an empty history under a filter you didn't set again reads as lost data.
+  const changePeriod = (p: 'daily' | 'weekly' | 'monthly' | 'yearly') => { setPeriod(p); setTxOffset(0); setTxLimit(TX_PAGE); setCatFilter(null); };
+  const changeOffset = (delta: number) => { setTxOffset(o => Math.max(0, o + delta)); setTxLimit(TX_PAGE); setCatFilter(null); };
   const shortDay = (d: Date) => `${d.getDate()} ${MONTHS()[d.getMonth()]}`;
   // Selected window based on period + offset
   const selDay = new Date(today); selDay.setDate(today.getDate() - txOffset);
@@ -758,11 +833,15 @@ const ExpenseManager: React.FC = () => {
     }
   });
   txns.sort((a, b) => b.date.localeCompare(a.date));
-  // Search narrows the history only — the figures above stay the truth about the period
+  // Search and the category tap both narrow the history only — the figures above stay the truth
+  // about the period, so tapping a slice never makes the donut redraw itself around one wedge.
   const txq = txQuery.trim().toLowerCase();
-  const foundTxns = txq
-    ? txns.filter(t => t.label.toLowerCase().includes(txq) || catLabel(t.category || 'other', allOptions).toLowerCase().includes(txq))
-    : txns;
+  const foundTxns = txns.filter(t => {
+    // A category holds spending, so filtering by one drops income rather than showing it uncategorised
+    if (catFilter && (t.type !== 'out' || (t.category || 'other') !== catFilter)) return false;
+    if (txq && !t.label.toLowerCase().includes(txq) && !catLabel(t.category || 'other', allOptions).toLowerCase().includes(txq)) return false;
+    return true;
+  });
   // Day totals in one pass — a filter per day is quadratic and a year of records feels it
   const dayNet: Record<string, number> = {};
   foundTxns.forEach(t => { dayNet[t.date] = (dayNet[t.date] || 0) + (t.type === 'in' ? t.amount : -t.amount); });
@@ -772,6 +851,41 @@ const ExpenseManager: React.FC = () => {
   txns.filter(t => t.type === 'out').forEach(t => { const k = t.category || 'other'; spendByCat[k] = (spendByCat[k] || 0) + t.amount; });
   const catRows = Object.entries(spendByCat).sort((a, b) => b[1] - a[1]);
 
+  // These are never three loose numbers — they are one ratio. Komitmen is paid-of-owed, Pendapatan
+  // is received-of-due, Tabung is saved-of-target. The meter carries the relationship and the
+  // columns annotate its two ends, so they anchor left and right instead of sitting in a row of
+  // boxes. It also survives masking: a percentage gives away nothing worth hiding, so the bar
+  // still answers "how far along am I" with the ringgit figures face-down.
+  const totalsBar = (cols: { label: string; value: number; tone: string }[], done: number, of: number) => {
+    const pct = of > 0 ? (done / of) * 100 : 0;
+    return (
+      <div className="bg-text/5 rounded-xl p-3 space-y-2.5">
+        <div className="flex items-center gap-2.5">
+          {/* The track is the whole of it; the fill is the part settled so far */}
+          <div className="flex-1 h-1.5 rounded-full bg-amber-400/20 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-emerald-400 light:bg-emerald-500 motion-safe:transition-[width] duration-500 ease-out"
+              style={{ width: `${Math.min(100, pct)}%` }}
+            />
+          </div>
+          <span className="text-[10px] font-mono font-bold text-muted shrink-0" style={{ fontVariantNumeric: 'tabular-nums' }}>{Math.round(pct)}%</span>
+        </div>
+        <div className="flex items-baseline gap-2">
+          {cols.map((c, i) => (
+            <div key={c.label} className={`flex-1 min-w-0 ${i === 0 ? 'text-left' : i === cols.length - 1 ? 'text-right' : 'text-center'}`}>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-muted leading-tight truncate">{c.label}</p>
+              {/* Never truncated — a clipped "RM 12,3…" reads as a smaller number than it is */}
+              <p className={`font-mono text-[13px] font-black mt-1 leading-none ${hideBalance ? 'text-muted' : c.tone}`} style={{ fontVariantNumeric: 'tabular-nums' }}>{masked(c.value)}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+  const TONE_NEUTRAL = 'text-text';
+  const TONE_GOOD = 'text-emerald-400 light:text-emerald-600';
+  const TONE_LEFT = 'text-amber-400 light:text-amber-600';
+
   const accent = 'rgb(16 185 129)'; // emerald base for this tool
 
   return (
@@ -779,10 +893,17 @@ const ExpenseManager: React.FC = () => {
       {/* Header */}
       <div className="flex items-center space-x-3 px-1">
         <div className="p-3 bg-emerald-500/20 rounded-xl"><Wallet className="text-emerald-400" size={26} /></div>
-        <div>
+        <div className="min-w-0">
           <h1 className="text-xl font-bold tracking-tight text-text/90">Expense Manager</h1>
           <p className="text-[10px] text-muted uppercase tracking-wider">{tr('Pendapatan · Komitmen · Perbelanjaan', 'Income · Commitments · Spending')}</p>
         </div>
+        <button
+          onClick={() => setShowSettings(true)}
+          aria-label={tr('Tetapan', 'Settings')}
+          className="ml-auto p-2 rounded-lg text-muted hover:text-text hover:bg-text/5 shrink-0"
+        >
+          <Settings size={20} />
+        </button>
       </div>
 
       {/* Tabs */}
@@ -848,27 +969,23 @@ const ExpenseManager: React.FC = () => {
 
           {/* Statement strip — one panel, three columns, reads as the card's back */}
           <StatStrip items={[
-            { label: tr('Pendapatan', 'Income'), value: masked(totalIncome), Icon: TrendingUp, tone: hideBalance ? 'text-muted' : 'text-emerald-400 light:text-emerald-600' },
-            { label: tr('Komitmen Dibayar', 'Commitments Paid'), value: masked(paidCommitment), Icon: CreditCard, tone: hideBalance ? 'text-muted' : 'text-amber-400 light:text-amber-600' },
-            { label: tr('Perbelanjaan', 'Spending'), value: masked(totalExpenses), Icon: TrendingDown, tone: hideBalance ? 'text-muted' : 'text-rose-400 light:text-rose-600' },
-          ]} />
+            { label: tr('Pendapatan', 'Income'), value: masked(totalIncome), Icon: TrendingUp, tone: hideBalance ? 'text-muted' : 'text-emerald-400 light:text-emerald-600', pct: totalIncome > 0 ? '100%' : '—' },
+            { label: tr('Komitmen Dibayar', 'Commitments Paid'), value: masked(paidCommitment), Icon: CreditCard, tone: hideBalance ? 'text-muted' : 'text-amber-400 light:text-amber-600', pct: shareOf(paidCommitment, totalIncome) },
+            { label: tr('Perbelanjaan', 'Spending'), value: masked(totalExpenses), Icon: TrendingDown, tone: hideBalance ? 'text-muted' : 'text-rose-400 light:text-rose-600', pct: shareOf(totalExpenses, totalIncome) },
+          ]} segments={totalIncome > 0 ? [
+            { pct: (paidCommitment / totalIncome) * 100, color: SEG_COMMIT },
+            { pct: (totalExpenses / totalIncome) * 100, color: SEG_SPEND },
+          ] : undefined} />
 
           {/* Commitment checklist */}
           <div className="glass-panel p-4 space-y-2">
             <h3 className="font-bold text-sm flex items-center gap-2 mb-1"><CreditCard size={16} className="text-amber-400" /> {tr('Komitmen', 'Commitments')}</h3>
             
-            {/* Follows the Baki card: these are the same figures, so they hide with it */}
-            <div className="flex items-center justify-between text-[10px] font-bold text-muted bg-text/5 rounded-lg p-2 mb-3">
-              <div className="text-center flex-1 border-r border-text/10">
-                {tr('Jumlah', 'Total')}<br/><span className={`text-xs ${hideBalance ? 'text-muted' : 'text-text'}`}>{masked(totalCommitment)}</span>
-              </div>
-              <div className="text-center flex-1 border-r border-text/10">
-                {tr('Dibayar', 'Paid')}<br/><span className={`text-xs ${hideBalance ? 'text-muted' : 'text-emerald-400 light:text-emerald-600'}`}>{masked(paidCommitment)}</span>
-              </div>
-              <div className="text-center flex-1">
-                {tr('Baki', 'Left')}<br/><span className={`text-xs ${hideBalance ? 'text-muted' : 'text-amber-400 light:text-amber-600'}`}>{masked(totalCommitment - paidCommitment)}</span>
-              </div>
-            </div>
+            <div className="mb-3">{totalsBar([
+              { label: tr('Jumlah', 'Total'), value: totalCommitment, tone: TONE_NEUTRAL },
+              { label: tr('Dibayar', 'Paid'), value: paidCommitment, tone: TONE_GOOD },
+              { label: tr('Baki', 'Left'), value: totalCommitment - paidCommitment, tone: TONE_LEFT },
+            ], paidCommitment, totalCommitment)}</div>
 
             {monthCommitments.length > 4 && (
               <SearchBox value={commitQuery} onChange={setCommitQuery} placeholder={tr('Cari komitmen', 'Search commitments')} />
@@ -1072,17 +1189,26 @@ const ExpenseManager: React.FC = () => {
           ? sorted.filter(c => c.title.toLowerCase().includes(q) || catLabel(c.category, commitOptions).toLowerCase().includes(q))
           : sorted;
         const paidCount = sorted.filter(c => c.payments[viewMonth]).length;
-        const monthlyTotal = sorted.reduce((s, c) => s + scheduledFor(c, viewMonth), 0);
+        // Paid ones count what they actually cost, the rest what they are scheduled to — the
+        // dashboard's convention, so Baki here is what is genuinely still owed this month.
+        const tabTotal = sorted.reduce((s, c) => s + (c.payments[viewMonth] ? paidFor(c, viewMonth) : scheduledFor(c, viewMonth)), 0);
+        const tabPaid = sorted.filter(c => c.payments[viewMonth]).reduce((s, c) => s + paidFor(c, viewMonth), 0);
         return (
           <div className="space-y-3">
             <button onClick={() => openCForm()} className="w-full py-3 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-emerald-500/50 hover:text-emerald-400 transition-all flex items-center justify-center"><Plus size={18} className="mr-2" /> {tr('Tambah Komitmen', 'Add a Commitment')}</button>
 
             {sorted.length > 0 && (
-              <div className="flex items-center justify-between gap-2 px-1 text-[11px] text-muted">
-                <span>{tr(`${sorted.length} komitmen · ${paidCount} dibayar`, `${sorted.length} commitments · ${paidCount} paid`)}</span>
-                <span className={`font-mono font-bold ${hideBalance ? 'text-muted' : 'text-amber-400 light:text-amber-600'}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
-                  {masked(monthlyTotal)}{tr('/bulan', '/mo')}
-                </span>
+              <div className="space-y-1.5">
+                {/* This tab carries no month picker, so the figures have to name their month */}
+                <div className="flex items-center justify-between gap-2 px-1 text-[11px] text-muted">
+                  <span>{tr(`${sorted.length} komitmen · ${paidCount} dibayar`, `${sorted.length} commitments · ${paidCount} paid`)}</span>
+                  <span className="font-bold">{monthLabel(viewMonth)}</span>
+                </div>
+                {totalsBar([
+                  { label: tr('Jumlah', 'Total'), value: tabTotal, tone: TONE_NEUTRAL },
+                  { label: tr('Dibayar', 'Paid'), value: tabPaid, tone: TONE_GOOD },
+                  { label: tr('Baki', 'Left'), value: tabTotal - tabPaid, tone: TONE_LEFT },
+                ], tabPaid, tabTotal)}
               </div>
             )}
 
@@ -1179,10 +1305,15 @@ const ExpenseManager: React.FC = () => {
             <button onClick={addIncome} disabled={payDayInvalid} className="w-full py-2.5 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 disabled:opacity-40 disabled:pointer-events-none">{tr('Tambah Pendapatan', 'Add Income')}</button>
           </div>
 
+          {monthIncomes.length > 0 && totalsBar([
+            { label: tr('Jumlah', 'Total'), value: totalIncome, tone: TONE_NEUTRAL },
+            { label: tr('Diterima', 'Received'), value: receivedIncome, tone: TONE_GOOD },
+            { label: tr('Belum', 'Pending'), value: pendingIncome, tone: TONE_LEFT },
+          ], receivedIncome, totalIncome)}
+
           <div className="glass-panel p-4">
             <div className="flex justify-between items-center mb-2">
               <h3 className="font-bold text-sm">{monthLabel(viewMonth)}</h3>
-              <span className="font-mono font-bold text-emerald-400">RM{fmt(totalIncome)}</span>
             </div>
             {monthIncomes.length === 0 ? (
               <p className="text-xs text-muted text-center py-3">{tr('Tiada pendapatan bulan ini.', 'No income this month.')}</p>
@@ -1212,6 +1343,11 @@ const ExpenseManager: React.FC = () => {
           <button onClick={() => openGForm()} className="w-full py-3 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold hover:border-emerald-500/50 hover:text-emerald-400 transition-all flex items-center justify-center">
             <Plus size={18} className="mr-2" /> {tr('Tambah Tabung', 'Add a fund')}
           </button>
+
+          {goals.length > 0 && totalsBar([
+            { label: tr('Terkumpul', 'Saved'), value: allSaved, tone: TONE_GOOD },
+            { label: tr('Sasaran', 'Target'), value: allTarget, tone: TONE_NEUTRAL },
+          ], allSaved, allTarget)}
 
           {goals.length === 0 ? (
             <p className="text-xs text-muted text-center py-6 leading-relaxed">
@@ -1282,28 +1418,90 @@ const ExpenseManager: React.FC = () => {
           </div>
 
           <div className="flex items-center justify-between px-1">
-            <button onClick={() => { setTxOffset(o => o + 1); setTxLimit(TX_PAGE); }} className="p-1.5 rounded-lg bg-text/5 text-muted hover:text-text"><ChevronLeft size={18} /></button>
+            <button onClick={() => changeOffset(1)} className="p-1.5 rounded-lg bg-text/5 text-muted hover:text-text"><ChevronLeft size={18} /></button>
             <span className="text-sm font-bold text-text/90">{periodLabel}</span>
-            <button onClick={() => { setTxOffset(o => Math.max(0, o - 1)); setTxLimit(TX_PAGE); }} disabled={txOffset === 0} className="p-1.5 rounded-lg bg-text/5 text-muted hover:text-text disabled:opacity-30"><ChevronRight size={18} /></button>
+            <button onClick={() => changeOffset(-1)} disabled={txOffset === 0} className="p-1.5 rounded-lg bg-text/5 text-muted hover:text-text disabled:opacity-30"><ChevronRight size={18} /></button>
           </div>
 
           <StatStrip items={[
-            { label: tr('Masuk', 'In'), value: `RM ${fmt(txIn)}`, Icon: TrendingUp, tone: 'text-emerald-400 light:text-emerald-600' },
-            { label: tr('Keluar', 'Out'), value: `RM ${fmt(txOut)}`, Icon: TrendingDown, tone: 'text-rose-400 light:text-rose-600' },
-            { label: tr('Bersih', 'Net'), value: `RM ${fmt(txIn - txOut)}`, Icon: Wallet, tone: txIn - txOut < 0 ? 'text-rose-400 light:text-rose-600' : 'text-text' },
-          ]} />
+            { label: tr('Masuk', 'In'), value: `RM ${fmt(txIn)}`, Icon: TrendingUp, tone: 'text-emerald-400 light:text-emerald-600', pct: txIn > 0 ? '100%' : '—' },
+            { label: tr('Keluar', 'Out'), value: `RM ${fmt(txOut)}`, Icon: TrendingDown, tone: 'text-rose-400 light:text-rose-600', pct: shareOf(txOut, txIn) },
+            { label: tr('Bersih', 'Net'), value: `RM ${fmt(txIn - txOut)}`, Icon: Wallet, tone: txIn - txOut < 0 ? 'text-rose-400 light:text-rose-600' : 'text-text', pct: shareOf(txIn - txOut, txIn) },
+          ]} segments={txIn > 0 ? [{ pct: (txOut / txIn) * 100, color: SEG_SPEND }] : undefined} />
 
           {/* Spending by category */}
           <div className="glass-panel p-4 space-y-3">
             <h3 className="font-bold text-sm flex items-center gap-2"><PieChart size={16} className="text-emerald-400 light:text-emerald-600" /> {tr('Perbelanjaan Ikut Kategori', 'Spending by Category')}</h3>
             {catRows.length === 0 ? (
               <p className="text-xs text-muted text-center py-3">{tr(`Tiada perbelanjaan dalam ${periodLabel.toLowerCase()}.`, `No spending in ${periodLabel.toLowerCase()}.`)}</p>
-            ) : catRows.map(([cat, amt]) => {
+            ) : null}
+
+            {catRows.length > 0 && (() => {
+              // Part-to-whole at a glance, and only that: six wedges is the readable ceiling, so
+              // the tail is grouped. Close values are compared on the rows underneath, which carry
+              // the exact ringgit — a ring is the wrong instrument for reading two similar slices.
+              const top = catRows.slice(0, DONUT_MAX);
+              const rest = catRows.slice(DONUT_MAX);
+              const restTotal = rest.reduce((s, [, amt]) => s + amt, 0);
+              const wedges = [
+                ...top.map(([cat, amt]) => ({ key: cat, label: catLabel(cat, allOptions), amt, color: catColor(cat, allOptions) })),
+                ...(restTotal > 0 ? [{ key: '__rest', label: tr(`${rest.length} kategori lain`, `${rest.length} more categories`), amt: restTotal, color: REST_COLOR }] : []),
+              ];
+              // A lone wedge is a closed ring; a gap in it would read as a missing slice
+              const gap = wedges.length > 1 ? DONUT_GAP : 0;
+              let start = 0;
+              return (
+                <div className="flex justify-center py-1">
+                  {/* 160px keeps a 13-character yearly total clear of the ring's inner edge */}
+                  <div className="relative w-[160px] h-[160px]">
+                    <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90" role="img"
+                      aria-label={tr(
+                        `Perbelanjaan ikut kategori. Terbesar: ${wedges[0].label}, ${(wedges[0].amt / txOut * 100).toFixed(0)} peratus.`,
+                        `Spending by category. Largest: ${wedges[0].label}, ${(wedges[0].amt / txOut * 100).toFixed(0)} percent.`)}>
+                      {wedges.map(w => {
+                        const len = (w.amt / txOut) * DONUT_C;
+                        const draw = Math.max(len - gap, 0.6); // a sliver still reads as present
+                        const dash = `${draw} ${DONUT_C - draw}`;
+                        // The grouped wedge is several categories at once, so there is nothing
+                        // single for it to pin the history to — only named wedges are tappable.
+                        const named = w.key !== '__rest';
+                        const dimmed = catFilter !== null && catFilter !== w.key;
+                        const el = (
+                          <circle key={w.key} cx="50" cy="50" r={DONUT_R} fill="none" stroke={w.color} strokeWidth="13"
+                            strokeDasharray={dash} strokeDashoffset={-start}
+                            opacity={dimmed ? 0.25 : 1}
+                            onClick={named ? () => toggleCatFilter(w.key) : undefined}
+                            className={`motion-safe:transition-[stroke-dasharray,opacity] duration-500 ease-out ${named ? 'cursor-pointer' : ''}`}>
+                            <title>{`${w.label} · RM ${fmt(w.amt)} · ${(w.amt / txOut * 100).toFixed(0)}%`}</title>
+                          </circle>
+                        );
+                        start += len;
+                        return el;
+                      })}
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-muted">{tr('Keluar', 'Out')}</span>
+                      <span className="font-mono text-[14px] font-black text-text leading-tight mt-0.5" style={{ fontVariantNumeric: 'tabular-nums' }}>RM {fmt(txOut)}</span>
+                      <span className="text-[9px] text-muted mt-0.5">{tr(`${catRows.length} kategori`, `${catRows.length} categories`)}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {catRows.map(([cat, amt]) => {
               const pct = txOut > 0 ? (amt / txOut) * 100 : 0;
               const color = catColor(cat, allOptions);
               const Icon = catIcon(cat, allOptions);
+              const pinned = catFilter === cat;
               return (
-                <div key={cat} className="flex items-center gap-2.5">
+                <button
+                  key={cat}
+                  onClick={() => toggleCatFilter(cat)}
+                  aria-pressed={pinned}
+                  title={tr(`Lihat transaksi ${catLabel(cat, allOptions)}`, `See ${catLabel(cat, allOptions)} transactions`)}
+                  className={`w-full flex items-center gap-2.5 text-left rounded-lg -mx-1 px-1 py-1 transition-colors ${pinned ? 'bg-text/[0.07]' : 'hover:bg-text/5'}`}
+                >
                   <span className="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center" style={{ backgroundColor: `${color}22`, color }}>
                     <Icon size={14} />
                   </span>
@@ -1316,17 +1514,31 @@ const ExpenseManager: React.FC = () => {
                       <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: color }} />
                     </div>
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
 
           {/* History — grouped by day, each row led by its category icon */}
-          <div className="glass-panel p-4">
+          <div ref={historyRef} className="glass-panel p-4 scroll-mt-4">
             <div className="flex items-baseline justify-between gap-2 mb-2">
               <h3 className="font-bold text-sm">{tr('Sejarah', 'History')} · {periodLabel}</h3>
               {foundTxns.length > 0 && <span className="text-[10px] text-muted shrink-0">{tr(`${foundTxns.length} transaksi`, `${foundTxns.length} transactions`)}</span>}
             </div>
+
+            {/* The pin is stated in the list it narrows, with the way out on the chip itself —
+                a filter set three panels up is otherwise invisible from down here. */}
+            {catFilter && (
+              <button
+                onClick={() => toggleCatFilter(catFilter)}
+                className="mb-2 flex items-center gap-1.5 rounded-full pl-1.5 pr-2.5 py-1 text-[11px] font-bold border transition-colors hover:bg-text/5"
+                style={{ borderColor: `${catColor(catFilter, allOptions)}66`, color: catColor(catFilter, allOptions) }}
+              >
+                {(() => { const I = catIcon(catFilter, allOptions); return <I size={13} />; })()}
+                {catLabel(catFilter, allOptions)}
+                <X size={13} className="opacity-70" />
+              </button>
+            )}
 
             <div className="mb-2">
               <SearchBox
@@ -1337,7 +1549,13 @@ const ExpenseManager: React.FC = () => {
             </div>
 
             {foundTxns.length === 0 ? (
-              <p className="text-xs text-muted text-center py-3">{txq ? tr(`Tiada padanan untuk "${txQuery.trim()}".`, `No match for "${txQuery.trim()}".`) : tr('Tiada transaksi.', 'No transactions.')}</p>
+              <p className="text-xs text-muted text-center py-3">
+                {txq
+                  ? tr(`Tiada padanan untuk "${txQuery.trim()}".`, `No match for "${txQuery.trim()}".`)
+                  : catFilter
+                    ? tr(`Tiada transaksi ${catLabel(catFilter, allOptions)}.`, `No ${catLabel(catFilter, allOptions)} transactions.`)
+                    : tr('Tiada transaksi.', 'No transactions.')}
+              </p>
             ) : foundTxns.slice(0, txLimit).map((t, i, page) => {
               const newDay = i === 0 || page[i - 1].date !== t.date;
               const income = t.type === 'in';
@@ -1738,6 +1956,28 @@ const ExpenseManager: React.FC = () => {
           </div>
         );
       })(), document.body)}
+
+      {/* Settings sheet */}
+      {showSettings && createPortal((
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowSettings(false)}>
+          <div className="bg-surface border border-text/10 rounded-3xl w-full max-w-md p-5 space-y-4 animate-slide-up" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between"><h3 className="font-bold text-lg">{tr('Tetapan', 'Settings')}</h3><button onClick={() => setShowSettings(false)} className="p-1 text-muted hover:text-text"><X size={20} /></button></div>
+            <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 space-y-2">
+              <p className="flex items-center gap-2 text-sm font-bold text-rose-400 light:text-rose-600"><AlertTriangle size={16} className="shrink-0" />{tr('Padam semua data', 'Delete all data')}</p>
+              <p className="text-xs text-muted">{tr(
+                'Membuang semua perbelanjaan, pendapatan, komitmen, tabung dan kategori sendiri dalam Expense Manager sahaja. Alat lain tidak disentuh.',
+                'Removes every expense, income, commitment, savings goal and custom category in Expense Manager only. Other tools are left alone.',
+              )}</p>
+              <p className="text-xs font-bold text-rose-400 light:text-rose-600">{tr(
+                'Amaran: data yang dipadam tidak boleh dipulihkan.',
+                'Warning: deleted data cannot be recovered.',
+              )}</p>
+              <button onClick={wipeAll} className="w-full py-3 rounded-xl bg-rose-500 text-[#ffffff] font-bold hover:bg-rose-600 flex items-center justify-center gap-2"><Trash2 size={16} />{tr('Padam semua data', 'Delete all data')}</button>
+            </div>
+            <button onClick={() => setShowSettings(false)} className="w-full py-2.5 rounded-xl bg-text/5 text-text font-bold hover:bg-text/10">{tr('Tutup', 'Close')}</button>
+          </div>
+        </div>
+      ), document.body)}
 
       {/* Delete commitment modal */}
       {delCommit && createPortal((
