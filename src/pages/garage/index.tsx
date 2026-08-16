@@ -6,6 +6,7 @@ import { store } from '../../lib/store';
 import { useT } from '../../lib/lang';
 import { EMPTY_GARAGE, type GarageData } from '../../lib/garage';
 import { Gauge, CarFront, BarChart3, Settings2, ChevronLeft } from 'lucide-react';
+import Vehicles from './Vehicles';
 
 const FLEET = 'garage_fleet';
 const RECORDS = 'garage_records';
@@ -69,10 +70,11 @@ function readGarage(): GarageData {
 
 export default function Garage() {
   const tr = useT();
-  // No setter captured yet: nothing in this file mutates the fleet, and a binding no tab can
-  // yet reach is dead code by the same logic that removed the speculative "tabProps" bag this
-  // review flagged. Task 10 re-adds `, setData` here the moment a tab actually needs to call it.
-  const [data] = useState<GarageData>(readGarage);
+  // `setData` is threaded straight to whichever tab is mounted (Vehicles first, Tasks 11-13
+  // after). Every write a tab makes MUST produce a new object — never mutate `data` in place and
+  // never pass back the exact object a tab was handed — because the save effect below tells a
+  // real edit apart from its own mount by comparing `data` to `mountedWith.current` by identity.
+  const [data, setData] = useState<GarageData>(readGarage);
   const [tab, setTab] = useState<'overview' | 'vehicles' | 'costs' | 'settings'>('overview');
   const [vehicleId] = useState<string | null>(() => store.getItem(SELECTED));
   // Vehicle-detail navigation contract (established here for Task 11): when non-null, the
@@ -151,7 +153,7 @@ export default function Garage() {
         <>
           {/* Each tab is rendered here, gated on `tab`; see Tasks 10-13. */}
           {tab === 'overview' && null}
-          {tab === 'vehicles' && null}
+          {tab === 'vehicles' && <Vehicles data={data} setData={setData} onOpen={setDetailId} />}
           {tab === 'costs' && null}
           {tab === 'settings' && null}
         </>
