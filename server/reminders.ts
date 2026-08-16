@@ -61,8 +61,19 @@ due as (
     from garage_reminders
    where due_date is not null and not done
   union all
+  -- Named exactly the way the client does (DOC_LABELS in src/lib/garage.ts), not rederived with
+  -- initcap — that would give "Road Tax" where the client renders "Road tax", and the same
+  -- record must not read differently in a notification than it does on screen. note is folded
+  -- in the same way custom_title is above, for the same reason: it is what disambiguates "Other".
   select user_id, 'garage_document', id,
-         initcap(replace(type, 'roadtax', 'road tax')), expiry, '/vehicle-services'
+         (case type
+            when 'roadtax'   then 'Road tax'
+            when 'insurance' then 'Insurance'
+            when 'puspakom'  then 'Puspakom'
+            when 'warranty'  then 'Warranty'
+            else 'Other'
+          end) || coalesce(' · ' || nullif(note, ''), ''),
+         expiry, '/vehicle-services'
     from garage_documents
   union all
   select user_id, 'home_service', id, coalesce(nullif(title, ''), 'Servis'),
@@ -92,8 +103,9 @@ export const KM_SOON = 500;
 // Reminders owed on the odometer rather than the calendar.
 //
 // Simpler and more accurate than the version this replaces: odo is a real integer on every
-// record now, so the current reading is a plain max across three tables. The old query had to
-// regex digits out of a free-text mileage field and fall back to vehicle_assets.mileage.
+// record now, so the current reading is a plain max across the mileage floor and three log
+// tables. The old query had to regex digits out of a free-text mileage field and fall back to
+// vehicle_assets.mileage.
 //
 // The honest limit is unchanged: the odometer only moves when the user enters something, so
 // this can only fire on the run after they did. A car driven 900 km without an entry is
@@ -109,12 +121,12 @@ with odo as (
            v.mileage,
            coalesce((select max(odo) from garage_energy_logs e
                       where e.user_id = v.user_id and e.vehicle_id = v.id), 0),
-           coalesce((select max(odo) from garage_services s
-                      where s.user_id = v.user_id and s.vehicle_id = v.id), 0),
+           coalesce((select max(odo) from garage_services sv
+                      where sv.user_id = v.user_id and sv.vehicle_id = v.id), 0),
            coalesce((select max(odo) from garage_odo_logs o
                       where o.user_id = v.user_id and o.vehicle_id = v.id), 0)
          ) as current_odo,
-         coalesce(nullif(v.nickname, ''), v.model) as vehicle_name
+         coalesce(nullif(v.nickname, ''), nullif(v.model, ''), 'Kenderaan') as vehicle_name
     from garage_vehicles v
 )
 select r.user_id, 'garage_mileage' as source, r.id as record_id,

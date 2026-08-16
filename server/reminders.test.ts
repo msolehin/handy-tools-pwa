@@ -66,10 +66,10 @@ describe('reminders', { skip: skip && 'DATABASE_URL not set' }, () => {
          ($1, 'remKmDone', 'car1', 'Servis km dah buat', 90000, true)`,
       [userId]);
 
-    // A vehicle document (road tax) expiring in 30 days.
+    // A vehicle document (road tax, with a note) expiring in 30 days.
     await pool!.query(
-      `insert into garage_documents (user_id, id, vehicle_id, type, expiry) values
-         ($1, 'gdoc30', 'car1', 'roadtax', $2)`,
+      `insert into garage_documents (user_id, id, vehicle_id, type, expiry, note) values
+         ($1, 'gdoc30', 'car1', 'roadtax', $2, 'JPJ Online')`,
       [userId, plus(30)]);
   });
 
@@ -97,6 +97,13 @@ describe('reminders', { skip: skip && 'DATABASE_URL not set' }, () => {
     const due = (await dueReminders()).filter((r) => r.userId === userId);
     assert.equal(due.find((r) => r.recordId === 'doc01')?.title, 'Sijil Kahwin');
     assert.equal(due.find((r) => r.recordId === 'doc30')?.title, 'Roadtax');
+  });
+
+  test("a garage document label matches the client's own formatting", async () => {
+    const due = (await dueReminders()).filter((r) => r.userId === userId);
+    // DOC_LABELS in src/lib/garage.ts renders "Road tax", not "Road Tax" — initcap(type) would
+    // get the case wrong, and the note is what would disambiguate a bare "Other".
+    assert.equal(due.find((r) => r.recordId === 'gdoc30')?.title, 'Road tax · JPJ Online');
   });
 
   test('a second run the same day delivers nothing', async () => {
@@ -137,6 +144,25 @@ describe('reminders', { skip: skip && 'DATABASE_URL not set' }, () => {
     assert.equal(km?.dueDate, '', 'there is no date to invent');
   });
 
+  test('the odometer reading comes from the log tables, not just the mileage floor', async () => {
+    await pool!.query('delete from reminder_sends where user_id = $1', [userId]);
+
+    // garage_vehicles.mileage stays at its 89,800 floor here; a newer garage_odo_logs entry is
+    // the real current reading. This is the only fixture that sets a reading anywhere but the
+    // floor, so it is what would catch any of the three log subqueries getting dropped from the
+    // greatest(...) in MILEAGE_SQL.
+    await pool!.query(
+      `insert into garage_odo_logs (user_id, id, vehicle_id, date, odo) values
+         ($1, 'odoNewer', 'car1', $2, 90100)`, [userId, plus(-1)]);
+
+    const due = (await dueReminders()).find((r) => r.recordId === 'remKm');
+    assert.equal(due?.subtitle, 'Myvi · 90,100 km',
+      'current_odo must be the greatest log reading, not the stale floor');
+
+    await pool!.query(
+      `delete from garage_odo_logs where user_id = $1 and id = 'odoNewer'`, [userId]);
+  });
+
   test('a mileage reminder fires once per band, then again once it is overdue', async () => {
     await pool!.query('delete from reminder_sends where user_id = $1', [userId]);
 
@@ -162,6 +188,36 @@ describe('reminders', { skip: skip && 'DATABASE_URL not set' }, () => {
 
     await pool!.query(
       `update garage_vehicles set mileage = 89800 where user_id = $1 and id = 'car1'`, [userId]);
+  });
+
+  test('a mileage reminder is deduped per user, not by source/record/band alone', async () => {
+    await pool!.query('delete from reminder_sends where user_id = $1', [userId]);
+
+    // A second user with a send row carrying the exact source/record_id/offset_days as this
+    // user's own 'remKm' reminder. reminder_sends has no FK to garage_reminders, so nothing
+    // stops two unrelated users' rows from sharing a record_id. If the dedup join in
+    // MILEAGE_SQL ever drops user_id from its predicate — the exact typo caught by hand while
+    // writing this file, `s.user_id = s.user_id` instead of `s.user_id = r.user_id` — this
+    // other user's row would wrongly suppress the one below, and every other assertion in this
+    // file would still pass, because they all run as the one seeded user.
+    const { rows } = await pool!.query(
+      `insert into users (google_sub, email, name)
+       values ('test-sub-reminders-2', 'reminders2@test.local', 'Reminder Test 2')
+       on conflict (google_sub) do update set email = excluded.email
+       returning id`);
+    const otherUserId = rows[0].id;
+    // The upsert above reuses the same row across runs, so clear any send left behind by a
+    // previous run that failed before its own cleanup ran.
+    await pool!.query('delete from reminder_sends where user_id = $1', [otherUserId]);
+    await pool!.query(
+      `insert into reminder_sends (user_id, source, record_id, offset_days) values
+         ($1, 'garage_mileage', 'remKm', 7)`, [otherUserId]);
+
+    const due = (await dueReminders()).filter((r) => r.userId === userId);
+    assert.ok(due.some((r) => r.recordId === 'remKm'),
+      "a different user's send row must never suppress this user's reminder");
+
+    await pool!.query('delete from users where id = $1', [otherUserId]);
   });
 
   test('a failed delivery is retried rather than swallowed', async () => {
