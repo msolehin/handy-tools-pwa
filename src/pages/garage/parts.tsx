@@ -1,7 +1,9 @@
 // Shared presentational pieces every Garaj tab (Tasks 9-13) composes from. No tabs, no forms,
 // no data loading here — this file receives data and renders it. Everything uses the app's
-// theme tokens except Cluster, which is the tool's one deliberate dark surface.
-import React, { useEffect, useRef, useState } from 'react';
+// theme tokens except Cluster, which is the tool's one deliberate dark surface: it is built
+// entirely from literal colours, never a `white`/`black` CSS-variable token, because those
+// tokens are what change between the app's two themes and Cluster must not.
+import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronRight, X } from 'lucide-react';
 import {
@@ -63,14 +65,18 @@ export function Cluster({ vehicle, data }: { vehicle: Vehicle; data: GarageData 
   const verb = kinds[0] === 'charge' ? 'charge' : 'fill';
 
   return (
-    <div className="rounded-2xl p-4 text-white shadow-lg"
+    // Every `white`-tinted class below is a literal rgba/hex, never the `white` TOKEN (text-white,
+    // bg-white/NN etc.) — that token flips to near-black under html.light (index.css), which would
+    // turn this permanently-dark panel unreadable in light mode. The cluster must not react to the
+    // theme at all, so nothing in it may resolve through a CSS variable that does.
+    <div className="rounded-2xl p-4 text-[#ffffff] shadow-lg"
          style={{ background: 'linear-gradient(168deg,#1F2A27,#131B19 58%)' }}>
       <div className="flex items-center justify-between mb-3">
-        <span className="font-display text-[11px] uppercase tracking-[0.22em] text-white/40">
+        <span className="font-display text-[11px] uppercase tracking-[0.22em] text-[rgba(255,255,255,.4)]">
           {vehicle.nickname || vehicle.model} · odometer
         </span>
         {vehicle.plate && (
-          <span className="font-display text-[12px] tracking-[0.12em] text-white/60 border border-white/15 rounded px-2 py-0.5">
+          <span className="font-display text-[12px] tracking-[0.12em] text-[rgba(255,255,255,.6)] border border-[rgba(255,255,255,.15)] rounded px-2 py-0.5">
             {vehicle.plate}
           </span>
         )}
@@ -79,7 +85,7 @@ export function Cluster({ vehicle, data }: { vehicle: Vehicle; data: GarageData 
       <div className="flex items-end gap-[3px]">
         {digits.split('').map((d, i) => (
           <React.Fragment key={i}>
-            <span className="font-mono text-[31px] font-bold leading-none rounded-[5px] px-1.5 py-2 border border-white/[.07] text-center min-w-[26px]"
+            <span className="font-mono text-[31px] font-bold leading-none rounded-[5px] px-1.5 py-2 border border-[rgba(255,255,255,.07)] text-center min-w-[26px]"
                   style={{
                     ...num,
                     background: 'rgba(0,0,0,.42)',
@@ -89,18 +95,18 @@ export function Cluster({ vehicle, data }: { vehicle: Vehicle; data: GarageData 
             {i === 2 && <span className="w-1" />}
           </React.Fragment>
         ))}
-        <span className="font-display text-[14px] tracking-[0.12em] text-white/45 pb-2 ml-1.5">km</span>
+        <span className="font-display text-[14px] tracking-[0.12em] text-[rgba(255,255,255,.45)] pb-2 ml-1.5">km</span>
       </div>
 
-      <div className="flex gap-px mt-3.5 rounded-lg overflow-hidden bg-white/[.08]">
+      <div className="flex gap-px mt-3.5 rounded-lg overflow-hidden bg-[rgba(255,255,255,.08)]">
         {[
           { v: since === null ? '—' : fmtKm(since), l: `km since ${verb}` },
           { v: primary ? primary.rate.toFixed(1) : '—', l: primary ? primary.unit : `km/${unitFor(kinds[0])}` },
           { v: cpk ? cpk.toFixed(2) : '—', l: 'RM per km' },
         ].map((c) => (
-          <div key={c.l} className="flex-1 bg-white/[.04] px-2.5 py-2.5">
-            <b className="block font-mono text-[16px] font-bold" style={num}>{c.v}</b>
-            <span className="block font-display text-[10px] uppercase tracking-[0.13em] text-white/40 mt-0.5">{c.l}</span>
+          <div key={c.l} className="flex-1 bg-[rgba(255,255,255,.04)] px-2.5 py-2.5">
+            <b className="block font-mono text-[16px] font-bold text-[#ffffff]" style={num}>{c.v}</b>
+            <span className="block font-display text-[10px] uppercase tracking-[0.13em] text-[rgba(255,255,255,.4)] mt-0.5">{c.l}</span>
           </div>
         ))}
       </div>
@@ -262,10 +268,12 @@ export function DocPair({ vehicle, data, onOpen }: {
 
 /**
  * The bottom sheet every add/edit form in Tasks 10-13 wraps its fields in. Reuses the app's one
- * modal system rather than inventing a second: portalled into `#app-frame` (the same element
- * ExpenseManager.tsx looks up) so on desktop it stays confined to the phone-shaped frame instead
- * of covering the whole browser viewport, with the scrim + slide-up + rounded-top idiom every
- * other sheet in the app already uses.
+ * modal system rather than inventing a second: portalled into `document.body` with `fixed
+ * inset-0`, the same as every actual dialog in the app (ExpenseManager's showExpense/showGForm,
+ * DocumentExpiry's own reusable `sheet()` helper, Countdown, Tenancy...). `#app-frame` +
+ * `sm:absolute` is what ExpenseManager's floating add-expense *button* uses to stay confined to
+ * the phone-shaped frame — that's a FAB positioning trick, not the dialog pattern, so a dialog
+ * here would be a visible seam against every other dialog in the app if it borrowed it.
  *
  * `onSubmit`/`submitLabel` are optional so Sheet also covers a read-only or picker use — most
  * callers will supply both and get a real form with a save button.
@@ -282,12 +290,6 @@ export function Sheet({ open, title, sub, vehicle, onClose, onSubmit, submitLabe
   children: React.ReactNode;
 }) {
   const t = useT();
-  // #app-frame exists in Layout's own JSX but is not yet committed to the DOM during this
-  // component's first render, so it can only be found after mount — same reason ExpenseManager.tsx
-  // reads it in an effect rather than a lazy useState initializer.
-  const [frameEl, setFrameEl] = useState<HTMLElement | null>(null);
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- reads the DOM, not React state; nothing to derive this from during render
-  useEffect(() => { setFrameEl(document.getElementById('app-frame')); }, []);
 
   // Escape closes, same as every other sheet in the app (Countdown, DocumentExpiry, Tenancy...).
   useEffect(() => {
@@ -298,11 +300,12 @@ export function Sheet({ open, title, sub, vehicle, onClose, onSubmit, submitLabe
   }, [open, onClose]);
 
   // Focus lands on the panel itself, not lost behind the scrim — the panel has no single "first
-  // field" to autofocus since its body is caller-supplied.
+  // field" to autofocus since its body is caller-supplied. None of the app's existing modals do
+  // this; it's strictly additive on top of the pattern being matched, not a deviation from it.
   const panelRef = useRef<HTMLDivElement>(null);
   useEffect(() => { if (open) panelRef.current?.focus(); }, [open]);
 
-  if (!open || !frameEl) return null;
+  if (!open) return null;
 
   const body = onSubmit
     ? (
@@ -319,7 +322,7 @@ export function Sheet({ open, title, sub, vehicle, onClose, onSubmit, submitLabe
 
   return createPortal((
     <div
-      className="fixed inset-0 sm:absolute z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -328,7 +331,7 @@ export function Sheet({ open, title, sub, vehicle, onClose, onSubmit, submitLabe
       <div
         ref={panelRef}
         tabIndex={-1}
-        className="w-full max-w-md rounded-t-3xl border border-text/10 bg-surface animate-slide-up motion-reduce:animate-none flex flex-col max-h-[88dvh] outline-none"
+        className="w-full max-w-md rounded-t-3xl sm:rounded-3xl border border-text/10 bg-surface animate-slide-up motion-reduce:animate-none flex flex-col max-h-[88dvh] outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b border-text/10 shrink-0">
@@ -349,5 +352,5 @@ export function Sheet({ open, title, sub, vehicle, onClose, onSubmit, submitLabe
         {body}
       </div>
     </div>
-  ), frameEl);
+  ), document.body);
 }
