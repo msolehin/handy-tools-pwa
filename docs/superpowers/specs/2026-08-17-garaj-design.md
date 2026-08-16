@@ -214,13 +214,18 @@ the field accepts free text so a station-specific grade is never blocked:
 | hybrid / phev · fuel | RON95, RON97 |
 | ev / phev · charge | AC home, AC public, DC fast |
 
-**Economy is computed per kind, over full→full windows only.** A partial fill is recorded but
-does not close a measurement window, because the app cannot know how much was in the tank at
-either end of a partial pair. For each kind:
+**Economy is computed per kind, between full tanks.** A window opens at a full tank and closes
+at the next one; everything poured in between — partial top-ups included — is exactly what the
+distance across that window consumed, because the tank was full at both ends.
 
 ```
-economy(kind) = Σ(odo[i] − odo[i−1]) / Σ(qty[i])   over consecutive pairs where both are full
+economy(kind) = Σ(odo[close] − odo[open]) / Σ(qty added within the window)
 ```
+
+The only thing excluded is a window that never closed: fuel bought since the last full tank is
+still sitting in it and has not been burned yet. Discarding whole windows merely because a
+partial sits inside one — as the mockup does — understates how much data the owner has, and
+someone who tops up regularly would never get a reading at all.
 
 For a PHEV this yields two independent figures — km/L over its petrol windows and km/kWh over
 its charge windows — and **neither is the vehicle's efficiency**, because the electricity did
@@ -264,9 +269,10 @@ fixtures and hold no state between calls.
 - **`presetsFor(body, energy, customs, hidden)`** — §3.
 
 Tested in `src/lib/garage.test.ts` under `node --test`, matching `store.test.ts`. The cases that
-must be covered: a partial fill not closing an economy window, a PHEV producing two separate
-economy figures, `statusOf` picking the earlier of two triggers, a kilometre trigger being
-expressed in days, and `currentOdo` being unaffected by a backdated entry.
+must be covered: a partial fill being folded into the window it sits in, an unclosed window
+producing no reading at all, a PHEV producing two separate economy figures, `statusOf` picking
+the earlier of two triggers, a kilometre trigger being expressed in days, and `currentOdo` being
+unaffected by a backdated entry.
 
 ---
 
@@ -308,7 +314,11 @@ because `FULL` is a reserved word in Postgres and an unquoted `full boolean` wil
 `Vehicle.colorIdx` becomes `color_idx` per the existing snake_case convention. The descriptor in
 `tools.ts` owns both mappings, as it already does for every other tool.
 
-The same migration **drops `vehicle_service_events` and `vehicle_assets`**, per the wipe decision.
+The migration **creates only**. `vehicle_assets` and `vehicle_service_events` are left in the
+schema, following the convention `tools.ts` already documents for the removed Birthdays tool:
+those rows are user data, and a migration that deletes them cannot be undone. Deleting the
+descriptor is what stops a key syncing, and that is enough — from the user's side the data no
+longer loads, syncs, or appears anywhere, which is the wipe that was asked for.
 
 `server/tools.ts` gains three descriptors (one per synced key) and loses the
 `vehicle_services_data` and `vehicle_custom_titles` ones. `src/lib/store.ts` updates
@@ -402,7 +412,7 @@ The mockup's bottom navigation is dropped; the app already has one, and two woul
 | `src/pages/garage/Settings.tsx` | new |
 | `src/pages/garage/sheets/` | new — vehicle, service, energy, reminder, document forms |
 | `src/pages/VehicleServices.tsx` | **deleted** (1,206 lines) |
-| `server/migrations/018_garage.sql` | new — seven tables in, two out |
+| `server/migrations/018_garage.sql` | new — seven tables, creates only |
 | `server/tools.ts` | three descriptors in, two out |
 | `server/reminders.ts` | `DUE_SQL` union rewired (§6) |
 | `src/lib/store.ts` | `SYNCED_KEYS`, `SYNCED_ROUTES`, `TOOL_LABELS` |
