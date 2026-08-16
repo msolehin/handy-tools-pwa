@@ -7,6 +7,7 @@ import { useT } from '../../lib/lang';
 import { EMPTY_GARAGE, type GarageData } from '../../lib/garage';
 import { Gauge, CarFront, BarChart3, Settings2, ChevronLeft } from 'lucide-react';
 import Vehicles from './Vehicles';
+import VehicleDetail from './VehicleDetail';
 
 const FLEET = 'garage_fleet';
 const RECORDS = 'garage_records';
@@ -143,12 +144,26 @@ export default function Garage() {
         ))}
       </div>
       {detailId ? (
-        // The shell only guarantees the way back; Task 11 renders the real vehicle detail body
-        // here, keyed off `detailId`, with the tab row above staying visible and interactive.
-        <button onClick={() => setDetailId(null)}
-          className="flex items-center gap-1 text-sm text-muted hover:text-text px-1 py-3">
-          <ChevronLeft size={16} /> {tr('Kembali', 'Back')}
-        </button>
+        // A fragment, not a replacement: the shell only guarantees the way back, so Back has to
+        // keep rendering even once Task 11's real detail body mounts alongside it below — the
+        // integration bug this comment used to warn about (the button being the ONLY thing that
+        // rendered here) is exactly what a bare `return <button.../>` would still be.
+        <>
+          <button onClick={() => setDetailId(null)}
+            className="flex items-center gap-1 text-sm text-muted hover:text-text px-1 py-3">
+            <ChevronLeft size={16} /> {tr('Kembali', 'Back')}
+          </button>
+          {(() => {
+            const vehicle = data.vehicles.find((v) => v.id === detailId);
+            // Only reachable if the vehicle was deleted out from under an open detail page —
+            // detailId itself never survives a reload (see its own comment above) — and
+            // VehicleDetail already calls back to setDetailId(null) the moment that happens, so
+            // this is a one-frame guard, not a real empty state to design for.
+            return vehicle
+              ? <VehicleDetail vehicle={vehicle} data={data} setData={setData} onBack={() => setDetailId(null)} />
+              : null;
+          })()}
+        </>
       ) : (
         <>
           {/* Each tab is rendered here, gated on `tab`; see Tasks 10-13. */}

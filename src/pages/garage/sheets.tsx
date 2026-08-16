@@ -3,9 +3,12 @@
 // own file list — one module, one import, for every sheet in the tool.
 import { useRef, useState } from 'react';
 import { Trash2, ChevronDown, Image as ImageIcon, X } from 'lucide-react';
-import { Sheet, EDGE_COLORS } from './parts';
-import { BODIES, ENERGIES, engineSpec, type Body, type Energy } from '../../lib/garage-presets';
-import type { GarageData, Vehicle } from '../../lib/garage';
+import { Sheet, EDGE_COLORS, fmtKm, fmtRM, niceDate } from './parts';
+import {
+  BODIES, ENERGIES, engineSpec, presetsFor, SUGGEST, kindsFor, gradesFor, unitFor, typeKey,
+  type Body, type Energy, type LogKind,
+} from '../../lib/garage-presets';
+import { addMonths, currentOdo, todayISO, type EnergyLog, type GarageData, type OdoLog, type Reminder, type Service, type Vehicle } from '../../lib/garage';
 import { downscaleFile } from '../../lib/downscale';
 import { useT } from '../../lib/lang';
 
@@ -232,6 +235,434 @@ export function VehicleSheet({ open, vehicle, data, onClose, onSave, onDelete }:
           </div>
         </div>
       </details>
+    </Sheet>
+  );
+}
+
+/**
+ * Log or edit a service visit. The checklist sits immediately under the sheet's own title,
+ * ahead of date/odometer/everything else — that ordering was explicitly requested, not an
+ * incidental layout choice. Tapping a chip both adds AND removes its line item, so the chip row
+ * doubles as the only "remove" control an item needs.
+ *
+ * `data` is read for two things only: the vehicle's own preset list (`presetsFor`, keyed off
+ * `data.presets`) and a default odometer reading (`currentOdo`) — this sheet never writes
+ * storage itself, same division of labour as `VehicleSheet`.
+ */
+export function ServiceSheet({ open, vehicle, service, data, onClose, onSave, onDelete }: {
+  open: boolean;
+  vehicle: Vehicle;
+  /** Absent (or null) means logging a new visit. */
+  service?: Service | null;
+  data: GarageData;
+  onClose: () => void;
+  /** `reminder` is only present when the owner confirmed the post-save prompt below. */
+  onSave: (service: Service, reminder?: Reminder) => void;
+  onDelete?: (id: string) => void;
+}) {
+  const t = useT();
+  const [items, setItems] = useState<{ label: string; cost: number }[]>(service?.items ?? []);
+  const [date, setDate] = useState(service?.date ?? todayISO());
+  const [odo, setOdo] = useState(service?.odo != null ? String(service.odo) : String(currentOdo(data, vehicle)));
+  const [workshop, setWorkshop] = useState(service?.workshop ?? '');
+  const [notes, setNotes] = useState(service?.notes ?? '');
+  const [receipt, setReceipt] = useState(service?.receipt ?? '');
+  const [error, setError] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const preset = data.presets[typeKey(vehicle.body, vehicle.energy)];
+  const checklist = presetsFor(vehicle.body, vehicle.energy, preset?.customs, preset?.hidden);
+
+  const toggle = (label: string) => {
+    setItems((prev) => prev.some((i) => i.label === label)
+      ? prev.filter((i) => i.label !== label)
+      : [...prev, { label, cost: 0 }]);
+  };
+  const setCost = (label: string, cost: number) => {
+    setItems((prev) => prev.map((i) => (i.label === label ? { ...i, cost } : i)));
+  };
+  const total = items.reduce((sum, i) => sum + (Number(i.cost) || 0), 0);
+
+  const submit = () => {
+    if (!date) { setError(t('Sila pilih tarikh', 'Pick a date')); return; }
+    const odoNum = Number(odo);
+    if (odo.trim() === '' || !Number.isFinite(odoNum) || odoNum < 0) {
+      setError(t('Masukkan bacaan odometer yang sah', 'Enter a valid odometer reading'));
+      return;
+    }
+    setError('');
+
+    const result: Service = {
+      id: service?.id ?? generateId(),
+      vehicleId: vehicle.id,
+      date, odo: odoNum, items,
+      workshop: workshop.trim() || undefined,
+      notes: notes.trim() || undefined,
+      receipt: receipt || undefined,
+    };
+
+    // One confirm, not a second form: the first selected item that actually has a trigger
+    // (some SUGGEST entries are months:0 km:0 — a software update lands by neither, and is
+    // skipped). Multiple matching items still only get one prompt — an oil change nearly always
+    // arrives with its filter, and nagging once per item would be worse than nagging once.
+    const suggestItem = items.find((i) => {
+      const s = SUGGEST[i.label];
+      return s && (s.months > 0 || s.km > 0);
+    });
+    let reminder: Reminder | undefined;
+    if (suggestItem) {
+      const s = SUGGEST[suggestItem.label];
+      const dueDate = s.months > 0 ? addMonths(date, s.months) : undefined;
+      const dueOdo = s.km > 0 ? odoNum + s.km : undefined;
+      const bits = [dueDate ? niceDate(dueDate) : null, dueOdo ? `${fmtKm(dueOdo)} km` : null].filter(Boolean);
+      if (window.confirm(t(
+        `Tetapkan peringatan untuk "${suggestItem.label}" (${bits.join(' · ')})?`,
+        `Set a reminder for "${suggestItem.label}" (${bits.join(' · ')})?`
+      ))) {
+        reminder = { id: generateId(), vehicleId: vehicle.id, label: suggestItem.label, done: false, dueDate, dueOdo };
+      }
+    }
+
+    onSave(result, reminder);
+  };
+
+  const askDelete = () => {
+    if (!service || !onDelete) return;
+    if (!window.confirm(t('Padam rekod servis ini?', 'Delete this service record?'))) return;
+    onDelete(service.id);
+  };
+
+  return (
+    <Sheet
+      open={open}
+      vehicle={vehicle}
+      sub={vehicle.nickname || vehicle.model}
+      title={service ? t('Sunting servis', 'Edit service') : t('Log servis', 'Log service')}
+      onClose={onClose}
+      onSubmit={submit}
+      submitLabel={t('Simpan', 'Save')}
+      extra={service && onDelete ? (
+        <button type="button" onClick={askDelete} aria-label={t('Padam servis', 'Delete service')}
+          className="p-1.5 text-muted hover:text-rose-500 min-w-[44px] min-h-[44px] flex items-center justify-center">
+          <Trash2 size={18} />
+        </button>
+      ) : undefined}
+    >
+      <div className="space-y-1.5">
+        <span className={fieldLabel}>{t('Senarai semak', 'Checklist')}</span>
+        <div className="flex flex-wrap gap-2">
+          {checklist.map((label) => (
+            <button key={label} type="button" aria-pressed={items.some((i) => i.label === label)}
+              onClick={() => toggle(label)} className={chip(items.some((i) => i.label === label))}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {items.length > 0 && (
+        <div className="rounded-xl border border-text/10 overflow-hidden">
+          {items.map((item) => (
+            <div key={item.label} className="flex items-center justify-between gap-2 px-3.5 py-2.5 border-b border-text/10 last:border-b-0">
+              <span className="text-sm truncate">{item.label}</span>
+              <input type="number" inputMode="decimal" min="0" step="0.01" value={item.cost || ''}
+                onChange={(e) => setCost(item.label, Number(e.target.value))}
+                placeholder="0.00" className="input-field w-28 font-mono text-right" style={num} />
+            </div>
+          ))}
+          {/* Literal colours, not text-white/bg-black: this bar sits on `bg-surface`, which
+              DOES flip with the theme, so without the fixed-dark treatment (same as Cluster)
+              it would wash out under html.light instead of reading as a total. */}
+          <div className="flex items-center justify-between px-3.5 py-2.5" style={{ background: '#131B19' }}>
+            <span className="font-display text-[11px] uppercase tracking-wider text-[rgba(255,255,255,.5)]">
+              {t('Jumlah', 'Total')}
+            </span>
+            <span className="font-mono font-bold text-[#ffffff]" style={num}>{fmtRM(total)}</span>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-1.5">
+        <label className={fieldLabel}>{t('Tarikh', 'Date')} *</label>
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input-field w-full" />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className={fieldLabel}>{t('Bacaan odometer (km)', 'Odometer (km)')} *</label>
+        <input type="number" inputMode="numeric" min="0" value={odo} onChange={(e) => setOdo(e.target.value)}
+          className="input-field w-full font-mono" style={num} />
+      </div>
+
+      {error && <p className="text-sm text-rose-500 light:text-rose-700 font-medium">{error}</p>}
+
+      <div className="space-y-1.5">
+        <label className={fieldLabel}>{t('Bengkel', 'Workshop')}</label>
+        <input value={workshop} onChange={(e) => setWorkshop(e.target.value)} placeholder={t('cth. Kedai Encik Ali', 'e.g. Toyota Service Centre')}
+          className="input-field w-full" />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className={fieldLabel}>{t('Nota', 'Notes')}</label>
+        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="input-field w-full h-16 resize-none py-2" />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className={fieldLabel}>{t('Resit (pilihan)', 'Receipt (optional)')}</label>
+        <input
+          type="file"
+          accept="image/*"
+          ref={fileRef}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            // 900px — the same budget AssetWarrantyTracker.tsx uses for a receipt photo: a
+            // receipt needs its printed total legible, unlike the 600px card-thumbnail budget.
+            if (file) downscaleFile(file, 900).then(setReceipt).catch(() => {});
+          }}
+          className="hidden"
+          id="service-receipt"
+        />
+        {receipt ? (
+          <div className="relative h-28 rounded-xl overflow-hidden border border-text/10">
+            <img src={receipt} alt="" className="w-full h-full object-contain bg-text/5" />
+            <button
+              type="button"
+              onClick={() => { setReceipt(''); if (fileRef.current) fileRef.current.value = ''; }}
+              aria-label={t('Buang resit', 'Remove receipt')}
+              className="absolute top-2 right-2 p-1.5 rounded-lg bg-[#000000]/50 text-[#ffffff]/80 hover:text-[#ffffff] backdrop-blur-md"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        ) : (
+          <label htmlFor="service-receipt"
+            className="flex items-center justify-center gap-2 h-16 rounded-xl border border-dashed border-text/20 text-muted text-sm cursor-pointer hover:bg-text/5 min-h-[44px]">
+            <ImageIcon size={16} /> {t('Muat naik resit', 'Upload a receipt')}
+          </label>
+        )}
+      </div>
+    </Sheet>
+  );
+}
+
+/**
+ * Log or edit one fuel/charge entry. `kind` only appears when the vehicle can hold more than
+ * one (`kindsFor(energy).length > 1`) — a petrol car is never asked to choose, because there is
+ * nothing to choose between.
+ */
+export function EnergySheet({ open, vehicle, data, entry, onClose, onSave, onDelete }: {
+  open: boolean;
+  vehicle: Vehicle;
+  data: GarageData;
+  /** Absent (or null) means logging a new entry. */
+  entry?: EnergyLog | null;
+  onClose: () => void;
+  onSave: (entry: EnergyLog) => void;
+  onDelete?: (id: string) => void;
+}) {
+  const t = useT();
+  const kinds = kindsFor(vehicle.energy);
+  const [kind, setKind] = useState<LogKind>(entry?.kind ?? kinds[0]);
+  const [date, setDate] = useState(entry?.date ?? todayISO());
+  const [odo, setOdo] = useState(entry?.odo != null ? String(entry.odo) : String(currentOdo(data, vehicle)));
+  const [qty, setQty] = useState(entry?.qty != null ? String(entry.qty) : '');
+  const [cost, setCost] = useState(entry?.cost != null ? String(entry.cost) : '');
+  const [grade, setGrade] = useState(entry?.grade ?? '');
+  const [station, setStation] = useState(entry?.station ?? '');
+  const [full, setFull] = useState(entry?.full ?? true);
+  const [error, setError] = useState('');
+
+  const grades = gradesFor(vehicle.energy, kind);
+  const fullLabel = kind === 'charge' ? t('Dicas penuh', 'Charged to full') : t('Diisi penuh', 'Filled to full');
+
+  const submit = () => {
+    if (!date) { setError(t('Sila pilih tarikh', 'Pick a date')); return; }
+    const odoNum = Number(odo);
+    if (odo.trim() === '' || !Number.isFinite(odoNum) || odoNum < 0) {
+      setError(t('Masukkan bacaan odometer yang sah', 'Enter a valid odometer reading'));
+      return;
+    }
+    const qtyNum = Number(qty);
+    if (qty.trim() === '' || !Number.isFinite(qtyNum) || qtyNum <= 0) {
+      setError(t(`Masukkan kuantiti (${unitFor(kind)}) yang sah`, `Enter a valid quantity (${unitFor(kind)})`));
+      return;
+    }
+    const costNum = Number(cost);
+    if (cost.trim() === '' || !Number.isFinite(costNum) || costNum < 0) {
+      setError(t('Masukkan kos yang sah', 'Enter a valid cost'));
+      return;
+    }
+    setError('');
+    onSave({
+      id: entry?.id ?? generateId(),
+      vehicleId: vehicle.id,
+      date, odo: odoNum, kind, qty: qtyNum, cost: costNum, full,
+      grade: grade.trim() || undefined,
+      station: station.trim() || undefined,
+    });
+  };
+
+  const askDelete = () => {
+    if (!entry || !onDelete) return;
+    if (!window.confirm(t('Padam rekod ini?', 'Delete this entry?'))) return;
+    onDelete(entry.id);
+  };
+
+  return (
+    <Sheet
+      open={open}
+      vehicle={vehicle}
+      sub={vehicle.nickname || vehicle.model}
+      title={entry
+        ? t('Sunting rekod tenaga', 'Edit energy entry')
+        : t('Log isi/cas', 'Log fill/charge')}
+      onClose={onClose}
+      onSubmit={submit}
+      submitLabel={t('Simpan', 'Save')}
+      extra={entry && onDelete ? (
+        <button type="button" onClick={askDelete} aria-label={t('Padam rekod', 'Delete entry')}
+          className="p-1.5 text-muted hover:text-rose-500 min-w-[44px] min-h-[44px] flex items-center justify-center">
+          <Trash2 size={18} />
+        </button>
+      ) : undefined}
+    >
+      {kinds.length > 1 && (
+        <div className="space-y-1.5">
+          <span className={fieldLabel}>{t('Jenis', 'Kind')}</span>
+          <div className="flex flex-wrap gap-2">
+            {kinds.map((k) => (
+              <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)} className={chip(kind === k)}>
+                {k === 'charge' ? t('Cas', 'Charge') : t('Bahan api', 'Fuel')}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-1.5">
+        <label className={fieldLabel}>{t('Tarikh', 'Date')} *</label>
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input-field w-full" />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className={fieldLabel}>{t('Bacaan odometer (km)', 'Odometer (km)')} *</label>
+        <input type="number" inputMode="numeric" min="0" value={odo} onChange={(e) => setOdo(e.target.value)}
+          className="input-field w-full font-mono" style={num} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <label className={fieldLabel}>{t('Kuantiti', 'Quantity')} ({unitFor(kind)}) *</label>
+          <input type="number" inputMode="decimal" min="0" step="0.01" value={qty} onChange={(e) => setQty(e.target.value)}
+            className="input-field w-full font-mono" style={num} />
+        </div>
+        <div className="space-y-1.5">
+          <label className={fieldLabel}>{t('Kos (RM)', 'Cost (RM)')} *</label>
+          <input type="number" inputMode="decimal" min="0" step="0.01" value={cost} onChange={(e) => setCost(e.target.value)}
+            className="input-field w-full font-mono" style={num} />
+        </div>
+      </div>
+
+      {error && <p className="text-sm text-rose-500 light:text-rose-700 font-medium">{error}</p>}
+
+      <div className="space-y-1.5">
+        <span className={fieldLabel}>{kind === 'charge' ? t('Gred', 'Grade') : t('Gred / oktana', 'Grade')}</span>
+        <div className="flex flex-wrap gap-2">
+          {grades.map((g) => (
+            <button key={g} type="button" aria-pressed={grade === g} onClick={() => setGrade(g)} className={chip(grade === g)}>
+              {g}
+            </button>
+          ))}
+        </div>
+        <input value={grade} onChange={(e) => setGrade(e.target.value)} placeholder={t('atau taip sendiri', 'or type your own')}
+          className="input-field w-full" />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className={fieldLabel}>{t('Stesen', 'Station')}</label>
+        <input value={station} onChange={(e) => setStation(e.target.value)} placeholder={t('cth. Petronas', 'e.g. Petronas')}
+          className="input-field w-full" />
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between gap-3">
+          <span className={fieldLabel}>{fullLabel}</span>
+          <button type="button" onClick={() => setFull((f) => !f)} aria-pressed={full} aria-label={fullLabel}
+            className={`relative w-11 h-6 rounded-full shrink-0 transition-colors ${full ? 'bg-emerald-500' : 'bg-text/15'}`}>
+            <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-[#ffffff] transition-transform ${full ? 'translate-x-5' : ''}`} />
+          </button>
+        </div>
+        {/* The consequence spelled out, not just the toggle: economy() only closes a window
+            between two full entries, so an owner who always tops up partial never sees a rate
+            unless this stays on for at least one fill in a while. */}
+        <p className="text-xs text-muted">
+          {t('Hanya pasangan penuh-ke-penuh mengukur kecekapan.', 'Only a full-to-full pair measures economy.')}
+        </p>
+      </div>
+    </Sheet>
+  );
+}
+
+/** Nothing but a date and an odometer reading — a plain "here's where the odometer is today"
+ *  entry, for the weeks between a fill-up and a service. */
+export function OdoSheet({ open, vehicle, data, reading, onClose, onSave, onDelete }: {
+  open: boolean;
+  vehicle: Vehicle;
+  data: GarageData;
+  reading?: OdoLog | null;
+  onClose: () => void;
+  onSave: (reading: OdoLog) => void;
+  onDelete?: (id: string) => void;
+}) {
+  const t = useT();
+  const [date, setDate] = useState(reading?.date ?? todayISO());
+  const [odo, setOdo] = useState(reading?.odo != null ? String(reading.odo) : String(currentOdo(data, vehicle)));
+  const [error, setError] = useState('');
+
+  const submit = () => {
+    if (!date) { setError(t('Sila pilih tarikh', 'Pick a date')); return; }
+    const odoNum = Number(odo);
+    if (odo.trim() === '' || !Number.isFinite(odoNum) || odoNum < 0) {
+      setError(t('Masukkan bacaan odometer yang sah', 'Enter a valid odometer reading'));
+      return;
+    }
+    setError('');
+    onSave({ id: reading?.id ?? generateId(), vehicleId: vehicle.id, date, odo: odoNum });
+  };
+
+  const askDelete = () => {
+    if (!reading || !onDelete) return;
+    if (!window.confirm(t('Padam bacaan ini?', 'Delete this reading?'))) return;
+    onDelete(reading.id);
+  };
+
+  return (
+    <Sheet
+      open={open}
+      vehicle={vehicle}
+      sub={vehicle.nickname || vehicle.model}
+      title={t('Kemas kini odometer', 'Update odometer')}
+      onClose={onClose}
+      onSubmit={submit}
+      submitLabel={t('Simpan', 'Save')}
+      extra={reading && onDelete ? (
+        <button type="button" onClick={askDelete} aria-label={t('Padam bacaan', 'Delete reading')}
+          className="p-1.5 text-muted hover:text-rose-500 min-w-[44px] min-h-[44px] flex items-center justify-center">
+          <Trash2 size={18} />
+        </button>
+      ) : undefined}
+    >
+      <div className="space-y-1.5">
+        <label className={fieldLabel}>{t('Tarikh', 'Date')} *</label>
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input-field w-full" />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className={fieldLabel}>{t('Bacaan odometer (km)', 'Odometer (km)')} *</label>
+        <input type="number" inputMode="numeric" min="0" value={odo} onChange={(e) => setOdo(e.target.value)}
+          className="input-field w-full font-mono" style={num} />
+      </div>
+
+      {error && <p className="text-sm text-rose-500 light:text-rose-700 font-medium">{error}</p>}
     </Sheet>
   );
 }
