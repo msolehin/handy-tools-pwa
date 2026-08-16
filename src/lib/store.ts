@@ -39,7 +39,15 @@ function announce(kind: SyncStatus['kind'], message: string, waitMs?: number) {
   window.dispatchEvent(new CustomEvent('store:status', { detail: { kind, message, waitMs } }));
 }
 
-/** Tool keys that belong to an account. Grows one phase at a time. */
+/**
+ * Tool keys that belong to an account. Grows one phase at a time.
+ *
+ * `garage_fleet` is listed before `garage_records` and `garage_logs` on purpose: both
+ * `runImport` and the flush loop below iterate this Set in insertion order, and the two other
+ * Garaj keys carry rows with a foreign key onto `garage_vehicles`, which only `garage_fleet`
+ * populates. Pushing (or importing) a vehicle's logs before its fleet row exists is a 500 from
+ * the FK constraint, so fleet goes first to make that the common case rather than a coin flip.
+ */
 export const SYNCED_KEYS = new Set<string>([
   'tenancy_data',
   'de_documents',
@@ -51,8 +59,9 @@ export const SYNCED_KEYS = new Set<string>([
   'duit_raya_manager_data',
   'travel_history_data',
   'water_tracker_data',
-  'vehicle_services_data',
-  'vehicle_custom_titles',
+  'garage_fleet',
+  'garage_records',
+  'garage_logs',
   'home_services_data',
   'home_custom_titles',
   'asset_warranty_tracker_data',
@@ -78,7 +87,7 @@ export const SYNCED_ROUTES: Record<string, string> = {
   '/duit-raya': 'duit_raya_manager_data',
   '/travel-history': 'travel_history_data',
   '/water-tracker': 'water_tracker_data',
-  '/vehicle-services': 'vehicle_services_data',
+  '/vehicle-services': 'garage_fleet',
   '/home-services': 'home_services_data',
   '/asset-warranty': 'asset_warranty_tracker_data',
   '/book-tracker': 'book_tracker_data',
@@ -221,44 +230,27 @@ export function flush(): Promise<void> {
 async function runFlush(): Promise<void> {
   if (!signedIn || !pulled || !dirty.size || !navigator.onLine) return;
   let pushed = 0;
+  // A key the server itself rejects (a still-missing foreign key, a bad payload) must not
+  // block every key behind it: `dirty` is a Set restored from localStorage in insertion order,
+  // so a poisoned key would otherwise sit at the same position on every retry and wedge sync
+  // for every tool, forever — see the FK-ordering comment on SYNCED_KEYS for the concrete case.
+  // It is left dirty and reported once, below, rather than retried inline here.
+  let anyRejected = false;
 
   for (const key of [...dirty]) {
     const raw = cache.get(key) ?? null;
+    let res: Response;
     try {
-      const res = await fetch(`/api/sync/${encodeURIComponent(key)}`, {
+      res = await fetch(`/api/sync/${encodeURIComponent(key)}`, {
         method: 'PUT',
         credentials: 'same-origin',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ rev: revs.get(key), data: raw === null ? null : JSON.parse(raw) }),
       });
-
-      if (res.status === 401) {
-        signedIn = false;
-        localStorage.removeItem(UID_KEY);
-        localStorage.removeItem(USER_KEY);
-        setUser(null);
-        announce('error', t('Sesi anda telah tamat. Log masuk semula untuk terus menyimpan.', 'Your session expired. Sign in again to keep saving.'));
-        return;
-      }
-
-      if (res.status === 409) {
-        // Another device moved first. Keep ours dirty (never discard a local edit) and let
-        // the UI ask which copy wins.
-        const conflict = await res.json();
-        window.dispatchEvent(new CustomEvent('store:conflict', {
-          detail: { key, rev: conflict.rev, data: conflict.data },
-        }));
-        announce('error', t('Ini telah diubah pada peranti lain. Belum disimpan.', 'This was changed on another device. Not saved yet.'));
-        continue;
-      }
-
-      if (!res.ok) throw new Error(String(res.status));
-
-      revs.set(key, (await res.json()).rev);
-      persistRevs();
-      dirty.delete(key);
-      pushed++;
     } catch {
+      // The request never got a response at all — offline, DNS, a timeout. Every other key
+      // would fail the exact same way right now, so there is no point burning through the rest
+      // of the dirty set; stop and let the backoff below try the whole run again later.
       backoff = Math.min(backoff * 2, 60_000);
       clearTimeout(maxWaitTimer);
       maxWaitTimer = undefined;   // the backoff owns the retry from here, or the two race
@@ -267,6 +259,40 @@ async function runFlush(): Promise<void> {
       announce('error', t('Gagal simpan ke akaun anda. Cuba semula…', "Couldn't save to your account. Retrying…"));
       return; // leave this key and the rest dirty; try again later
     }
+
+    if (res.status === 401) {
+      signedIn = false;
+      localStorage.removeItem(UID_KEY);
+      localStorage.removeItem(USER_KEY);
+      setUser(null);
+      announce('error', t('Sesi anda telah tamat. Log masuk semula untuk terus menyimpan.', 'Your session expired. Sign in again to keep saving.'));
+      return;
+    }
+
+    if (res.status === 409) {
+      // Another device moved first. Keep ours dirty (never discard a local edit) and let
+      // the UI ask which copy wins.
+      const conflict = await res.json();
+      window.dispatchEvent(new CustomEvent('store:conflict', {
+        detail: { key, rev: conflict.rev, data: conflict.data },
+      }));
+      announce('error', t('Ini telah diubah pada peranti lain. Belum disimpan.', 'This was changed on another device. Not saved yet.'));
+      continue;
+    }
+
+    if (!res.ok) {
+      // A real answer, just not a good one. Unlike the network case above, the other keys in
+      // this run have no reason to fail the same way — a bad foreign key on `garage_logs` says
+      // nothing about whether `tenancy_data` will PUT cleanly — so this one stays dirty and the
+      // loop moves on rather than stalling every tool behind it.
+      anyRejected = true;
+      continue;
+    }
+
+    revs.set(key, (await res.json()).rev);
+    persistRevs();
+    dirty.delete(key);
+    pushed++;
   }
 
   backoff = 1000;
@@ -274,6 +300,11 @@ async function runFlush(): Promise<void> {
   maxWaitTimer = undefined;
   localStorage.setItem(DIRTY_KEY, JSON.stringify([...dirty]));
   if (pushed) announce('saved', t('Disimpan ke akaun anda.', 'Saved to your account.'));
+  // Reported after 'saved' so it is the one left on screen — a mix of pushed and rejected keys
+  // is still an outcome the user needs to notice, not one the save toast should paper over.
+  if (anyRejected) {
+    announce('error', t('Sebahagian tidak dapat disimpan. Cuba lagi kemudian.', "Some changes couldn't be saved. Will retry later."));
+  }
 }
 
 /**
@@ -490,8 +521,9 @@ export const TOOL_LABELS: Record<string, string> = {
   duit_raya_manager_data: 'Kira Duit Raya',
   travel_history_data: 'My Travel History',
   water_tracker_data: 'Minum',
-  vehicle_services_data: 'Servis Kenderaan',
-  vehicle_custom_titles: 'Servis Kenderaan (titles)',
+  garage_fleet: 'Garaj (kenderaan)',
+  garage_records: 'Garaj (servis & dokumen)',
+  garage_logs: 'Garaj (minyak & peringatan)',
   home_services_data: 'Servis Rumah',
   home_custom_titles: 'Servis Rumah (titles)',
   asset_warranty_tracker_data: 'Asset & Warranty',

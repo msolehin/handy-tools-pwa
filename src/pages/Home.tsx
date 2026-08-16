@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { store } from '../lib/store';
 // Date helpers come from lib, never from the tool pages themselves — importing a page here would
 // pin its whole chunk, and its libraries, into the first load every visitor pays for.
-import { openServices, daysUntil, nextDueDate, kmLeft, currentKmOf, KM_SOON } from '../lib/horizon';
+import { openServices, daysUntil, nextDueDate } from '../lib/horizon';
 import { commitActive } from '../lib/savings';
+import { dueItems, EMPTY_GARAGE, type GarageData } from '../lib/garage';
 import PrivacyNote from '../components/PrivacyNote';
 import { 
   ArrowRight,
@@ -775,42 +776,42 @@ const Home: React.FC = () => {
         });
       } catch (e) {}
     }
-    // 10. Vehicle Services — next service due within 30 days or overdue
-    const vehicleStr = store.getItem('vehicle_services_data');
-    if (vehicleStr) {
+    // 10. Garaj — anything owed within 30 days or already overdue, across every vehicle.
+    // The tool derives this the same way; this reads the same keys read-only, per spec.md §1.
+    const fleetStr = store.getItem('garage_fleet');
+    const logsStr = store.getItem('garage_logs');
+    const recordsStr = store.getItem('garage_records');
+    if (fleetStr) {
       try {
-        const p = JSON.parse(vehicleStr);
-        // Superseded visits keep a stale nextServiceDate; only the newest per service is still owed.
-        const events = openServices(Array.isArray(p.events) ? p.events : []);
-        events.forEach((s: any) => {
-          const left = kmLeft(s, currentKmOf(p, s.assetId));
-          const days = s.nextServiceDate ? getDaysLeft(s.nextServiceDate) : null;
-          // One service, one nag, even when it is owed on both yardsticks. The odometer wins when
-          // it is inside its window: 500 km is imminent, where the 30-day date window is broad on
-          // purpose. Reporting "25 days left" on a car that is 300 km short would bury the real one.
-          if (left != null && left <= KM_SOON) {
-            newAlerts.push({
-              id: `v-service-${s.id}`,
-              type: 'service',
-              title: `${tr('Kenderaan', 'Vehicle')}: ${s.title}`,
-              // Sorts and colours with the date alerts — overdue red, near amber — without
-              // claiming a day count the odometer cannot know.
-              daysLeft: left <= 0 ? -1 : 0,
-              subtitle: left <= 0
-                ? `${Math.abs(left).toLocaleString()} km`
-                : tr(`lagi ${left.toLocaleString()} km`, `${left.toLocaleString()} km left`),
-              to: '/vehicle-services'
-            });
-          } else if (days != null && days <= 30) {
-            newAlerts.push({
-              id: `v-service-${s.id}`,
-              type: 'service',
-              title: `${tr('Kenderaan', 'Vehicle')}: ${s.title}`,
-              daysLeft: days,
-              to: '/vehicle-services'
-            });
-          }
-        });
+        const fleet = JSON.parse(fleetStr);
+        const logs = logsStr ? JSON.parse(logsStr) : {};
+        const records = recordsStr ? JSON.parse(recordsStr) : {};
+        const data: GarageData = {
+          ...EMPTY_GARAGE,
+          vehicles: fleet.vehicles ?? [],
+          reminders: logs.reminders ?? [],
+          energy: logs.energy ?? [],
+          odo: logs.odo ?? [],
+          services: records.services ?? [],
+          docs: records.docs ?? [],
+        };
+        for (const item of dueItems(data)) {
+          if (item.status.level === 'ok') continue;
+          newAlerts.push({
+            id: `v-${item.kind}-${item.id}`,
+            type: 'service',
+            title: `${tr('Kenderaan', 'Vehicle')}: ${item.label}`,
+            // dueItems already picked whichever trigger — date or odometer — is worse and
+            // worded it; the generic daysLeft-driven "X Hari Lagi" text below would be wrong
+            // for a km-based reminder, so every Garaj alert carries its own subtitle instead.
+            subtitle: `${item.vehicle.nickname || item.vehicle.model} · ${item.status.text}`,
+            // Collapsed to -1/days like the old km branch did: status.days can be a fraction
+            // once an odometer trigger is converted through kmPerDay, and the card's red-vs-amber
+            // colouring only needs the sign to agree with the level dueItems already decided.
+            daysLeft: item.status.level === 'over' ? -1 : Math.max(0, Math.round(item.status.days)),
+            to: '/vehicle-services',
+          });
+        }
       } catch (e) {}
     }
 

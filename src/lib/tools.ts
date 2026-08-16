@@ -41,7 +41,7 @@ export const DEFAULT_TOOLS = [
     borderClass: 'hover:border-amber-400/50 hover:shadow-amber-400/20', iconBgClass: 'bg-amber-500/20 text-amber-500', arrowClass: 'group-hover:text-amber-500'
   },
   {
-    id: '/vehicle-services', to: '/vehicle-services', title: 'Servis Kenderaan', desc: 'Rekod servis & kos kenderaan', descEn: 'Vehicle service history and costs', Icon: CarFront, category: 'Kenderaan & Perjalanan',
+    id: '/vehicle-services', to: '/vehicle-services', title: 'Garaj', desc: 'Kenderaan, servis, minyak & kos', descEn: 'Vehicles, service, fuel and running costs', Icon: CarFront, category: 'Kenderaan & Perjalanan',
     borderClass: 'hover:border-amber-400/50 hover:shadow-amber-400/20', iconBgClass: 'bg-amber-500/20 text-amber-500', arrowClass: 'group-hover:text-amber-500'
   },
   {

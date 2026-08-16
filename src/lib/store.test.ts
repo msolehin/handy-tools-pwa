@@ -159,8 +159,10 @@ describe('client and server agree on the tool list', () => {
 
     // Side tables ride along with their parent tool and have no page of their own.
     const sideTables = new Set([
-      'asset_warranty_custom_categories', 'book_tracker_custom_categories',
-      'vehicle_custom_titles', 'home_custom_titles',
+      'asset_warranty_custom_categories', 'book_tracker_custom_categories', 'home_custom_titles',
+      // garage_records and garage_logs ride along with garage_fleet at '/vehicle-services' —
+      // one route, three keys, per the FK ordering comment on SYNCED_KEYS.
+      'garage_records', 'garage_logs',
     ]);
     const routed = new Set(Object.values(store.SYNCED_ROUTES));
     for (const key of store.SYNCED_KEYS) {
@@ -363,6 +365,55 @@ describe('store: signed in', () => {
 
     assert.deepEqual(kinds(), ['saving', 'error'], 'the failure replaces the pending state');
     assert.equal(store.pendingCount(), 1, 'and it stays queued for the retry');
+  });
+
+  test('a key the server rejects is skipped, not left to block the keys behind it', async () => {
+    // The reachable hazard this guards: garage_logs 500s on a missing foreign key, and dirty
+    // is a Set restored in insertion order — without the skip, every key behind garage_logs
+    // would stay dirty on every retry too, forever, for every tool.
+    const store = await freshStore();
+    signedInBootstrap({ tenancy_data: { items: [] }, cd_events: [] }, { tenancy_data: 1, cd_events: 1 });
+    await store.bootstrap();
+
+    handler = (url) => url.includes('/api/sync/tenancy_data')
+      ? { status: 500, body: { error: 'fk violation' } }
+      : url.includes('/api/sync')
+        ? { status: 200, body: { rev: 9 } }
+        : { status: 200, body: {} };
+
+    store.store.setItem('tenancy_data', '{"items":["mine"]}');
+    store.store.setItem('cd_events', '[{"id":1}]');
+    announced = [];
+
+    await store.flush();
+
+    const synced = calls.filter((c) => c.url.includes('/api/sync/'));
+    assert.equal(synced.length, 2,
+      'both keys were attempted — the rejection did not stop the loop early');
+    assert.equal(store.pendingCount(), 1,
+      'the rejected key stays dirty; the healthy key behind it still saved');
+    assert.deepEqual(kinds(), ['saved', 'error'],
+      'the successful key is reported saved, and the rejection is still surfaced rather than hidden by it');
+  });
+
+  test('a network failure stops the run rather than skipping past it, unlike a rejected key', async () => {
+    const store = await freshStore();
+    signedInBootstrap({ tenancy_data: { items: [] }, cd_events: [] }, { tenancy_data: 1, cd_events: 1 });
+    await store.bootstrap();
+
+    handler = () => { throw new Error('network down'); };
+
+    store.store.setItem('tenancy_data', '{"items":["mine"]}');
+    store.store.setItem('cd_events', '[{"id":1}]');
+    calls = [];
+
+    await store.flush();
+
+    const synced = calls.filter((c) => c.url.includes('/api/sync/'));
+    assert.equal(synced.length, 1,
+      'the first failure stops the loop — there is no point trying the rest while the server is unreachable');
+    assert.equal(store.pendingCount(), 2,
+      'both keys are still pending, unlike a rejected key which would only leave the one behind');
   });
 
   test('re-writing the same value is not a change, so it neither pushes nor toasts', async () => {
