@@ -5,12 +5,13 @@
 import { useState, type Dispatch, type SetStateAction } from 'react';
 import { Wrench, Fuel, Zap, Bell, FileText, Plus, Pencil } from 'lucide-react';
 import {
-  economy, spend, costPerKm, serviceTotal, addMonths, todayISO, withoutVehicle,
-  type GarageData, type Vehicle, type Service, type EnergyLog, type Reminder, type OdoLog,
+  economy, spend, costPerKm, serviceTotal, addMonths, todayISO, withoutVehicle, dueItems, tickReminder,
+  type GarageData, type Vehicle, type Service, type EnergyLog, type Reminder, type OdoLog, type VDoc, type DueItem,
 } from '../../lib/garage';
 import { BODIES, ENERGIES, engineSpec, kindsFor, unitFor, type LogKind } from '../../lib/garage-presets';
-import { Cluster, DocPair, Row, Empty, fmtKm, fmtRM, fmtRM0, niceDate } from './parts';
-import { VehicleSheet, ServiceSheet, EnergySheet, OdoSheet } from './sheets';
+import { Cluster, DocPair, Row, DueRow, Eyebrow, Empty, fmtKm, fmtRM, fmtRM0, niceDate } from './parts';
+import { VehicleSheet, ServiceSheet } from './sheets';
+import { EnergySheet, OdoSheet, ReminderSheet, DocumentSheet } from './logSheets';
 import { useT } from '../../lib/lang';
 
 const num = { fontVariantNumeric: 'tabular-nums' } as const;
@@ -56,6 +57,12 @@ export default function VehicleDetail({ vehicle, data, setData, onBack }: {
   const [seg, setSeg] = useState<Segment>('service');
   const [editOpen, setEditOpen] = useState(false);
   const [odoSheetOpen, setOdoSheetOpen] = useState(false);
+  // Owned here, not inside DocsPane, because DocPair (above the segmented row, always visible)
+  // needs to open the very same sheet when its own roadtax/insurance box is tapped — a document
+  // added or edited from either entry point has to land in the same one instance.
+  const [docSheetOpen, setDocSheetOpen] = useState(false);
+  const [editingDoc, setEditingDoc] = useState<VDoc | null>(null);
+  const [docDefaultType, setDocDefaultType] = useState<VDoc['type']>('roadtax');
 
   const kinds = kindsFor(vehicle.energy);
   // Charge / Energy / Fuel, in that precedence — see the task brief. kindsFor only ever returns
@@ -107,6 +114,18 @@ export default function VehicleDetail({ vehicle, data, setData, onBack }: {
     setOdoSheetOpen(false);
   };
 
+  const openDocCreate = (type: VDoc['type'] = 'roadtax') => { setEditingDoc(null); setDocDefaultType(type); setDocSheetOpen(true); };
+  const openDocEdit = (doc: VDoc) => { setEditingDoc(doc); setDocDefaultType(doc.type); setDocSheetOpen(true); };
+
+  const handleSaveDoc = (doc: VDoc) => {
+    setData((d) => ({ ...d, docs: editingDoc ? d.docs.map((x) => (x.id === doc.id ? doc : x)) : [...d.docs, doc] }));
+    setDocSheetOpen(false);
+  };
+  const handleDeleteDoc = (id: string) => {
+    setData((d) => ({ ...d, docs: d.docs.filter((x) => x.id !== id) }));
+    setDocSheetOpen(false);
+  };
+
   return (
     <div className="px-1 pb-2">
       <div className="flex items-start justify-between gap-3 mb-3">
@@ -127,7 +146,7 @@ export default function VehicleDetail({ vehicle, data, setData, onBack }: {
         {t('Kemas kini odometer sahaja', 'Just update the odometer')}
       </button>
 
-      <DocPair vehicle={vehicle} data={data} onOpen={() => setSeg('docs')} />
+      <DocPair vehicle={vehicle} data={data} onOpen={(type, doc) => (doc ? openDocEdit(doc) : openDocCreate(type))} />
 
       <div className="grid grid-cols-3 gap-2 mt-3">
         {stats.map((s) => (
@@ -150,12 +169,8 @@ export default function VehicleDetail({ vehicle, data, setData, onBack }: {
 
       {seg === 'service' && <ServicePane vehicle={vehicle} data={data} setData={setData} />}
       {seg === 'fuel' && <EnergyPane vehicle={vehicle} data={data} setData={setData} />}
-      {seg === 'remind' && (
-        <Empty title={t('Peringatan', 'Reminders')} hint={t('Akan dibina dalam kemas kini seterusnya.', 'Coming in a later update.')} />
-      )}
-      {seg === 'docs' && (
-        <Empty title={t('Dokumen', 'Documents')} hint={t('Akan dibina dalam kemas kini seterusnya. Roadtax dan insurans ditunjukkan di atas.', 'Coming in a later update. Road tax and insurance are shown above.')} />
-      )}
+      {seg === 'remind' && <RemindPane vehicle={vehicle} data={data} setData={setData} />}
+      {seg === 'docs' && <DocsPane vehicle={vehicle} data={data} onCreate={openDocCreate} onEdit={openDocEdit} />}
 
       <VehicleSheet
         key={editOpen ? vehicle.id : 'closed'}
@@ -173,6 +188,16 @@ export default function VehicleDetail({ vehicle, data, setData, onBack }: {
         data={data}
         onClose={() => setOdoSheetOpen(false)}
         onSave={handleSaveOdo}
+      />
+      <DocumentSheet
+        key={docSheetOpen ? (editingDoc?.id ?? docDefaultType) : 'closed'}
+        open={docSheetOpen}
+        vehicle={vehicle}
+        doc={editingDoc}
+        defaultType={docDefaultType}
+        onClose={() => setDocSheetOpen(false)}
+        onSave={handleSaveDoc}
+        onDelete={handleDeleteDoc}
       />
     </div>
   );
@@ -351,6 +376,131 @@ function EnergyPane({ vehicle, data, setData }: {
         onSave={handleSave}
         onDelete={handleDelete}
       />
+    </div>
+  );
+}
+
+/**
+ * Active reminders, soonest first, each with a tick; done ones dimmed below with no tick at all —
+ * there is nothing left to do to a reminder that is already closed or has already rolled forward.
+ */
+function RemindPane({ vehicle, data, setData }: {
+  vehicle: Vehicle; data: GarageData; setData: Dispatch<SetStateAction<GarageData>>;
+}) {
+  const t = useT();
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [editing, setEditing] = useState<Reminder | null>(null);
+
+  const openCreate = () => { setEditing(null); setSheetOpen(true); };
+  const openEdit = (r: Reminder) => { setEditing(r); setSheetOpen(true); };
+
+  const handleSave = (reminder: Reminder) => {
+    setData((d) => ({
+      ...d,
+      reminders: editing ? d.reminders.map((r) => (r.id === reminder.id ? reminder : r)) : [...d.reminders, reminder],
+    }));
+    setSheetOpen(false);
+  };
+
+  const handleDelete = (id: string) => {
+    setData((d) => ({ ...d, reminders: d.reminders.filter((r) => r.id !== id) }));
+    setSheetOpen(false);
+  };
+
+  // The roll-forward-or-close logic lives once, in garage.ts, so this pane and Overview.tsx
+  // (which also lets a reminder be ticked from the cross-vehicle due list) can't disagree about
+  // what "done" means for a repeating reminder.
+  const handleTick = (item: DueItem) => setData((d) => tickReminder(d, item.id));
+
+  // dueItems() already excludes done reminders and sorts the rest soonest-first — reusing it
+  // here is what keeps this pane's ordering identical to the vehicle card's own overdue count.
+  const due = dueItems(data, vehicle.id).filter((i) => i.kind === 'reminder');
+  const completed = data.reminders
+    .filter((r) => r.vehicleId === vehicle.id && r.done)
+    .sort((a, b) => (b.doneDate ?? '').localeCompare(a.doneDate ?? ''));
+
+  return (
+    <div>
+      <button onClick={openCreate}
+        className="w-full flex items-center justify-center gap-1.5 py-3 rounded-xl bg-primary text-[#ffffff] text-sm font-bold min-h-[44px] hover:opacity-90 mb-3">
+        <Plus size={16} /> {t('Peringatan baharu', 'New reminder')}
+      </button>
+
+      {due.length === 0 && completed.length === 0 ? (
+        <Empty title={t('Belum ada peringatan', 'No reminders yet')}
+          hint={t('Ketik "Peringatan baharu" untuk mula.', 'Tap "New reminder" to get started.')} />
+      ) : (
+        <>
+          {due.length > 0 && (
+            <div className="space-y-2">
+              {due.map((item) => (
+                <DueRow key={item.id} item={item} onOpen={(it) => it.reminder && openEdit(it.reminder)} onTick={handleTick} />
+              ))}
+            </div>
+          )}
+          {completed.length > 0 && (
+            <>
+              <Eyebrow>{t('Selesai', 'Completed')}</Eyebrow>
+              <div className="space-y-2 opacity-50">
+                {completed.map((r) => (
+                  <Row key={r.id} title={r.label}
+                    sub={r.doneDate ? niceDate(r.doneDate) : undefined}
+                    onClick={() => openEdit(r)} />
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      <ReminderSheet
+        key={sheetOpen ? (editing?.id ?? 'new') : 'closed'}
+        open={sheetOpen}
+        vehicle={vehicle}
+        reminder={editing}
+        data={data}
+        onClose={() => setSheetOpen(false)}
+        onSave={handleSave}
+        onDelete={handleDelete}
+      />
+    </div>
+  );
+}
+
+/** Every document this vehicle holds, soonest-to-expire first — road tax and insurance included,
+ *  even though DocPair already surfaces those two up top; this is the complete list, theirs is
+ *  just the two that stop you driving legally. Sheet open/editing state lives one level up (see
+ *  VehicleDetail's own comment) so DocPair's boxes and this pane's rows share one instance. */
+function DocsPane({ vehicle, data, onCreate, onEdit }: {
+  vehicle: Vehicle; data: GarageData;
+  onCreate: (type?: VDoc['type']) => void;
+  onEdit: (doc: VDoc) => void;
+}) {
+  const t = useT();
+  // dueItems() sorts by days-until, which for a plain expiry date is the same order as the
+  // expiry itself — reusing it keeps this list and statusOf's colouring from ever disagreeing.
+  const items = dueItems(data, vehicle.id).filter((i) => i.kind === 'document');
+
+  return (
+    <div>
+      <button onClick={() => onCreate()}
+        className="w-full flex items-center justify-center gap-1.5 py-3 rounded-xl bg-primary text-[#ffffff] text-sm font-bold min-h-[44px] hover:opacity-90 mb-3">
+        <Plus size={16} /> {t('Tambah dokumen', 'Add document')}
+      </button>
+
+      {items.length === 0 ? (
+        <Empty title={t('Belum ada dokumen', 'No documents yet')}
+          hint={t('Ketik "Tambah dokumen" untuk mula.', 'Tap "Add document" to get started.')} />
+      ) : (
+        <div className="space-y-2">
+          {items.map((item) => (
+            <DueRow key={item.id} item={item}
+              onOpen={(it) => it.doc && onEdit(it.doc)}
+              right={item.doc?.cost != null ? fmtRM0(item.doc.cost) : undefined}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -163,10 +163,13 @@ const LEVEL_BORDER_T: Record<Level, string> = {
  * only reminders get: a document's status comes from its expiry date, so there is nothing to
  * "tick" — renewing one is done through its own sheet, not from the due list.
  */
-export function DueRow({ item, onOpen, onTick }: {
+export function DueRow({ item, onOpen, onTick, right }: {
   item: DueItem;
   onOpen: (item: DueItem) => void;
   onTick?: (item: DueItem) => void;
+  /** A trailing value — the Docs pane's use of this same row shape for a cost, cf. its own
+   *  comment. Reminders never pass this: their trailing slot is the tick button instead. */
+  right?: React.ReactNode;
 }) {
   const t = useT();
   return (
@@ -185,6 +188,7 @@ export function DueRow({ item, onOpen, onTick }: {
             <span className={`text-[11px] font-semibold ${LEVEL_TEXT[item.status.level]}`}>{item.status.text}</span>
           </div>
         </div>
+        {right && <span className="font-mono text-sm font-semibold shrink-0" style={num}>{right}</span>}
       </button>
       {item.kind === 'reminder' && onTick && (
         <button
@@ -253,7 +257,7 @@ export function DocPair({ vehicle, data, onOpen }: {
             onClick={() => onOpen(type, doc)}
             className={`flex-1 min-w-0 text-left rounded-xl border-t-4 border-x border-b border-text/10 bg-surface px-3.5 py-3 min-h-[44px] ${status ? LEVEL_BORDER_T[status.level] : 'border-t-text/15'}`}
           >
-            <p className="font-display text-[11px] uppercase tracking-[0.1em] text-muted">{DOC_LABELS[type]}</p>
+            <p className="font-display text-[11px] uppercase tracking-[0.1em] text-muted">{t(DOC_LABELS[type].ms, DOC_LABELS[type].en)}</p>
             {doc && status ? (
               <>
                 <p className="text-sm font-medium mt-0.5">{niceDate(doc.expiry)}</p>
@@ -268,6 +272,21 @@ export function DocPair({ vehicle, data, onOpen }: {
     </div>
   );
 }
+
+// Shared by every add/edit sheet (sheets.tsx, logSheets.tsx) — one copy so a chip and a field
+// label look identical whether the form is VehicleSheet's body/energy pair or ReminderSheet's
+// mode choice.
+export const chip = (active: boolean) =>
+  `px-3 py-2 rounded-xl text-sm font-medium border min-h-[44px] transition-colors ${
+    active ? 'bg-primary border-primary text-[#ffffff]' : 'bg-surface border-text/15 text-text hover:bg-text/5'
+  }`;
+
+export const fieldLabel = 'text-xs font-bold text-muted uppercase tracking-wider';
+
+// Same scheme every other tool in the app uses for a local id (VehicleServices.tsx,
+// DebtTracker.tsx, ExpenseManager.tsx, ...) — short and unique enough for one device's own
+// records; a uuid dependency buys nothing here.
+export const generateId = () => Math.random().toString(36).substring(2, 9);
 
 /**
  * The bottom sheet every add/edit form in Tasks 10-13 wraps its fields in. Reuses the app's one

@@ -8,6 +8,7 @@ import { EMPTY_GARAGE, type GarageData } from '../../lib/garage';
 import { Gauge, CarFront, BarChart3, Settings2, ChevronLeft } from 'lucide-react';
 import Vehicles from './Vehicles';
 import VehicleDetail from './VehicleDetail';
+import Overview from './Overview';
 
 const FLEET = 'garage_fleet';
 const RECORDS = 'garage_records';
@@ -77,7 +78,7 @@ export default function Garage() {
   // real edit apart from its own mount by comparing `data` to `mountedWith.current` by identity.
   const [data, setData] = useState<GarageData>(readGarage);
   const [tab, setTab] = useState<'overview' | 'vehicles' | 'costs' | 'settings'>('overview');
-  const [vehicleId] = useState<string | null>(() => store.getItem(SELECTED));
+  const [vehicleId, setVehicleId] = useState<string | null>(() => store.getItem(SELECTED));
   // Vehicle-detail navigation contract (established here for Task 11): when non-null, the
   // vehicle detail page renders in place of the active tab's body while the tab row stays put —
   // it is a stacked view, not a route, so it deliberately does not persist across a reload. Kept
@@ -167,7 +168,9 @@ export default function Garage() {
       ) : (
         <>
           {/* Each tab is rendered here, gated on `tab`; see Tasks 10-13. */}
-          {tab === 'overview' && null}
+          {tab === 'overview' && (
+            <Overview data={data} setData={setData} vehicleId={vehicleId} setVehicleId={setVehicleId} onOpenVehicle={setDetailId} />
+          )}
           {tab === 'vehicles' && <Vehicles data={data} setData={setData} onOpen={setDetailId} />}
           {tab === 'costs' && null}
           {tab === 'settings' && null}

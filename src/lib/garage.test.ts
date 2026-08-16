@@ -293,6 +293,51 @@ describe('serviceTotal', () => {
   });
 });
 
+const { tickReminder } = await import('./garage.ts');
+
+describe('tickReminder', () => {
+  test('a repeating date reminder rolls its due date forward instead of closing', () => {
+    const d = withLogs({
+      reminders: [{ id: 'r1', vehicleId: 'v1', label: 'Engine oil', done: false,
+        dueDate: '2026-01-01', repeat: { months: 6, km: 0 } }],
+    });
+    const out = tickReminder(d, 'r1');
+    const r = out.reminders[0];
+    assert.equal(r.done, false);
+    assert.equal(r.dueDate, '2026-07-01');
+  });
+
+  test('a repeating mileage reminder rolls its odometer target forward', () => {
+    const d = withLogs({
+      reminders: [{ id: 'r1', vehicleId: 'v1', label: 'Tyres', done: false,
+        dueOdo: 85000, repeat: { months: 0, km: 40000 } }],
+    });
+    const r = tickReminder(d, 'r1').reminders[0];
+    assert.equal(r.done, false);
+    assert.equal(r.dueOdo, 125000);
+  });
+
+  test('a non-repeating reminder closes instead of rolling', () => {
+    const d = withLogs({
+      reminders: [{ id: 'r1', vehicleId: 'v1', label: 'Puspakom', done: false, dueDate: '2026-01-01' }],
+    });
+    const r = tickReminder(d, 'r1').reminders[0];
+    assert.equal(r.done, true);
+    assert.ok(r.doneDate);
+  });
+
+  test('other reminders are left untouched', () => {
+    const d = withLogs({
+      reminders: [
+        { id: 'r1', vehicleId: 'v1', label: 'a', done: false, dueDate: '2026-01-01' },
+        { id: 'r2', vehicleId: 'v1', label: 'b', done: false, dueDate: '2026-01-01' },
+      ],
+    });
+    const out = tickReminder(d, 'r1');
+    assert.equal(out.reminders[1].done, false);
+  });
+});
+
 const { withoutVehicle } = await import('./garage.ts');
 
 describe('withoutVehicle', () => {

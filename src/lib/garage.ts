@@ -175,27 +175,39 @@ export function statusOf(
     const days = daysUntil(trigger.dueDate);
     candidates.push({
       days,
+      // days === 0 gets its own line: relDays(0) is "hari ini"/"today", and wrapping that in
+      // the same template every other day count uses reads as "hari ini lagi" ("today again")
+      // and "Due in today" — neither is a sentence a person would say.
       text: days < 0
         ? t(`Lewat ${relDays(days)}`, `Overdue by ${relDays(days)}`)
+        : days === 0
+        ? t('Hari ini', 'Due today')
         : t(`${relDays(days)} lagi`, `Due in ${relDays(days)}`),
     });
   }
 
   if (typeof trigger.dueOdo === 'number') {
     const left = trigger.dueOdo - currentOdo(d, v);
+    const days = left / kmPerDay(d, v.id);
+    // A km target is always a projection, never a literal calendar date, so the duration is
+    // marked "~" either way. relDays() itself already prefixes its own "~" once the bucket
+    // reaches weeks/months/years — prepending a second one there read as a literal "~~2 weeks".
+    const projected = relDays(Math.round(days));
+    const approx = projected.startsWith('~') ? projected : `~${projected}`;
     candidates.push({
-      days: left / kmPerDay(d, v.id),
+      days,
       text: left < 0
         ? t(`Lewat ${fmtKm(-left)} km`, `Overdue by ${fmtKm(-left)} km`)
-        : t(`Lagi ${fmtKm(left)} km · ~${relDays(Math.round(left / kmPerDay(d, v.id)))}`,
-            `In ${fmtKm(left)} km · ~${relDays(Math.round(left / kmPerDay(d, v.id)))}`),
+        : t(`Lagi ${fmtKm(left)} km · ${approx}`, `In ${fmtKm(left)} km · ${approx}`),
     });
   }
 
   // A finite sentinel, not Infinity: dueItems sorts on (a.days - b.days), and two triggerless
   // items would give Infinity - Infinity = NaN, which is undefined behaviour in a comparator.
   if (!candidates.length) {
-    return { level: 'ok', days: Number.MAX_SAFE_INTEGER, text: t('Tiada pencetus ditetapkan', 'No trigger set') };
+    // "Pencetus" is a calque of "trigger" nobody actually says about a due date or an odometer
+    // reading — spell out the two things it could have been instead.
+    return { level: 'ok', days: Number.MAX_SAFE_INTEGER, text: t('Tiada tarikh atau odometer ditetapkan', 'No trigger set') };
   }
 
   const worst = candidates.reduce((a, b) => (b.days < a.days ? b : a));
@@ -213,9 +225,15 @@ export interface DueItem {
   doc?: VDoc;
 }
 
-export const DOC_LABELS: Record<VDoc['type'], string> = {
-  roadtax: 'Road tax', insurance: 'Insurance', puspakom: 'Puspakom',
-  warranty: 'Warranty', other: 'Other',
+// {ms, en} pairs, same shape as garage-presets.ts's BODIES/ENERGIES — this feeds the Home
+// dashboard alert title (`Kenderaan: ${item.label}`) as well as DocPair and DocumentSheet, so a
+// Malay reader must never land on an English label here while the rest of the sentence is Malay.
+export const DOC_LABELS: Record<VDoc['type'], { ms: string; en: string }> = {
+  roadtax:   { ms: 'Cukai jalan', en: 'Road tax' },
+  insurance: { ms: 'Insurans',    en: 'Insurance' },
+  puspakom:  { ms: 'Puspakom',    en: 'Puspakom' },
+  warranty:  { ms: 'Waranti',     en: 'Warranty' },
+  other:     { ms: 'Lain-lain',   en: 'Other' },
 };
 
 /**
@@ -241,7 +259,7 @@ export function dueItems(d: GarageData, vehicleId?: string): DueItem[] {
     if (!v) continue;
     out.push({
       kind: 'document', id: doc.id, vehicle: v, doc,
-      label: DOC_LABELS[doc.type] + (doc.note ? ` · ${doc.note}` : ''),
+      label: t(DOC_LABELS[doc.type].ms, DOC_LABELS[doc.type].en) + (doc.note ? ` · ${doc.note}` : ''),
       status: statusOf({ dueDate: doc.expiry }, d, v),
     });
   }
@@ -363,6 +381,33 @@ export function costPerKm(d: GarageData, v: Vehicle): number | null {
     .reduce((total, e) => total + (Number(e.cost) || 0), 0);
 
   return (spend(d, v.id, from).total - opening) / dist;
+}
+
+/**
+ * Ticking a reminder done. A repeating one is never actually closed — it rolls its own trigger
+ * forward and stays live, which is the whole point of `repeat`: an oil change ticked off should
+ * reappear in ~6 months, not vanish. A one-off reminder has no forward direction to roll to, so
+ * it closes normally instead.
+ *
+ * Takes the id and looks the row up in `d` itself, not a `Reminder` object handed in by the
+ * caller — `dueItems()` builds `DueItem.reminder` from whatever `data` the caller last rendered
+ * with, and inside a `setData(d => ...)` updater `d` may already be newer than that by the time
+ * this runs. Reading the live row out of `d` is what keeps this correct either way.
+ */
+export function tickReminder(d: GarageData, reminderId: string): GarageData {
+  return {
+    ...d,
+    reminders: d.reminders.map((r) => {
+      if (r.id !== reminderId) return r;
+      if (r.repeat) {
+        const next = { ...r };
+        if (r.repeat.months > 0 && r.dueDate) next.dueDate = addMonths(r.dueDate, r.repeat.months);
+        if (r.repeat.km > 0 && r.dueOdo != null) next.dueOdo = r.dueOdo + r.repeat.km;
+        return next;
+      }
+      return { ...r, done: true, doneDate: todayISO() };
+    }),
+  };
 }
 
 /**
