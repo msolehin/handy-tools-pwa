@@ -44,7 +44,9 @@ const SyncToast: React.FC = () => {
       // the thing a screen-reader user must not miss.
       role="status"
       aria-live="polite"
-      className="fixed left-1/2 -translate-x-1/2 bottom-24 sm:bottom-8 z-[70] w-[min(22rem,calc(100vw-2rem))] pointer-events-none animate-slide-up"
+      // Centred with inset + mx-auto rather than left-1/2 + -translate-x-1/2: no transform means
+      // nothing an animation does to `transform` can knock the toast off centre.
+      className="fixed inset-x-4 bottom-24 sm:bottom-8 z-[70] mx-auto w-[min(22rem,100%)] pointer-events-none animate-slide-up"
     >
       <div className={`flex items-center gap-2.5 px-4 py-3 rounded-2xl border backdrop-blur-md shadow-lg ${style.className}`}>
         <span className="shrink-0">{style.icon}</span>

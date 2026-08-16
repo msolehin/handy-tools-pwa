@@ -29,9 +29,12 @@ export default {
           from: { opacity: '0', transform: 'translateY(4px)' },
           to: { opacity: '1', transform: 'none' },
         },
+        // The `translate` property, not `transform`: with fill-mode `both` a transform keyframe
+        // sticks around forever and wipes any Tailwind transform on the same element — which is
+        // how the centred sync toast ended up sitting half a width to the right.
         'slide-up': {
-          from: { transform: 'translateY(100%)' },
-          to: { transform: 'translateY(0)' },
+          from: { translate: '0 100%' },
+          to: { translate: '0 0' },
         },
         // Each headline line rises out of its own overflow-hidden mask, so the words arrive
         // from behind the line above rather than simply fading in.
