@@ -9,6 +9,8 @@ import { Gauge, CarFront, BarChart3, Settings2, ChevronLeft } from 'lucide-react
 import Vehicles from './Vehicles';
 import VehicleDetail from './VehicleDetail';
 import Overview from './Overview';
+import Costs from './Costs';
+import Settings from './Settings';
 
 const FLEET = 'garage_fleet';
 const RECORDS = 'garage_records';
@@ -172,8 +174,8 @@ export default function Garage() {
             <Overview data={data} setData={setData} vehicleId={vehicleId} setVehicleId={setVehicleId} onOpenVehicle={setDetailId} />
           )}
           {tab === 'vehicles' && <Vehicles data={data} setData={setData} onOpen={setDetailId} />}
-          {tab === 'costs' && null}
-          {tab === 'settings' && null}
+          {tab === 'costs' && <Costs data={data} onOpenVehicle={setDetailId} />}
+          {tab === 'settings' && <Settings data={data} setData={setData} />}
         </>
       )}
     </div>
