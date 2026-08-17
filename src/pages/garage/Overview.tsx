@@ -10,7 +10,7 @@ import {
   type Service, type EnergyLog, type OdoLog, type Reminder, type VDoc, type Cost,
 } from '../../lib/garage';
 import { BODIES, ENERGIES, kindsFor, unitFor } from '../../lib/garage-presets';
-import { AddButton, Cluster, DocPair, DueRow, Eyebrow, Empty, Row, Sheet, avatarOf, fmtKm, fmtRM, fmtRM0, niceDate } from './parts';
+import { AddButton, Cluster, DocPair, DueRow, Eyebrow, Empty, Row, Sheet, SoldTag, avatarOf, fmtKm, fmtRM, fmtRM0, niceDate } from './parts';
 import { ServiceSheet } from './sheets';
 import { EnergySheet, OdoSheet, ReminderSheet, DocumentSheet, CostSheet } from './logSheets';
 import { useT, t as tr } from '../../lib/lang';
@@ -160,6 +160,10 @@ export default function Overview({ data, setData, vehicleId, setVehicleId, onOpe
                   <span className="text-[11px] px-1.5 py-0.5 rounded bg-text/5 text-muted truncate max-w-[9rem] inline-block align-bottom">
                     {r.vehicle.nickname || r.vehicle.model}
                   </span>
+                  {/* mergeRecent deliberately includes archived vehicles (see its own comment) —
+                      Costs and VehicleDetail both tag a sold vehicle wherever it still appears,
+                      so a bare name here would be the one place Recent forgets it was sold. */}
+                  {r.vehicle.archived && <> <SoldTag /></>}
                 </>
               }
               amount={r.amount}

@@ -116,9 +116,14 @@ export default function Vehicles({ data, setData, onOpen }: {
         <AddButton label={t('Tambah kenderaan', 'Add vehicle')} onClick={openCreate} />
 
       {active.length === 0 ? (
+        // active.length === 0 no longer means an empty garage — every vehicle could be archived,
+        // and the Sold section right below would then be rendering cards while this claims there
+        // are none. Same distinction, same wording, as Overview's own empty state.
         <Empty
           title={t('Belum ada kenderaan', 'No vehicles yet')}
-          hint={t('Ketik "Tambah kenderaan" untuk mula.', 'Tap "Add vehicle" to get started.')}
+          hint={sold.length > 0
+            ? t('Semua kenderaan anda ditandakan dijual. Lihat bahagian Dijual di bawah.', 'Every vehicle is marked sold. See the Sold section below.')
+            : t('Ketik "Tambah kenderaan" untuk mula.', 'Tap "Add vehicle" to get started.')}
         />
       ) : (
         <div className="grid grid-cols-1 gap-3">

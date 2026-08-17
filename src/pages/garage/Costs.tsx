@@ -96,7 +96,7 @@ export default function Costs({ data, onOpenVehicle }: {
 
       {grandTotal === 0 ? (
         <Empty title={t('Belum ada perbelanjaan', 'No spending yet')}
-          hint={t('Log servis, minyak atau dokumen akan muncul di sini.', 'A service, fuel or document cost will show up here.')} />
+          hint={t('Log servis, minyak, dokumen atau kos akan muncul di sini.', 'A service, fuel, document or other cost will show up here.')} />
       ) : (
         <>
           <div className="flex items-end gap-1.5 rounded-xl border border-text/10 bg-surface px-3 pt-4 pb-2"

@@ -512,6 +512,11 @@ export const TOOLS: Record<string, Descriptor> = {
         // order by: Object.fromEntries over an unordered result gives heap-order keys, and
         // applyPulled compares blobs with JSON.stringify, which is key-order sensitive — a
         // reordering with no real change would read as "changed on another device".
+        //
+        // One row here has type_key '_cost_categories', not a body:energy pair — the garage-wide
+        // cost-category list, piggybacking on this table rather than a second one-row-per-user
+        // table (see COST_CATEGORY_KEY in garage-presets.ts). Read back into `presets` exactly
+        // like every other row; the client is what treats the reserved key specially.
         `select type_key, customs, hidden from garage_presets where user_id = $1
            order by type_key`, [uid]);
       return {

@@ -66,7 +66,20 @@ export default function Settings({ data, setData }: {
     const file = e.target.files?.[0];
     e.target.value = '';                 // so picking the same file twice still fires
     if (!file) return;
-    const result = parseBackup(await file.text());
+    // Unguarded, this throws (NotReadableError) on a cloud-backed file an Android picker handed
+    // back without the bytes actually downloaded yet — common in this app's market. Inside an
+    // async handler that becomes an unhandled rejection: no error, no confirm, nothing visibly
+    // happens at all, which is exactly the silent failure this feature's own principle rules out.
+    let text: string;
+    try {
+      text = await file.text();
+    } catch {
+      setImportError(t(
+        'Fail ini tidak dapat dibaca. Salin ke peranti dan cuba lagi.',
+        'This file could not be read. Copy it to the device and try again.'));
+      return;
+    }
+    const result = parseBackup(text);
     if (!result.ok) { setImportError(result.error); return; }
     setImportError('');
     const { vehicles, services, energy, docs, costs } = result.counts;

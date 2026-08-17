@@ -115,6 +115,11 @@ create table garage_odo_logs (
 
 -- Service checklist edits, per body:energy pair rather than per vehicle: adding "Timing belt"
 -- to Sedan-Petrol should offer it on every petrol sedan the owner has.
+--
+-- type_key is USUALLY a vehicle type ('sedan:petrol'), but 019_garage_costs.sql reuses this same
+-- table for the garage-wide cost-category list under the reserved key '_cost_categories' — a row
+-- with that key is not corrupt data, it never named a vehicle type to begin with. See
+-- COST_CATEGORY_KEY in garage-presets.ts for the client-side half of this note.
 create table garage_presets (
   user_id  uuid not null references users(id) on delete cascade,
   type_key text not null,                        -- 'sedan:petrol'

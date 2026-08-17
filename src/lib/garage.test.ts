@@ -612,7 +612,7 @@ describe('archived vehicles', () => {
   });
 });
 
-const { warrantyReminders, upsertService, withoutService } = await import('./garage.ts');
+const { warrantyReminders, upsertService, withoutService, todayISO } = await import('./garage.ts');
 
 describe('part warranties', () => {
   const svc = (items: { label: string; cost: number; warrantyUntil?: string; warrantyKm?: number }[]) => ({
@@ -705,6 +705,29 @@ describe('upsertService', () => {
     assert.notEqual(out, before);
     assert.equal(before.services.length, 0);
     assert.equal(before.reminders.length, 0);
+  });
+
+  test('a dismissed warranty reminder stays dismissed across an unrelated re-save', () => {
+    let d = upsertService(withLogs({}), base([{ label: 'Battery', cost: 320, warrantyUntil: '2027-08-01' }]));
+    d = tickReminder(d, 's1:w:Battery');
+    assert.equal(d.reminders[0].done, true, 'sanity: ticked done before the re-save');
+
+    // Re-saving the SAME service (attaching a receipt, editing notes — the warranty fields are
+    // unchanged) must not resurrect the reminder the owner already closed.
+    d = upsertService(d, base([{ label: 'Battery', cost: 320, warrantyUntil: '2027-08-01' }]));
+    assert.equal(d.reminders.length, 1);
+    assert.equal(d.reminders[0].done, true);
+    assert.equal(d.reminders[0].doneDate, todayISO());
+  });
+
+  test('renaming a done warranty item opens a new reminder rather than carrying "done" over', () => {
+    let d = upsertService(withLogs({}), base([{ label: 'Battery', cost: 320, warrantyUntil: '2027-08-01' }]));
+    d = tickReminder(d, 's1:w:Battery');
+    // A renamed item gets a new deterministic id — a different part, not the same warranty
+    // continuing, so it has to start open even though the old id's reminder was done.
+    d = upsertService(d, base([{ label: 'Bateri', cost: 320, warrantyUntil: '2027-08-01' }]));
+    assert.deepEqual(d.reminders.map((r) => r.id), ['s1:w:Bateri']);
+    assert.equal(d.reminders[0].done, false);
   });
 });
 

@@ -556,9 +556,17 @@ export function warrantyReminders(service: Service): Reminder[] {
  * Save a service and rebuild the warranty reminders it owns, dropping every previous one first.
  * One function so `Overview` and `VehicleDetail`'s service pane cannot disagree about it — the
  * same reason `withoutVehicle` exists.
+ *
+ * "Rebuild" must not mean "reopen": a warranty reminder the owner already ticked done, whose item
+ * survives this save unchanged, has to stay done — otherwise re-saving the SAME service (editing
+ * notes, attaching a receipt, anything that doesn't touch the warranty fields) reopens it and it
+ * comes back overdue on the Home dashboard, every single time. A renamed item gets a new
+ * deterministic id (see warrantyPrefix/warrantyReminders) and correctly starts open — a rename is
+ * a different part, not the same warranty continuing.
  */
 export function upsertService(d: GarageData, service: Service): GarageData {
   const prefix = warrantyPrefix(service.id);
+  const prev = new Map(d.reminders.filter((r) => r.id.startsWith(prefix)).map((r) => [r.id, r]));
   const kept = d.reminders.filter((r) => !r.id.startsWith(prefix));
   return {
     ...d,
@@ -566,7 +574,10 @@ export function upsertService(d: GarageData, service: Service): GarageData {
     // upsert rather than a plain concat: two line items sharing one label produce the SAME
     // deterministic id, and two rows with one id would fight over a single primary key on the
     // next sync. The drop above already guarantees no collision with what was there before.
-    reminders: warrantyReminders(service).reduce((list, r) => upsert(list, r), kept),
+    reminders: warrantyReminders(service).reduce((list, r) => {
+      const was = prev.get(r.id);
+      return upsert(list, was?.done ? { ...r, done: true, doneDate: was.doneDate } : r);
+    }, kept),
   };
 }
 
@@ -677,13 +688,17 @@ export function parseBackup(text: string): BackupParse {
     return { ok: false, error: t('Fail ini bukan JSON yang sah.', 'This file is not valid JSON.') };
   }
 
-  if (!isObj(raw) || raw.app !== BACKUP_APP) {
+  // A missing or non-numeric version (a hand-edited file, a file from some other app that happens
+  // to be JSON) is "not a Garaj backup file", not "unsupported version" — the latter tells the
+  // owner their OWN file is a real backup this app merely can't read yet, which is only true once
+  // `version` is actually a number and simply isn't BACKUP_VERSION.
+  if (!isObj(raw) || raw.app !== BACKUP_APP || typeof raw.version !== 'number') {
     return { ok: false, error: t('Ini bukan fail sandaran Garaj.', 'This is not a Garaj backup file.') };
   }
   if (raw.version !== BACKUP_VERSION) {
     return { ok: false, error: t(
-      `Versi fail ${String(raw.version)} tidak disokong.`,
-      `File version ${String(raw.version)} is not supported.`) };
+      `Versi fail ${raw.version} tidak disokong.`,
+      `File version ${raw.version} is not supported.`) };
   }
 
   const { fleet, records, logs } = raw;
