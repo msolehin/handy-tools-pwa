@@ -71,6 +71,23 @@ describe('reminders', { skip: skip && 'DATABASE_URL not set' }, () => {
       `insert into garage_documents (user_id, id, vehicle_id, type, expiry, note) values
          ($1, 'gdoc30', 'car1', 'roadtax', $2, 'JPJ Online')`,
       [userId, plus(30)]);
+
+    // A sold vehicle carrying one of every kind of Garaj reminder. None of them may ever fire:
+    // without the archive filters a car sold last year keeps emailing about its road tax, and
+    // the garage_document arm in particular never joined garage_vehicles at all.
+    await pool!.query(
+      `insert into garage_vehicles (user_id, id, model, mileage, archived, archived_at) values
+         ($1, 'sold1', 'Saga', 120000, true, $2)`, [userId, plus(-30)]);
+    await pool!.query(
+      `insert into garage_reminders (user_id, id, vehicle_id, label, due_date, done) values
+         ($1, 'soldDate', 'sold1', 'Cukai jalan', $2, false)`, [userId, plus(7)]);
+    await pool!.query(
+      // 100 km short of its target, well inside the 500 km KM_SOON window.
+      `insert into garage_reminders (user_id, id, vehicle_id, label, due_odo, done) values
+         ($1, 'soldKm', 'sold1', 'Servis ikut km', 120100, false)`, [userId]);
+    await pool!.query(
+      `insert into garage_documents (user_id, id, vehicle_id, type, expiry) values
+         ($1, 'soldDoc', 'sold1', 'roadtax', $2)`, [userId, plus(30)]);
   });
 
   after(async () => {
@@ -85,6 +102,14 @@ describe('reminders', { skip: skip && 'DATABASE_URL not set' }, () => {
       // remOil and remKm carry their due value in record_id (Item 1 fix) — see reminders.ts.
       ['doc01', 'doc07', 'doc30', 'gdoc30', 'remKm:90000', `remOil:${plus(7)}`].sort(),
       '45 and 0 days out must not fire, and neither may a done reminder');
+  });
+
+  test('an archived vehicle stops emailing entirely, on all three arms', async () => {
+    const ids = (await dueReminders()).filter((r) => r.userId === userId).map((r) => r.recordId);
+    assert.ok(!ids.some((id) => id.startsWith('soldDate')), 'no dated reminder for a sold car');
+    assert.ok(!ids.some((id) => id.startsWith('soldKm')), 'no mileage reminder either');
+    assert.ok(!ids.includes('soldDoc'),
+      'and no document — the arm that did not join garage_vehicles at all before this');
   });
 
   test('a garage reminder marked done does not fire', async () => {

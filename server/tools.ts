@@ -496,9 +496,17 @@ export const TOOLS: Record<string, Descriptor> = {
         // created_at is bigint (OID 20): pg returns those as strings unless cast, and
         // Vehicle.createdAt is a number on the client — vehicle_assets.created_at hit the same
         // thing and is cast the same way.
+        //
+        // archived is read as `case when ... then true end`, NOT as a bare column: it is NOT
+        // NULL, dropNulls only drops nulls, and a bare read would therefore add `archived: false`
+        // to every vehicle a client sent without one — a field the blob never had, which the
+        // deepStrictEqual round-trip test is there to catch. Same idiom as
+        // home_service_events.next_done.
         `select id, body, energy, model, mileage, brand, nickname, plate, year,
                 engine::float8 as engine, capacity::float8 as capacity, photo,
-                color_idx as "colorIdx", created_at::float8 as "createdAt"
+                color_idx as "colorIdx", created_at::float8 as "createdAt",
+                case when archived then true end as archived,
+                archived_at::text as "archivedAt"
            from garage_vehicles where user_id = $1 order by pos`, [uid]);
       const { rows: presets } = await q(
         // order by: Object.fromEntries over an unordered result gives heap-order keys, and
@@ -528,12 +536,14 @@ export const TOOLS: Record<string, Descriptor> = {
         [uid, ids]);
       await insertMany(q, 'garage_vehicles',
         ['user_id', 'id', 'body', 'energy', 'model', 'mileage', 'brand', 'nickname', 'plate',
-          'year', 'engine', 'capacity', 'photo', 'color_idx', 'created_at', 'pos'],
+          'year', 'engine', 'capacity', 'photo', 'color_idx', 'created_at', 'archived',
+          'archived_at', 'pos'],
         arr(blob?.vehicles).map((v, i) => [
           uid, String(v.id), String(v.body ?? 'sedan'), String(v.energy ?? 'petrol'),
           String(v.model ?? ''), num(v.mileage), v.brand ?? null, v.nickname ?? null,
           v.plate ?? null, v.year ?? null, v.engine ?? null, v.capacity ?? null,
-          v.photo ?? null, num(v.colorIdx), num(v.createdAt), i,
+          v.photo ?? null, num(v.colorIdx), num(v.createdAt),
+          v.archived === true, v.archivedAt ?? null, i,
         ]));
 
       await q('delete from garage_presets where user_id = $1', [uid]);

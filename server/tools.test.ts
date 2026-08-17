@@ -146,8 +146,16 @@ const FIXTURES: Record<string, unknown> = {
         colorIdx: 3, createdAt: 1767225600000,
       },
       // Every optional detail absent, and mileage/colorIdx a genuine 0 — must come back as 0,
-      // not be dropped as a falsy value alongside the fields that really are missing.
+      // not be dropped as a falsy value alongside the fields that really are missing. `archived`
+      // is absent here on purpose: the column is NOT NULL, so a bare `select archived` would
+      // return false, dropNulls would keep it, and this blob would come back with a key it never
+      // sent. The read casts it through `case when archived then true end` for that reason.
       { id: 'gvh0002', body: 'motorcycle', energy: 'petrol', model: 'RS150R', mileage: 0, colorIdx: 0, createdAt: 1767312000000 },
+      // Sold. Both archive fields present.
+      {
+        id: 'gvh0003', body: 'hatchback', energy: 'petrol', model: 'Saga', mileage: 120000,
+        colorIdx: 1, createdAt: 1735689600000, archived: true, archivedAt: '2026-06-30',
+      },
     ],
     presets: {
       'sedan:petrol': { customs: ['Timing belt'], hidden: ['Wipers'] },

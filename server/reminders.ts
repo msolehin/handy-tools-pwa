@@ -61,32 +61,43 @@ due as (
   -- repeating reminder's dueDate in place on the SAME row rather than creating a new one, so id
   -- alone would let reminder_sends treat "fired for the Feb due date" as still true for the
   -- August due date it rolled to. Folding due_date into the key makes each occurrence, not each
-  -- row, the thing that dedups.
-  select user_id, 'garage_reminder', id || ':' || due_date::text,
-         coalesce(nullif(label, ''), 'Servis'),
-         due_date, '/vehicle-services'
-    from garage_reminders
-   where due_date is not null and not done
+  -- row, the thing that dedups. DO NOT reduce this to a bare id.
+  --
+  -- The join exists for 'not v.archived' alone: a car sold last year must stop emailing about
+  -- its road tax. The foreign key guarantees the vehicle row exists, so this can never drop a
+  -- reminder that should have fired.
+  select r.user_id, 'garage_reminder', r.id || ':' || r.due_date::text,
+         coalesce(nullif(r.label, ''), 'Servis'),
+         r.due_date, '/vehicle-services'
+    from garage_reminders r
+    join garage_vehicles v on v.user_id = r.user_id and v.id = r.vehicle_id
+   where r.due_date is not null and not r.done and not v.archived
   union all
   -- Named exactly the way the client does (DOC_LABELS in src/lib/garage.ts), not rederived with
   -- initcap — that would give "Road Tax" where the client renders "Road tax", and the same
   -- record must not read differently in a notification than it does on screen. note is folded
   -- in the same way custom_title is above, for the same reason: it is what disambiguates "Other".
   --
-  -- record_id is bare id here, unlike the two garage arms above — a renewed document keeps its
-  -- id AND its old dedup key, so it will not re-fire after renewal. That is a real, pre-existing
-  -- gap (src/pages/DocumentExpiry.tsx renews every document type in place, not just garage's),
-  -- not something introduced here, so it is left alone rather than fixed for garage only.
-  select user_id, 'garage_document', id,
-         (case type
+  -- record_id is bare id here, unlike the two garage arms around it — a renewed document keeps
+  -- its id AND its old dedup key, so it will not re-fire after renewal. That is a real,
+  -- pre-existing gap (src/pages/DocumentExpiry.tsx renews every document type in place, not just
+  -- garage's), not something introduced here, so it is left alone rather than fixed for garage
+  -- only.
+  --
+  -- This arm did not join garage_vehicles at all before the archive change. It does now, and
+  -- that join is the whole reason a sold car's road tax finally goes quiet.
+  select doc.user_id, 'garage_document', doc.id,
+         (case doc.type
             when 'roadtax'   then 'Road tax'
             when 'insurance' then 'Insurance'
             when 'puspakom'  then 'Puspakom'
             when 'warranty'  then 'Warranty'
             else 'Other'
-          end) || coalesce(' · ' || nullif(note, ''), ''),
-         expiry, '/vehicle-services'
-    from garage_documents
+          end) || coalesce(' · ' || nullif(doc.note, ''), ''),
+         doc.expiry, '/vehicle-services'
+    from garage_documents doc
+    join garage_vehicles veh on veh.user_id = doc.user_id and veh.id = doc.vehicle_id
+   where not veh.archived
   union all
   select user_id, 'home_service', id, coalesce(nullif(title, ''), 'Servis'),
          next_service_date, '/home-services'
@@ -140,6 +151,10 @@ with odo as (
          ) as current_odo,
          coalesce(nullif(v.nickname, ''), nullif(v.model, ''), 'Kenderaan') as vehicle_name
     from garage_vehicles v
+   -- The third arm. Same rule as the two dated ones: a sold car's odometer target is nobody's
+   -- business any more. Filtering in the CTE rather than at the join keeps it to one line and
+   -- one place.
+   where not v.archived
 )
 -- record_id carries due_odo for the same reason the garage_reminder arm's carries due_date:
 -- rollForward advances a repeating reminder's dueOdo in place on the same row, so id alone
