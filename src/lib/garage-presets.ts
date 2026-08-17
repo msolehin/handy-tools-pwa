@@ -98,6 +98,36 @@ export function presetsFor(
 export const typeKey = (body: Body, energy: Energy) => `${body}:${energy}`;
 
 /**
+ * Cost categories live in the same `garage_presets` table as the service checklists, under this
+ * one reserved key. That table's columns are already `(user_id, type_key, customs, hidden)` —
+ * exactly the shape needed — and it already has a tested read/write path in the descriptor; a
+ * second one-row-per-user table would buy nothing but a truer column name.
+ *
+ * `type_key` otherwise means a VEHICLE TYPE (`sedan:petrol`), and a reader would reasonably
+ * assume it always does. The leading underscore is what guarantees it never can be one: no Body
+ * starts with an underscore, so `typeKey()` can never produce this string. The server end of
+ * the same pairing carries the same note.
+ *
+ * Unlike a service checklist these are garage-wide, not per vehicle type — a parking fee is not
+ * specific to a motorcycle.
+ */
+export const COST_CATEGORY_KEY = '_cost_categories';
+
+/**
+ * The only one that ships. A starting point, not a prediction: anything else — saman, aksesori,
+ * cuci kereta, tunda — is one line in Settings, which is the whole reason `category` is a free
+ * string rather than a union.
+ */
+export const DEFAULT_COST_CATEGORIES = ['Tol & parkir'];
+
+/** Defaults, plus what the owner added, minus what they removed. Same resolution as presetsFor,
+ *  minus the type lookup, because there is no type to look up. */
+export function costCategories(customs: string[] = [], hidden: string[] = []): string[] {
+  const gone = new Set(hidden);
+  return dedupe([...DEFAULT_COST_CATEGORIES, ...customs]).filter((c) => !gone.has(c));
+}
+
+/**
  * Pre-fill for the reminder offered after an item is logged. `0` means that dimension does not
  * apply to the item — brake pads wear by distance, a software update lands by calendar.
  */

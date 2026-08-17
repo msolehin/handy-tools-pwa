@@ -2,6 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   defaultPresets, presetsFor, kindsFor, gradesFor, engineSpec, typeKey,
+  COST_CATEGORY_KEY, DEFAULT_COST_CATEGORIES, costCategories, BODIES, ENERGIES,
 } from './garage-presets.ts';
 
 describe('service presets', () => {
@@ -94,5 +95,42 @@ describe('engine spec', () => {
 
   test('an electric motorcycle still reports a battery', () => {
     assert.equal(engineSpec('motorcycle', 'ev').unit, 'kWh');
+  });
+});
+
+describe('cost categories', () => {
+  test('one default ships, and it is the toll/parking one', () => {
+    assert.deepEqual(costCategories(), ['Tol & parkir']);
+  });
+
+  test('customs are appended and never duplicate the default', () => {
+    const list = costCategories(['Saman', 'Tol & parkir', 'Cuci kereta'], []);
+    assert.equal(list.filter((c) => c === 'Tol & parkir').length, 1);
+    assert.deepEqual(list, ['Tol & parkir', 'Saman', 'Cuci kereta']);
+  });
+
+  test('a hidden default is removed', () => {
+    assert.deepEqual(costCategories(['Saman'], ['Tol & parkir']), ['Saman']);
+  });
+
+  test('hiding everything is allowed — an empty list, not a silent fallback to the default', () => {
+    assert.deepEqual(costCategories([], ['Tol & parkir']), []);
+  });
+
+  // The reserved key shares a table with the service checklists, whose keys are body:energy
+  // pairs. The leading underscore is the whole guarantee that the two can never collide, so it
+  // is asserted rather than assumed.
+  test('the reserved key can never collide with a real vehicle type key', () => {
+    for (const body of Object.keys(BODIES) as (keyof typeof BODIES)[]) {
+      for (const energy of Object.keys(ENERGIES) as (keyof typeof ENERGIES)[]) {
+        assert.notEqual(typeKey(body, energy), COST_CATEGORY_KEY);
+      }
+    }
+    assert.ok(COST_CATEGORY_KEY.startsWith('_'));
+  });
+
+  test('the default list is not mutable through a returned array', () => {
+    costCategories().push('Oops');
+    assert.deepEqual(DEFAULT_COST_CATEGORIES, ['Tol & parkir']);
   });
 });
