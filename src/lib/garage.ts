@@ -457,6 +457,15 @@ export function tickReminder(d: GarageData, reminderId: string): GarageData {
   };
 }
 
+/** Replace the record with this id, or append it. Upserting by id means a form cannot
+ *  accidentally push a second copy of a record it was editing — unlike `editing ? map : push`,
+ *  it can't drift out of sync with a separate `editing` state variable, because there isn't one. */
+export const upsert = <T extends { id: string }>(list: T[], item: T): T[] =>
+  list.some((x) => x.id === item.id) ? list.map((x) => (x.id === item.id ? item : x)) : [...list, item];
+
+export const removeById = <T extends { id: string }>(list: T[], id: string): T[] =>
+  list.filter((x) => x.id !== id);
+
 /**
  * Everything a vehicle owns, gone in one step: the vehicle itself and every row in the other
  * five tables that points at it. The server cascades a vehicle delete the same way, so the local

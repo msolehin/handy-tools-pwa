@@ -153,7 +153,7 @@ export default function Garage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-1 bg-text/5 p-1 rounded-xl mb-1">
+      <div className="grid grid-cols-4 gap-1 bg-text/5 p-1 rounded-xl mb-4">
         {TABS.map(([key, label, Icon]) => (
           <button key={key} onClick={() => setTab(key)}
             className={`py-2 text-[10px] font-bold rounded-lg transition-all flex flex-col items-center gap-1 ${

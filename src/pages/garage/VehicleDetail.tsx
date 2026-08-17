@@ -6,6 +6,7 @@ import { useState, type Dispatch, type SetStateAction } from 'react';
 import { Wrench, Fuel, Zap, Bell, FileText, Pencil } from 'lucide-react';
 import {
   economy, spend, costPerKm, serviceTotal, addMonths, todayISO, withoutVehicle, dueItems, tickReminder,
+  upsert, removeById,
   type GarageData, type Vehicle, type Service, type EnergyLog, type Reminder, type OdoLog, type VDoc, type DueItem,
 } from '../../lib/garage';
 import { BODIES, ENERGIES, engineSpec, kindsFor, unitFor, type LogKind } from '../../lib/garage-presets';
@@ -118,14 +119,11 @@ export default function VehicleDetail({ vehicle, data, setData, onBack }: {
   const openOdoEdit = (reading: OdoLog) => { setEditingOdo(reading); setOdoSheetOpen(true); };
 
   const handleSaveOdo = (reading: OdoLog) => {
-    setData((d) => ({
-      ...d,
-      odo: editingOdo ? d.odo.map((x) => (x.id === reading.id ? reading : x)) : [...d.odo, reading],
-    }));
+    setData((d) => ({ ...d, odo: upsert(d.odo, reading) }));
     setOdoSheetOpen(false);
   };
   const handleDeleteOdo = (id: string) => {
-    setData((d) => ({ ...d, odo: d.odo.filter((x) => x.id !== id) }));
+    setData((d) => ({ ...d, odo: removeById(d.odo, id) }));
     setOdoSheetOpen(false);
   };
 
@@ -133,11 +131,11 @@ export default function VehicleDetail({ vehicle, data, setData, onBack }: {
   const openDocEdit = (doc: VDoc) => { setEditingDoc(doc); setDocDefaultType(doc.type); setDocSheetOpen(true); };
 
   const handleSaveDoc = (doc: VDoc) => {
-    setData((d) => ({ ...d, docs: editingDoc ? d.docs.map((x) => (x.id === doc.id ? doc : x)) : [...d.docs, doc] }));
+    setData((d) => ({ ...d, docs: upsert(d.docs, doc) }));
     setDocSheetOpen(false);
   };
   const handleDeleteDoc = (id: string) => {
-    setData((d) => ({ ...d, docs: d.docs.filter((x) => x.id !== id) }));
+    setData((d) => ({ ...d, docs: removeById(d.docs, id) }));
     setDocSheetOpen(false);
   };
 
@@ -234,14 +232,14 @@ function ServicePane({ vehicle, data, setData }: {
   const handleSave = (service: Service, reminder?: Reminder) => {
     setData((d) => ({
       ...d,
-      services: editing ? d.services.map((s) => (s.id === service.id ? service : s)) : [...d.services, service],
+      services: upsert(d.services, service),
       reminders: reminder ? [...d.reminders, reminder] : d.reminders,
     }));
     setSheetOpen(false);
   };
 
   const handleDelete = (id: string) => {
-    setData((d) => ({ ...d, services: d.services.filter((s) => s.id !== id) }));
+    setData((d) => ({ ...d, services: removeById(d.services, id) }));
     setSheetOpen(false);
   };
 
@@ -300,12 +298,12 @@ function EnergyPane({ vehicle, data, setData, onEditOdo }: {
   const openEdit = (e: EnergyLog) => { setEditing(e); setSheetOpen(true); };
 
   const handleSave = (entry: EnergyLog) => {
-    setData((d) => ({ ...d, energy: editing ? d.energy.map((e) => (e.id === entry.id ? entry : e)) : [...d.energy, entry] }));
+    setData((d) => ({ ...d, energy: upsert(d.energy, entry) }));
     setSheetOpen(false);
   };
 
   const handleDelete = (id: string) => {
-    setData((d) => ({ ...d, energy: d.energy.filter((e) => e.id !== id) }));
+    setData((d) => ({ ...d, energy: removeById(d.energy, id) }));
     setSheetOpen(false);
   };
 
@@ -435,15 +433,12 @@ function RemindPane({ vehicle, data, setData }: {
   const openEdit = (r: Reminder) => { setEditing(r); setSheetOpen(true); };
 
   const handleSave = (reminder: Reminder) => {
-    setData((d) => ({
-      ...d,
-      reminders: editing ? d.reminders.map((r) => (r.id === reminder.id ? reminder : r)) : [...d.reminders, reminder],
-    }));
+    setData((d) => ({ ...d, reminders: upsert(d.reminders, reminder) }));
     setSheetOpen(false);
   };
 
   const handleDelete = (id: string) => {
-    setData((d) => ({ ...d, reminders: d.reminders.filter((r) => r.id !== id) }));
+    setData((d) => ({ ...d, reminders: removeById(d.reminders, id) }));
     setSheetOpen(false);
   };
 

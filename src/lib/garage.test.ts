@@ -452,3 +452,41 @@ describe('withoutVehicle', () => {
     assert.equal(twoVehicles.services.length, 2); // original object unchanged
   });
 });
+
+const { upsert, removeById } = await import('./garage.ts');
+
+describe('upsert', () => {
+  const list = [
+    { id: 'a', label: 'first' },
+    { id: 'b', label: 'second' },
+  ];
+
+  test('replaces the matching id in place instead of growing the list', () => {
+    const out = upsert(list, { id: 'a', label: 'edited' });
+    assert.equal(out.length, 2);
+    assert.deepEqual(out, [{ id: 'a', label: 'edited' }, { id: 'b', label: 'second' }]);
+  });
+
+  test('appends when the id is new', () => {
+    const out = upsert(list, { id: 'c', label: 'third' });
+    assert.equal(out.length, 3);
+    assert.deepEqual(out[2], { id: 'c', label: 'third' });
+  });
+
+  test('never mutates the input array', () => {
+    const out = upsert(list, { id: 'a', label: 'edited' });
+    assert.notEqual(out, list);
+    assert.equal(list[0].label, 'first'); // original object unchanged
+  });
+});
+
+describe('removeById', () => {
+  test('drops the matching row and leaves siblings alone', () => {
+    const list = [
+      { id: 'a', label: 'first' },
+      { id: 'b', label: 'second' },
+    ];
+    const out = removeById(list, 'a');
+    assert.deepEqual(out, [{ id: 'b', label: 'second' }]);
+  });
+});

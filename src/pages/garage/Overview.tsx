@@ -5,11 +5,13 @@
 import { useEffect, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import {
-  dueItems, tickReminder, serviceTotal, type GarageData, type Vehicle, type DueItem,
-  type Service, type EnergyLog, type OdoLog,
+  dueItems, tickReminder, serviceTotal, upsert, type GarageData, type Vehicle, type DueItem,
+  type Service, type EnergyLog, type OdoLog, type Reminder, type VDoc,
 } from '../../lib/garage';
-import { BODIES, ENERGIES, unitFor } from '../../lib/garage-presets';
-import { Cluster, DocPair, DueRow, Eyebrow, Empty, Row, Sheet, avatarOf, fmtKm, fmtRM, fmtRM0, niceDate } from './parts';
+import { BODIES, ENERGIES, kindsFor, unitFor } from '../../lib/garage-presets';
+import { AddButton, Cluster, DocPair, DueRow, Eyebrow, Empty, Row, Sheet, avatarOf, fmtKm, fmtRM, fmtRM0, niceDate } from './parts';
+import { ServiceSheet } from './sheets';
+import { EnergySheet, OdoSheet, ReminderSheet, DocumentSheet } from './logSheets';
 import { useT, t as tr } from '../../lib/lang';
 
 /** How many rows each capped list on this screen shows — a home screen previews, it does not
@@ -27,6 +29,17 @@ export default function Overview({ data, setData, vehicleId, setVehicleId, onOpe
 }) {
   const t = useT();
   const [pickerOpen, setPickerOpen] = useState(false);
+
+  // The quick-add sheet just names what to log; the actual work happens in whichever form sheet
+  // it hands off to below. Each of those five owns its own open flag — always opened fresh for a
+  // NEW record, never an edit, so unlike VehicleDetail's panes there is no `editing` state to
+  // thread through: upsert() below still does the right thing either way.
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [energyOpen, setEnergyOpen] = useState(false);
+  const [serviceOpen, setServiceOpen] = useState(false);
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [docOpen, setDocOpen] = useState(false);
+  const [odoOpen, setOdoOpen] = useState(false);
 
   // The remembered vehicle may be gone (deleted) or never set (first run) — fall back to the
   // first vehicle in the fleet for THIS render, and persist that choice so next time it's the
@@ -47,6 +60,31 @@ export default function Overview({ data, setData, vehicleId, setVehicleId, onOpe
 
   const due = dueItems(data).slice(0, DUE_CAP);
   const handleTick = (item: DueItem) => setData((d) => tickReminder(d, item.id));
+
+  // Same shape as VehicleDetail's own five save handlers (services/energy/odo/reminders/docs),
+  // deliberately not copied from there: upsert() is the one place that "replace if this id
+  // already exists, else append" is spelled out, so this and VehicleDetail can't drift apart on
+  // what an edit vs. a new record looks like.
+  const handleSaveService = (service: Service, reminder?: Reminder) => {
+    setData((d) => ({ ...d, services: upsert(d.services, service), reminders: reminder ? [...d.reminders, reminder] : d.reminders }));
+    setServiceOpen(false);
+  };
+  const handleSaveEnergy = (entry: EnergyLog) => {
+    setData((d) => ({ ...d, energy: upsert(d.energy, entry) }));
+    setEnergyOpen(false);
+  };
+  const handleSaveOdo = (reading: OdoLog) => {
+    setData((d) => ({ ...d, odo: upsert(d.odo, reading) }));
+    setOdoOpen(false);
+  };
+  const handleSaveReminder = (reminder: Reminder) => {
+    setData((d) => ({ ...d, reminders: upsert(d.reminders, reminder) }));
+    setReminderOpen(false);
+  };
+  const handleSaveDoc = (doc: VDoc) => {
+    setData((d) => ({ ...d, docs: upsert(d.docs, doc) }));
+    setDocOpen(false);
+  };
 
   // Garage-wide, not just `selected` — the Overview is the whole-garage screen (see "What's due"
   // above, already cross-vehicle), and the per-vehicle feed already exists on the detail page's
@@ -73,6 +111,10 @@ export default function Overview({ data, setData, vehicleId, setVehicleId, onOpe
 
       <div className="mt-3">
         <DocPair vehicle={selected} data={data} onOpen={() => onOpenVehicle(selected.id)} />
+      </div>
+
+      <div className="mt-2">
+        <AddButton label={t('Log rekod', 'Log something')} onClick={() => setQuickAddOpen(true)} />
       </div>
 
       <Eyebrow count={due.length ? String(due.length) : undefined}>
@@ -112,7 +154,83 @@ export default function Overview({ data, setData, vehicleId, setVehicleId, onOpe
       )}
 
       <VehiclePicker open={pickerOpen} data={data} onClose={() => setPickerOpen(false)} onSelect={setVehicleId} />
+
+      <QuickAddSheet
+        open={quickAddOpen}
+        vehicle={selected}
+        onClose={() => setQuickAddOpen(false)}
+        onPick={(action) => {
+          setQuickAddOpen(false);
+          if (action === 'energy') setEnergyOpen(true);
+          if (action === 'service') setServiceOpen(true);
+          if (action === 'reminder') setReminderOpen(true);
+          if (action === 'doc') setDocOpen(true);
+          if (action === 'odo') setOdoOpen(true);
+        }}
+      />
+
+      {/* The real forms the quick-add sheet hands off to — same five sheets VehicleDetail's own
+          panes use, each opened fresh for a new record (no `editing` state here, see above) and
+          each keyed on `selected.id` so switching the picked vehicle mid-flow can't leave a form
+          holding stale defaults (odometer, presets) from the vehicle it opened against. */}
+      <ServiceSheet key={serviceOpen ? selected.id : 'closed'} open={serviceOpen} vehicle={selected} data={data}
+        onClose={() => setServiceOpen(false)} onSave={handleSaveService} />
+      <EnergySheet key={energyOpen ? selected.id : 'closed'} open={energyOpen} vehicle={selected} data={data}
+        onClose={() => setEnergyOpen(false)} onSave={handleSaveEnergy} />
+      <OdoSheet key={odoOpen ? selected.id : 'closed'} open={odoOpen} vehicle={selected} data={data}
+        onClose={() => setOdoOpen(false)} onSave={handleSaveOdo} />
+      <ReminderSheet key={reminderOpen ? selected.id : 'closed'} open={reminderOpen} vehicle={selected} data={data}
+        onClose={() => setReminderOpen(false)} onSave={handleSaveReminder} />
+      <DocumentSheet key={docOpen ? selected.id : 'closed'} open={docOpen} vehicle={selected}
+        onClose={() => setDocOpen(false)} onSave={handleSaveDoc} />
     </div>
+  );
+}
+
+type QuickAddAction = 'energy' | 'service' | 'reminder' | 'doc' | 'odo';
+
+/**
+ * "What are you logging?" — the one thing every record type has in common is a vehicle, so this
+ * sheet exists purely to ask which KIND before handing off to the real form. `vehicle` goes to
+ * `Sheet`'s own vehicle prop (not just the title) so the sheet itself shows who this is for — the
+ * whole point of naming it here is that a form opened from this picker can never end up filed
+ * against the wrong car.
+ *
+ * Row titles/hints are plain `Row`s: title, a one-line hint as `sub`, and a chevron for free from
+ * `onClick` — the shape already matches what this list needs, so no new row component.
+ */
+function QuickAddSheet({ open, vehicle, onClose, onPick }: {
+  open: boolean; vehicle: Vehicle; onClose: () => void; onPick: (action: QuickAddAction) => void;
+}) {
+  const t = useT();
+  // Same kindsFor() precedence VehicleDetail's own fuelLabel/logVerb use — an EV owner reads
+  // "Log a charge" here for exactly the same reason they never see "fuel" anywhere else in Garaj.
+  const kinds = kindsFor(vehicle.energy);
+  const fillTitle = kinds.length === 1 && kinds[0] === 'charge' ? t('Log cas', 'Log a charge')
+    : kinds.length === 2 ? t('Log isi/cas', 'Log a fill/charge')
+    : t('Log isi minyak', 'Log a fill-up');
+
+  const actions: { key: QuickAddAction; title: string; hint: string }[] = [
+    { key: 'energy', title: fillTitle, hint: t('Tenaga, kos, bacaan odometer', 'Energy, cost, odometer') },
+    { key: 'service', title: t('Log lawatan servis', 'Log a service visit'),
+      hint: t('Beberapa item, satu bengkel, satu jumlah', 'Several items, one workshop, one total') },
+    { key: 'reminder', title: t('Tambah peringatan', 'Add a reminder'),
+      hint: t('Ikut tarikh, ikut jarak, atau mana dahulu', 'By date, by mileage, or whichever comes first') },
+    { key: 'doc', title: t('Tambah dokumen', 'Add a document'),
+      hint: t('Cukai jalan, insurans, Puspakom', 'Road tax, insurance, Puspakom') },
+    { key: 'odo', title: t('Kemas kini bacaan odometer', 'Update mileage'),
+      hint: t('Hanya jika anda mahu — rekod lain buat secara automatik', "Only if you want to — entries do this for you") },
+  ];
+
+  return (
+    <Sheet open={open} title={t('Apa yang anda log?', 'What are you logging?')}
+      sub={vehicle.nickname || vehicle.model} vehicle={vehicle} onClose={onClose}>
+      <div className="space-y-2">
+        {actions.map((a) => (
+          <Row key={a.key} title={a.title} sub={a.hint} onClick={() => onPick(a.key)} />
+        ))}
+      </div>
+    </Sheet>
   );
 }
 
