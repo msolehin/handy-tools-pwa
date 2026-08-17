@@ -137,6 +137,22 @@ export default function Garage() {
 
   return (
     <div className="pb-28">
+      {/* Same shape as every other tool's header (see ExpenseManager) so Garaj doesn't read as
+          a different app. Emerald, not the amber of its home-screen card: the tabs directly
+          below and the whole status system are emerald, and an amber chip sitting on top of
+          them looks like a mistake. */}
+      <div className="flex items-center gap-3 px-1 mb-4">
+        <div className="p-3 bg-emerald-500/20 rounded-xl shrink-0">
+          <CarFront className="text-emerald-400 light:text-emerald-700" size={26} />
+        </div>
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold tracking-tight text-text/90">Garaj</h1>
+          <p className="text-[10px] text-muted uppercase tracking-wider">
+            {tr('Kenderaan · Servis · Minyak · Kos', 'Vehicles · Service · Fuel · Costs')}
+          </p>
+        </div>
+      </div>
+
       <div className="grid grid-cols-4 gap-1 bg-text/5 p-1 rounded-xl mb-1">
         {TABS.map(([key, label, Icon]) => (
           <button key={key} onClick={() => setTab(key)}
