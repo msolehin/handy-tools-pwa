@@ -163,7 +163,7 @@ export const Pill = ({ level, children }: { level: Level; children: React.ReactN
 export const SoldTag = () => {
   const t = useT();
   return (
-    <span className="text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wide shrink-0 bg-text/10 text-muted">
+    <span className="text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wide shrink-0 bg-text/5 text-muted">
       {t('Dijual', 'Sold')}
     </span>
   );

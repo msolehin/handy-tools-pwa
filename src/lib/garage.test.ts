@@ -583,11 +583,15 @@ describe('archived vehicles', () => {
     assert.deepEqual(dueItems(d).map((i) => i.id).sort(), ['d1', 'r1']);
   });
 
-  test('asking for the archived vehicle by id still returns nothing', () => {
+  // Unlike the fleet-wide list above, a caller that already named the archived vehicle still
+  // gets its records back — that's VehicleDetail's own Documents/Reminders panes, reachable on a
+  // sold car's page (its Costs row still opens it), and "Archive keeps everything" has to hold
+  // there too: an empty pane over records that still exist would be a lie the UI tells.
+  test('asking for the archived vehicle by id still returns its own items', () => {
     const d = fleet({
       reminders: [{ id: 'r2', vehicleId: 'v2', label: 'Engine oil', done: false, dueDate: shift(3) }],
     });
-    assert.deepEqual(dueItems(d, 'v2'), []);
+    assert.deepEqual(dueItems(d, 'v2').map((i) => i.id), ['r2']);
   });
 
   // Archiving hides it from lists and reminders. It must not corrupt its own history — the

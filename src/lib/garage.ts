@@ -275,10 +275,14 @@ export const DOC_LABELS: Record<VDoc['type'], { ms: string; en: string }> = {
  * home screen has one list rather than two that have to be merged at the point of display.
  */
 export function dueItems(d: GarageData, vehicleId?: string): DueItem[] {
-  // Archived vehicles are excluded here rather than in each loop: both the reminder and the
-  // document pass below `continue` when byId misses, so dropping sold cars from the map is the
-  // whole fix — and it covers the Home dashboard too, which reads this same function.
-  const byId = new Map(activeVehicles(d).map((v) => [v.id, v]));
+  // Archived vehicles are excluded only from the fleet-wide list (no vehicleId) — that's the
+  // "what's due" surface the Home dashboard and Overview's own list read, and hiding a sold car
+  // there is the whole point. A caller that already named a vehicle (VehicleDetail's Documents
+  // and Reminders panes, reachable on a sold car's own page) gets its records back regardless of
+  // archived status: "Archive keeps everything" has to mean the panes on that very page still
+  // show what is actually there, not an empty state lying about it.
+  const source = vehicleId ? d.vehicles : activeVehicles(d);
+  const byId = new Map(source.map((v) => [v.id, v]));
   const mine = (id: string) => !vehicleId || id === vehicleId;
   const out: DueItem[] = [];
 

@@ -181,14 +181,14 @@ function PresetEditor({ storeKey, defaults, resolved, hidden, addPlaceholder, se
 
   return (
     <>
-      <div className="flex items-center justify-end mb-1.5 mt-1">
-        {hidden.length > 0 && (
+      {hidden.length > 0 && (
+        <div className="flex items-center justify-end mb-1.5 mt-1">
           <button type="button" onClick={restoreDefaults}
             className="text-xs text-muted hover:text-text underline underline-offset-2 min-h-[44px] px-1">
             {t('Pulihkan lalai', 'Restore defaults')}
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="rounded-xl border border-text/10 overflow-hidden">
         {resolved.length === 0 ? (
