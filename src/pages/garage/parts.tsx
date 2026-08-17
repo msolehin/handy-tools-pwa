@@ -5,7 +5,7 @@
 // tokens are what change between the app's two themes and Cluster must not.
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronRight, X } from 'lucide-react';
+import { Check, ChevronRight, Plus, X } from 'lucide-react';
 import {
   currentOdo, economy, costPerKm, statusOf, DOC_LABELS,
   type GarageData, type Vehicle, type Level, type DueItem, type VDoc,
@@ -143,6 +143,26 @@ export const Empty = ({ title, hint }: { title: string; hint: string }) => (
     <p className="font-display text-[17px] text-muted m-0">{title}</p>
     <small className="text-[13px] text-muted">{hint}</small>
   </div>
+);
+
+/**
+ * The app's add-a-record control, matching Document Expiry: a full-width dashed outline that
+ * reads as an empty slot waiting to be filled, rather than a solid button competing with the
+ * records above it. One component because Garaj has five of these, and five copies of the
+ * class list is five chances for them to drift apart.
+ *
+ * Emerald on hover, like the rest of the tool. `light:` partner on the text because emerald-500
+ * falls under 4.5:1 on a light surface — the same measurement DebtTracker records.
+ */
+export const AddButton = ({ label, onClick }: { label: string; onClick: () => void }) => (
+  <button
+    onClick={onClick}
+    className="w-full py-4 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold
+               hover:border-emerald-500/50 hover:text-emerald-500 light:hover:text-emerald-700
+               transition-all flex items-center justify-center min-h-[44px]"
+  >
+    <Plus size={20} className="mr-2" /> {label}
+  </button>
 );
 
 // Shared across DueRow and DocPair so a document and a reminder colour their status identically —

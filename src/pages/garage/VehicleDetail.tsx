@@ -3,13 +3,13 @@
 // Task 12's). Self-contained the same way Vehicles.tsx is: each pane owns its own sheet's
 // open/editing state, since neither is part of the shell's `detailId` navigation contract.
 import { useState, type Dispatch, type SetStateAction } from 'react';
-import { Wrench, Fuel, Zap, Bell, FileText, Plus, Pencil } from 'lucide-react';
+import { Wrench, Fuel, Zap, Bell, FileText, Pencil } from 'lucide-react';
 import {
   economy, spend, costPerKm, serviceTotal, addMonths, todayISO, withoutVehicle, dueItems, tickReminder,
   type GarageData, type Vehicle, type Service, type EnergyLog, type Reminder, type OdoLog, type VDoc, type DueItem,
 } from '../../lib/garage';
 import { BODIES, ENERGIES, engineSpec, kindsFor, unitFor, type LogKind } from '../../lib/garage-presets';
-import { Cluster, DocPair, Row, DueRow, Eyebrow, Empty, fmtKm, fmtRM, fmtRM0, niceDate } from './parts';
+import { Cluster, DocPair, Row, DueRow, Eyebrow, Empty, AddButton, fmtKm, fmtRM, fmtRM0, niceDate } from './parts';
 import { VehicleSheet, ServiceSheet } from './sheets';
 import { EnergySheet, OdoSheet, ReminderSheet, DocumentSheet } from './logSheets';
 import { useT } from '../../lib/lang';
@@ -249,10 +249,9 @@ function ServicePane({ vehicle, data, setData }: {
 
   return (
     <div>
-      <button onClick={openCreate}
-        className="w-full flex items-center justify-center gap-1.5 py-3 rounded-xl bg-primary text-[#ffffff] text-sm font-bold min-h-[44px] hover:opacity-90 mb-3">
-        <Plus size={16} /> {t('Log servis', 'Log service')}
-      </button>
+      <div className="mb-3">
+        <AddButton label={t('Log servis', 'Log service')} onClick={openCreate} />
+      </div>
 
       {list.length === 0 ? (
         <Empty title={t('Belum ada rekod servis', 'No service records yet')}
@@ -356,10 +355,9 @@ function EnergyPane({ vehicle, data, setData, onEditOdo }: {
         </div>
       )}
 
-      <button onClick={openCreate}
-        className="w-full flex items-center justify-center gap-1.5 py-3 rounded-xl bg-primary text-[#ffffff] text-sm font-bold min-h-[44px] hover:opacity-90 mb-3">
-        <Plus size={16} /> {logVerb}
-      </button>
+      <div className="mb-3">
+        <AddButton label={logVerb} onClick={openCreate} />
+      </div>
 
       {list.length === 0 ? (
         <Empty title={emptyTitle} hint={t(`Ketik "${logVerb}" untuk mula.`, `Tap "${logVerb}" to get started.`)} />
@@ -463,10 +461,9 @@ function RemindPane({ vehicle, data, setData }: {
 
   return (
     <div>
-      <button onClick={openCreate}
-        className="w-full flex items-center justify-center gap-1.5 py-3 rounded-xl bg-primary text-[#ffffff] text-sm font-bold min-h-[44px] hover:opacity-90 mb-3">
-        <Plus size={16} /> {t('Peringatan baharu', 'New reminder')}
-      </button>
+      <div className="mb-3">
+        <AddButton label={t('Peringatan baharu', 'New reminder')} onClick={openCreate} />
+      </div>
 
       {due.length === 0 && completed.length === 0 ? (
         <Empty title={t('Belum ada peringatan', 'No reminders yet')}
@@ -525,10 +522,9 @@ function DocsPane({ vehicle, data, onCreate, onEdit }: {
 
   return (
     <div>
-      <button onClick={() => onCreate()}
-        className="w-full flex items-center justify-center gap-1.5 py-3 rounded-xl bg-primary text-[#ffffff] text-sm font-bold min-h-[44px] hover:opacity-90 mb-3">
-        <Plus size={16} /> {t('Tambah dokumen', 'Add document')}
-      </button>
+      <div className="mb-3">
+        <AddButton label={t('Tambah dokumen', 'Add document')} onClick={() => onCreate()} />
+      </div>
 
       {items.length === 0 ? (
         <Empty title={t('Belum ada dokumen', 'No documents yet')}

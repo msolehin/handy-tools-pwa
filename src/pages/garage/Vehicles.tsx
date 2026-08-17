@@ -2,10 +2,10 @@
 // the sheet's open/target state itself, since neither is part of the shell's navigation
 // contract (that's `detailId`, reserved for the Task 11 detail page a card's own tap opens).
 import { useState, type Dispatch, type SetStateAction } from 'react';
-import { Plus, Pencil } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import { currentOdo, dueItems, withoutVehicle, type GarageData, type Vehicle } from '../../lib/garage';
 import { BODIES, ENERGIES, engineSpec } from '../../lib/garage-presets';
-import { Pill, Empty, EDGE_COLORS, fmtKm } from './parts';
+import { Pill, Empty, AddButton, EDGE_COLORS, fmtKm } from './parts';
 import { VehicleSheet } from './sheets';
 import { useT } from '../../lib/lang';
 
@@ -107,11 +107,8 @@ export default function Vehicles({ data, setData, onOpen }: {
 
   return (
     <div className="px-1 pb-2">
-      <div className="flex justify-end mb-3">
-        <button onClick={openCreate}
-          className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-primary text-[#ffffff] text-sm font-bold min-h-[44px] hover:opacity-90">
-          <Plus size={16} /> {t('Tambah kenderaan', 'Add vehicle')}
-        </button>
+      <div className="mb-3">
+        <AddButton label={t('Tambah kenderaan', 'Add vehicle')} onClick={openCreate} />
       </div>
 
       {data.vehicles.length === 0 ? (
