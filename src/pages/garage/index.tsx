@@ -51,7 +51,7 @@ const readLegacyTier = (key: string): string | null =>
 // truncated value); `readGarage` below falls back to `[]`/`{}` per field either way, so a
 // partial blob degrades to empty fields instead of throwing.
 interface FleetBlob { vehicles?: GarageData['vehicles']; presets?: GarageData['presets'] }
-interface RecordsBlob { services?: GarageData['services']; docs?: GarageData['docs'] }
+interface RecordsBlob { services?: GarageData['services']; docs?: GarageData['docs']; costs?: GarageData['costs'] }
 interface LogsBlob { energy?: GarageData['energy']; odo?: GarageData['odo']; reminders?: GarageData['reminders'] }
 
 // store.getItem is synchronous localStorage access, so there is nothing to await — reading it in
@@ -66,6 +66,7 @@ function readGarage(): GarageData {
     presets: fleet.presets ?? EMPTY_GARAGE.presets,
     services: records.services ?? EMPTY_GARAGE.services,
     docs: records.docs ?? EMPTY_GARAGE.docs,
+    costs: records.costs ?? EMPTY_GARAGE.costs,
     energy: logs.energy ?? EMPTY_GARAGE.energy,
     odo: logs.odo ?? EMPTY_GARAGE.odo,
     reminders: logs.reminders ?? EMPTY_GARAGE.reminders,
@@ -105,7 +106,7 @@ export default function Garage() {
   useEffect(() => {
     if (data === mountedWith.current) return;
     store.setItem(FLEET, JSON.stringify({ vehicles: data.vehicles, presets: data.presets }));
-    store.setItem(RECORDS, JSON.stringify({ services: data.services, docs: data.docs }));
+    store.setItem(RECORDS, JSON.stringify({ services: data.services, docs: data.docs, costs: data.costs }));
     store.setItem(LOGS, JSON.stringify({ energy: data.energy, odo: data.odo, reminders: data.reminders }));
   }, [data]);
 

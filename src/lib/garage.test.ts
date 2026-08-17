@@ -490,3 +490,66 @@ describe('removeById', () => {
     assert.deepEqual(out, [{ id: 'b', label: 'second' }]);
   });
 });
+
+describe('spend — other costs', () => {
+  test('a cost lands in its own bucket and in the total', () => {
+    const d = withLogs({
+      energy: [fill('e1', '2026-01-01', 80000, 30, 60)],
+      costs: [
+        { id: 'c1', vehicleId: 'v1', date: '2026-01-05', category: 'Tol & parkir', amount: 12.5 },
+        { id: 'c2', vehicleId: 'v1', date: '2026-01-06', category: 'Saman', amount: 150 },
+      ],
+    });
+    const s = spend(d, 'v1');
+    assert.equal(s.other, 162.5);
+    assert.equal(s.total, 222.5);
+  });
+
+  test('another vehicle\'s costs are not counted', () => {
+    const d = withLogs({
+      costs: [{ id: 'c1', vehicleId: 'v2', date: '2026-01-05', category: 'Saman', amount: 150 }],
+    });
+    assert.equal(spend(d, 'v1').other, 0);
+  });
+
+  test('a cost honours the start date, dated by its own date', () => {
+    const d = withLogs({
+      costs: [
+        { id: 'c1', vehicleId: 'v1', date: '2026-01-05', category: 'Saman', amount: 150 },
+        { id: 'c2', vehicleId: 'v1', date: '2026-06-05', category: 'Tol & parkir', amount: 40 },
+      ],
+    });
+    assert.equal(spend(d, 'v1', '2026-03-01').other, 40);
+  });
+
+  test('a junk amount degrades to zero rather than making the whole total NaN', () => {
+    const d = withLogs({
+      costs: [{ id: 'c1', vehicleId: 'v1', date: '2026-01-05', category: 'Saman',
+        amount: 'oops' as unknown as number }],
+    });
+    assert.equal(spend(d, 'v1').other, 0);
+    assert.equal(spend(d, 'v1').total, 0);
+  });
+
+  // The spec's deliberate omission: a cost has no odometer at all, so a parking receipt can
+  // never move a reading that every km-based reminder depends on.
+  test('a cost cannot move the odometer', () => {
+    const d = withLogs({
+      costs: [{ id: 'c1', vehicleId: 'v1', date: '2026-01-05', category: 'Saman', amount: 150 }],
+    });
+    assert.equal(currentOdo(d, car), 80000);
+  });
+});
+
+describe('withoutVehicle — costs', () => {
+  test('deleting a vehicle takes its costs with it', () => {
+    const d = withLogs({
+      vehicles: [car, { ...car, id: 'v2' }],
+      costs: [
+        { id: 'c1', vehicleId: 'v1', date: '2026-01-05', category: 'Saman', amount: 150 },
+        { id: 'c2', vehicleId: 'v2', date: '2026-01-05', category: 'Saman', amount: 90 },
+      ],
+    });
+    assert.deepEqual(withoutVehicle(d, 'v1').costs.map((c) => c.id), ['c2']);
+  });
+});

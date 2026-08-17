@@ -75,6 +75,27 @@ export interface VDoc {
 
 export interface OdoLog { id: string; vehicleId: string; date: string; odo: number }
 
+/**
+ * A running cost that is neither a service, an energy fill, nor a document — a saman, a Touch 'n
+ * Go reload, a dashcam. Without it the Costs tab claims to answer "what does this vehicle cost
+ * me" and structurally cannot.
+ *
+ * Deliberately no odometer field. Every other record carrying one feeds currentOdo(), which is a
+ * maximum over all readings; a parking receipt's mileage is incidental and would move the
+ * odometer for no reason, and excluding it from that maximum would mean an `odo` that means
+ * something different from every other `odo` in the tool.
+ */
+export interface Cost {
+  id: string; vehicleId: string;
+  date: string;
+  /** Free text over an editable list (see COST_CATEGORY_KEY in garage-presets.ts), not a union:
+   *  a fixed enum would mean a code change every time someone wants to track something new. */
+  category: string;
+  amount: number;
+  note?: string;
+  receipt?: string;
+}
+
 /** Per `typeKey(body, energy)`. What the owner added to, and removed from, that type's list. */
 export type Presets = Record<string, { customs: string[]; hidden: string[] }>;
 
@@ -83,13 +104,14 @@ export interface GarageData {
   presets: Presets;
   services: Service[];
   docs: VDoc[];
+  costs: Cost[];
   energy: EnergyLog[];
   odo: OdoLog[];
   reminders: Reminder[];
 }
 
 export const EMPTY_GARAGE: GarageData = {
-  vehicles: [], presets: {}, services: [], docs: [], energy: [], odo: [], reminders: [],
+  vehicles: [], presets: {}, services: [], docs: [], costs: [], energy: [], odo: [], reminders: [],
 };
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -338,7 +360,7 @@ export function economy(d: GarageData, v: Vehicle, kind: LogKind): Economy | nul
   };
 }
 
-export interface Spend { service: number; energy: number; docs: number; total: number }
+export interface Spend { service: number; energy: number; docs: number; other: number; total: number }
 
 export function spend(d: GarageData, vehicleId: string, fromISO?: string): Spend {
   const inRange = (date?: string) => !fromISO || (!!date && date >= fromISO);
@@ -358,7 +380,13 @@ export function spend(d: GarageData, vehicleId: string, fromISO?: string): Spend
     .filter((x) => mine(x.vehicleId) && inRange(x.issued || x.expiry))
     .reduce((total, x) => total + (Number(x.cost) || 0), 0);
 
-  return { service, energy, docs, total: service + energy + docs };
+  // Dated by its own date. Unlike a document there is no issued/expiry subtlety here — a saman
+  // is paid on the day it is paid.
+  const other = d.costs
+    .filter((c) => mine(c.vehicleId) && inRange(c.date))
+    .reduce((total, c) => total + (Number(c.amount) || 0), 0);
+
+  return { service, energy, docs, other, total: service + energy + docs + other };
 }
 
 /**
@@ -480,6 +508,7 @@ export function withoutVehicle(d: GarageData, vehicleId: string): GarageData {
     vehicles: d.vehicles.filter((v) => v.id !== vehicleId),
     services: d.services.filter((s) => s.vehicleId !== vehicleId),
     docs: d.docs.filter((x) => x.vehicleId !== vehicleId),
+    costs: d.costs.filter((c) => c.vehicleId !== vehicleId),
     energy: d.energy.filter((e) => e.vehicleId !== vehicleId),
     odo: d.odo.filter((o) => o.vehicleId !== vehicleId),
     reminders: d.reminders.filter((r) => r.vehicleId !== vehicleId),
