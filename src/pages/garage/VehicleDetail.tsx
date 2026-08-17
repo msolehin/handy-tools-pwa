@@ -10,7 +10,7 @@ import {
   type GarageData, type Vehicle, type Service, type EnergyLog, type Reminder, type OdoLog, type VDoc, type Cost, type DueItem,
 } from '../../lib/garage';
 import { BODIES, ENERGIES, engineSpec, kindsFor, unitFor, type LogKind } from '../../lib/garage-presets';
-import { Cluster, DocPair, Row, DueRow, Eyebrow, Empty, AddButton, fmtKm, fmtRM, fmtRM0, niceDate } from './parts';
+import { Cluster, DocPair, Row, DueRow, Eyebrow, Empty, AddButton, SoldTag, fmtKm, fmtRM, fmtRM0, niceDate } from './parts';
 import { VehicleSheet, ServiceSheet } from './sheets';
 import { EnergySheet, OdoSheet, ReminderSheet, DocumentSheet, CostSheet } from './logSheets';
 import { useT } from '../../lib/lang';
@@ -146,8 +146,14 @@ export default function VehicleDetail({ vehicle, data, setData, onBack }: {
     <div className="px-1 pb-2">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="min-w-0">
-          <p className="font-display text-[11px] uppercase tracking-[0.14em] text-muted truncate">{typeLine}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="font-display text-[11px] uppercase tracking-[0.14em] text-muted truncate">{typeLine}</p>
+            {vehicle.archived && <SoldTag />}
+          </div>
           <h1 className="font-bold text-xl leading-tight truncate">{vehicle.nickname || vehicle.model}</h1>
+          {vehicle.archived && vehicle.archivedAt && (
+            <p className="text-xs text-muted">{t(`Dijual ${niceDate(vehicle.archivedAt)}`, `Sold ${niceDate(vehicle.archivedAt)}`)}</p>
+          )}
           {vehicle.nickname && <p className="text-sm text-muted truncate">{[vehicle.brand, vehicle.model].filter(Boolean).join(' ')}</p>}
         </div>
         <button onClick={() => setEditOpen(true)} aria-label={t('Sunting kenderaan', 'Edit vehicle')}

@@ -54,19 +54,24 @@ export function VehicleSheet({ open, vehicle, data, onClose, onSave, onDelete }:
   const spec = engineSpec(body, energy);
   const engineLabel = energy === 'ev' ? t('Bateri', 'Battery') : t('Kapasiti enjin', 'Engine capacity');
 
-  const submit = () => {
+  // Builds a fresh Vehicle literal rather than spreading `vehicle` — which means every field
+  // `vehicle` can carry has to be listed by hand below, or it is silently dropped on the next
+  // edit. `archived`/`archivedAt` are carried through for exactly that reason (same trap as the
+  // pre-existing `capacity` gap this sheet still has); the archive controls below build from
+  // this function too, so a pending nickname edit isn't lost when the owner taps Archive.
+  const build = (): Vehicle | null => {
     const trimmedModel = model.trim();
     if (!trimmedModel) {
       setError(t('Sila masukkan model kenderaan', 'Enter a vehicle model'));
-      return;
+      return null;
     }
     const mileageNum = Number(mileage);
     if (mileage.trim() === '' || !Number.isFinite(mileageNum) || mileageNum < 0) {
       setError(t('Masukkan bacaan odometer yang sah (0 atau lebih)', 'Enter a valid mileage (0 or more)'));
-      return;
+      return null;
     }
     setError('');
-    onSave({
+    return {
       id: vehicle?.id ?? generateId(),
       body, energy, model: trimmedModel, mileage: mileageNum,
       // Assigned once on create and carried forward on every later edit — re-deriving it from
@@ -79,7 +84,33 @@ export function VehicleSheet({ open, vehicle, data, onClose, onSave, onDelete }:
       year: year.trim() ? Number(year) : undefined,
       engine: engine.trim() ? Number(engine) : undefined,
       photo: photo || undefined,
-    });
+      archived: vehicle?.archived,
+      archivedAt: vehicle?.archivedAt,
+    };
+  };
+
+  const submit = () => {
+    const v = build();
+    if (v) onSave(v);
+  };
+
+  const name = vehicle?.nickname || vehicle?.model || '';
+
+  const toggleArchive = () => {
+    if (vehicle?.archived) {
+      // Restoring destroys nothing, so no confirm.
+      const v = build();
+      // undefined, never false: the server reads this column as `case when archived then true
+      // end`, so a stored `false` would round-trip to absent and read as a phantom edit.
+      if (v) onSave({ ...v, archived: undefined, archivedAt: undefined });
+      return;
+    }
+    if (!window.confirm(t(
+      `Tandakan ${name} sebagai dijual? Semua rekodnya kekal, tetapi ia berhenti muncul dalam pemilih dan berhenti menghantar peringatan.`,
+      `Mark ${name} as sold? All its records are kept, but it stops appearing in the picker and stops sending reminders.`
+    ))) return;
+    const v = build();
+    if (v) onSave({ ...v, archived: true, archivedAt: todayISO() });
   };
 
   const askDelete = () => {
@@ -224,6 +255,21 @@ export function VehicleSheet({ open, vehicle, data, onClose, onSave, onDelete }:
           </div>
         </div>
       </details>
+
+      {vehicle && (
+        <div>
+          <button
+            type="button"
+            onClick={toggleArchive}
+            className="w-full py-3 rounded-xl border border-text/15 text-muted font-bold hover:bg-text/5 min-h-[44px]"
+          >
+            {vehicle.archived ? t('Pulihkan kenderaan', 'Restore vehicle') : t('Tandakan dijual', 'Mark as sold')}
+          </button>
+          <p className="text-xs text-muted mt-1.5">
+            {t('Padam membuang semua rekodnya. Dijual menyimpan semuanya.', 'Delete removes all its records. Sold keeps everything.')}
+          </p>
+        </div>
+      )}
     </Sheet>
   );
 }

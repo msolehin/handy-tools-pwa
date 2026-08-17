@@ -2,10 +2,13 @@
 // the sheet's open/target state itself, since neither is part of the shell's navigation
 // contract (that's `detailId`, reserved for the Task 11 detail page a card's own tap opens).
 import { useState, type Dispatch, type SetStateAction } from 'react';
-import { Pencil } from 'lucide-react';
-import { currentOdo, dueItems, withoutVehicle, type GarageData, type Vehicle } from '../../lib/garage';
+import { Pencil, ChevronDown } from 'lucide-react';
+import {
+  activeVehicles, archivedVehicles, currentOdo, dueItems, spend, withoutVehicle,
+  type GarageData, type Vehicle,
+} from '../../lib/garage';
 import { BODIES, ENERGIES, engineSpec } from '../../lib/garage-presets';
-import { Pill, Empty, AddButton, EDGE_COLORS, fmtKm } from './parts';
+import { Pill, Empty, AddButton, EDGE_COLORS, fmtKm, Row, fmtRM0, niceDate } from './parts';
 import { VehicleSheet } from './sheets';
 import { useT } from '../../lib/lang';
 
@@ -105,21 +108,47 @@ export default function Vehicles({ data, setData, onOpen }: {
     setSheetOpen(false);
   };
 
+  const active = activeVehicles(data);
+  const sold = archivedVehicles(data);
+
   return (
     <div className="px-1 pb-2">
         <AddButton label={t('Tambah kenderaan', 'Add vehicle')} onClick={openCreate} />
 
-      {data.vehicles.length === 0 ? (
+      {active.length === 0 ? (
         <Empty
           title={t('Belum ada kenderaan', 'No vehicles yet')}
           hint={t('Ketik "Tambah kenderaan" untuk mula.', 'Tap "Add vehicle" to get started.')}
         />
       ) : (
         <div className="grid grid-cols-1 gap-3">
-          {data.vehicles.map((v) => (
+          {active.map((v) => (
             <VehicleCard key={v.id} v={v} data={data} onOpen={() => onOpen(v.id)} onEdit={() => openEdit(v)} />
           ))}
         </div>
+      )}
+
+      {sold.length > 0 && (
+        <details className="group rounded-xl border border-text/10 mt-6">
+          <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden px-3.5 py-3 text-sm font-medium flex items-center justify-between min-h-[44px]">
+            {t('Dijual', 'Sold')} ({sold.length})
+            <ChevronDown size={16} className="text-muted transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="px-3.5 pb-4 pt-1 space-y-2 border-t border-text/10">
+            {sold.map((v) => (
+              <Row
+                key={v.id}
+                title={v.nickname || v.model}
+                sub={[
+                  `${fmtKm(currentOdo(data, v))} km`,
+                  v.archivedAt ? `${t('dijual', 'sold')} ${niceDate(v.archivedAt)}` : null,
+                ].filter(Boolean).join(' · ')}
+                amount={fmtRM0(spend(data, v.id).total)}
+                onClick={() => openEdit(v)}
+              />
+            ))}
+          </div>
+        </details>
       )}
 
       <VehicleSheet

@@ -5,7 +5,8 @@
 import { useEffect, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import {
-  dueItems, tickReminder, serviceTotal, upsert, type GarageData, type Vehicle, type DueItem,
+  activeVehicles, dueItems, tickReminder, serviceTotal, upsert,
+  type GarageData, type Vehicle, type DueItem,
   type Service, type EnergyLog, type OdoLog, type Reminder, type VDoc, type Cost,
 } from '../../lib/garage';
 import { BODIES, ENERGIES, kindsFor, unitFor } from '../../lib/garage-presets';
@@ -42,19 +43,24 @@ export default function Overview({ data, setData, vehicleId, setVehicleId, onOpe
   const [odoOpen, setOdoOpen] = useState(false);
   const [costOpen, setCostOpen] = useState(false);
 
-  // The remembered vehicle may be gone (deleted) or never set (first run) — fall back to the
-  // first vehicle in the fleet for THIS render, and persist that choice so next time it's the
-  // remembered one again rather than re-guessing on every load.
-  const selected = data.vehicles.find((v) => v.id === vehicleId) ?? data.vehicles[0];
+  // The remembered vehicle may be gone (deleted), sold (archived), or never set (first run) —
+  // fall back to the first ACTIVE vehicle in the fleet for THIS render, and persist that choice
+  // so next time it's the remembered one again rather than re-guessing on every load. Falling
+  // through to `fleet[0]` is the entire mechanism by which "selecting an archived vehicle" is
+  // impossible here: an archived id simply isn't in `fleet` to be found.
+  const fleet = activeVehicles(data);
+  const selected = fleet.find((v) => v.id === vehicleId) ?? fleet[0];
   useEffect(() => {
     if (selected && selected.id !== vehicleId) setVehicleId(selected.id);
   }, [selected, vehicleId, setVehicleId]);
 
-  if (data.vehicles.length === 0) {
+  if (!selected) {
     return (
       <div className="px-1 pb-2">
         <Empty title={t('Belum ada kenderaan', 'No vehicles yet')}
-          hint={t('Tambah kenderaan pertama anda dari tab Kenderaan.', 'Add your first vehicle from the Vehicles tab.')} />
+          hint={data.vehicles.length > 0
+            ? t('Semua kenderaan anda ditandakan dijual. Pulihkan satu dari tab Kenderaan.', 'Every vehicle is marked sold. Restore one from the Vehicles tab.')
+            : t('Tambah kenderaan pertama anda dari tab Kenderaan.', 'Add your first vehicle from the Vehicles tab.')} />
       </div>
     );
   }
@@ -300,7 +306,9 @@ function VehiclePicker({ open, data, onClose, onSelect }: {
       .filter((s): s is string => !!s)
       .some((s) => s.toLowerCase().includes(query));
   };
-  const list = data.vehicles.filter(matches);
+  // A sold vehicle isn't a candidate to switch to — it left the picker the moment it was
+  // archived; restoring it (from its own edit sheet) is the only way back in.
+  const list = activeVehicles(data).filter(matches);
 
   return (
     <Sheet open={open} title={t('Pilih kenderaan', 'Choose a vehicle')} onClose={onClose}>
