@@ -719,3 +719,95 @@ describe('withoutService', () => {
     assert.deepEqual(d.reminders.map((r) => r.id), ['r1']);
   });
 });
+
+const { buildBackup, parseBackup, BACKUP_APP, BACKUP_VERSION } = await import('./garage.ts');
+
+describe('buildBackup', () => {
+  const full: GarageData = {
+    ...EMPTY_GARAGE,
+    vehicles: [car],
+    presets: { 'sedan:petrol': { customs: ['Timing belt'], hidden: [] } },
+    services: [{ id: 's1', vehicleId: 'v1', date: '2026-02-01', odo: 84000,
+      items: [{ label: 'Battery', cost: 320, warrantyUntil: '2027-08-01' }] }],
+    docs: [{ id: 'd1', vehicleId: 'v1', type: 'roadtax', expiry: '2027-01-01' }],
+    costs: [{ id: 'c1', vehicleId: 'v1', date: '2026-01-05', category: 'Saman', amount: 150 }],
+    energy: [fill('e1', '2026-01-01', 80000, 30, 60)],
+    odo: [{ id: 'o1', vehicleId: 'v1', date: '2026-03-01', odo: 85000 }],
+    reminders: [{ id: 'r1', vehicleId: 'v1', label: 'Road tax', done: false, dueDate: '2027-01-01' }],
+  };
+
+  test('carries the three sync blobs verbatim, under a stamped header', () => {
+    const b = buildBackup(full, new Date('2026-08-17T09:30:00.000Z'));
+    assert.equal(b.app, BACKUP_APP);
+    assert.equal(b.version, BACKUP_VERSION);
+    assert.equal(b.exportedAt, '2026-08-17T09:30:00.000Z');
+    assert.deepEqual(b.fleet, { vehicles: full.vehicles, presets: full.presets });
+    assert.deepEqual(b.records, { services: full.services, docs: full.docs, costs: full.costs });
+    assert.deepEqual(b.logs, { energy: full.energy, odo: full.odo, reminders: full.reminders });
+  });
+
+  test('a file it wrote is a file it accepts, with nothing lost on the way', () => {
+    const parsed = parseBackup(JSON.stringify(buildBackup(full)));
+    assert.ok(parsed.ok);
+    assert.deepStrictEqual(parsed.data, full);
+    assert.deepEqual(parsed.counts,
+      { vehicles: 1, services: 1, energy: 1, docs: 1, costs: 1 });
+  });
+
+  test('an empty garage round-trips too', () => {
+    const parsed = parseBackup(JSON.stringify(buildBackup(EMPTY_GARAGE)));
+    assert.ok(parsed.ok);
+    assert.deepStrictEqual(parsed.data, EMPTY_GARAGE);
+  });
+});
+
+describe('parseBackup rejects', () => {
+  const good = JSON.parse(JSON.stringify(buildBackup(EMPTY_GARAGE)));
+  const mangled = (fn: (b: Record<string, unknown>) => void) => {
+    const b = JSON.parse(JSON.stringify(good));
+    fn(b);
+    return parseBackup(JSON.stringify(b));
+  };
+
+  test('something that is not JSON at all', () => {
+    const r = parseBackup('not json {');
+    assert.equal(r.ok, false);
+    assert.ok(!r.ok && r.error.length > 0);
+  });
+
+  test('JSON that is not an object', () => {
+    assert.equal(parseBackup('[1,2,3]').ok, false);
+    assert.equal(parseBackup('null').ok, false);
+  });
+
+  test('another app\'s export', () => {
+    assert.equal(mangled((b) => { b.app = 'expense-manager'; }).ok, false);
+  });
+
+  test('a version this build does not understand', () => {
+    const r = mangled((b) => { b.version = 2; });
+    assert.equal(r.ok, false);
+    assert.ok(!r.ok && r.error.includes('2'), 'the message names the version it found');
+  });
+
+  test('a missing section', () => {
+    assert.equal(mangled((b) => { delete b.records; }).ok, false);
+    assert.equal(mangled((b) => { b.logs = 'nope'; }).ok, false);
+  });
+
+  test('a collection that is not a list', () => {
+    const r = mangled((b) => { (b.records as Record<string, unknown>).costs = {}; });
+    assert.equal(r.ok, false);
+    assert.ok(!r.ok && r.error.includes('costs'), 'the message names which one');
+  });
+
+  test('presets that are not an object', () => {
+    assert.equal(mangled((b) => { (b.fleet as Record<string, unknown>).presets = []; }).ok, false);
+  });
+
+  test('nothing partial is ever handed back — a rejection carries no data at all', () => {
+    const r = mangled((b) => { delete b.logs; });
+    assert.equal(r.ok, false);
+    assert.equal('data' in r, false);
+  });
+});

@@ -614,3 +614,128 @@ export const activeVehicles = (d: GarageData): Vehicle[] => d.vehicles.filter((v
 
 /** The other half, for the collapsed Dijual / Sold section. */
 export const archivedVehicles = (d: GarageData): Vehicle[] => d.vehicles.filter((v) => v.archived);
+
+export const BACKUP_APP = 'garaj';
+/** The only version the importer accepts. When this shape next changes, the importer gains a
+ *  migration step for version 1 rather than silently accepting a file it will misread. */
+export const BACKUP_VERSION = 1;
+
+/**
+ * The three sync blobs verbatim, under a header naming what wrote them.
+ *
+ * Verbatim on purpose: the format needs no separate mapping layer and cannot drift from what is
+ * actually stored. Photos and receipts are included — that is what makes it a backup rather than
+ * a summary, and the size cost is stated in the UI before the download starts.
+ */
+export interface Backup {
+  app: string;
+  version: number;
+  exportedAt: string;
+  fleet: { vehicles: Vehicle[]; presets: Presets };
+  records: { services: Service[]; docs: VDoc[]; costs: Cost[] };
+  logs: { energy: EnergyLog[]; odo: OdoLog[]; reminders: Reminder[] };
+}
+
+export function buildBackup(d: GarageData, now = new Date()): Backup {
+  return {
+    app: BACKUP_APP,
+    version: BACKUP_VERSION,
+    exportedAt: now.toISOString(),
+    fleet: { vehicles: d.vehicles, presets: d.presets },
+    records: { services: d.services, docs: d.docs, costs: d.costs },
+    logs: { energy: d.energy, odo: d.odo, reminders: d.reminders },
+  };
+}
+
+/** What the confirm dialog counts out loud before replacing anything. */
+export interface BackupCounts {
+  vehicles: number; services: number; energy: number; docs: number; costs: number;
+}
+
+export type BackupParse =
+  | { ok: true; data: GarageData; counts: BackupCounts }
+  | { ok: false; error: string };
+
+const isObj = (v: unknown): v is Record<string, unknown> =>
+  !!v && typeof v === 'object' && !Array.isArray(v);
+
+/**
+ * Validate a backup completely before anything is written, and hand back either the whole
+ * garage or a reason and nothing else.
+ *
+ * Import REPLACES rather than merges — merge semantics for records with client-generated ids is
+ * a genuine rabbit hole (same id with different content, same content with different ids, and no
+ * way to tell an edit from a collision), and a backup that silently half-merges is worse than one
+ * that refuses. Because it replaces, a half-accepted file would take the garage with it, which is
+ * why every check below happens before a single field is read out.
+ */
+export function parseBackup(text: string): BackupParse {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return { ok: false, error: t('Fail ini bukan JSON yang sah.', 'This file is not valid JSON.') };
+  }
+
+  if (!isObj(raw) || raw.app !== BACKUP_APP) {
+    return { ok: false, error: t('Ini bukan fail sandaran Garaj.', 'This is not a Garaj backup file.') };
+  }
+  if (raw.version !== BACKUP_VERSION) {
+    return { ok: false, error: t(
+      `Versi fail ${String(raw.version)} tidak disokong.`,
+      `File version ${String(raw.version)} is not supported.`) };
+  }
+
+  const { fleet, records, logs } = raw;
+  for (const [name, section] of [['fleet', fleet], ['records', records], ['logs', logs]] as const) {
+    if (!isObj(section)) {
+      return { ok: false, error: t(
+        `Bahagian "${name}" hilang atau rosak.`,
+        `Section "${name}" is missing or malformed.`) };
+    }
+  }
+  // Narrowed by the loop above, which TypeScript cannot see through.
+  const f = fleet as Record<string, unknown>;
+  const r = records as Record<string, unknown>;
+  const l = logs as Record<string, unknown>;
+
+  const lists: [string, unknown][] = [
+    ['vehicles', f.vehicles], ['services', r.services], ['docs', r.docs], ['costs', r.costs],
+    ['energy', l.energy], ['odo', l.odo], ['reminders', l.reminders],
+  ];
+  for (const [name, value] of lists) {
+    if (!Array.isArray(value)) {
+      return { ok: false, error: t(`"${name}" bukan senarai.`, `"${name}" is not a list.`) };
+    }
+  }
+  if (!isObj(f.presets)) {
+    return { ok: false, error: t('"presets" hilang atau rosak.', '"presets" is missing or malformed.') };
+  }
+
+  // Shapes INSIDE each row are deliberately not validated. Every reader in the tool already
+  // guards its own numbers (`Number(x) || 0`) because the same data round-trips through
+  // localStorage and the sync API, so a malformed row degrades exactly as it would there —
+  // whereas a per-field validator here would be a second copy of every interface to keep in step.
+  const data: GarageData = {
+    vehicles: f.vehicles as Vehicle[],
+    presets: f.presets as Presets,
+    services: r.services as Service[],
+    docs: r.docs as VDoc[],
+    costs: r.costs as Cost[],
+    energy: l.energy as EnergyLog[],
+    odo: l.odo as OdoLog[],
+    reminders: l.reminders as Reminder[],
+  };
+
+  return {
+    ok: true,
+    data,
+    counts: {
+      vehicles: data.vehicles.length,
+      services: data.services.length,
+      energy: data.energy.length,
+      docs: data.docs.length,
+      costs: data.costs.length,
+    },
+  };
+}
