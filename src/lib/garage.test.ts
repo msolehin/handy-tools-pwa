@@ -611,3 +611,111 @@ describe('archived vehicles', () => {
     assert.deepEqual(activeVehicles({ ...EMPTY_GARAGE, vehicles: [car] }).map((v) => v.id), ['v1']);
   });
 });
+
+const { warrantyReminders, upsertService, withoutService } = await import('./garage.ts');
+
+describe('part warranties', () => {
+  const svc = (items: { label: string; cost: number; warrantyUntil?: string; warrantyKm?: number }[]) => ({
+    id: 's1', vehicleId: 'v1', date: '2026-02-01', odo: 84000, items,
+  });
+
+  test('an item with no warranty produces no reminder', () => {
+    assert.deepEqual(warrantyReminders(svc([{ label: 'Engine oil', cost: 180 }])), []);
+  });
+
+  test('a dated warranty becomes a dated, non-repeating reminder with a deterministic id', () => {
+    const [r] = warrantyReminders(svc([{ label: 'Battery', cost: 320, warrantyUntil: '2027-08-01' }]));
+    assert.equal(r.id, 's1:w:Battery');
+    assert.equal(r.vehicleId, 'v1');
+    assert.equal(r.dueDate, '2027-08-01');
+    assert.equal(r.dueOdo, undefined);
+    assert.equal(r.repeat, undefined, 'a warranty expires once');
+    assert.equal(r.done, false);
+    assert.ok(r.label.includes('Battery'));
+  });
+
+  test('a distance warranty counts from the service\'s own odometer, not from zero', () => {
+    const [r] = warrantyReminders(svc([{ label: 'Tyres', cost: 900, warrantyKm: 40000 }]));
+    assert.equal(r.dueOdo, 124000);   // 84000 + 40000
+    assert.equal(r.dueDate, undefined);
+  });
+
+  test('an item can carry both, and gets both triggers', () => {
+    const [r] = warrantyReminders(svc([
+      { label: 'Tyres', cost: 900, warrantyUntil: '2028-01-01', warrantyKm: 40000 },
+    ]));
+    assert.equal(r.dueDate, '2028-01-01');
+    assert.equal(r.dueOdo, 124000);
+  });
+
+  test('a zero km warranty is not a warranty', () => {
+    assert.deepEqual(warrantyReminders(svc([{ label: 'Tyres', cost: 900, warrantyKm: 0 }])), []);
+  });
+});
+
+describe('upsertService', () => {
+  const base = (items: { label: string; cost: number; warrantyUntil?: string; warrantyKm?: number }[]) =>
+    ({ id: 's1', vehicleId: 'v1', date: '2026-02-01', odo: 84000, items });
+
+  test('saving a service with a warranty adds its reminder', () => {
+    const out = upsertService(withLogs({}), base([{ label: 'Battery', cost: 320, warrantyUntil: '2027-08-01' }]));
+    assert.deepEqual(out.services.map((s) => s.id), ['s1']);
+    assert.deepEqual(out.reminders.map((r) => r.id), ['s1:w:Battery']);
+  });
+
+  test('re-saving the same service replaces rather than duplicates', () => {
+    let d = upsertService(withLogs({}), base([{ label: 'Battery', cost: 320, warrantyUntil: '2027-08-01' }]));
+    d = upsertService(d, base([{ label: 'Battery', cost: 320, warrantyUntil: '2028-01-15' }]));
+    assert.equal(d.services.length, 1);
+    assert.equal(d.reminders.length, 1);
+    assert.equal(d.reminders[0].dueDate, '2028-01-15');
+  });
+
+  test('clearing the warranty removes its reminder', () => {
+    let d = upsertService(withLogs({}), base([{ label: 'Battery', cost: 320, warrantyUntil: '2027-08-01' }]));
+    d = upsertService(d, base([{ label: 'Battery', cost: 320 }]));
+    assert.deepEqual(d.reminders, []);
+  });
+
+  test('renaming the item converges instead of leaving the old one behind', () => {
+    let d = upsertService(withLogs({}), base([{ label: 'Battery', cost: 320, warrantyUntil: '2027-08-01' }]));
+    d = upsertService(d, base([{ label: 'Bateri', cost: 320, warrantyUntil: '2027-08-01' }]));
+    assert.deepEqual(d.reminders.map((r) => r.id), ['s1:w:Bateri']);
+  });
+
+  test('two items sharing one label collapse to one reminder, not two rows with one id', () => {
+    const d = upsertService(withLogs({}), base([
+      { label: 'Tyres', cost: 450, warrantyKm: 40000 },
+      { label: 'Tyres', cost: 450, warrantyKm: 20000 },
+    ]));
+    assert.equal(d.reminders.length, 1);
+    assert.equal(d.reminders[0].dueOdo, 104000, 'the last one typed wins');
+  });
+
+  test('a reminder the owner made themselves is never touched', () => {
+    const d = upsertService(
+      withLogs({ reminders: [{ id: 'r1', vehicleId: 'v1', label: 'Road tax', done: false, dueDate: '2027-01-01' }] }),
+      base([{ label: 'Battery', cost: 320, warrantyUntil: '2027-08-01' }]));
+    assert.deepEqual(d.reminders.map((r) => r.id).sort(), ['r1', 's1:w:Battery']);
+  });
+
+  test('never mutates the input', () => {
+    const before = withLogs({});
+    const out = upsertService(before, base([{ label: 'Battery', cost: 320, warrantyUntil: '2027-08-01' }]));
+    assert.notEqual(out, before);
+    assert.equal(before.services.length, 0);
+    assert.equal(before.reminders.length, 0);
+  });
+});
+
+describe('withoutService', () => {
+  test('deleting the service takes its warranty reminders and nothing else', () => {
+    let d = upsertService(
+      withLogs({ reminders: [{ id: 'r1', vehicleId: 'v1', label: 'Road tax', done: false, dueDate: '2027-01-01' }] }),
+      { id: 's1', vehicleId: 'v1', date: '2026-02-01', odo: 84000,
+        items: [{ label: 'Battery', cost: 320, warrantyUntil: '2027-08-01' }] });
+    d = withoutService(d, 's1');
+    assert.deepEqual(d.services, []);
+    assert.deepEqual(d.reminders.map((r) => r.id), ['r1']);
+  });
+});

@@ -9,7 +9,7 @@ import {
   BODIES, ENERGIES, engineSpec, presetsFor, SUGGEST, typeKey,
   type Body, type Energy,
 } from '../../lib/garage-presets';
-import { addMonths, currentOdo, todayISO, type GarageData, type Reminder, type Service, type Vehicle } from '../../lib/garage';
+import { addMonths, currentOdo, todayISO, type GarageData, type Reminder, type Service, type ServiceItem, type Vehicle } from '../../lib/garage';
 import { downscaleFile } from '../../lib/downscale';
 import { useT } from '../../lib/lang';
 
@@ -299,7 +299,7 @@ export function ServiceSheet({ open, vehicle, service, data, onClose, onSave, on
   onDelete?: (id: string) => void;
 }) {
   const t = useT();
-  const [items, setItems] = useState<{ label: string; cost: number }[]>(service?.items ?? []);
+  const [items, setItems] = useState<ServiceItem[]>(service?.items ?? []);
   const [customLabel, setCustomLabel] = useState('');
   const [date, setDate] = useState(service?.date ?? todayISO());
   const [odo, setOdo] = useState(service?.odo != null ? String(service.odo) : String(currentOdo(data, vehicle)));

@@ -52,10 +52,20 @@ export interface EnergyLog {
   station?: string;
 }
 
+export interface ServiceItem {
+  label: string;
+  cost: number;
+  /** A battery is eighteen months; tyres carry a tread warranty. YYYY-MM-DD. */
+  warrantyUntil?: string;
+  /** Counted from the service's OWN odometer reading, not from today — that is the reading the
+   *  part was fitted at, and it is the only one that makes a distance warranty mean anything. */
+  warrantyKm?: number;
+}
+
 export interface Service {
   id: string; vehicleId: string;
   date: string; odo: number;
-  items: { label: string; cost: number }[];
+  items: ServiceItem[];
   workshop?: string;
   notes?: string;
   receipt?: string;
@@ -508,6 +518,69 @@ export const upsert = <T extends { id: string }>(list: T[], item: T): T[] =>
 
 export const removeById = <T extends { id: string }>(list: T[], id: string): T[] =>
   list.filter((x) => x.id !== id);
+
+/** Everything a service's own warranty reminders are keyed under. Prefix, not exact id, because
+ *  the item label is part of the key and the save path drops them all before rebuilding. */
+const warrantyPrefix = (serviceId: string) => `${serviceId}:w:`;
+
+/**
+ * The reminders a service's warranties own.
+ *
+ * Entering a warranty end date has no other purpose in this tool, so asking "would you like a
+ * reminder for that?" would be asking someone to confirm what they just said. It is created
+ * outright — unlike the service-interval suggestion, which still prompts, because an interval is
+ * an inference and a warranty is a fact the owner typed.
+ *
+ * The id is deterministic (`<serviceId>:w:<label>`), which is what makes the drop-then-rebuild in
+ * upsertService converge: removing an item, renaming it, or clearing its dates all reach the
+ * right answer without the save path having to work out what changed.
+ *
+ * The label is frozen in whichever language it was saved in, like every other stored label in the
+ * app — re-saving the service rebuilds it in the current one.
+ */
+export function warrantyReminders(service: Service): Reminder[] {
+  return service.items
+    .filter((i) => i.warrantyUntil || (Number(i.warrantyKm) || 0) > 0)
+    .map((i) => ({
+      id: `${warrantyPrefix(service.id)}${i.label}`,
+      vehicleId: service.vehicleId,
+      label: t(`Waranti: ${i.label}`, `Warranty: ${i.label}`),
+      done: false,
+      dueDate: i.warrantyUntil || undefined,
+      dueOdo: (Number(i.warrantyKm) || 0) > 0 ? service.odo + Number(i.warrantyKm) : undefined,
+      // No repeat: a warranty expires once.
+    }));
+}
+
+/**
+ * Save a service and rebuild the warranty reminders it owns, dropping every previous one first.
+ * One function so `Overview` and `VehicleDetail`'s service pane cannot disagree about it — the
+ * same reason `withoutVehicle` exists.
+ */
+export function upsertService(d: GarageData, service: Service): GarageData {
+  const prefix = warrantyPrefix(service.id);
+  const kept = d.reminders.filter((r) => !r.id.startsWith(prefix));
+  return {
+    ...d,
+    services: upsert(d.services, service),
+    // upsert rather than a plain concat: two line items sharing one label produce the SAME
+    // deterministic id, and two rows with one id would fight over a single primary key on the
+    // next sync. The drop above already guarantees no collision with what was there before.
+    reminders: warrantyReminders(service).reduce((list, r) => upsert(list, r), kept),
+  };
+}
+
+/** Deleting a service takes its warranty reminders with it. Deleting or archiving the vehicle
+ *  takes them through the paths that already exist (`withoutVehicle`, and the archive filter in
+ *  `dueItems`), so this is the only cascade the feature adds. */
+export function withoutService(d: GarageData, serviceId: string): GarageData {
+  const prefix = warrantyPrefix(serviceId);
+  return {
+    ...d,
+    services: removeById(d.services, serviceId),
+    reminders: d.reminders.filter((r) => !r.id.startsWith(prefix)),
+  };
+}
 
 /**
  * Everything a vehicle owns, gone in one step: the vehicle itself and every row in the other
