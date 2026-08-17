@@ -6,7 +6,7 @@ import { useState, type Dispatch, type SetStateAction } from 'react';
 import { Wrench, Fuel, Zap, Bell, FileText, Receipt, Pencil } from 'lucide-react';
 import {
   economy, spend, costPerKm, serviceTotal, addMonths, todayISO, withoutVehicle, dueItems, tickReminder,
-  upsert, removeById,
+  upsert, removeById, upsertService, withoutService,
   type GarageData, type Vehicle, type Service, type EnergyLog, type Reminder, type OdoLog, type VDoc, type Cost, type DueItem,
 } from '../../lib/garage';
 import { BODIES, ENERGIES, engineSpec, kindsFor, unitFor, type LogKind } from '../../lib/garage-presets';
@@ -240,16 +240,18 @@ function ServicePane({ vehicle, data, setData }: {
   const openEdit = (s: Service) => { setEditing(s); setSheetOpen(true); };
 
   const handleSave = (service: Service, reminder?: Reminder) => {
-    setData((d) => ({
-      ...d,
-      services: upsert(d.services, service),
-      reminders: reminder ? [...d.reminders, reminder] : d.reminders,
-    }));
+    setData((d) => {
+      // upsertService rebuilds this service's warranty reminders; `reminder` is the separate,
+      // prompted service-interval suggestion, which is appended rather than rebuilt because the
+      // owner explicitly agreed to that one.
+      const next = upsertService(d, service);
+      return reminder ? { ...next, reminders: [...next.reminders, reminder] } : next;
+    });
     setSheetOpen(false);
   };
 
   const handleDelete = (id: string) => {
-    setData((d) => ({ ...d, services: removeById(d.services, id) }));
+    setData((d) => withoutService(d, id));
     setSheetOpen(false);
   };
 

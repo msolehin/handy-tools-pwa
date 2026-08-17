@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import {
-  activeVehicles, dueItems, tickReminder, serviceTotal, upsert,
+  activeVehicles, dueItems, tickReminder, serviceTotal, upsert, upsertService,
   type GarageData, type Vehicle, type DueItem,
   type Service, type EnergyLog, type OdoLog, type Reminder, type VDoc, type Cost,
 } from '../../lib/garage';
@@ -73,7 +73,13 @@ export default function Overview({ data, setData, vehicleId, setVehicleId, onOpe
   // already exists, else append" is spelled out, so this and VehicleDetail can't drift apart on
   // what an edit vs. a new record looks like.
   const handleSaveService = (service: Service, reminder?: Reminder) => {
-    setData((d) => ({ ...d, services: upsert(d.services, service), reminders: reminder ? [...d.reminders, reminder] : d.reminders }));
+    setData((d) => {
+      // upsertService rebuilds this service's warranty reminders; `reminder` is the separate,
+      // prompted service-interval suggestion, which is appended rather than rebuilt because the
+      // owner explicitly agreed to that one.
+      const next = upsertService(d, service);
+      return reminder ? { ...next, reminders: [...next.reminders, reminder] } : next;
+    });
     setServiceOpen(false);
   };
   const handleSaveEnergy = (entry: EnergyLog) => {

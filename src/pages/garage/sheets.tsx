@@ -321,6 +321,19 @@ export function ServiceSheet({ open, vehicle, service, data, onClose, onSave, on
   const setCost = (label: string, cost: number) => {
     setItems((prev) => prev.map((i) => (i.label === label ? { ...i, cost } : i)));
   };
+  // Normalises on every keystroke, not on submit, so clearing a field really clears it:
+  // `warrantyReminders` treats a falsy value as "no warranty", and a stored 0/'' would sync as a
+  // field the server round-trips away rather than one that was genuinely cleared.
+  const setWarranty = (label: string, patch: Partial<ServiceItem>) =>
+    setItems((prev) => prev.map((i) => (i.label === label ? { ...i, ...patch } : i)));
+  const warrantySummary = (item: ServiceItem) => {
+    const bits = [
+      item.warrantyUntil ? niceDate(item.warrantyUntil) : null,
+      item.warrantyKm ? `${fmtKm(item.warrantyKm)} km` : null,
+    ].filter(Boolean);
+    const label = t('Waranti', 'Warranty');
+    return bits.length ? `${label} · ${bits.join(' · ')}` : label;
+  };
   const addCustom = () => {
     const label = customLabel.trim();
     // Silently folds into the existing row rather than erroring — typing a preset's own name
@@ -431,15 +444,47 @@ export function ServiceSheet({ open, vehicle, service, data, onClose, onSave, on
       {items.length > 0 && (
         <div className="rounded-xl border border-text/10 overflow-hidden">
           {items.map((item) => (
-            <div key={item.label} className="flex items-center gap-1 px-3.5 py-2 border-b border-text/10 last:border-b-0">
-              <span className="text-sm truncate flex-1 min-w-0">{item.label}</span>
-              <input type="number" inputMode="decimal" min="0" step="0.01" value={item.cost || ''}
-                onChange={(e) => setCost(item.label, Number(e.target.value))}
-                placeholder="0.00" className="input-field w-24 font-mono text-right shrink-0" style={num} />
-              <button type="button" onClick={() => remove(item.label)} aria-label={t('Buang item', 'Remove item')}
-                className="shrink-0 w-11 h-11 flex items-center justify-center text-muted hover:text-rose-500">
-                <X size={16} />
-              </button>
+            <div key={item.label} className="border-b border-text/10 last:border-b-0">
+              <div className="flex items-center gap-1 px-3.5 py-2">
+                <span className="text-sm truncate flex-1 min-w-0">{item.label}</span>
+                <input type="number" inputMode="decimal" min="0" step="0.01" value={item.cost || ''}
+                  onChange={(e) => setCost(item.label, Number(e.target.value))}
+                  placeholder="0.00" className="input-field w-24 font-mono text-right shrink-0" style={num} />
+                <button type="button" onClick={() => remove(item.label)} aria-label={t('Buang item', 'Remove item')}
+                  className="shrink-0 w-11 h-11 flex items-center justify-center text-muted hover:text-rose-500">
+                  <X size={16} />
+                </button>
+              </div>
+              {/* Closed by default — a collapsed row still names whichever trigger is set, right
+                  in the summary, so this costs nothing extra to check on the common warranty-less
+                  item and doesn't move anything else in the sheet. */}
+              <details className="group">
+                <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden min-h-[44px] px-3.5 pb-2 text-xs text-muted flex items-center">
+                  {warrantySummary(item)}
+                </summary>
+                <div className="px-3.5 pb-3 space-y-2">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className={fieldLabel}>{t('Waranti sehingga', 'Warranty until')}</label>
+                      <input type="date" value={item.warrantyUntil ?? ''}
+                        onChange={(e) => setWarranty(item.label, { warrantyUntil: e.target.value || undefined })}
+                        className="input-field w-full" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className={fieldLabel}>{t('Waranti (km)', 'Warranty (km)')}</label>
+                      <input type="number" inputMode="numeric" min="0" step="1" value={item.warrantyKm ?? ''}
+                        onChange={(e) => {
+                          const n = Number(e.target.value);
+                          setWarranty(item.label, { warrantyKm: n > 0 ? n : undefined });
+                        }}
+                        placeholder="40000" className="input-field w-full font-mono" style={num} />
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted">
+                    {t('Simpan akan membuat peringatannya sendiri.', 'Saving creates its reminder automatically.')}
+                  </p>
+                </div>
+              </details>
             </div>
           ))}
           {/* Literal colours, not text-white/bg-black: this bar sits on `bg-surface`, which
