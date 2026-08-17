@@ -6,12 +6,12 @@ import { useEffect, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import {
   dueItems, tickReminder, serviceTotal, upsert, type GarageData, type Vehicle, type DueItem,
-  type Service, type EnergyLog, type OdoLog, type Reminder, type VDoc,
+  type Service, type EnergyLog, type OdoLog, type Reminder, type VDoc, type Cost,
 } from '../../lib/garage';
 import { BODIES, ENERGIES, kindsFor, unitFor } from '../../lib/garage-presets';
 import { AddButton, Cluster, DocPair, DueRow, Eyebrow, Empty, Row, Sheet, avatarOf, fmtKm, fmtRM, fmtRM0, niceDate } from './parts';
 import { ServiceSheet } from './sheets';
-import { EnergySheet, OdoSheet, ReminderSheet, DocumentSheet } from './logSheets';
+import { EnergySheet, OdoSheet, ReminderSheet, DocumentSheet, CostSheet } from './logSheets';
 import { useT, t as tr } from '../../lib/lang';
 
 /** How many rows each capped list on this screen shows — a home screen previews, it does not
@@ -31,7 +31,7 @@ export default function Overview({ data, setData, vehicleId, setVehicleId, onOpe
   const [pickerOpen, setPickerOpen] = useState(false);
 
   // The quick-add sheet just names what to log; the actual work happens in whichever form sheet
-  // it hands off to below. Each of those five owns its own open flag — always opened fresh for a
+  // it hands off to below. Each of those six owns its own open flag — always opened fresh for a
   // NEW record, never an edit, so unlike VehicleDetail's panes there is no `editing` state to
   // thread through: upsert() below still does the right thing either way.
   const [quickAddOpen, setQuickAddOpen] = useState(false);
@@ -40,6 +40,7 @@ export default function Overview({ data, setData, vehicleId, setVehicleId, onOpe
   const [reminderOpen, setReminderOpen] = useState(false);
   const [docOpen, setDocOpen] = useState(false);
   const [odoOpen, setOdoOpen] = useState(false);
+  const [costOpen, setCostOpen] = useState(false);
 
   // The remembered vehicle may be gone (deleted) or never set (first run) — fall back to the
   // first vehicle in the fleet for THIS render, and persist that choice so next time it's the
@@ -84,6 +85,10 @@ export default function Overview({ data, setData, vehicleId, setVehicleId, onOpe
   const handleSaveDoc = (doc: VDoc) => {
     setData((d) => ({ ...d, docs: upsert(d.docs, doc) }));
     setDocOpen(false);
+  };
+  const handleSaveCost = (cost: Cost) => {
+    setData((d) => ({ ...d, costs: upsert(d.costs, cost) }));
+    setCostOpen(false);
   };
 
   // Garage-wide, not just `selected` — the Overview is the whole-garage screen (see "What's due"
@@ -164,10 +169,11 @@ export default function Overview({ data, setData, vehicleId, setVehicleId, onOpe
           if (action === 'reminder') setReminderOpen(true);
           if (action === 'doc') setDocOpen(true);
           if (action === 'odo') setOdoOpen(true);
+          if (action === 'cost') setCostOpen(true);
         }}
       />
 
-      {/* The real forms the quick-add sheet hands off to — same five sheets VehicleDetail's own
+      {/* The real forms the quick-add sheet hands off to — same six sheets VehicleDetail's own
           panes use, each opened fresh for a new record (no `editing` state here, see above) and
           each keyed on `selected.id` so switching the picked vehicle mid-flow can't leave a form
           holding stale defaults (odometer, presets) from the vehicle it opened against. */}
@@ -181,11 +187,13 @@ export default function Overview({ data, setData, vehicleId, setVehicleId, onOpe
         onClose={() => setReminderOpen(false)} onSave={handleSaveReminder} />
       <DocumentSheet key={docOpen ? selected.id : 'closed'} open={docOpen} vehicle={selected}
         onClose={() => setDocOpen(false)} onSave={handleSaveDoc} />
+      <CostSheet key={costOpen ? selected.id : 'closed'} open={costOpen} vehicle={selected} data={data}
+        onClose={() => setCostOpen(false)} onSave={handleSaveCost} />
     </div>
   );
 }
 
-type QuickAddAction = 'energy' | 'service' | 'reminder' | 'doc' | 'odo';
+type QuickAddAction = 'energy' | 'service' | 'reminder' | 'doc' | 'odo' | 'cost';
 
 /**
  * "What are you logging?" — the one thing every record type has in common is a vehicle, so this
@@ -216,6 +224,8 @@ function QuickAddSheet({ open, vehicle, onClose, onPick }: {
       hint: t('Ikut tarikh, ikut jarak, atau mana dahulu', 'By date, by mileage, or whichever comes first') },
     { key: 'doc', title: t('Tambah dokumen', 'Add a document'),
       hint: t('Cukai jalan, insurans, Puspakom', 'Road tax, insurance, Puspakom') },
+    { key: 'cost', title: t('Log kos', 'Log a cost'),
+      hint: t('Saman, tol, aksesori, cuci kereta', 'Summonses, tolls, accessories, car wash') },
     { key: 'odo', title: t('Kemas kini bacaan odometer', 'Update mileage'),
       hint: t('Hanya jika anda mahu — rekod lain buat secara automatik', "Only if you want to — entries do this for you") },
   ];
@@ -233,11 +243,11 @@ function QuickAddSheet({ open, vehicle, onClose, onPick }: {
 }
 
 interface RecentRow {
-  id: string; date: string; kind: 'service' | 'energy' | 'odo'; title: string; amount?: string; vehicle: Vehicle;
+  id: string; date: string; kind: 'service' | 'energy' | 'odo' | 'cost'; title: string; amount?: string; vehicle: Vehicle;
 }
 
-/** Services, energy logs and odo updates across the whole garage, on one timeline — the
- *  "what's happened lately" feed a single vehicle's detail page can't show. `vehicle` rides
+/** Services, energy logs, odo updates and other costs across the whole garage, on one timeline —
+ *  the "what's happened lately" feed a single vehicle's detail page can't show. `vehicle` rides
  *  along on each row (rather than a bare `vehicleId`) purely so the render side doesn't have to
  *  re-look it up; a row whose vehicle was deleted out from under it is dropped, not shown blank. */
 function mergeRecent(data: GarageData): RecentRow[] {
@@ -264,7 +274,14 @@ function mergeRecent(data: GarageData): RecentRow[] {
       title: tr('Kemas kini odometer', 'Odometer update'), amount: `${fmtKm(o.odo)} km` }];
   });
 
-  return [...services, ...energy, ...odo].sort((a, b) => b.date.localeCompare(a.date));
+  const costs: RecentRow[] = data.costs.flatMap((c: Cost) => {
+    const vehicle = byId.get(c.vehicleId);
+    if (!vehicle) return [];
+    return [{ id: c.id, date: c.date, kind: 'cost' as const, vehicle,
+      title: c.category, amount: fmtRM(c.amount) }];
+  });
+
+  return [...services, ...energy, ...odo, ...costs].sort((a, b) => b.date.localeCompare(a.date));
 }
 
 /** A search sheet over the fleet — matches nickname, brand, model, plate or type, so a garage of

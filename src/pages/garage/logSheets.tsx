@@ -8,10 +8,13 @@
 import { useRef, useState } from 'react';
 import { Trash2, Image as ImageIcon, X } from 'lucide-react';
 import { Sheet, chip, fieldLabel, generateId } from './parts';
-import { presetsFor, gradesFor, kindsFor, unitFor, typeKey, type LogKind } from '../../lib/garage-presets';
+import {
+  presetsFor, gradesFor, kindsFor, unitFor, typeKey, costCategories, COST_CATEGORY_KEY,
+  type LogKind,
+} from '../../lib/garage-presets';
 import {
   currentOdo, todayISO, DOC_LABELS,
-  type EnergyLog, type GarageData, type OdoLog, type Reminder, type VDoc, type Vehicle,
+  type Cost, type EnergyLog, type GarageData, type OdoLog, type Reminder, type VDoc, type Vehicle,
 } from '../../lib/garage';
 import { downscaleFile } from '../../lib/downscale';
 import { useT } from '../../lib/lang';
@@ -582,6 +585,150 @@ export function DocumentSheet({ open, vehicle, doc, defaultType, onClose, onSave
           </div>
         ) : (
           <label htmlFor="document-receipt"
+            className="flex items-center justify-center gap-2 h-16 rounded-xl border border-dashed border-text/20 text-muted text-sm cursor-pointer hover:bg-text/5 min-h-[44px]">
+            <ImageIcon size={16} /> {t('Muat naik resit', 'Upload a receipt')}
+          </label>
+        )}
+      </div>
+    </Sheet>
+  );
+}
+
+/**
+ * Log or edit a cost that is none of the above — a saman, a Touch 'n Go reload, a dashcam. This
+ * is the only form standing between the `Cost` type (garage.ts) and a record the owner can
+ * actually create; the category chips come from `costCategories`, garage-wide rather than keyed
+ * to this vehicle's body/energy, since a parking fee has nothing to do with what the car is.
+ */
+export function CostSheet({ open, vehicle, data, cost, onClose, onSave, onDelete }: {
+  open: boolean;
+  vehicle: Vehicle;
+  data: GarageData;
+  /** Absent (or null) means logging a new cost. */
+  cost?: Cost | null;
+  onClose: () => void;
+  onSave: (cost: Cost) => void;
+  onDelete?: (id: string) => void;
+}) {
+  const t = useT();
+  const preset = data.presets[COST_CATEGORY_KEY];
+  const categories = costCategories(preset?.customs, preset?.hidden);
+
+  const [category, setCategory] = useState(cost?.category ?? '');
+  const [date, setDate] = useState(cost?.date ?? todayISO());
+  const [amount, setAmount] = useState(cost?.amount != null ? String(cost.amount) : '');
+  const [note, setNote] = useState(cost?.note ?? '');
+  const [receipt, setReceipt] = useState(cost?.receipt ?? '');
+  const [error, setError] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const submit = () => {
+    if (!date) { setError(t('Sila pilih tarikh', 'Pick a date')); return; }
+    if (!category.trim()) { setError(t('Pilih atau taip kategori', 'Pick or type a category')); return; }
+    const amountNum = Number(amount);
+    // > 0, not >= 0: a zero-value cost is a record with nothing in it.
+    if (amount.trim() === '' || !Number.isFinite(amountNum) || amountNum <= 0) {
+      setError(t('Masukkan jumlah yang sah', 'Enter a valid amount'));
+      return;
+    }
+    setError('');
+    onSave({
+      id: cost?.id ?? generateId(),
+      vehicleId: vehicle.id,
+      date,
+      category: category.trim(),
+      amount: amountNum,
+      note: note.trim() || undefined,
+      receipt: receipt || undefined,
+    });
+  };
+
+  const askDelete = () => {
+    if (!cost || !onDelete) return;
+    if (!window.confirm(t('Padam kos ini?', 'Delete this cost?'))) return;
+    onDelete(cost.id);
+  };
+
+  return (
+    <Sheet
+      open={open}
+      vehicle={vehicle}
+      sub={vehicle.nickname || vehicle.model}
+      title={cost ? t('Sunting kos', 'Edit cost') : t('Log kos', 'Log a cost')}
+      onClose={onClose}
+      onSubmit={submit}
+      submitLabel={t('Simpan', 'Save')}
+      extra={cost && onDelete ? (
+        <button type="button" onClick={askDelete} aria-label={t('Padam kos', 'Delete cost')}
+          className="p-1.5 text-muted hover:text-rose-500 min-w-[44px] min-h-[44px] flex items-center justify-center">
+          <Trash2 size={18} />
+        </button>
+      ) : undefined}
+    >
+      {/* Deliberately no odometer field: every other record carrying one feeds currentOdo(), a
+          maximum over all readings, and a parking receipt's mileage is incidental — it would
+          move the odometer for no reason. See the `Cost` interface in garage.ts. */}
+      <div className="space-y-1.5">
+        <span className={fieldLabel}>{t('Kategori', 'Category')}</span>
+        <div className="flex flex-wrap gap-2">
+          {categories.map((c) => (
+            <button key={c} type="button" aria-pressed={category === c} onClick={() => setCategory(c)} className={chip(category === c)}>
+              {c}
+            </button>
+          ))}
+        </div>
+        <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder={t('atau taip sendiri', 'or type your own')}
+          className="input-field w-full" />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className={fieldLabel}>{t('Tarikh', 'Date')} *</label>
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input-field w-full" />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className={fieldLabel}>{t('Jumlah (RM)', 'Amount (RM)')} *</label>
+        <input type="number" inputMode="decimal" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)}
+          className="input-field w-full font-mono" style={num} />
+      </div>
+
+      {error && <p className="text-sm text-rose-500 light:text-rose-700 font-medium">{error}</p>}
+
+      <div className="space-y-1.5">
+        <label className={fieldLabel}>{t('Nota', 'Note')}</label>
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('cth. saman JPJ', 'e.g. JPJ summons')}
+          className="input-field w-full" />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className={fieldLabel}>{t('Resit (pilihan)', 'Receipt (optional)')}</label>
+        <input
+          type="file"
+          accept="image/*"
+          ref={fileRef}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            // 900px — the same receipt budget DocumentSheet and ServiceSheet use; a receipt
+            // needs its printed total legible.
+            if (file) downscaleFile(file, 900).then(setReceipt).catch(() => {});
+          }}
+          className="hidden"
+          id="cost-receipt"
+        />
+        {receipt ? (
+          <div className="relative h-28 rounded-xl overflow-hidden border border-text/10">
+            <img src={receipt} alt="" className="w-full h-full object-contain bg-text/5" />
+            <button
+              type="button"
+              onClick={() => { setReceipt(''); if (fileRef.current) fileRef.current.value = ''; }}
+              aria-label={t('Buang resit', 'Remove receipt')}
+              className="absolute top-2 right-2 p-1.5 rounded-lg bg-[#000000]/50 text-[#ffffff]/80 hover:text-[#ffffff] backdrop-blur-md"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        ) : (
+          <label htmlFor="cost-receipt"
             className="flex items-center justify-center gap-2 h-16 rounded-xl border border-dashed border-text/20 text-muted text-sm cursor-pointer hover:bg-text/5 min-h-[44px]">
             <ImageIcon size={16} /> {t('Muat naik resit', 'Upload a receipt')}
           </label>

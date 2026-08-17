@@ -3,21 +3,21 @@
 // Task 12's). Self-contained the same way Vehicles.tsx is: each pane owns its own sheet's
 // open/editing state, since neither is part of the shell's `detailId` navigation contract.
 import { useState, type Dispatch, type SetStateAction } from 'react';
-import { Wrench, Fuel, Zap, Bell, FileText, Pencil } from 'lucide-react';
+import { Wrench, Fuel, Zap, Bell, FileText, Receipt, Pencil } from 'lucide-react';
 import {
   economy, spend, costPerKm, serviceTotal, addMonths, todayISO, withoutVehicle, dueItems, tickReminder,
   upsert, removeById,
-  type GarageData, type Vehicle, type Service, type EnergyLog, type Reminder, type OdoLog, type VDoc, type DueItem,
+  type GarageData, type Vehicle, type Service, type EnergyLog, type Reminder, type OdoLog, type VDoc, type Cost, type DueItem,
 } from '../../lib/garage';
 import { BODIES, ENERGIES, engineSpec, kindsFor, unitFor, type LogKind } from '../../lib/garage-presets';
 import { Cluster, DocPair, Row, DueRow, Eyebrow, Empty, AddButton, fmtKm, fmtRM, fmtRM0, niceDate } from './parts';
 import { VehicleSheet, ServiceSheet } from './sheets';
-import { EnergySheet, OdoSheet, ReminderSheet, DocumentSheet } from './logSheets';
+import { EnergySheet, OdoSheet, ReminderSheet, DocumentSheet, CostSheet } from './logSheets';
 import { useT } from '../../lib/lang';
 
 const num = { fontVariantNumeric: 'tabular-nums' } as const;
 
-type Segment = 'service' | 'fuel' | 'remind' | 'docs';
+type Segment = 'service' | 'fuel' | 'remind' | 'docs' | 'other';
 
 /**
  * Same full-to-full windowing `economy()` in garage.ts uses, but keeping each window's own rate
@@ -86,6 +86,7 @@ export default function VehicleDetail({ vehicle, data, setData, onBack }: {
     ['fuel', fuelLabel, fuelIcon],
     ['remind', t('Peringatan', 'Remind'), Bell],
     ['docs', t('Dokumen', 'Docs'), FileText],
+    ['other', t('Lain-lain', 'Other'), Receipt],
   ];
 
   const spec = engineSpec(vehicle.body, vehicle.energy);
@@ -95,6 +96,8 @@ export default function VehicleDetail({ vehicle, data, setData, onBack }: {
     vehicle.engine ? `${vehicle.engine} ${spec.unit}` : null,
   ].filter(Boolean).join(' · ');
 
+  // .total already folds in `other` (see spend() in garage.ts) — this stat needs no change for
+  // the new segment to count toward it.
   const spend12 = spend(data, vehicle.id, addMonths(todayISO(), -12)).total;
   const eff = economy(data, vehicle, kinds[0]);
   const cpk = costPerKm(data, vehicle);
@@ -170,7 +173,7 @@ export default function VehicleDetail({ vehicle, data, setData, onBack }: {
         ))}
       </div>
 
-      <div className="grid grid-cols-4 gap-1 bg-text/5 p-1 rounded-xl mt-4 mb-1">
+      <div className="grid grid-cols-5 gap-1 bg-text/5 p-1 rounded-xl mt-4 mb-1">
         {SEGMENTS.map(([key, label, Icon]) => (
           <button key={key} onClick={() => setSeg(key)}
             className={`py-2 text-[10px] font-bold rounded-lg transition-all flex flex-col items-center gap-1 ${
@@ -184,6 +187,7 @@ export default function VehicleDetail({ vehicle, data, setData, onBack }: {
       {seg === 'fuel' && <EnergyPane vehicle={vehicle} data={data} setData={setData} onEditOdo={openOdoEdit} />}
       {seg === 'remind' && <RemindPane vehicle={vehicle} data={data} setData={setData} />}
       {seg === 'docs' && <DocsPane vehicle={vehicle} data={data} onCreate={openDocCreate} onEdit={openDocEdit} />}
+      {seg === 'other' && <CostsPane vehicle={vehicle} data={data} setData={setData} />}
 
       <VehicleSheet
         key={editOpen ? vehicle.id : 'closed'}
@@ -526,6 +530,67 @@ function DocsPane({ vehicle, data, onCreate, onEdit }: {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Everything that isn't a service, a fill, or a document — samans, tolls, accessories, car
+ *  washes. Newest first, same as every other pane's list. */
+function CostsPane({ vehicle, data, setData }: {
+  vehicle: Vehicle; data: GarageData; setData: Dispatch<SetStateAction<GarageData>>;
+}) {
+  const t = useT();
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [editing, setEditing] = useState<Cost | null>(null);
+
+  const openCreate = () => { setEditing(null); setSheetOpen(true); };
+  const openEdit = (c: Cost) => { setEditing(c); setSheetOpen(true); };
+
+  const handleSave = (cost: Cost) => {
+    setData((d) => ({ ...d, costs: upsert(d.costs, cost) }));
+    setSheetOpen(false);
+  };
+
+  const handleDelete = (id: string) => {
+    setData((d) => ({ ...d, costs: removeById(d.costs, id) }));
+    setSheetOpen(false);
+  };
+
+  const list = data.costs.filter((c) => c.vehicleId === vehicle.id)
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  return (
+    <div>
+        <AddButton label={t('Log kos', 'Log a cost')} onClick={openCreate} />
+
+      {list.length === 0 ? (
+        <Empty title={t('Belum ada kos lain', 'No other costs yet')}
+          hint={t('Saman, tol, aksesori, cuci kereta — ketik "Log kos" untuk mula.', 'Summonses, tolls, accessories, car wash — tap "Log a cost" to get started.')} />
+      ) : (
+        <div className="space-y-2">
+          {list.map((c) => (
+            <Row key={c.id}
+              title={c.category}
+              sub={[niceDate(c.date), c.note].filter(Boolean).join(' · ')}
+              // fmtRM, not fmtRM0 — the exact figure the owner typed, the same call EnergyPane
+              // makes for a fill's cost.
+              amount={fmtRM(c.amount)}
+              onClick={() => openEdit(c)}
+            />
+          ))}
+        </div>
+      )}
+
+      <CostSheet
+        key={sheetOpen ? (editing?.id ?? 'new') : 'closed'}
+        open={sheetOpen}
+        vehicle={vehicle}
+        data={data}
+        cost={editing}
+        onClose={() => setSheetOpen(false)}
+        onSave={handleSave}
+        onDelete={handleDelete}
+      />
     </div>
   );
 }
