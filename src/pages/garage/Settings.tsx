@@ -5,7 +5,7 @@
 // removeCustom below) — the UI marks which one each row is rather than hiding the distinction.
 import { useState } from 'react';
 import { AlertTriangle, Trash2, X } from 'lucide-react';
-import { EMPTY_GARAGE, type GarageData } from '../../lib/garage';
+import { buildBackup, EMPTY_GARAGE, parseBackup, todayISO, type GarageData } from '../../lib/garage';
 import {
   BODIES, ENERGIES, COST_CATEGORY_KEY, DEFAULT_COST_CATEGORIES, costCategories,
   defaultPresets, presetsFor, typeKey,
@@ -43,6 +43,42 @@ export default function Settings({ data, setData }: {
     // other write in Garaj is immutable the same way, and the shell's mount-guard only skips a
     // save when `data` is the exact object it mounted with, which this new object never is.
     setData(() => ({ ...EMPTY_GARAGE }));
+  };
+
+  const [importError, setImportError] = useState('');
+
+  const downloadBackup = () => {
+    const url = URL.createObjectURL(
+      new Blob([JSON.stringify(buildBackup(data))], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `garaj-backup-${todayISO()}.json`;
+    // Same hardened download path as the legacy gate (index.tsx) — appended to the body, clicked,
+    // removed, with URL.revokeObjectURL deferred to a setTimeout, because not every engine fires
+    // a click on a detached element.
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+
+  const importBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';                 // so picking the same file twice still fires
+    if (!file) return;
+    const result = parseBackup(await file.text());
+    if (!result.ok) { setImportError(result.error); return; }
+    setImportError('');
+    const { vehicles, services, energy, docs, costs } = result.counts;
+    const summary = t(
+      `${vehicles} kenderaan · ${services} servis · ${energy} log minyak · ${docs} dokumen · ${costs} kos`,
+      `${vehicles} vehicles · ${services} services · ${energy} fuel logs · ${docs} documents · ${costs} costs`);
+    if (!window.confirm(t(
+      `Fail ini mengandungi:\n${summary}\n\nMemulihkan akan MENGGANTIKAN semua data Garaj sedia ada. Teruskan?`,
+      `This file contains:\n${summary}\n\nRestoring will REPLACE everything currently in Garaj. Continue?`))) return;
+    // A new top-level object, so the shell's mount-write guard sees a real change and persists all
+    // three keys; sync then carries it up normally.
+    setData(() => result.data);
   };
 
   return (
@@ -93,6 +129,32 @@ export default function Settings({ data, setData }: {
         addPlaceholder={t('Tambah kategori...', 'Add a category...')}
         setData={setData}
       />
+
+      <div className="rounded-2xl border border-text/10 bg-surface p-4 space-y-3 mt-8">
+        <span className={fieldLabel}>{t('Sandaran', 'Backup')}</span>
+
+        <p className="text-xs text-muted">{t(
+          'Memuat turun semua data Garaj sebagai satu fail JSON — termasuk setiap gambar dan resit, jadi fail ini boleh jadi besar.',
+          'Downloads all your Garaj data as one JSON file — including every photo and receipt, so this file can be large.',
+        )}</p>
+        <button type="button" onClick={downloadBackup}
+          className="w-full py-3 rounded-xl bg-primary text-[#ffffff] font-bold hover:opacity-90 min-h-[44px]">
+          {t('Muat turun sandaran', 'Download a backup')}
+        </button>
+
+        <div className="border-t border-text/10 pt-3 space-y-2">
+          <input type="file" accept="application/json,.json" id="garaj-import" className="hidden" onChange={importBackup} />
+          <label htmlFor="garaj-import"
+            className="w-full py-3 rounded-xl border border-text/15 text-muted font-bold hover:bg-text/5 min-h-[44px] flex items-center justify-center cursor-pointer">
+            {t('Pulihkan dari fail', 'Restore from a file')}
+          </label>
+          <p className="text-xs text-muted">{t(
+            'Memulihkan akan menggantikan semua data Garaj sedia ada.',
+            'Restoring replaces everything currently in Garaj.',
+          )}</p>
+          {importError && <p className="text-sm text-rose-500 light:text-rose-700 font-medium">{importError}</p>}
+        </div>
+      </div>
 
       <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 space-y-2 mt-8">
         <p className="flex items-center gap-2 text-sm font-bold text-rose-400 light:text-rose-600">
