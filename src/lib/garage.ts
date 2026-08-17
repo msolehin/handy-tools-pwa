@@ -29,10 +29,14 @@ export interface Vehicle {
   /** Tank litres or usable kWh. Optional. */
   capacity?: number;
   photo?: string;
-  // Owned in full by Task 6 (archive filtering, dueItems exclusion, restore) — declared here now
-  // only so Task 5's SoldTag has a field to read. `archivedAt` is Task 6's own to add when it
-  // lands; nothing in this task needs it.
+  /**
+   * Sold. Absent, never `false` — the server reads this column as `case when archived then true
+   * end` so a live vehicle carries no key at all, and a literal `false` here would come back
+   * absent and read as a phantom edit on the next sync.
+   */
   archived?: boolean;
+  /** YYYY-MM-DD. Only meaningful when `archived`. */
+  archivedAt?: string;
 }
 
 export interface EnergyLog {
@@ -271,7 +275,10 @@ export const DOC_LABELS: Record<VDoc['type'], { ms: string; en: string }> = {
  * home screen has one list rather than two that have to be merged at the point of display.
  */
 export function dueItems(d: GarageData, vehicleId?: string): DueItem[] {
-  const byId = new Map(d.vehicles.map((v) => [v.id, v]));
+  // Archived vehicles are excluded here rather than in each loop: both the reminder and the
+  // document pass below `continue` when byId misses, so dropping sold cars from the map is the
+  // whole fix — and it covers the Home dashboard too, which reads this same function.
+  const byId = new Map(activeVehicles(d).map((v) => [v.id, v]));
   const mine = (id: string) => !vehicleId || id === vehicleId;
   const out: DueItem[] = [];
 
@@ -518,3 +525,15 @@ export function withoutVehicle(d: GarageData, vehicleId: string): GarageData {
     reminders: d.reminders.filter((r) => r.vehicleId !== vehicleId),
   };
 }
+
+/**
+ * The fleet as the picker, the Vehicles grid and the quick-add sheet see it.
+ *
+ * Archive is not Delete: Delete means "I typed this by mistake" and cascades every child record;
+ * Archive means "I sold it" and keeps all of it, stopping only the nagging. So this filters —
+ * it never removes anything, and the Costs tab deliberately does not call it.
+ */
+export const activeVehicles = (d: GarageData): Vehicle[] => d.vehicles.filter((v) => !v.archived);
+
+/** The other half, for the collapsed Dijual / Sold section. */
+export const archivedVehicles = (d: GarageData): Vehicle[] => d.vehicles.filter((v) => v.archived);

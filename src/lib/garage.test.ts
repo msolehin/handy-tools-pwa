@@ -553,3 +553,57 @@ describe('withoutVehicle — costs', () => {
     assert.deepEqual(withoutVehicle(d, 'v1').costs.map((c) => c.id), ['c2']);
   });
 });
+
+const { activeVehicles, archivedVehicles } = await import('./garage.ts');
+
+describe('archived vehicles', () => {
+  const sold: Vehicle = { ...car, id: 'v2', model: 'Saga', archived: true, archivedAt: '2026-06-30' };
+
+  const fleet = (over: Partial<GarageData>): GarageData =>
+    ({ ...EMPTY_GARAGE, vehicles: [car, sold], ...over });
+
+  test('activeVehicles hides it and archivedVehicles is the other half', () => {
+    const d = fleet({});
+    assert.deepEqual(activeVehicles(d).map((v) => v.id), ['v1']);
+    assert.deepEqual(archivedVehicles(d).map((v) => v.id), ['v2']);
+  });
+
+  // The one that matters in-app AND on the Home dashboard, which reads dueItems too.
+  test('its reminders and documents drop out of the due list entirely', () => {
+    const d = fleet({
+      reminders: [
+        { id: 'r1', vehicleId: 'v1', label: 'Engine oil', done: false, dueDate: shift(3) },
+        { id: 'r2', vehicleId: 'v2', label: 'Engine oil', done: false, dueDate: shift(3) },
+      ],
+      docs: [
+        { id: 'd1', vehicleId: 'v1', type: 'roadtax', expiry: shift(5) },
+        { id: 'd2', vehicleId: 'v2', type: 'roadtax', expiry: shift(5) },
+      ],
+    });
+    assert.deepEqual(dueItems(d).map((i) => i.id).sort(), ['d1', 'r1']);
+  });
+
+  test('asking for the archived vehicle by id still returns nothing', () => {
+    const d = fleet({
+      reminders: [{ id: 'r2', vehicleId: 'v2', label: 'Engine oil', done: false, dueDate: shift(3) }],
+    });
+    assert.deepEqual(dueItems(d, 'v2'), []);
+  });
+
+  // Archiving hides it from lists and reminders. It must not corrupt its own history — the
+  // Costs tab still shows a sold car's figures, and they have to be the right ones.
+  test('its own odometer and cost per km are untouched', () => {
+    const d = fleet({
+      energy: [
+        { ...fill('e1', '2026-01-01', 80000, 30, 60), vehicleId: 'v2' },
+        { ...fill('e2', '2026-01-15', 80600, 40, 140), vehicleId: 'v2' },
+      ],
+    });
+    assert.equal(currentOdo(d, sold), 80600);
+    assert.equal(Number(costPerKm(d, sold)!.toFixed(4)), Number((140 / 600).toFixed(4)));
+  });
+
+  test('a vehicle with no archived field at all is active', () => {
+    assert.deepEqual(activeVehicles({ ...EMPTY_GARAGE, vehicles: [car] }).map((v) => v.id), ['v1']);
+  });
+});
