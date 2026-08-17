@@ -149,6 +149,10 @@ warrantyKm?: number      // from the service's own odometer reading
 A battery is dated; tyres are distance; some parts are both. The service form exposes them per
 line item behind a disclosure, so the common case stays exactly as many taps as it is today.
 
+**This needs no migration and no descriptor change.** `ServiceItem` lives inside
+`garage_services.items`, which is already `jsonb` — the two fields ride along in the blob. Of the
+four features here, this is the only one that touches no SQL.
+
 ### Setting a warranty creates its reminder, with no extra prompt
 
 Entering a warranty end date has no other purpose in this tool. Asking "would you like a
@@ -159,8 +163,11 @@ warranty produces a reminder:
 - **dueDate:** `warrantyUntil` when set
 - **dueOdo:** `service.odo + warrantyKm` when set
 - **repeat:** none — a warranty expires once
-- **id:** `` `${service.id}:w:${item.label}` `` — deterministic, so re-saving the service
-  replaces the reminder through the existing `upsert` rather than adding a second copy
+- **id:** `` `${service.id}:w:${item.label}` `` — deterministic, so the set can be rebuilt from
+  the service alone rather than diffed. The rebuild (below) is what stops a re-save duplicating;
+  `upsert` still guards the case the id cannot make unique, which is **two line items sharing a
+  label** — those collapse to one id, and a plain append would push two rows carrying the same
+  primary key into sync
 
 It then flows through `statusOf`, the due list, the dashboard and push/email, all of which exist.
 
