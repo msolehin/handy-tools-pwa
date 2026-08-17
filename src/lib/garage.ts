@@ -29,6 +29,10 @@ export interface Vehicle {
   /** Tank litres or usable kWh. Optional. */
   capacity?: number;
   photo?: string;
+  // Owned in full by Task 6 (archive filtering, dueItems exclusion, restore) — declared here now
+  // only so Task 5's SoldTag has a field to read. `archivedAt` is Task 6's own to add when it
+  // lands; nothing in this task needs it.
+  archived?: boolean;
 }
 
 export interface EnergyLog {

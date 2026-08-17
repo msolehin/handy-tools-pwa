@@ -7,19 +7,23 @@ import {
   type GarageData, type Vehicle,
 } from '../../lib/garage';
 import { kindsFor, unitFor } from '../../lib/garage-presets';
-import { Empty, Eyebrow, fmtRM0 } from './parts';
+import { Empty, Eyebrow, fmtRM0, SoldTag } from './parts';
 import { useT } from '../../lib/lang';
 
 const num = { fontVariantNumeric: 'tabular-nums' } as const;
 
-type Cat = 'service' | 'energy' | 'docs';
+type Cat = 'service' | 'energy' | 'docs' | 'other';
 const CATS: { key: Cat; ms: string; en: string; bar: string }[] = [
   { key: 'service', ms: 'Servis', en: 'Service', bar: 'bg-sky-500' },
   { key: 'energy', ms: 'Tenaga', en: 'Energy', bar: 'bg-amber-500' },
   { key: 'docs', ms: 'Dokumen', en: 'Documents', bar: 'bg-violet-500' },
+  // Deliberately slate, not a fifth hue off the wheel: sky/amber/violet are taken, and
+  // rose/emerald/amber are reserved as the status traffic light elsewhere in the tool — a rose
+  // "Other" segment here would read as an alert rather than a neutral leftover bucket.
+  { key: 'other', ms: 'Lain-lain', en: 'Other', bar: 'bg-slate-400' },
 ];
 
-type MonthBucket = { key: string; service: number; energy: number; docs: number };
+type MonthBucket = { key: string; service: number; energy: number; docs: number; other: number };
 
 /** The trailing 12 calendar months, oldest first — the same `addMonths` off `todayISO()`
  *  VehicleDetail's own "12-month spend" stat already uses, so the two never disagree about
@@ -35,7 +39,7 @@ function monthKeys(): string[] {
  *  stories about which month a renewal cost. */
 function buildMonths(data: GarageData): MonthBucket[] {
   const keys = monthKeys();
-  const byKey = new Map(keys.map((k) => [k, { key: k, service: 0, energy: 0, docs: 0 }]));
+  const byKey = new Map(keys.map((k) => [k, { key: k, service: 0, energy: 0, docs: 0, other: 0 }]));
 
   for (const s of data.services) {
     const b = byKey.get(s.date.slice(0, 7));
@@ -49,6 +53,12 @@ function buildMonths(data: GarageData): MonthBucket[] {
     const date = doc.issued || doc.expiry;
     const b = date ? byKey.get(date.slice(0, 7)) : undefined;
     if (b) b.docs += Number(doc.cost) || 0;
+  }
+  // A saman or a parking fee is dated by its own date — no issued/expiry subtlety like a
+  // document, it is simply paid on the day it is paid (same note as spend()'s own `other` bucket).
+  for (const c of data.costs) {
+    const b = byKey.get(c.date.slice(0, 7));
+    if (b) b.other += Number(c.amount) || 0;
   }
 
   return keys.map((k) => byKey.get(k)!);
@@ -69,15 +79,16 @@ export default function Costs({ data, onOpenVehicle }: {
 }) {
   const t = useT();
   const months = buildMonths(data);
-  const totals: Record<Cat, number> = { service: 0, energy: 0, docs: 0 };
+  const totals: Record<Cat, number> = { service: 0, energy: 0, docs: 0, other: 0 };
   let maxTotal = 0;
   for (const m of months) {
     totals.service += m.service;
     totals.energy += m.energy;
     totals.docs += m.docs;
-    maxTotal = Math.max(maxTotal, m.service + m.energy + m.docs);
+    totals.other += m.other;
+    maxTotal = Math.max(maxTotal, m.service + m.energy + m.docs + m.other);
   }
-  const grandTotal = totals.service + totals.energy + totals.docs;
+  const grandTotal = totals.service + totals.energy + totals.docs + totals.other;
 
   return (
     <div className="px-1 pb-2">
@@ -91,7 +102,7 @@ export default function Costs({ data, onOpenVehicle }: {
           <div className="flex items-end gap-1.5 rounded-xl border border-text/10 bg-surface px-3 pt-4 pb-2"
                style={{ height: BAR_HEIGHT + 40 }}>
             {months.map((m) => {
-              const monthTotal = m.service + m.energy + m.docs;
+              const monthTotal = m.service + m.energy + m.docs + m.other;
               return (
                 <div key={m.key} className="flex-1 min-w-0 flex flex-col items-center gap-1"
                      title={`${monthLabel(m.key)} · ${fmtRM0(monthTotal)}`}>
@@ -152,7 +163,10 @@ function VehicleCostRow({ vehicle, data, onOpen }: { vehicle: Vehicle; data: Gar
     <button onClick={onOpen}
       className="w-full flex items-center justify-between gap-3 py-3 px-3.5 rounded-xl bg-surface border border-text/10 text-left min-h-[44px] hover:bg-text/5">
       <div className="min-w-0">
-        <p className="text-sm font-medium truncate">{vehicle.nickname || vehicle.model}</p>
+        <p className="text-sm font-medium flex items-center gap-1.5">
+          <span className="truncate min-w-0">{vehicle.nickname || vehicle.model}</span>
+          {vehicle.archived && <SoldTag />}
+        </p>
         <p className="text-xs text-muted truncate">{[vehicle.brand, vehicle.model].filter(Boolean).join(' ')}</p>
       </div>
       <div className="flex items-center gap-3 shrink-0 text-right">

@@ -153,6 +153,22 @@ export const Pill = ({ level, children }: { level: Level; children: React.ReactN
   </span>
 );
 
+/**
+ * Beside a vehicle's name wherever an archived (sold) vehicle still appears — its own detail
+ * page, its row in the Costs tab's per-vehicle list — so a car the owner no longer has never
+ * reads as one they still do. Task 8 owns the archive feature itself (the sheet toggle, the
+ * collapsed Vehicles-tab section); this tag is declared here because Task 5 needs it first and
+ * the brief says land it now rather than block on sequencing.
+ */
+export const SoldTag = () => {
+  const t = useT();
+  return (
+    <span className="text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wide shrink-0 bg-text/10 text-muted">
+      {t('Dijual', 'Sold')}
+    </span>
+  );
+};
+
 export const Eyebrow = ({ children, count }: { children: React.ReactNode; count?: string }) => (
   <div className="flex items-baseline gap-2.5 mt-6 mb-2.5">
     <span className="font-display text-[12px] uppercase tracking-[0.16em] text-muted">{children}</span>
