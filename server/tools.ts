@@ -559,7 +559,15 @@ export const TOOLS: Record<string, Descriptor> = {
         `select id, vehicle_id as "vehicleId", type, expiry::text as expiry,
                 issued::text as issued, cost::float8 as cost, note, receipt
            from garage_documents where user_id = $1 order by pos`, [uid]);
-      return { services: dropNulls(services), docs: dropNulls(docs) };
+      // Costs ride this key rather than garage_logs because they can carry a receipt photo, and
+      // this is the key already split out for photo weight.
+      const { rows: costs } = await q(
+        // amount::float8 for the same reason documents.cost is cast: numeric comes back as a
+        // STRING from pg, and Cost.amount is a number on the client.
+        `select id, vehicle_id as "vehicleId", date::text as date, category,
+                amount::float8 as amount, note, receipt
+           from garage_costs where user_id = $1 order by pos`, [uid]);
+      return { services: dropNulls(services), docs: dropNulls(docs), costs: dropNulls(costs) };
     },
     async write(q, uid, blob) {
       await q('delete from garage_services where user_id = $1', [uid]);
@@ -577,6 +585,14 @@ export const TOOLS: Record<string, Descriptor> = {
           uid, String(d.id), String(d.vehicleId),
           ['roadtax', 'insurance', 'puspakom', 'warranty', 'other'].includes(d.type) ? d.type : 'other',
           d.expiry, d.issued ?? null, d.cost ?? null, d.note ?? null, d.receipt ?? null, i,
+        ]));
+
+      await q('delete from garage_costs where user_id = $1', [uid]);
+      await insertMany(q, 'garage_costs',
+        ['user_id', 'id', 'vehicle_id', 'date', 'category', 'amount', 'note', 'receipt', 'pos'],
+        arr(blob?.costs).map((c, i) => [
+          uid, String(c.id), String(c.vehicleId), c.date, String(c.category ?? ''),
+          num(c.amount), c.note ?? null, c.receipt ?? null, i,
         ]));
     },
   },

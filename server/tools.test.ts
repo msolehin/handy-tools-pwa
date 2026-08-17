@@ -315,6 +315,17 @@ describe('tool descriptors', { skip: skip && 'DATABASE_URL not set' }, () => {
         },
         { id: 'doc0002', vehicleId: 'gvh0001', type: 'other', expiry: '2026-12-31' },
       ],
+      costs: [
+        // A decimal amount is what catches a missing ::float8 cast: pg hands numeric back as the
+        // STRING '45.60', and deepStrictEqual will not call that 45.6.
+        {
+          id: 'cst0001', vehicleId: 'gvh0001', date: '2026-06-02', category: 'Tol & parkir',
+          amount: 45.6, note: 'PLUS ke Ipoh', receipt: 'data:image/jpeg;base64,QkJCQg==',
+        },
+        // Every optional field absent, and an amount of exactly 0 — must come back as 0, not be
+        // dropped alongside the fields that really are missing.
+        { id: 'cst0002', vehicleId: 'gvh0001', date: '2026-06-09', category: 'Saman', amount: 0 },
+      ],
     };
     const readBack = await tx(async (q) => {
       await q(`insert into garage_vehicles (user_id, id) values ($1, 'gvh0001')
