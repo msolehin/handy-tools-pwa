@@ -42,7 +42,9 @@ export const DEFAULT_TOOLS = [
   },
   {
     id: '/vehicle-services', to: '/vehicle-services', title: 'Garaj', desc: 'Kenderaan, servis, minyak & kos', descEn: 'Vehicles, service, fuel and running costs', Icon: CarFront, category: 'Kenderaan & Perjalanan',
-    borderClass: 'hover:border-amber-400/50 hover:shadow-amber-400/20', iconBgClass: 'bg-amber-500/20 text-amber-500', arrowClass: 'group-hover:text-amber-500'
+    // Blue, matching the tool it opens — Garaj re-themed off the old tool's amber (see its own
+    // header comment in pages/garage/index.tsx), so the card that leads into it has to match.
+    borderClass: 'hover:border-blue-400/50 hover:shadow-blue-400/20', iconBgClass: 'bg-blue-500/20 text-blue-500', arrowClass: 'group-hover:text-blue-500'
   },
   {
     id: '/home-services', to: '/home-services', title: 'Servis Rumah', desc: 'Rekod baiki & kos rumah', descEn: 'Home repairs and their costs', Icon: HomeIcon, category: 'Utiliti',

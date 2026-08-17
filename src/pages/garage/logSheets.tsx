@@ -168,7 +168,10 @@ export function EnergySheet({ open, vehicle, data, entry, onClose, onSave, onDel
         <button type="button" onClick={() => setFull((f) => !f)} aria-pressed={full}
           className="w-full flex items-center justify-between gap-3 min-h-[44px] -my-1 py-1">
           <span className={fieldLabel}>{fullLabel}</span>
-          <span className={`relative w-11 h-6 rounded-full shrink-0 transition-colors ${full ? 'bg-emerald-500' : 'bg-text/15'}`}>
+          {/* bg-primary, not a hardcoded colour — the same "on" state NotificationSettings' own
+              toggle uses, so this switch reads as the app's one toggle idiom rather than a
+              second one-off shade. */}
+          <span className={`relative w-11 h-6 rounded-full shrink-0 transition-colors ${full ? 'bg-primary' : 'bg-text/15'}`}>
             <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-[#ffffff] transition-transform ${full ? 'translate-x-5' : ''}`} />
           </span>
         </button>

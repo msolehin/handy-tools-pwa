@@ -138,12 +138,12 @@ export default function Garage() {
   return (
     <div className="pb-28">
       {/* Same shape as every other tool's header (see ExpenseManager) so Garaj doesn't read as
-          a different app. Emerald, not the amber of its home-screen card: the tabs directly
-          below and the whole status system are emerald, and an amber chip sitting on top of
-          them looks like a mistake. */}
+          a different app. Blue, matching the app's own accent (index.css's --color-primary) and
+          the tabs directly below — the amber of the home-screen card was the old tool's colour,
+          not this one's, and a mismatched chip here would look like a mistake. */}
       <div className="flex items-center gap-3 px-1 mb-4">
-        <div className="p-3 bg-emerald-500/20 rounded-xl shrink-0">
-          <CarFront className="text-emerald-400 light:text-emerald-700" size={26} />
+        <div className="p-3 bg-blue-500/20 rounded-xl shrink-0">
+          <CarFront className="text-blue-400 light:text-blue-700" size={26} />
         </div>
         <div className="min-w-0">
           <h1 className="text-xl font-bold tracking-tight text-text/90">Garaj</h1>
@@ -153,11 +153,15 @@ export default function Garage() {
         </div>
       </div>
 
+      {/* Clearing detailId matters: the vehicle page is stacked OVER the tab body, so switching
+          tabs without dropping it left the same vehicle on screen and made the tap look broken —
+          you had to press Back first. A tab is a destination, not a layer, so choosing one
+          always leaves the stack. */}
       <div className="grid grid-cols-4 gap-1 bg-text/5 p-1 rounded-xl mb-4">
         {TABS.map(([key, label, Icon]) => (
-          <button key={key} onClick={() => setTab(key)}
+          <button key={key} onClick={() => { setTab(key); setDetailId(null); }}
             className={`py-2 text-[10px] font-bold rounded-lg transition-all flex flex-col items-center gap-1 ${
-              tab === key ? 'bg-surface text-emerald-400 light:text-emerald-700 shadow-sm' : 'text-muted hover:text-text'}`}>
+              tab === key ? 'bg-surface text-blue-400 light:text-blue-700 shadow-sm' : 'text-muted hover:text-text'}`}>
             <Icon size={17} />{label}
           </button>
         ))}
@@ -239,8 +243,10 @@ function LegacyGate({ raw, titlesRaw, onDone }: { raw: string; titlesRaw: string
         {tr('Rekod lama tidak dipindahkan ke Garaj — termasuk tajuk kenderaan yang anda tetapkan sendiri. Muat turun salinan dahulu jika anda mahu menyimpannya — selepas ini semuanya akan dibuang dari peranti ini.',
             'Your old records are not carried over into Garaj — including any custom vehicle titles you set. Download a copy first if you want to keep them — after this all of it is removed from this device.')}
       </p>
+      {/* bg-primary, not a hardcoded green: this is the same primary-action surface every save
+          button in the tool uses (see Sheet's own submit button in parts.tsx). */}
       <button onClick={download}
-        className="w-full py-3.5 rounded-xl bg-emerald-600 text-[#ffffff] font-display uppercase tracking-wider mb-3">
+        className="w-full py-3.5 rounded-xl bg-primary text-[#ffffff] font-display uppercase tracking-wider mb-3">
         {tr('Muat turun rekod lama', 'Download my old records')}
       </button>
       <button onClick={() => {

@@ -174,7 +174,7 @@ export default function VehicleDetail({ vehicle, data, setData, onBack }: {
         {SEGMENTS.map(([key, label, Icon]) => (
           <button key={key} onClick={() => setSeg(key)}
             className={`py-2 text-[10px] font-bold rounded-lg transition-all flex flex-col items-center gap-1 ${
-              seg === key ? 'bg-surface text-emerald-400 light:text-emerald-700 shadow-sm' : 'text-muted hover:text-text'}`}>
+              seg === key ? 'bg-surface text-blue-400 light:text-blue-700 shadow-sm' : 'text-muted hover:text-text'}`}>
             <Icon size={16} />{label}
           </button>
         ))}
@@ -247,9 +247,7 @@ function ServicePane({ vehicle, data, setData }: {
 
   return (
     <div>
-      <div className="mb-3">
         <AddButton label={t('Log servis', 'Log service')} onClick={openCreate} />
-      </div>
 
       {list.length === 0 ? (
         <Empty title={t('Belum ada rekod servis', 'No service records yet')}
@@ -353,9 +351,7 @@ function EnergyPane({ vehicle, data, setData, onEditOdo }: {
         </div>
       )}
 
-      <div className="mb-3">
         <AddButton label={logVerb} onClick={openCreate} />
-      </div>
 
       {list.length === 0 ? (
         <Empty title={emptyTitle} hint={t(`Ketik "${logVerb}" untuk mula.`, `Tap "${logVerb}" to get started.`)} />
@@ -456,9 +452,7 @@ function RemindPane({ vehicle, data, setData }: {
 
   return (
     <div>
-      <div className="mb-3">
         <AddButton label={t('Peringatan baharu', 'New reminder')} onClick={openCreate} />
-      </div>
 
       {due.length === 0 && completed.length === 0 ? (
         <Empty title={t('Belum ada peringatan', 'No reminders yet')}
@@ -517,9 +511,7 @@ function DocsPane({ vehicle, data, onCreate, onEdit }: {
 
   return (
     <div>
-      <div className="mb-3">
         <AddButton label={t('Tambah dokumen', 'Add document')} onClick={() => onCreate()} />
-      </div>
 
       {items.length === 0 ? (
         <Empty title={t('Belum ada dokumen', 'No documents yet')}

@@ -113,9 +113,7 @@ export default function Overview({ data, setData, vehicleId, setVehicleId, onOpe
         <DocPair vehicle={selected} data={data} onOpen={() => onOpenVehicle(selected.id)} />
       </div>
 
-      <div className="mt-2">
         <AddButton label={t('Log rekod', 'Log something')} onClick={() => setQuickAddOpen(true)} />
-      </div>
 
       <Eyebrow count={due.length ? String(due.length) : undefined}>
         {t('Perlu perhatian — semua kenderaan', "What's due — every vehicle")}

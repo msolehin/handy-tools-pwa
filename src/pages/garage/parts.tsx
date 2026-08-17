@@ -19,7 +19,11 @@ import { useT } from '../../lib/lang';
 // splitting this single, deliberately-unified module to satisfy it would undo the point of the task.
 /* eslint-disable react-refresh/only-export-components */
 
-export const EDGE_COLORS = ['#0E5C4A', '#D4451A', '#2C6E9B', '#B87709', '#6B4E9E', '#3F7A3A'];
+// Six identity colours a vehicle is assigned in order, for its avatar badge and card edge —
+// they only have to be told apart from each other, so they are deliberately spread across the
+// wheel. Blue leads because the first vehicle someone adds is the one they see most, and it
+// should agree with the tool's own accent; green survives at the end so the spread is intact.
+export const EDGE_COLORS = ['#1D4ED8', '#D4451A', '#2C6E9B', '#B87709', '#6B4E9E', '#3F7A3A'];
 
 export const fmtKm = (n: number) => Math.round(n).toLocaleString('en-MY');
 export const fmtRM = (n: number) =>
@@ -31,17 +35,33 @@ export const niceDate = (iso: string) =>
 export const initialsOf = (v: Vehicle) =>
   (v.nickname || v.model || '?').trim().slice(0, 2).toUpperCase();
 
-/** A small coloured initials badge, keyed off the vehicle's own colorIdx into EDGE_COLORS. */
+/**
+ * A vehicle's face: its own photo, cropped into a circle, when it has one — otherwise the same
+ * coloured initials badge as before, keyed off the vehicle's own colorIdx into EDGE_COLORS.
+ * `object-cover` on a fixed width/height crops to fill the circle without ever stretching the
+ * photo, matching the crop VehicleCard's own full-bleed photo already uses.
+ */
 export const avatarOf = (v: Vehicle, size = 28) => (
-  <span
-    // Literal hex, not the `white` token: that token flips to dark slate in light mode (see
-    // index.css), which is right for elements that sit on the app's own surface but wrong here —
-    // this badge's background is a fixed hex from EDGE_COLORS in both themes.
-    className="inline-flex items-center justify-center rounded-full font-display font-bold text-[#ffffff] shrink-0"
-    style={{ width: size, height: size, fontSize: Math.round(size * 0.38), background: EDGE_COLORS[v.colorIdx % EDGE_COLORS.length] }}
-  >
-    {initialsOf(v)}
-  </span>
+  v.photo ? (
+    <img
+      src={v.photo}
+      // Empty alt: the adjacent name/nickname text already identifies the vehicle everywhere
+      // this is called, so a screen reader announcing the image too would just be noise.
+      alt=""
+      className="inline-block rounded-full object-cover shrink-0"
+      style={{ width: size, height: size }}
+    />
+  ) : (
+    <span
+      // Literal hex, not the `white` token: that token flips to dark slate in light mode (see
+      // index.css), which is right for elements that sit on the app's own surface but wrong here —
+      // this badge's background is a fixed hex from EDGE_COLORS in both themes.
+      className="inline-flex items-center justify-center rounded-full font-display font-bold text-[#ffffff] shrink-0"
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.38), background: EDGE_COLORS[v.colorIdx % EDGE_COLORS.length] }}
+    >
+      {initialsOf(v)}
+    </span>
+  )
 );
 
 const num = { fontVariantNumeric: 'tabular-nums' } as const;
@@ -74,7 +94,7 @@ export function Cluster({ vehicle, data }: { vehicle: Vehicle; data: GarageData 
     // turn this permanently-dark panel unreadable in light mode. The cluster must not react to the
     // theme at all, so nothing in it may resolve through a CSS variable that does.
     <div className="rounded-2xl p-4 text-[#ffffff] shadow-lg"
-         style={{ background: 'linear-gradient(168deg,#1F2A27,#131B19 58%)' }}>
+         style={{ background: 'linear-gradient(168deg,#1B2733,#10161C 58%)' }}>
       <div className="flex items-center justify-between mb-3">
         <span className="font-display text-[11px] uppercase tracking-[0.22em] text-[rgba(255,255,255,.4)]">
           {vehicle.nickname || vehicle.model} · {t('odometer', 'odometer')}
@@ -89,12 +109,15 @@ export function Cluster({ vehicle, data }: { vehicle: Vehicle; data: GarageData 
       <div className="flex items-end gap-[3px]">
         {digits.split('').map((d, i) => (
           <React.Fragment key={i}>
+            {/* Digits glow sky-blue (#7DD3FC) against the navy panel — bright enough to read
+                clearly in both themes since the panel itself never changes; leading zeros keep
+                the same colour at 24% opacity, same ratio the green original dimmed by. */}
             <span className="font-mono text-[31px] font-bold leading-none rounded-[5px] px-1.5 py-2 border border-[rgba(255,255,255,.07)] text-center min-w-[26px]"
                   style={{
                     ...num,
                     background: 'rgba(0,0,0,.42)',
-                    color: firstReal === -1 || i < firstReal ? 'rgba(143,233,198,.24)' : '#8FE9C6',
-                    textShadow: firstReal === -1 || i < firstReal ? 'none' : '0 0 14px rgba(143,233,198,.4)',
+                    color: firstReal === -1 || i < firstReal ? 'rgba(125,211,252,.24)' : '#7DD3FC',
+                    textShadow: firstReal === -1 || i < firstReal ? 'none' : '0 0 14px rgba(125,211,252,.4)',
                   }}>{d}</span>
             {i === 2 && <span className="w-1" />}
           </React.Fragment>
@@ -151,14 +174,17 @@ export const Empty = ({ title, hint }: { title: string; hint: string }) => (
  * records above it. One component because Garaj has five of these, and five copies of the
  * class list is five chances for them to drift apart.
  *
- * Emerald on hover, like the rest of the tool. `light:` partner on the text because emerald-500
+ * Blue on hover, like the rest of the tool. `light:` partner on the text because blue-500
  * falls under 4.5:1 on a light surface — the same measurement DebtTracker records.
  */
 export const AddButton = ({ label, onClick }: { label: string; onClick: () => void }) => (
   <button
     onClick={onClick}
-    className="w-full py-4 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold
-               hover:border-emerald-500/50 hover:text-emerald-500 light:hover:text-emerald-700
+    // The component owns its own vertical spacing rather than each caller wrapping it in a
+    // margin div: six call sites setting their own gap is six chances for them to disagree,
+    // and this control should sit the same distance from whatever precedes it everywhere.
+    className="w-full mt-4 mb-3 py-4 border-2 border-dashed border-text/20 rounded-2xl text-muted font-bold
+               hover:border-blue-500/50 hover:text-blue-500 light:hover:text-blue-700
                transition-all flex items-center justify-center min-h-[44px]"
   >
     <Plus size={20} className="mr-2" /> {label}
@@ -218,7 +244,7 @@ export function DueRow({ item, onOpen, onTick, right }: {
         <button
           onClick={() => onTick(item)}
           aria-label={t('Tanda selesai', 'Mark done')}
-          className="shrink-0 w-11 min-h-[44px] flex items-center justify-center text-muted hover:text-emerald-500 border-l border-text/10"
+          className="shrink-0 w-11 min-h-[44px] flex items-center justify-center text-muted hover:text-blue-500 border-l border-text/10"
         >
           <Check size={18} />
         </button>

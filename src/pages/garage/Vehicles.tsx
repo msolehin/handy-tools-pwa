@@ -107,9 +107,7 @@ export default function Vehicles({ data, setData, onOpen }: {
 
   return (
     <div className="px-1 pb-2">
-      <div className="mb-3">
         <AddButton label={t('Tambah kenderaan', 'Add vehicle')} onClick={openCreate} />
-      </div>
 
       {data.vehicles.length === 0 ? (
         <Empty
